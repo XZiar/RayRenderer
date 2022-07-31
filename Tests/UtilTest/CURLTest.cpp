@@ -73,11 +73,11 @@ static void CURLTest()
 {
     const auto url = "http://www.baidu.com";
     CURLRequest request(url);
-    log().info(u"Access {}\n", url);
+    log().Info(u"Access {}\n", url);
     request.Perform();
     const auto& data = request.GetData();
     const auto content = common::str::to_u16string(data.data(), data.size(), common::str::Encoding::UTF8);
-    log().info(u"Response:\n{}\n\n\n", content);
+    log().Info(u"Response:\n{}\n\n\n", content);
     getchar();
 }
 

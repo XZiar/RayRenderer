@@ -12,14 +12,14 @@ static void TestLog()
     static MiniLogger<false> conLog(u"LogTest", { GetConsoleBackend() });
     static MiniLogger<false> dbgLog(u"LogTest", { GetDebuggerBackend() });
     SimpleTimer timer;
-    conLog.info(u"Plain call.\n");
+    conLog.Info(u"Plain call.\n");
     std::string name = "tst";
     timer.Start();
     for (uint32_t i = 0; i < 5000; ++i)
-        conLog.verbose(FMT_STRING(u"Dummy Data Here {}.\n"), name);
+        conLog.Verbose(FmtString(u"Dummy Data Here {}.\n"), name);
     timer.Stop();
-    conLog.success(u"Total {} us, each takes [{}] ns", timer.ElapseUs(), timer.ElapseNs() / 5000);
-    dbgLog.success(u"Total {} us, each takes [{}] ns", timer.ElapseUs(), timer.ElapseNs() / 5000);
+    conLog.Success(u"Total {} us, each takes [{}] ns", timer.ElapseUs(), timer.ElapseNs() / 5000);
+    dbgLog.Success(u"Total {} us, each takes [{}] ns", timer.ElapseUs(), timer.ElapseNs() / 5000);
     getchar();
 }
 

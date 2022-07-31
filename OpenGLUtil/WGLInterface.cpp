@@ -96,7 +96,7 @@ private:
                     std::array<std::byte, 8> luid = { std::byte(0) };
                     memcpy_s(luid.data(), luid.size(), &openFromHdc.AdapterLuid, sizeof(openFromHdc.AdapterLuid));
                     CommonDev = xcomp::LocateDevice(&luid, nullptr, nullptr, nullptr, nullptr, {});
-                    //oglLog().verbose(u"KMTAdapter-LUID[{}] for HDC[{}].\n", common::MiscIntrin.HexToStr(luid), hdc_);
+                    //oglLog().Verbose(u"KMTAdapter-LUID[{}] for HDC[{}].\n", common::MiscIntrin.HexToStr(luid), hdc_);
                 }
             }
             SupportDesktop = true;
@@ -151,7 +151,7 @@ private:
         }
         void ReportFailure(std::u16string_view action) const final
         {
-            oglLog().error(u"Failed to {} on HDC[{}], error: {}\n", action, (void*)DeviceContext, common::Win32ErrorHolder(GetLastError()));
+            oglLog().Error(u"Failed to {} on HDC[{}], error: {}\n", action, (void*)DeviceContext, common::Win32ErrorHolder::FormatError(GetLastError()));
         }
         void TemporalInsideContext(void* hRC, const std::function<void(void* hRC)>& func) const final
         {
@@ -213,7 +213,7 @@ public:
                     (dd.StateFlags & DISPLAY_DEVICE_VGA_COMPATIBLE) ? u"VGA"sv : u""sv);
                 deviceNum++;
             }
-            oglLog().verbose(infoTxt);
+            oglLog().Verbose(infoTxt);
         }
     }
     ~WGLLoader_() final {}

@@ -12,6 +12,13 @@
 #endif
 
 
+#if COMMON_COMPILER_MSVC
+#   define SYSCOMMONTPL SYSCOMMONAPI
+#else
+#   define SYSCOMMONTPL
+#endif
+
+
 namespace common::mlog
 {
 using namespace std::string_view_literals;
@@ -48,17 +55,17 @@ MiniLoggerBase::MiniLoggerBase(const std::u16string& name, std::set<std::shared_
 MiniLoggerBase::~MiniLoggerBase() { }
 
 
-template<typename Char>
-std::vector<Char>& StrFormater::GetBuffer()
-{
-    static thread_local std::vector<Char> out;
-    out.resize(0);
-    return out;
-}
-template std::vector<char>&     StrFormater::GetBuffer();
-template std::vector<wchar_t>&  StrFormater::GetBuffer();
-template std::vector<char16_t>& StrFormater::GetBuffer();
-template std::vector<char32_t>& StrFormater::GetBuffer();
+//template<typename Char>
+//std::vector<Char>& StrFormater::GetBuffer()
+//{
+//    static thread_local std::vector<Char> out;
+//    out.resize(0);
+//    return out;
+//}
+//template std::vector<char>&     StrFormater::GetBuffer();
+//template std::vector<wchar_t>&  StrFormater::GetBuffer();
+//template std::vector<char16_t>& StrFormater::GetBuffer();
+//template std::vector<char32_t>& StrFormater::GetBuffer();
 
 }
 
@@ -74,16 +81,20 @@ struct TimeConv
 };
 
 
-LogMessage* LogMessage::MakeMessage(const detail::LoggerName& prefix, const char16_t* content, const size_t len, const LogLevel level, const uint64_t time)
+LogMessage* LogMessage::MakeMessage(const detail::LoggerName& prefix, const char16_t* content, const size_t len, 
+    common::span<const detail::ColorSeg> seg, const LogLevel level, const uint64_t time)
 {
     constexpr auto MsgSize = sizeof(LogMessage);
     if (len >= UINT32_MAX - 1024)
         COMMON_THROW(BaseException, u"Too long for a single LogMessage!");
-    const auto ptr = reinterpret_cast<std::byte*>(malloc_align(MsgSize + sizeof(char16_t) * (len + 1), 8));
+    const auto segSize = seg.size_bytes();
+    const auto ptr = reinterpret_cast<std::byte*>(malloc_align(MsgSize + sizeof(char16_t) * (len + 1) + segSize, 8));
     if (!ptr)
         return nullptr; //not throw an exception yet
-    LogMessage* msg = new (ptr)LogMessage(prefix, static_cast<uint32_t>(len), level, time);
-    const auto txtPtr = reinterpret_cast<char16_t*>(ptr + MsgSize);
+    LogMessage* msg = new (ptr)LogMessage(prefix, static_cast<uint32_t>(len), static_cast<uint16_t>(seg.size()), level, time);
+    const auto segPtr = reinterpret_cast<detail::ColorSeg*>(ptr + MsgSize);
+    memcpy_s(segPtr, segSize, seg.data(), segSize);
+    const auto txtPtr = reinterpret_cast<char16_t*>(ptr + MsgSize + segSize);
     memcpy_s(txtPtr, sizeof(char16_t) * len, content, sizeof(char16_t) * len);
     txtPtr[len] = u'\0';
     return msg;
@@ -275,6 +286,79 @@ void DelGlobalCallback(const CallbackToken& token)
 }
 
 
+namespace detail
+{
+
+struct ColorSeperator
+{
+    ScreenColor Foreground, Background;
+    boost::container::small_vector<std::pair<uint32_t, ScreenColor>, 6> Segments;
+    void HandleColor(const ScreenColor& color, size_t offset)
+    {
+        auto& target = color.IsBackground ? Background : Foreground;
+        if (target == color)
+            return;
+        Segments.emplace_back(gsl::narrow_cast<uint32_t>(offset), color);
+        target = color;
+    }
+    ColorSeperator() : Foreground({ false }), Background({ true }) {}
+};
+
+template<typename Char>
+struct COMMON_EMPTY_BASES LoggerFormatter final : public str::exp::Formatter<Char>, public ColorSeperator
+{
+private:
+    void PutColor(std::basic_string<Char>&, ScreenColor color) final
+    {
+        HandleColor(color, Str.size());
+    }
+public:
+    std::basic_string<Char> Str;
+};
+
+
+template<typename Char>
+LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::exp::StrArgInfoCh<Char>& strInfo, const str::exp::ArgInfo& argInfo, const str::exp::ArgPack& argPack) const
+{
+    LoggerFormatter<Char> formatter;
+    str::exp::FormatterBase::FormatTo(formatter, formatter.Str, strInfo, argInfo, argPack);
+    const auto segs = to_span(formatter.Segments);
+    if constexpr (!std::is_same_v<Char, char16_t>)
+    {
+        const auto str16 = str::to_u16string(formatter.Str);
+        return LogMessage::MakeMessage(this->Prefix, str16.data(), str16.size(), segs, level);
+    }
+    else
+    {
+        return LogMessage::MakeMessage(this->Prefix, formatter.Str.data(), formatter.Str.size(), segs, level);
+    }
+}
+template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::exp::StrArgInfoCh<char    >& strInfo, const str::exp::ArgInfo& argInfo, const str::exp::ArgPack& argPack) const;
+template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::exp::StrArgInfoCh<wchar_t >& strInfo, const str::exp::ArgInfo& argInfo, const str::exp::ArgPack& argPack) const;
+template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::exp::StrArgInfoCh<char16_t>& strInfo, const str::exp::ArgInfo& argInfo, const str::exp::ArgPack& argPack) const;
+template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::exp::StrArgInfoCh<char32_t>& strInfo, const str::exp::ArgInfo& argInfo, const str::exp::ArgPack& argPack) const;
+
+template<typename Char>
+LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const std::basic_string_view<Char> str) const
+{
+    if constexpr (!std::is_same_v<Char, char16_t>)
+    {
+        const auto str16 = str::to_u16string(str);
+        return LogMessage::MakeMessage(this->Prefix, str16.data(), str16.size(), {}, level);
+    }
+    else
+    {
+        return LogMessage::MakeMessage(this->Prefix, str.data(), str.size(), {}, level);
+    }
+}
+template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const std::basic_string_view<char    > str) const;
+template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const std::basic_string_view<wchar_t > str) const;
+template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const std::basic_string_view<char16_t> str) const;
+template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const std::basic_string_view<char32_t> str) const;
+
+
+}
+
 void detail::MiniLoggerBase::SentToGlobalOutputer(LogMessage* msg)
 {
     GetGlobalOutputer().Print(msg);
@@ -290,18 +374,7 @@ protected:
         return true;
     }
 public:
-#if COMMON_OS_WIN
-    static void PrintText(const std::u16string_view txt)
-    {
-        OutputDebugString((LPCWSTR)txt.data());
-    }
-    void virtual OnPrint(const LogMessage& msg) override
-    {
-        auto& buffer = detail::StrFormater::ToU16Str(FMT_STRING(u"<{:6}>[{}]{}"), GetLogLevelStr(msg.Level), msg.GetSource(), msg.GetContent());
-        buffer.push_back(u'\0');
-        PrintText(std::u16string_view(buffer.data(), buffer.size()));
-    }
-#elif COMMON_OS_ANDROID
+#if COMMON_OS_ANDROID
     static constexpr int GetLogLevelPrio(const LogLevel level) noexcept
     {
         switch (level)
@@ -321,21 +394,32 @@ public:
         const auto text = str::to_u8string(txt, str::Encoding::UTF16LE);
         __android_log_write(prio, tag.data(), text.c_str());
     }
-    void virtual OnPrint(const LogMessage& msg) override
+    void OnPrint(const LogMessage& msg) override
     {
         PrintText(msg.GetContent(), msg.GetSource<false>(), GetLogLevelPrio(msg.Level));
     }
 #else
+#  if COMMON_OS_WIN
+    static void PrintText(const std::u16string_view txt)
+    {
+        OutputDebugString((LPCWSTR)txt.data());
+    }
+#  else
     static void PrintText(const std::u16string_view txt)
     {
         const auto text = str::to_u8string(txt, str::Encoding::UTF16LE);
         fprintf(stderr, "%s", text.c_str());
     }
-    void virtual OnPrint(const LogMessage& msg) override
+#  endif
+    void OnPrint(const LogMessage& msg) override
     {
-        auto& buffer = detail::StrFormater::ToU16Str(FMT_STRING(u"<{:6}>[{}]{}"), GetLogLevelStr(msg.Level), msg.GetSource(), msg.GetContent());
-        // buffer.push_back(u'\0'); // not needed since always do u16->u8 conversion
-        PrintText(std::u16string_view(buffer.data(), buffer.size()));
+        const auto lv = GetLogLevelStr(msg.Level);
+        const auto src = msg.GetSource();
+        const auto txt = msg.GetContent();
+        std::u16string str;
+        str.reserve(lv.size() + src.size() + txt.size() + 4);
+        str.append(u"<").append(lv).append(7 - lv.size(), u' ').append(u">[").append(src).append(u"]"sv).append(txt);
+        PrintText(str);
     }
 #endif
 };
@@ -345,6 +429,10 @@ class ConsoleBackend : public LoggerQBackend
 {
 private:
     const console::ConsoleEx& Console;
+    std::string PrefixCacheU8;
+    std::u16string PrefixCacheU16;
+    bool UseFastU8Path;
+    bool SupportColor;
     static constexpr CommonColor ToColor(const LogLevel lv) noexcept
     {
         switch (lv)
@@ -364,16 +452,62 @@ private:
         return true;
     }
 public:
-    ConsoleBackend() : Console(console::ConsoleEx::Get())
-    { }
+    ConsoleBackend() : Console(console::ConsoleEx::Get()),
+        UseFastU8Path(Console.PreferEncoding() == str::Encoding::UTF8), SupportColor(Console.SupportColor())
+    {
+        if (UseFastU8Path)
+        {
+            PrefixCacheU8.reserve(64);
+            PrefixCacheU8.push_back('[');
+        }
+        else
+        {
+            PrefixCacheU16.reserve(64);
+            PrefixCacheU16.push_back(u'[');
+        }
+    }
     ~ConsoleBackend() override
     { }
     void virtual OnPrint(const LogMessage& msg) override
     {
-        const auto& color = console::ConsoleEx::GetColorStr(ToColor(msg.Level));
+        auto printer = Console.PrintSegments();
+        if (SupportColor)
+            printer.SetColor({ false, ToColor(msg.Level) });
+        if (UseFastU8Path)
+        {
+            PrefixCacheU8.resize(1);
+            PrefixCacheU8.append(msg.GetSource<false>());
+            PrefixCacheU8.push_back(']');
+            printer.Print(as_bytes(to_span(PrefixCacheU8)));
+        }
+        else
+        {
+            PrefixCacheU16.resize(1);
+            PrefixCacheU16.append(msg.GetSource<true>());
+            PrefixCacheU16.push_back(u']');
+            printer.Print(PrefixCacheU16);
+        }
 
-        const auto& buffer = detail::StrFormater::ToU16Str(FMT_STRING(u"{}[{}]{}\x1b[39m"), color, msg.GetSource(), msg.GetContent());
-        Console.Print(std::u16string_view(buffer.data(), buffer.size()));
+        const auto txt = msg.GetContent();
+        if (SupportColor)
+        {
+            uint32_t prevIdx = 0;
+            for (const auto [offset, color] : msg.GetSegments())
+            {
+                if (offset != prevIdx)
+                    printer.Print(txt.substr(prevIdx, offset));
+                printer.SetColor(color);
+            }
+            if (prevIdx < txt.length())
+                printer.Print(txt.substr(prevIdx));
+            printer.SetColor({ false });
+            printer.SetColor({ true });
+            printer.Print(span<const std::byte>{});
+        }
+        else
+        {
+            printer.Print(txt);
+        }
     }
 };
 
@@ -398,8 +532,16 @@ public:
     ~FileBackend() override { }
     void virtual OnPrint(const LogMessage& msg) override
     {
-        auto& buffer = detail::StrFormater::ToU16Str(FMT_STRING(u"<{:6}>[{}]{}"), GetLogLevelStr(msg.Level), msg.GetSource(), msg.GetContent());
-        Stream.Write(buffer.size() * sizeof(char16_t), buffer.data());
+        const auto lv  = GetLogLevelStr(msg.Level);
+        const auto src = msg.GetSource();
+        const auto txt = msg.GetContent();
+        constexpr auto t0 = u"<"sv, t1 = u">["sv, t2 = u"]"sv;
+        Stream.Write(sizeof(char16_t) * 1, t0.data());
+        Stream.Write(sizeof(char16_t) * lv.size(), lv.data());
+        Stream.Write(sizeof(char16_t) * 2, t1.data());
+        Stream.Write(sizeof(char16_t) * src.size(), src.data());
+        Stream.Write(sizeof(char16_t) * 1, t2.data());
+        Stream.Write(sizeof(char16_t) * txt.size(), txt.data());
     }
 };
 

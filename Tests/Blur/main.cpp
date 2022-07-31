@@ -76,17 +76,17 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
     pms = rawBuf->ReadSpan(cmdque, img2.AsSpan());
     pms->WaitFinish();
     const auto time4 = pms->ElapseNs() / 1e6f;
-    log().info(u"WRITE[{:.5}ms], BLURX[{:.5}ms], BLURY[{:.5}ms], READ[{:.5}ms]\n", time1, time2, time3, time4);
+    log().Info(u"WRITE[{:.5}ms], BLURX[{:.5}ms], BLURY[{:.5}ms], READ[{:.5}ms]\n", time1, time2, time3, time4);
     
     ;
     const auto& pcX = dynamic_cast<const oclPromiseCore&>(pmsX->GetPromise());
-    log().info(u"BLURX:\nQueued at [{}]\nSubmit at [{}]\nStart  at [{}]\nEnd    at [{}]\n", 
+    log().Info(u"BLURX:\nQueued at [{}]\nSubmit at [{}]\nStart  at [{}]\nEnd    at [{}]\n", 
         pcX.QueryTime(oclu::oclPromiseCore::TimeType::Queued),
         pcX.QueryTime(oclu::oclPromiseCore::TimeType::Submit),
         pcX.QueryTime(oclu::oclPromiseCore::TimeType::Start),
         pcX.QueryTime(oclu::oclPromiseCore::TimeType::End)); 
     const auto& pcY = dynamic_cast<const oclPromiseCore&>(pmsY->GetPromise());
-    log().info(u"BLURY:\nQueued at [{}]\nSubmit at [{}]\nStart  at [{}]\nEnd    at [{}]\n",
+    log().Info(u"BLURY:\nQueued at [{}]\nSubmit at [{}]\nStart  at [{}]\nEnd    at [{}]\n",
         pcY.QueryTime(oclu::oclPromiseCore::TimeType::Queued),
         pcY.QueryTime(oclu::oclPromiseCore::TimeType::Submit),
         pcY.QueryTime(oclu::oclPromiseCore::TimeType::Start),
@@ -103,7 +103,7 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
         if (hasSgInfo)
         {
             const auto& sginfo = static_cast<const oclu::debug::SubgroupWgInfo&>(tinfo);
-            logger.verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}], sg[{},{}]:\n{}\n"),
+            logger.Verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}], sg[{},{}]:\n{}\n"),
                 item.ThreadId(), tinfo.GlobalId[0], tinfo.GlobalId[1], tinfo.GlobalId[2],
                 tinfo.GroupId[0], tinfo.GroupId[1], tinfo.GroupId[2],
                 tinfo.LocalId[0], tinfo.LocalId[1], tinfo.LocalId[2],
@@ -112,7 +112,7 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
         }
         else
         {
-            logger.verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}]:\n{}\n"),
+            logger.Verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}]:\n{}\n"),
                 item.ThreadId(), tinfo.GlobalId[0], tinfo.GlobalId[1], tinfo.GlobalId[2],
                 tinfo.GroupId[0], tinfo.GroupId[1], tinfo.GroupId[2],
                 tinfo.LocalId[0], tinfo.LocalId[1], tinfo.LocalId[2],
@@ -133,7 +133,7 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
 }
 catch (const common::BaseException& be)
 {
-    log().error(u"Error when process image: {}\n", be.Message());
+    log().Error(u"Error when process image: {}\n", be.Message());
     return {};
 }
 
@@ -142,7 +142,7 @@ uint32_t SelectIdx(const T& container, std::u16string_view name)
 {
     if (container.size() <= 1)
         return 0;
-    log().info(u"Select {} to use:\n", name);
+    log().Info(u"Select {} to use:\n", name);
     uint32_t idx = UINT32_MAX;
     do
     {
@@ -161,7 +161,7 @@ int main() try
     {
         kernelPath = common::fs::path("iirblur.nlcl");
     }
-    log().verbose(u"nlcl path:{}\n", kernelPath.u16string());
+    log().Verbose(u"nlcl path:{}\n", kernelPath.u16string());
     const auto str = common::file::ReadAllText(kernelPath);
 
     const auto& plats = oclPlatform_::GetPlatforms();
@@ -170,7 +170,7 @@ int main() try
 
     common::linq::FromIterable(plats)
         .ForEach([](const auto& plat, size_t idx) mutable
-            { log().info(u"option[{}] {}\t{}\n", idx, plat->Name, plat->Ver); });
+            { log().Info(u"option[{}] {}\t{}\n", idx, plat->Name, plat->Ver); });
     const auto platidx = SelectIdx(plats, u"platform");
     const auto plat = plats[platidx];
 
@@ -178,7 +178,7 @@ int main() try
         .Where([](const auto& dev) { return dev->Type == DeviceType::GPU; })
         .TryGetFirst().value_or(plat->GetDefaultDevice());
     const auto ctx = plat->CreateContext(thedev);
-    //ctx->onMessage = [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
+    //ctx->onMessage = [](const auto& str) { log().Debug(u"[MSG]{}\n", str); };
 
     auto cmdque = oclCmdQue_::Create(ctx, thedev);
     oclProgram prog;
@@ -190,7 +190,7 @@ int main() try
     }
     catch (const OCLException& cle)
     {
-        log().error(u"Fail to build opencl Program:{}\n{}\n", cle.Message(), cle.GetDetailMessage());
+        log().Error(u"Fail to build opencl Program:{}\n{}\n", cle.Message(), cle.GetDetailMessage());
         return 0;
     }
 
@@ -234,5 +234,5 @@ int main() try
 }
 catch (const common::BaseException& be)
 {
-    log().error(u"{}\n", be.Message());
+    log().Error(u"{}\n", be.Message());
 }

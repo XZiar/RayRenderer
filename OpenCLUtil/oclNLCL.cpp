@@ -221,7 +221,7 @@ Arg NLCLConfigurator::EvaluateFunc(FuncEvalPack& func)
                 if (runtime.EnableExtension(sv.value()))
                     return true;
                 else
-                    runtime.Logger.warning(u"Extension [{}] not found in support list, skipped.\n", sv.value());
+                    runtime.Logger.Warning(u"Extension [{}] not found in support list, skipped.\n", sv.value());
             }
             else
                 NLRT_THROW_EX(u"Arg of [EnableExtension] should be string"sv, func);
@@ -231,7 +231,7 @@ Arg NLCLConfigurator::EvaluateFunc(FuncEvalPack& func)
             ThrowIfNotFuncTarget(func, FuncInfo::Empty);
             if (!runtime.Context.EnableUnroll)
             {
-                runtime.Logger.warning(u"Manually enable unroll hint.\n");
+                runtime.Logger.Warning(u"Manually enable unroll hint.\n");
                 runtime.Context.EnableUnroll = true;
             }
         } return {};
@@ -583,7 +583,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         {
         case InstanceArgInfo::Flags::Read | InstanceArgInfo::Flags::Write:
             if (Context.Device->Version < 20)
-                oclLog().warning(u"{} [{}]: image object does not support readwrite before CL2.0.\n", dst, arg.Name);
+                oclLog().Warning(u"{} [{}]: image object does not support readwrite before CL2.0.\n", dst, arg.Name);
             return ImgAccess::ReadWrite;
         case InstanceArgInfo::Flags::Read:
             return ImgAccess::ReadOnly;
@@ -592,7 +592,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         case InstanceArgInfo::Flags::Empty:
             if (Context.Device->Version < 20)
             {
-                oclLog().warning(u"{} [{}]: image object does not support readwrite before CL2.0, defaults to readonly.\n", dst, arg.Name);
+                oclLog().Warning(u"{} [{}]: image object does not support readwrite before CL2.0, defaults to readonly.\n", dst, arg.Name);
                 return ImgAccess::ReadOnly;
             }
             else
@@ -627,7 +627,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         {
             Expects(unknwonExtra.size() > 4);
             unknwonExtra.resize(unknwonExtra.size() - 4);
-            oclLog().warning(u"BufArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
+            oclLog().Warning(u"BufArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
         }
         kerCtx.AddArg(KerArgType::Buffer, space, ImgAccess::None, flag,
             common::str::to_string(arg.Name,     Encoding::UTF8, Encoding::UTF32),
@@ -647,7 +647,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         {
             Expects(unknwonExtra.size() > 4);
             unknwonExtra.resize(unknwonExtra.size() - 4);
-            oclLog().warning(u"TypedArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
+            oclLog().Warning(u"TypedArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
         }
         kerCtx.AddArg(KerArgType::Image, KerArgSpace::Global, access, KerArgFlag::None,
             common::str::to_string(arg.Name, Encoding::UTF8, Encoding::UTF32), "image1d_buffer_t"sv);
@@ -673,7 +673,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         {
             Expects(unknwonExtra.size() > 4);
             unknwonExtra.resize(unknwonExtra.size() - 4);
-            oclLog().warning(u"SimpleArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
+            oclLog().Warning(u"SimpleArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
         }
         kerCtx.AddArg(KerArgType::Simple, space, ImgAccess::None, flag,
             common::str::to_string(arg.Name,     Encoding::UTF8, Encoding::UTF32),
@@ -703,7 +703,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         {
             Expects(unknwonExtra.size() > 4);
             unknwonExtra.resize(unknwonExtra.size() - 4);
-            oclLog().warning(u"ImgArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
+            oclLog().Warning(u"ImgArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
         }
         kerCtx.AddArg(KerArgType::Image, KerArgSpace::Global, access, KerArgFlag::None,
             common::str::to_string(arg.Name,     Encoding::UTF8, Encoding::UTF32), tname);
@@ -774,7 +774,7 @@ bool NLCLRuntime::EnableExtension(std::string_view ext, std::u16string_view desc
     else
     {
         if (!desc.empty())
-            Logger.warning(FMT_STRING(u"{} on unsupported device without [{}].\n"sv), desc, ext);
+            Logger.Warning(FmtString(u"{} on unsupported device without [{}].\n"sv), desc, ext);
         return false;
     }
     return true;
@@ -801,7 +801,7 @@ bool NLCLRuntime::EnableExtension(std::u32string_view ext, std::u16string_view d
     else
     {
         if (!desc.empty())
-            Logger.warning(FMT_STRING(u"{} on unsupported device without [{}].\n"sv), desc, ext);
+            Logger.Warning(FmtString(u"{} on unsupported device without [{}].\n"sv), desc, ext);
         return false;
     }
     return true;
@@ -933,11 +933,11 @@ std::shared_ptr<xcomp::XCNLProgram> NLCLProcessor::Parse(common::span<const std:
 {
     auto& logger = Logger();
     const auto encoding = common::str::DetectEncoding(source);
-    logger.info(u"File[{}], detected encoding[{}].\n", fileName, common::str::GetEncodingName(encoding));
+    logger.Info(u"File[{}], detected encoding[{}].\n", fileName, common::str::GetEncodingName(encoding));
     auto src = common::str::to_u32string(source, encoding);
-    logger.info(u"Translate into [utf32] for [{}] chars.\n", src.size());
+    logger.Info(u"Translate into [utf32] for [{}] chars.\n", src.size());
     const auto prog = xcomp::XCNLProgram::Create(std::move(src), std::move(fileName));
-    logger.verbose(u"Parse finished, get [{}] Blocks.\n", prog->GetProgram().Size());
+    logger.Verbose(u"Parse finished, get [{}] Blocks.\n", prog->GetProgram().Size());
     return prog;
 }
 

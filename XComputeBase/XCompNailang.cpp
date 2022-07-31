@@ -643,7 +643,7 @@ ReplaceResult XCNLRawExecutor::ExtensionReplaceFunc(std::u32string_view func, U3
         if (!ret && ret.CheckAllowFallback())
         {
             if (!str.empty())
-                runtime.Logger.warning(FMT_STRING(u"when replace-func [{}]: {}\r\n"), func, ret.GetStr());
+                runtime.Logger.Warning(FmtString(u"when replace-func [{}]: {}\r\n"sv), func, ret.GetStr());
             continue;
         }
         if (ret)
@@ -662,7 +662,7 @@ ReplaceResult XCNLRawExecutor::ExtensionReplaceFunc(std::u32string_view func, U3
                 for (const auto name : deps)
                     APPEND_FMT(txt, u" - [{}]\r\n", name);
             }
-            runtime.Logger.verbose(txt);
+            runtime.Logger.Verbose(txt);
         }
         return ret;
     }
@@ -858,7 +858,7 @@ void XCNLRawExecutor::ProcessInstance(const OutputBlock& block, std::u32string& 
 
 void XCNLRawExecutor::HandleException(const xziar::nailang::NailangParseException& ex) const
 {
-    GetRuntime().Logger.error(u"{}\n", ex.Message());
+    GetRuntime().Logger.Error(u"{}\n", ex.Message());
     ReplaceEngine::HandleException(ex);
 }
 void XCNLRawExecutor::HandleException(const xziar::nailang::NailangRuntimeException& ex) const
@@ -987,13 +987,13 @@ XCNLRuntime::~XCNLRuntime()
 
 void XCNLRuntime::HandleException(const NailangRuntimeException& ex) const
 {
-    Logger.error(u"{}\n", ex.Message());
+    Logger.Error(u"{}\n", ex.Message());
     NailangRuntime::HandleException(ex);
 }
 
 void XCNLRuntime::InnerLog(common::mlog::LogLevel level, std::u32string_view str)
 {
-    Logger.log(level, u"[XCNL]{}\n", str);
+    Logger.Log(level, u"[XCNL]{}\n", str);
 }
 
 void XCNLRuntime::PrintStruct(const XCNLStruct& target) const
@@ -1012,7 +1012,7 @@ void XCNLRuntime::PrintStruct(const XCNLStruct& target) const
             APPEND_FMT(str, u"[{}]"sv, dim.Size);
         str.append(u"\n");
     }
-    Logger.verbose(str);
+    Logger.Verbose(str);
 }
 
 VTypeInfo XCNLRuntime::ParseVecType(const std::u32string_view var, std::u16string_view extraInfo, bool allowMinBits) const
@@ -1025,7 +1025,7 @@ VTypeInfo XCNLRuntime::ParseVecType(const std::u32string_view var, std::u16strin
     if (!allowMinBits && vtype.HasFlag(VTypeInfo::TypeFlags::MinBits))
         ThrowByVecType(var, u"should not be MinBits Type"sv, extraInfo);
     if (!vtype.IsSupportVec())
-        Logger.warning(u"Potential use of unsupported type[{}] with [{}].\n", StringifyVDataType(vtype), var);
+        Logger.Warning(u"Potential use of unsupported type[{}] with [{}].\n", StringifyVDataType(vtype), var);
     return vtype;
 }
 VTypeInfo XCNLRuntime::ParseVecType(const std::u32string_view var, const std::function<std::u16string(void)>& extraInfo, bool allowMinBits) const
@@ -1038,7 +1038,7 @@ VTypeInfo XCNLRuntime::ParseVecType(const std::u32string_view var, const std::fu
     if (!allowMinBits && vtype.HasFlag(VTypeInfo::TypeFlags::MinBits))
         ThrowByVecType(var, u"should not be MinBits Type"sv, extraInfo());
     if (!vtype.IsSupportVec())
-        Logger.warning(u"Potential use of unsupported type[{}] with [{}].\n", StringifyVDataType(vtype), var);
+        Logger.Warning(u"Potential use of unsupported type[{}] with [{}].\n", StringifyVDataType(vtype), var);
     return vtype;
 }
 std::u32string_view XCNLRuntime::GetVecTypeName(const std::u32string_view vname, std::u16string_view extraInfo) const
@@ -1106,7 +1106,7 @@ std::optional<Arg> XCNLRuntime::CommonFunc(const std::u32string_view name, FuncE
             }
             catch (const xziar::nailang::NailangFormatException& nfe)
             {
-                Logger.error(u"Error when formating inner log: {}\n", nfe.Message());
+                Logger.Error(u"Error when formating inner log: {}\n", nfe.Message());
             }
         }
         return Arg{};

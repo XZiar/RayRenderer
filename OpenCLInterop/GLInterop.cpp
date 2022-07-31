@@ -58,7 +58,7 @@ void* GLInterop::CreateMemFromGLTex(const oclContext_& ctx, MemFlag flag, const 
     if (HAS_FIELD(flag, MemFlag::HostAccessMask) || HAS_FIELD(flag, MemFlag::HostInitMask))
     {
         flag &= MemFlag::DeviceAccessMask;
-        oclUtil::GetOCLLog().warning(u"When Create CLGLImage, only DeviceAccessFlag can be use, others are ignored.\n");
+        oclUtil::GetOCLLog().Warning(u"When Create CLGLImage, only DeviceAccessFlag can be use, others are ignored.\n");
     }
     cl_int errcode;
     if (xziar::img::TexFormatUtil::IsCompressType(tex->GetInnerFormat()))
@@ -114,7 +114,7 @@ oclDevice GLInterop::GetGLDevice(const oclPlatform_& plat, const vector<cl_conte
             if (auto dev = FindInVec(plat->Devices, [=](const oclDevice_& dev) { return dev == dIDs[0]; }); dev)
                 return oclDevice(plat, dev);
         if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
-            oclUtil::GetOCLLog().warning(u"Failed to get associate device for glContext: [{}]\n", oclUtil::GetErrorString(ret));
+            oclUtil::GetOCLLog().Warning(u"Failed to get associate device for glContext: [{}]\n", oclUtil::GetErrorString(ret));
     }*/
     return nullptr;
 }

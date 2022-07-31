@@ -61,7 +61,7 @@ FontViewer::FontViewer()
     }
     catch (const OGLException& gle)
     {
-        fntLog().error(u"Fail to create glProgram:{}\n{}\n", gle.Message(), gle.GetDetailMessage());
+        fntLog().Error(u"Fail to create glProgram:{}\n{}\n", gle.Message(), gle.GetDetailMessage());
         COMMON_THROW(BaseException, u"OpenGL compile fail");
     }
 

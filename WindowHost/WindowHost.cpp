@@ -308,7 +308,7 @@ void WindowHost_::OnMouseMove(event::Position pos) noexcept
             if (std::abs(delta.X * 500.f) > Width || std::abs(delta.Y * 500.f) > Height)
                 IsMouseDragging = true;
             /*else
-                Manager->Logger.verbose(u"delta[{},{}] pending not drag\n", delta.X, delta.Y);*/
+                Manager->Logger.Verbose(u"delta[{},{}] pending not drag\n", delta.X, delta.Y);*/
         }
         if (IsMouseDragging)
         {
@@ -338,7 +338,7 @@ void WindowHost_::OnKeyDown(event::CombinedKey key) noexcept
 {
     if (key.Key == event::CommonKeys::CapsLock)
     {
-        Manager.Logger.verbose(u"CapsLock {}\n"sv, Manager.CheckCapsLock() ? u"pressed"sv : u"released"sv);
+        Manager.Logger.Verbose(u"CapsLock {}\n"sv, Manager.CheckCapsLock() ? u"pressed"sv : u"released"sv);
     }
     Modifiers |= key.GetModifier();
     event::KeyEvent evt(LastPos, Modifiers, key);

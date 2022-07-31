@@ -104,7 +104,7 @@ public:
         LUTFrame = oglu::oglLayeredFrameBuffer_::Create();
         LUTFrame->SetName(u"LutFBO");
         LUTFrame->AttachColorTexture(tex);
-        dizzLog().info(u"LUT FBO status:{}\n", LUTFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
+        dizzLog().Info(u"LUT FBO status:{}\n", LUTFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
 
         LutGenerator->SetVal("step", 1.0f / (LutSize - 1));
         LutGenerator->SetVal("exposure", 1.0f);
@@ -145,7 +145,7 @@ PostProcessor::PostProcessor(const uint32_t lutSize, const string& postSrc)
         }
         catch (const BaseException & be)
         {
-            dizzLog().warning(u"unable to create copmpute lut generator:\n {}\n", be.Message());
+            dizzLog().Warning(u"unable to create copmpute lut generator:\n {}\n", be.Message());
         }
     }
     if (!LutGenerator)
@@ -224,7 +224,7 @@ bool PostProcessor::UpdateFBO()
         auto mainRBO = oglRenderBuffer_::Create(MidFrameConfig.Width, MidFrameConfig.Height, MidFrameConfig.NeedFloatDepth ? RBOFormat::Depth32Stencil8 : RBOFormat::Depth24Stencil8);
         mainRBO->SetName(u"PostProcRBO");
         MiddleFrame->AttachDepthStencilBuffer(mainRBO);
-        dizzLog().info(u"FBO resize to [{}x{}], status:{}\n", MidFrameConfig.Width, MidFrameConfig.Height,
+        dizzLog().Info(u"FBO resize to [{}x{}], status:{}\n", MidFrameConfig.Width, MidFrameConfig.Height,
             MiddleFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
         return true;
     }

@@ -107,7 +107,7 @@ private:
             Version = gsl::narrow_cast<uint16_t>(verMajor * 10 + verMinor);
             
             const auto clientAPIs = loader.QueryString(DeviceContext, EGL_CLIENT_APIS);
-            oglLog().verbose(u"EGL Support API: [{}]\n", clientAPIs);
+            oglLog().Verbose(u"EGL Support API: [{}]\n", clientAPIs);
             for (const auto api : common::str::SplitStream(clientAPIs, ' ', false))
             {
                 if (api == "OpenGL_ES") SupportES = true;
@@ -186,7 +186,7 @@ private:
         }
         void ReportFailure(std::u16string_view action) const final
         {
-            oglLog().error(u"Failed to {} on Display[{}] {}[{}], error: {}\n"sv, action, (void*)DeviceContext,
+            oglLog().Error(u"Failed to {} on Display[{}] {}[{}], error: {}\n"sv, action, (void*)DeviceContext,
                 IsOffscreen ? u"Pixmap"sv : u"Window"sv, (void*)Surface, static_cast<EGLLoader_&>(Loader).GetCurErrStr());
         }
         void TemporalInsideContext(void* hRC, const std::function<void(void* hRC)>& func) const final
@@ -286,7 +286,7 @@ public:
             std::string extNames;
             for (const auto ext : Extensions)
                 extNames.append(ext).push_back('\n');
-            oglLog().debug(u"Loaded EGL with client exts:\n{}", extNames);
+            oglLog().Debug(u"Loaded EGL with client exts:\n{}", extNames);
             if (Extensions.Has("EGL_KHR_platform_android") || Extensions.Has("EGL_ANDROID_GLES_layers"sv))
                 Type = EGLType::ANDROID;
             else if (Extensions.Has("EGL_ANGLE_platform_angle"sv))
@@ -387,7 +387,7 @@ private:
                 }
                 result.append(u"\n");
             }
-            oglLog().debug(u"Totally [{}] configs avaliable:\n{}\n", cfgTotal, result);
+            oglLog().Debug(u"Totally [{}] configs avaliable:\n{}\n", cfgTotal, result);
             COMMON_THROWEX(common::BaseException, u"Unable to choose EGL Config"sv);
         }
         if (EGL_TRUE != GetConfigAttrib(display, host->Config, EGL_NATIVE_VISUAL_ID, &host->VisualId))
@@ -407,7 +407,7 @@ private:
     {
         if (GetPlatformDisplay || GetPlatformDisplayEXT)
             return true;
-        oglLog().warning(u"EGL Loader does not support GetPlatformDisplay.\n");
+        oglLog().Warning(u"EGL Loader does not support GetPlatformDisplay.\n");
         return false;
     }
     template<typename F>
@@ -439,7 +439,7 @@ private:
                     });
                 return CreateFromDisplay(disp, useOffscreen);
             }
-            oglLog().warning(u"EGL Loader does not support create from xcb.\n");
+            oglLog().Warning(u"EGL Loader does not support create from xcb.\n");
         }
         return {};
     }
@@ -456,14 +456,14 @@ private:
                     });
                 return CreateFromDisplay(display, useOffscreen);
             }
-            oglLog().warning(u"EGL Loader does not support create from x11.\n");
+            oglLog().Warning(u"EGL Loader does not support create from x11.\n");
         }
         return {};
     }
     std::shared_ptr<EGLLoader::EGLHost> CreateHostFromAngle(void* disp, AngleBackend backend, bool useOffscreen) final
     {
         if (!BackendMask(backend))
-            oglLog().warning(u"EGL Loader does not support create from angle.\n");
+            oglLog().Warning(u"EGL Loader does not support create from angle.\n");
         else if (CheckSupportPlatformDisplay())
         {
             const int32_t plat = [&]()

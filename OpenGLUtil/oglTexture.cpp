@@ -72,7 +72,7 @@ static void RegistTexture(const oglTexBase_& tex)
 {
     TexLogItem item(tex);
 #ifdef _DEBUG
-    oglLog().verbose(u"here[{}] create texture [{}], type[{}].\n", item.ThreadId, item.TexId, OGLTexUtil::GetTypeName(item.TexType));
+    oglLog().Verbose(u"here[{}] create texture [{}], type[{}].\n", item.ThreadId, item.TexId, OGLTexUtil::GetTypeName(item.TexType));
 #endif
     oglContext_::CurrentContext()->GetOrCreate<true>(TEXLOG_CTXCFG).Insert(std::move(item));
 }
@@ -80,7 +80,7 @@ static void UnregistTexture(const oglTexBase_& tex)
 {
     TexLogItem item(tex);
 #ifdef _DEBUG
-    oglLog().verbose(u"here[{}] delete texture [{}][{}], type[{}], detail[{}].\n", item.ThreadId, item.TexId, tex.GetName(),
+    oglLog().Verbose(u"here[{}] delete texture [{}][{}], type[{}], detail[{}].\n", item.ThreadId, item.TexId, tex.GetName(),
         OGLTexUtil::GetTypeName(item.TexType), TexFormatUtil::GetFormatName(item.InnerFormat));
 #endif
     oglContext_::CurrentContext()->GetOrCreate<true>(TEXLOG_CTXCFG).Remove(item.TexId);
@@ -111,7 +111,7 @@ oglTexBase_::oglTexBase_(const TextureType type, const bool shouldBindType) noex
     else
         CtxFunc->GenTextures(1, &TextureID);
     if (const auto e = CtxFunc->GetError(); e.has_value())
-        oglLog().warning(u"oglTexBase occurs error due to {}.\n", e.value());
+        oglLog().Warning(u"oglTexBase occurs error due to {}.\n", e.value());
     RegistTexture(*this);
 }
 
@@ -161,7 +161,7 @@ std::tuple<uint32_t, uint32_t, uint32_t> oglTexBase_::GetInternalSize3() const
     CtxFunc->GetTextureLevelParameteriv(TextureID, common::enum_cast(Type), 0, GL_TEXTURE_DEPTH, &z);
     if (const auto e = CtxFunc->GetError(); e.has_value())
     {
-        oglLog().warning(u"GetInternalSize3 occurs error due to {}.\n", e.value());
+        oglLog().Warning(u"GetInternalSize3 occurs error due to {}.\n", e.value());
     }
     return { (uint32_t)w,(uint32_t)h,(uint32_t)z };
 }
@@ -514,7 +514,7 @@ void oglTex2DArray_::SetTextureLayer(const uint32_t layer, const oglTex2D& tex)
     if (tex->Mipmap < Mipmap)
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"too few mipmap level");
     if (tex->InnerFormat != InnerFormat)
-        oglLog().warning(u"tex[{}][{}] has different innerFormat with texarr[{}][{}].\n", tex->TextureID, (uint16_t)tex->InnerFormat, TextureID, (uint16_t)InnerFormat);
+        oglLog().Warning(u"tex[{}][{}] has different innerFormat with texarr[{}][{}].\n", tex->TextureID, (uint16_t)tex->InnerFormat, TextureID, (uint16_t)InnerFormat);
     for (uint8_t i = 0; i < Mipmap; ++i)
     {
         CtxFunc->CopyImageSubData(tex->TextureID, common::enum_cast(tex->Type), i, 0, 0, 0,
@@ -653,7 +653,7 @@ oglTex3DStatic_::oglTex3DStatic_(const uint32_t width, const uint32_t height, co
     Width = width, Height = height, Depth = depth, InnerFormat = format, Mipmap = mipmap;
     CtxFunc->TextureStorage3D(TextureID, GL_TEXTURE_3D, mipmap, OGLTexUtil::GetInnerFormat(InnerFormat), Width, Height, Depth);
     if (const auto e = CtxFunc->GetError(); e.has_value())
-        oglLog().warning(u"oglTex3DS occurs error due to {}.\n", e.value());
+        oglLog().Warning(u"oglTex3DS occurs error due to {}.\n", e.value());
     if (!IsStatic())
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"failed to make tex3d static");
 }
@@ -741,7 +741,7 @@ oglImgBase_::oglImgBase_(const oglTexBase& tex, const TexImgUsage usage, const b
 {
     tex->CheckCurrent();
     if (!CtxFunc->SupportImageLoadStore)
-        oglLog().warning(u"Attempt to create oglImg on unsupported context\n");
+        oglLog().Warning(u"Attempt to create oglImg on unsupported context\n");
     if (!InnerTex)
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"Empty oglTex");
     if (!InnerTex->IsStatic())

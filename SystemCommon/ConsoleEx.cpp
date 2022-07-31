@@ -28,17 +28,116 @@ ConsoleEx::ConsoleEx()
 ConsoleEx::~ConsoleEx()
 { }
 
+template<typename Char>
+struct EscapeColorFiller
+{
+    std::array<Char, 19 * 2 + 1> Buffer; // 24bit(\x1b[38;2;255;255;255m)
+    uint32_t Count = 0;
+    void Put256(uint8_t val) noexcept
+    {
+        if (val < 10)
+            Buffer[Count++] = static_cast<Char>('0' + val);
+        else if (val < 100)
+        {
+            Buffer[Count++] = static_cast<Char>('0' + (val / 10));
+            Buffer[Count++] = static_cast<Char>('0' + (val % 10));
+        }
+        else
+        {
+            Buffer[Count++] = static_cast<Char>('0' + (val / 100));
+            Buffer[Count++] = static_cast<Char>('0' + ((val % 100) / 10));
+            Buffer[Count++] = static_cast<Char>('0' + (val % 10));
+        }
+    }
+    void PutColor(ScreenColor color) noexcept
+    {
+        switch (color.Type)
+        {
+        case ScreenColor::ColorType::Common:
+        {
+            Buffer[Count++] = '\x1b';
+            Buffer[Count++] = '[';
+            const bool isBright = color.Value[0] & 0x8;
+            if (color.IsBackground)
+            {
+                if (isBright)
+                {
+                    Buffer[Count++] = '1';
+                    Buffer[Count++] = '0';
+                }
+                else
+                    Buffer[Count++] = '4';
+            }
+            else
+            {
+                Buffer[Count++] = isBright ? '9' : '3';
+            }
+            Buffer[Count++] = static_cast<Char>('0' + (color.Value[0] & 0x7));
+            Buffer[Count++] = 'm';
+        } break;
+        case ScreenColor::ColorType::Bit8:
+        {
+            Buffer[Count++] = '\x1b';
+            Buffer[Count++] = '[';
+            Buffer[Count++] = color.IsBackground ? '4' : '3';
+            Buffer[Count++] = '8';
+            Buffer[Count++] = ';';
+            Buffer[Count++] = '5';
+            Buffer[Count++] = ';';
+            Put256(color.Value[0]);
+            Buffer[Count++] = 'm';
+        } break;
+        case ScreenColor::ColorType::Bit24:
+        {
+            Buffer[Count++] = '\x1b';
+            Buffer[Count++] = '[';
+            Buffer[Count++] = color.IsBackground ? '4' : '3';
+            Buffer[Count++] = '8';
+            Buffer[Count++] = ';';
+            Buffer[Count++] = '2';
+            Buffer[Count++] = ';';
+            Put256(color.Value[0]);
+            Buffer[Count++] = ';';
+            Put256(color.Value[1]);
+            Buffer[Count++] = ';';
+            Put256(color.Value[2]);
+            Buffer[Count++] = 'm';
+        } break;
+        case ScreenColor::ColorType::Default:
+        default:
+        {
+            Buffer[Count++] = '\x1b';
+            Buffer[Count++] = '[';
+            Buffer[Count++] = color.IsBackground ? '4' : '3';
+            Buffer[Count++] = '9';
+            Buffer[Count++] = 'm';
+        } break;
+        }
+    }
+    std::basic_string_view<Char> GetString() noexcept
+    {
+        Buffer[Count] = '\0';
+        return { Buffer.data(), Count };
+    }
+};
+
 
 #if COMMON_OS_WIN
+
 class NormalConsole final : public ConsoleEx
 {
-    void Print(const CommonColor, std::u16string_view str) const final
-    {
-        Print(str);
-    }
-    void Print(std::u16string_view str) const final
+    std::optional<str::Encoding> DefaultEncoding;
+    void LockOutput() const final 
     {
         _lock_file(stdout);
+    }
+    void UnlockOutput() const final
+    {
+        fflush(stdout);
+        _unlock_file(stdout);
+    }
+    void PrintCore(std::u16string_view str) const
+    {
         if (fwide(stdout, 0) > 0)
         {
             fwrite(str.data(), sizeof(char16_t), str.size(), stdout);
@@ -46,22 +145,45 @@ class NormalConsole final : public ConsoleEx
         else
         {
             _unlock_file(stdout);
-            const auto size = WideCharToMultiByte(CP_ACP, 0, reinterpret_cast<const wchar_t*>(str.data()),
-                gsl::narrow_cast<int>(str.size()), nullptr, 0, nullptr, nullptr);
             std::string newStr;
-            if (size == 0)
-                newStr = common::str::to_string(str);
+            if (DefaultEncoding)
+                newStr = str::to_string(str, *DefaultEncoding);
             else
             {
-                newStr.resize(size);
-                WideCharToMultiByte(CP_ACP, 0, reinterpret_cast<const wchar_t*>(str.data()),
-                    gsl::narrow_cast<int>(str.size()), newStr.data(), size, nullptr, nullptr);
+                const auto size = WideCharToMultiByte(CP_ACP, 0, reinterpret_cast<const wchar_t*>(str.data()),
+                    gsl::narrow_cast<int>(str.size()), nullptr, 0, nullptr, nullptr);
+                if (size == 0)
+                    newStr = common::str::to_string(str);
+                else
+                {
+                    newStr.resize(size);
+                    WideCharToMultiByte(CP_ACP, 0, reinterpret_cast<const wchar_t*>(str.data()),
+                        gsl::narrow_cast<int>(str.size()), newStr.data(), size, nullptr, nullptr);
+                }
             }
             _lock_file(stdout);
             fwrite(newStr.data(), sizeof(char), newStr.size(), stdout);
         }
-        fflush(stdout);
-        _unlock_file(stdout);
+    }
+    void PrintSegment(const ScreenColor, const ScreenColor, span<const std::byte> raw) const final
+    {
+        PrintCore({ reinterpret_cast<const char16_t*>(raw.data()), raw.size() / sizeof(char16_t) });
+    }
+    void PrintSegment(const ScreenColor, const ScreenColor, std::u16string_view str) const final
+    {
+        PrintCore(str);
+    }
+    std::optional<str::Encoding> PreferEncoding() const noexcept final { return {}; }
+    bool SupportColor() const noexcept final { return false; }
+    void Print(const CommonColor, std::u16string_view str) const final
+    {
+        Print(str);
+    }
+    void Print(std::u16string_view str) const final
+    {
+        LockOutput();
+        PrintCore(str);
+        UnlockOutput();
     }
     std::pair<uint32_t, uint32_t> GetConsoleSize() const noexcept final
     {
@@ -71,7 +193,19 @@ class NormalConsole final : public ConsoleEx
     {
         return false;
     }
+public:
+    NormalConsole()
+    {
+        switch (GetACP())
+        {
+        case 936:   DefaultEncoding = str::Encoding::GB18030; break;
+        case 65000: DefaultEncoding = str::Encoding::UTF7;    break;
+        case 65001: DefaultEncoding = str::Encoding::UTF8;    break;
+        default: break;
+        }
+    }
 };
+
 class NativeConsole : public ConsoleEx
 {
 protected:
@@ -85,6 +219,21 @@ protected:
         DefaultAttr = csbInfo.wAttributes;
         DefaultColor = GetCurrentColor(DefaultAttr);
     }
+    void LockOutput() const final
+    {
+        _lock_file(stdout);
+    }
+    void UnlockOutput() const final
+    {
+        _unlock_file(stdout);
+    }
+    using ConsoleEx::PrintSegment;
+    void PrintSegment(const ScreenColor fgColor, const ScreenColor bgColor, span<const std::byte> raw) const final
+    {
+        PrintSegment(fgColor, bgColor, std::u16string_view{ reinterpret_cast<const char16_t*>(raw.data()), raw.size() / sizeof(char16_t) });
+    }
+    std::optional<str::Encoding> PreferEncoding() const noexcept final { return str::Encoding::UTF16LE; }
+    bool SupportColor() const noexcept final { return true; }
     forceinline void WriteToConsole(const char16_t* str, const size_t len) const noexcept
     {
         for (size_t offset = 0; offset < len;)
@@ -99,11 +248,11 @@ protected:
     }
     void Print(const CommonColor color, std::u16string_view str) const final
     {
-        _lock_file(stdout);
+        LockOutput();
         SetConsoleTextAttribute(OutHandle, GetColorVal(color));
         WriteToConsole(str.data(), str.size());
         SetConsoleTextAttribute(OutHandle, DefaultAttr);
-        _unlock_file(stdout);
+        UnlockOutput();
     }
     std::pair<uint32_t, uint32_t> GetConsoleSize() const noexcept final
     {
@@ -118,7 +267,7 @@ protected:
     {
         CONSOLE_SCREEN_BUFFER_INFO csbi;
         bool isSuc = false;
-        _lock_file(stdout);
+        LockOutput();
         if (::GetConsoleScreenBufferInfo(OutHandle, &csbi))
         {
             const DWORD wdSize = csbi.dwSize.X * csbi.dwSize.Y;
@@ -132,7 +281,7 @@ protected:
                 }
             }
         }
-        _unlock_file(stdout);
+        UnlockOutput();
         return isSuc;
     }
 
@@ -186,8 +335,19 @@ public:
     ~NativeConsole() override
     { }
 };
+
 class ClassicConsole final : public NativeConsole
 {
+    void PrintSegment(const ScreenColor fgColor, const ScreenColor bgColor, std::u16string_view str) const final
+    {
+        auto color = DefaultColor;
+        if (fgColor.Type == ScreenColor::ColorType::Common)
+            color.first = static_cast<CommonColor>(fgColor.Value[0]);
+        if (bgColor.Type == ScreenColor::ColorType::Common)
+            color.second = static_cast<CommonColor>(bgColor.Value[0]);
+        SetConsoleTextAttribute(OutHandle, GetColorVal(color));
+        WriteToConsole(str.data(), str.size());
+    }
     void Print(std::u16string_view str) const final
     {
         const size_t len = str.size();
@@ -332,8 +492,20 @@ public:
     ClassicConsole(HANDLE handle) : NativeConsole(handle)
     { }
 };
+
 class VTConsole final : public NativeConsole
 {
+    void PrintSegment(const ScreenColor fgColor, const ScreenColor bgColor, std::u16string_view str) const final
+    {
+        EscapeColorFiller<char16_t> filler;
+        if (!fgColor.IsUnchanged)
+            filler.PutColor(fgColor);
+        if (!bgColor.IsUnchanged)
+            filler.PutColor(bgColor);
+        const auto clr = filler.GetString();
+        WriteToConsole(clr.data(), clr.size());
+        WriteToConsole(str.data(), str.size());
+    }
     void Print(std::u16string_view str) const final
     {
         _lock_file(stdout);
@@ -371,21 +543,42 @@ const ConsoleEx& ConsoleEx::Get() noexcept
     return *console;
 }
 
-#elif COMMON_OS_UNIX
+#elif COMMON_OS_UNIX || 1
 
 class NormalConsole : public ConsoleEx
 {
-    void Print(const CommonColor, std::u16string_view str) const
+protected:
+    void LockOutput() const final
+    {
+        flockfile(stdout);
+    }
+    void UnlockOutput() const final
+    {
+        fflush(stdout);
+        funlockfile(stdout);
+    }
+private:
+    void PrintSegment(const ScreenColor, const ScreenColor, span<const std::byte> raw) const override
+    {
+        fwrite(raw.data(), sizeof(char), raw.size(), stdout);
+    }
+    void PrintSegment(const ScreenColor fgColor, const ScreenColor bgColor, std::u16string_view str) const final
+    {
+        const auto newStr = str::to_string(str, common::str::Encoding::UTF8);
+        PrintSegment(fgColor, bgColor, as_bytes(to_span(newStr)));
+    }
+    std::optional<str::Encoding> PreferEncoding() const noexcept final { return str::Encoding::UTF8; }
+    bool SupportColor() const noexcept override { return false; }
+    void Print(const CommonColor, std::u16string_view str) const override
     {
         Print(str);
     }
     void Print(std::u16string_view str) const final
     {
         const auto newStr = str::to_string(str, common::str::Encoding::UTF8);
-        flockfile(stdout);
+        LockOutput();
         fwrite(newStr.data(), sizeof(char), newStr.size(), stdout);
-        fflush(stdout);
-        funlockfile(stdout);
+        UnlockOutput();
     }
     std::pair<uint32_t, uint32_t> GetConsoleSize() const noexcept final
     {
@@ -395,7 +588,7 @@ class NormalConsole : public ConsoleEx
         const auto wdCol = ws.ws_row;
         return std::pair<uint32_t, uint32_t>(wdRow, wdCol);
     }
-    bool ClearConsole() const noexcept
+    bool ClearConsole() const noexcept override
     {
         return false;
     }
@@ -426,26 +619,37 @@ class DirectConsole final : public NormalConsole
         case CommonColor::BrightWhite:     return "\x1b[97m"sv;
         }
     }
+    void PrintSegment(const ScreenColor fgColor, const ScreenColor bgColor, span<const std::byte> raw) const final
+    {
+        EscapeColorFiller<char> filler;
+        if (!fgColor.IsUnchanged)
+            filler.PutColor(fgColor);
+        if (!bgColor.IsUnchanged)
+            filler.PutColor(bgColor);
+        const auto clr = filler.GetString();
+        fwrite(clr.data(), sizeof(char), clr.size(), stdout);
+        fwrite(raw.data(), sizeof(char), raw.size(), stdout);
+    }
+    bool SupportColor() const noexcept final { return true; }
     void Print(const CommonColor color, std::u16string_view str) const final
     {
         const auto newStr = str::to_string(str, common::str::Encoding::UTF8);
         const auto pfx = GetColorPfx(color);
         constexpr auto sfx = "\x1b[39m"sv;
-        flockfile(stdout);
+        LockOutput();
         fwrite(pfx.data(), sizeof(char), pfx.size(), stdout);
         fwrite(newStr.data(), sizeof(char), newStr.size(), stdout);
         fwrite(sfx.data(), sizeof(char), sfx.size(), stdout);
-        fflush(stdout);
-        funlockfile(stdout);
+        UnlockOutput();
     }
     bool ClearConsole() const noexcept final
     {
-        flockfile(stdout);
+        LockOutput();
         constexpr auto seq = "\033c\x1b[2J"sv;
         fwrite(seq.data(), sizeof(char), seq.size(), stdout);
         /*printf("\033c");
         printf("\x1b[2J");*/
-        funlockfile(stdout);
+        UnlockOutput();
         return true;
     }
 };

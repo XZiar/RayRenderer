@@ -647,7 +647,7 @@ Image TgaReader::Read(const ImageDataType dataType)
             TgaHelper::ReadDirect(Header, image, Stream);
     }
     timer.Stop();
-    ImgLog().debug(u"zextga read cost {} ms\n", timer.ElapseMs());
+    ImgLog().Debug(u"zextga read cost {} ms\n", timer.ElapseMs());
     timer.Start();
     switch ((Header.ImageDescriptor & 0x30) >> 4)//origin position
     {
@@ -661,7 +661,7 @@ Image TgaReader::Read(const ImageDataType dataType)
         image.FlipHorizontal(); break;
     }
     timer.Stop();
-    ImgLog().debug(u"zextga flip cost {} ms\n", timer.ElapseMs()); 
+    ImgLog().Debug(u"zextga flip cost {} ms\n", timer.ElapseMs()); 
     return image;
 }
 
@@ -703,7 +703,7 @@ void TgaWriter::Write(const Image& image, const uint8_t)
     else
         TgaHelper::WriteRLEColor3(image, Stream);
     timer.Stop();
-    ImgLog().debug(u"zextga write cost {} ms\n", timer.ElapseMs());
+    ImgLog().Debug(u"zextga write cost {} ms\n", timer.ElapseMs());
 }
 
 

@@ -55,6 +55,8 @@ struct CommonInfoHelper
         std::u16string Path;
         std::optional<std::pair<LUID, D3DKMT_HANDLE>> KMTInfo;
         PCI_BDF Address;
+        PathInfo(std::u16string&& path, std::optional<std::pair<LUID, D3DKMT_HANDLE>> kmtInfo, PCI_BDF addr) noexcept :
+            Path(std::move(path)), KMTInfo(kmtInfo), Address(addr) {}
     };
     std::vector<PathInfo> DevicePaths;
     template<typename T>

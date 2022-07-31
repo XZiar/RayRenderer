@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SystemCommonRely.h"
+#include "common/RefHolder.hpp"
 #include <optional>
 #include <variant>
 #include <boost/container/small_vector.hpp>
@@ -25,6 +26,9 @@ enum class ArgDispType : uint8_t
 MAKE_ENUM_BITFIELD(ArgDispType)
 
 
+template<typename Char>
+struct StrArgInfoCh;
+
 struct ParseResult
 {
     static constexpr uint8_t OpIdMask    = 0b11000000;
@@ -42,6 +46,31 @@ struct ParseResult
         WidthTooLarge, InvalidPrecision, PrecisionTooLarge,
         InvalidType, ExtraFmtSpec, IncompNumSpec, IncompType, InvalidFmt
     };
+#define SCSTR_HANDLE_PARSE_ERROR(handler)\
+    handler(FmtTooLong,         "Format string too long"); \
+    handler(TooManyIdxArg,      "Too many IdxArg"); \
+    handler(TooManyNamedArg,    "Too many NamedArg"); \
+    handler(TooManyOp,          "Format string too complex with too many generated OP"); \
+    handler(MissingLeftBrace,   "Missing left brace"); \
+    handler(MissingRightBrace,  "Missing right brace"); \
+    handler(InvalidColor,       "Invalid color format"); \
+    handler(MissingColorFGBG,   "Missing color foreground/background identifier"); \
+    handler(InvalidCommonColor, "Invalid common color"); \
+    handler(Invalid8BitColor,   "Invalid 8bit color"); \
+    handler(Invalid24BitColor,  "Invalid 24bit color"); \
+    handler(InvalidArgIdx,      "Invalid index for IdxArg"); \
+    handler(ArgIdxTooLarge,     "Arg index is too large"); \
+    handler(InvalidArgName,     "Invalid name for NamedArg"); \
+    handler(ArgNameTooLong,     "Arg name is too long"); \
+    handler(WidthTooLarge,      "Width is too large"); \
+    handler(InvalidPrecision,   "Invalid format for precision"); \
+    handler(PrecisionTooLarge,  "Precision is too large"); \
+    handler(InvalidType,        "Invalid type specified for arg"); \
+    handler(ExtraFmtSpec,       "Unknown extra format spec left at the end"); \
+    handler(IncompNumSpec,      "Numeric spec applied on non-numeric type"); \
+    handler(IncompType,         "In-compatible type being specified for the arg"); \
+    handler(InvalidFmt,         "Invalid format string");
+
     template<uint16_t ErrorPos, uint16_t OpCount>
     static constexpr void CheckErrorCompile() noexcept
     {
@@ -49,33 +78,12 @@ struct ParseResult
         {
             constexpr auto err = static_cast<ErrorCode>(OpCount);
 #define CHECK_ERROR_MSG(e, msg) static_assert(err != ErrorCode::e, msg)
-            CHECK_ERROR_MSG(FmtTooLong,         "Format string too long");
-            CHECK_ERROR_MSG(TooManyIdxArg,      "Too many IdxArg");
-            CHECK_ERROR_MSG(TooManyNamedArg,    "Too many NamedArg");
-            CHECK_ERROR_MSG(TooManyOp,          "Format string too complex with too many generated OP");
-            CHECK_ERROR_MSG(MissingLeftBrace,   "Missing left brace");
-            CHECK_ERROR_MSG(MissingRightBrace,  "Missing right brace");
-            CHECK_ERROR_MSG(InvalidColor,       "Invalid color format");
-            CHECK_ERROR_MSG(MissingColorFGBG,   "Missing color foreground/background identifier");
-            CHECK_ERROR_MSG(InvalidCommonColor, "Invalid common color");
-            CHECK_ERROR_MSG(Invalid8BitColor,   "Invalid 8bit color");
-            CHECK_ERROR_MSG(Invalid24BitColor,  "Invalid 24bit color");
-            CHECK_ERROR_MSG(InvalidArgIdx,      "Invalid index for IdxArg");
-            CHECK_ERROR_MSG(ArgIdxTooLarge,     "Arg index is too large");
-            CHECK_ERROR_MSG(InvalidArgName,     "Invalid name for NamedArg");
-            CHECK_ERROR_MSG(ArgNameTooLong,     "Arg name is too long");
-            CHECK_ERROR_MSG(WidthTooLarge,      "Width is too large");
-            CHECK_ERROR_MSG(InvalidPrecision,   "Invalid format for precision");
-            CHECK_ERROR_MSG(PrecisionTooLarge,  "Precision is too large");
-            CHECK_ERROR_MSG(InvalidType,        "Invalid type specified for arg");
-            CHECK_ERROR_MSG(ExtraFmtSpec,       "Unknown extra format spec left at the end");
-            CHECK_ERROR_MSG(IncompNumSpec,      "Numeric spec applied on non-numeric type");
-            CHECK_ERROR_MSG(IncompType,         "In-compatible type being specified for the arg");
-            CHECK_ERROR_MSG(InvalidFmt,         "Invalid format string");
+            SCSTR_HANDLE_PARSE_ERROR(CHECK_ERROR_MSG)
 #undef CHECK_ERROR_MSG
             static_assert(!AlwaysTrue2<OpCount>, "Unknown internal error");
         }
     }
+    SYSCOMMONAPI static void CheckErrorRuntime(uint16_t errorPos, uint16_t opCount);
 
 
     struct NamedArgType
@@ -465,6 +473,14 @@ struct ParseResult
     
     template<typename Char>
     static constexpr auto ParseString(const std::basic_string_view<Char> str) noexcept;
+    template<typename Char>
+    static constexpr auto ParseString(const Char* str) noexcept
+    {
+        return ParseString(std::basic_string_view<Char>(str));
+    }
+
+    template<typename Char>
+    constexpr StrArgInfoCh<Char> ToInfo(const std::basic_string_view<Char> str) const noexcept;
 };
 
 template<typename Char>
@@ -472,31 +488,40 @@ struct ParseLiterals;
 template<>
 struct ParseLiterals<char>
 {
-    static constexpr std::string_view BracePair = "{}",
+    static constexpr std::string_view BracePair = "{}", StrTrue = "true", StrFalse = "false",
         Color_Def = "default", Color_Black = "black", Color_Red = "red", Color_Green = "green", Color_Yellow = "yellow", 
         Color_Blue = "blue", Color_Magenta = "magenta", Color_Cyan = "cyan", Color_White = "white";
 };
 template<>
 struct ParseLiterals<char16_t>
 {
-    static constexpr std::u16string_view BracePair = u"{}",
+    static constexpr std::u16string_view BracePair = u"{}", StrTrue = u"true", StrFalse = u"false",
         Color_Def = u"default", Color_Black = u"black", Color_Red = u"red", Color_Green = u"green", Color_Yellow = u"yellow",
         Color_Blue = u"blue", Color_Magenta = u"magenta", Color_Cyan = u"cyan", Color_White = u"white";
 };
 template<>
 struct ParseLiterals<char32_t>
 {
-    static constexpr std::u32string_view BracePair = U"{}",
+    static constexpr std::u32string_view BracePair = U"{}", StrTrue = U"true", StrFalse = U"false",
         Color_Def = U"default", Color_Black = U"black", Color_Red = U"red", Color_Green = U"green", Color_Yellow = U"yellow",
         Color_Blue = U"blue", Color_Magenta = U"magenta", Color_Cyan = U"cyan", Color_White = U"white";
 };
 template<>
 struct ParseLiterals<wchar_t>
 {
-    static constexpr std::wstring_view BracePair = L"{}",
+    static constexpr std::wstring_view BracePair = L"{}", StrTrue = L"true", StrFalse = L"false",
         Color_Def = L"default", Color_Black = L"black", Color_Red = L"red", Color_Green = L"green", Color_Yellow = L"yellow",
         Color_Blue = L"blue", Color_Magenta = L"magenta", Color_Cyan = L"cyan", Color_White = L"white";
 };
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+template<>
+struct ParseLiterals<char8_t>
+{
+    static constexpr std::u8string_view BracePair = u8"{}", StrTrue = u8"true", StrFalse = u8"false",
+        Color_Def = u8"default", Color_Black = u8"black", Color_Red = u8"red", Color_Green = u8"green", Color_Yellow = u8"yellow",
+        Color_Blue = u8"blue", Color_Magenta = u8"magenta", Color_Cyan = u8"cyan", Color_White = u8"white";
+};
+#endif
 
 template<typename Char>
 struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
@@ -930,8 +955,105 @@ struct StrArgInfo
 template<typename Char>
 struct StrArgInfoCh : public StrArgInfo
 {
+    using CharType = Char;
     std::basic_string_view<Char> FormatString;
 };
+
+
+template<typename Char>
+forceinline constexpr StrArgInfoCh<Char> ParseResult::ToInfo(const std::basic_string_view<Char> str) const noexcept
+{
+    common::span<const ArgDispType> idxTypes;
+    if (IdxArgCount > 0)
+        idxTypes = { IndexTypes, IdxArgCount };
+    common::span<const ParseResult::NamedArgType> namedTypes;
+    if (NamedArgCount > 0)
+        namedTypes = { NamedTypes, NamedArgCount };
+    common::span<const uint8_t> opCodes = { Opcodes, OpCount };
+    return { opCodes, idxTypes, namedTypes, str };
+}
+
+
+class COMMON_EMPTY_BASES DynamicTrimedResult : public FixedLenRefHolder<DynamicTrimedResult, uint32_t>
+{
+    friend RefHolder<DynamicTrimedResult>;
+    friend FixedLenRefHolder<DynamicTrimedResult, uint32_t>;
+private:
+    static constexpr size_t NASize = sizeof(ParseResult::NamedArgType);
+    static constexpr size_t IASize = sizeof(ArgDispType);
+    [[nodiscard]] forceinline uintptr_t GetDataPtr() const noexcept
+    {
+        return Pointer;
+    }
+    forceinline void Destruct() noexcept { }
+protected:
+    uintptr_t Pointer = 0;
+    uint32_t StrSize = 0;
+    uint16_t OpCount = 0;
+    uint8_t NamedArgCount = 0;
+    uint8_t IdxArgCount = 0;
+    SYSCOMMONAPI DynamicTrimedResult(const ParseResult& result, size_t strLength, size_t charSize);
+    DynamicTrimedResult(const DynamicTrimedResult& other) noexcept :
+        Pointer(other.Pointer), StrSize(other.StrSize), OpCount(other.OpCount), NamedArgCount(other.NamedArgCount), IdxArgCount(other.IdxArgCount)
+    {
+        this->Increase();
+    }
+    DynamicTrimedResult(DynamicTrimedResult&& other) noexcept :
+        Pointer(other.Pointer), StrSize(other.StrSize), OpCount(other.OpCount), NamedArgCount(other.NamedArgCount), IdxArgCount(other.IdxArgCount)
+    {
+        other.Pointer = 0;
+    }
+    common::span<const uint8_t> GetOpcodes() const noexcept
+    {
+        return { reinterpret_cast<const uint8_t*>(GetStrPtr() + StrSize + IASize * IdxArgCount), OpCount };
+    }
+    common::span<const ArgDispType> GetIndexTypes() const noexcept
+    {
+        if (IdxArgCount > 0)
+            return { reinterpret_cast<const ArgDispType*>(GetStrPtr() + StrSize), IdxArgCount };
+        return {};
+    }
+    uintptr_t GetStrPtr() const noexcept
+    {
+        return Pointer + NASize * NamedArgCount;
+    }
+    common::span<const ParseResult::NamedArgType> GetNamedTypes() const noexcept
+    {
+        if (NamedArgCount > 0)
+            return { reinterpret_cast<const ParseResult::NamedArgType*>(Pointer), NamedArgCount };
+        return {};
+    }
+public:
+    ~DynamicTrimedResult()
+    {
+        this->Decrease();
+    }
+};
+
+template<typename Char>
+class DynamicTrimedResultCh : public DynamicTrimedResult
+{
+public:
+    DynamicTrimedResultCh(const ParseResult& result, std::basic_string_view<Char> str) noexcept :
+        DynamicTrimedResult(result, str.size(), sizeof(Char))
+    {
+        const auto strptr = reinterpret_cast<Char*>(GetStrPtr());
+        memcpy_s(strptr, StrSize, str.data(), sizeof(Char) * str.size());
+        strptr[str.size()] = static_cast<Char>('\0');
+    }
+    DynamicTrimedResultCh(const DynamicTrimedResultCh& other) noexcept : DynamicTrimedResult(other) {}
+    DynamicTrimedResultCh(DynamicTrimedResultCh&& other) noexcept : DynamicTrimedResult(other) {}
+    constexpr operator StrArgInfoCh<Char>() const noexcept
+    {
+        return { GetOpcodes(), GetIndexTypes(), GetNamedTypes(),
+            { reinterpret_cast<Char*>(GetStrPtr()), StrSize / sizeof(Char) - 1 } };
+    }
+    constexpr StrArgInfoCh<Char> ToStrArgInfo() const noexcept
+    {
+        return *this;
+    }
+};
+
 
 template<uint8_t IdxArgCount>
 struct IdxArgLimiter
@@ -982,9 +1104,12 @@ struct OpHolder<Char, 0>
     { }
 };
 
+struct CompileTimeFormatter {};
+
 template<typename Char, uint16_t OpCount_, uint8_t NamedArgCount_, uint8_t IdxArgCount_>
-struct COMMON_EMPTY_BASES TrimedResult : public OpHolder<Char, OpCount_>, NamedArgLimiter<NamedArgCount_>, IdxArgLimiter<IdxArgCount_>
+struct COMMON_EMPTY_BASES TrimedResult : public CompileTimeFormatter, public OpHolder<Char, OpCount_>, NamedArgLimiter<NamedArgCount_>, IdxArgLimiter<IdxArgCount_>
 {
+    using CharType = Char;
     static constexpr uint16_t OpCount = OpCount_;
     static constexpr uint8_t NamedArgCount = NamedArgCount_;
     static constexpr uint8_t IdxArgCount = IdxArgCount_;
@@ -1275,7 +1400,7 @@ struct ArgChecker
         case ArgDispType::String:
             return give == ArgRealType::String;
         case ArgDispType::Pointer:
-            return give == ArgRealType::Ptr || (give == ArgRealType::String && HAS_FIELD(give, ArgRealType::StrPtrBit));
+            return give == ArgRealType::Ptr || give == ArgRealType::PtrVoid || (give == ArgRealType::String && HAS_FIELD(give, ArgRealType::StrPtrBit));
         case ArgDispType::Custom:
             return give == ArgRealType::Custom;
         default:
@@ -1369,7 +1494,7 @@ struct ArgChecker
         return CheckDD(strInfo, argInfo);
     }
     template<typename StrType, typename... Args>
-    static ArgPack::NamedMapper CheckSS(StrType&&, Args&&...)
+    static ArgPack::NamedMapper CheckSS(const StrType&, Args&&...)
     {
         constexpr StrType StrInfo;
         //const TrimedResult<OpCount, NamedArgCount, IdxArgCount>& cookie
@@ -1394,48 +1519,132 @@ struct ArgChecker
     }
 };
 
+
+struct FormatSpec
+{
+    enum class Align : uint8_t { None, Left, Right, Middle };
+    enum class Sign  : uint8_t { None, Pos, Neg, Space };
+    uint32_t Fill       = ' ';
+    uint32_t Precision  = 0;
+    uint16_t Width      = 0;
+    uint8_t TypeExtra   = 0;
+    Align Alignment     : 2;
+    Sign SignFlag       : 2;
+    bool AlterForm      : 2;
+    bool ZeroPad        : 2;
+    constexpr FormatSpec() noexcept : 
+        Alignment(Align::None), SignFlag(Sign::None), AlterForm(false), ZeroPad(false) {}
+};
+
+struct FormatterBase;
 template<typename Char>
 struct Formatter;
+struct SYSCOMMONAPI FormatterExecutor
+{
+    friend FormatterBase;
+public:
+    struct Context { };
+protected:
+    virtual void OnFmtStr(Context& context, uint32_t offset, uint32_t length) = 0;
+    virtual void OnBrace(Context& context, bool isLeft) = 0;
+    virtual void OnColor(Context& context, ScreenColor color) = 0;
+    virtual void OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec) = 0;
+};
 struct FormatterBase
 {
 protected:
-    using Color = std::variant<std::monostate, uint8_t, std::array<uint8_t, 3>, CommonColor>;
-    struct FormatSpec
-    {
-        enum class Align : uint8_t { None, Left, Right, Middle };
-        enum class Sign  : uint8_t { None, Pos, Neg, Space };
-        uint32_t Fill       = ' ';
-        uint32_t Precision  = 0;
-        uint16_t Width      = 0;
-        uint8_t TypeExtra   = 0;
-        Align Alignment     : 2;
-        Sign SignFlag       : 2;
-        bool AlterForm      : 2;
-        bool ZeroPad        : 2;
-        constexpr FormatSpec() noexcept : 
-            Alignment(Align::None), SignFlag(Sign::None), AlterForm(false), ZeroPad(false) {}
-    };
+    template<typename T>
+    SYSCOMMONAPI static void Execute(common::span<const uint8_t> opcodes, uint32_t& opOffset, T& executor, typename T::Context& context);
+    template<typename Char>
+    struct StaticExecutor;
 public:
     template<typename Char>
-    SYSCOMMONAPI static void FormatTo(const Formatter<Char>& formatter, std::basic_string<Char>& ret, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
+    SYSCOMMONAPI static void FormatTo(Formatter<Char>& formatter, std::basic_string<Char>& ret, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
 };
 template<typename Char>
 struct Formatter : public FormatterBase
 {
     friend FormatterBase;
     using StrType = std::basic_string<Char>;
-private:
-    SYSCOMMONAPI virtual void PutColor(StrType& ret, bool isBackground, Color color) const;
-    SYSCOMMONAPI virtual void PutString(StrType& ret, std::   string_view str, const FormatSpec* spec) const;
-    SYSCOMMONAPI virtual void PutString(StrType& ret, std::  wstring_view str, const FormatSpec* spec) const;
-    SYSCOMMONAPI virtual void PutString(StrType& ret, std::u16string_view str, const FormatSpec* spec) const;
-    SYSCOMMONAPI virtual void PutString(StrType& ret, std::u32string_view str, const FormatSpec* spec) const;
-    SYSCOMMONAPI virtual void PutInteger(StrType& ret, uint32_t val, bool isSigned, const FormatSpec* spec) const;
-    SYSCOMMONAPI virtual void PutInteger(StrType& ret, uint64_t val, bool isSigned, const FormatSpec* spec) const;
-    SYSCOMMONAPI virtual void PutFloat(StrType& ret, float val, const FormatSpec* spec) const;
-    SYSCOMMONAPI virtual void PutFloat(StrType& ret, double val, const FormatSpec* spec) const;
-    SYSCOMMONAPI virtual void PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec) const;
+protected:
+    SYSCOMMONAPI virtual void PutColor(StrType& ret, ScreenColor color);
+    SYSCOMMONAPI virtual void PutString(StrType& ret, std::   string_view str, const FormatSpec* spec);
+    SYSCOMMONAPI virtual void PutString(StrType& ret, std::  wstring_view str, const FormatSpec* spec);
+    SYSCOMMONAPI virtual void PutString(StrType& ret, std::u16string_view str, const FormatSpec* spec);
+    SYSCOMMONAPI virtual void PutString(StrType& ret, std::u32string_view str, const FormatSpec* spec);
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    forceinline void PutString(StrType& ret, std::u8string_view str, const FormatSpec* spec)
+    {
+        PutString(ret, std::string_view{ reinterpret_cast<const char*>(str.data()), str.size() }, spec);
+    }
+#endif
+    SYSCOMMONAPI virtual void PutInteger(StrType& ret, uint32_t val, bool isSigned, const FormatSpec* spec);
+    SYSCOMMONAPI virtual void PutInteger(StrType& ret, uint64_t val, bool isSigned, const FormatSpec* spec);
+    SYSCOMMONAPI virtual void PutFloat(StrType& ret, float val, const FormatSpec* spec);
+    SYSCOMMONAPI virtual void PutFloat(StrType& ret, double val, const FormatSpec* spec);
+    SYSCOMMONAPI virtual void PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec);
 public:
+    template<typename T, typename... Args>
+    forceinline std::basic_string<Char> FormatStatic(T&& res, Args&&... args)
+    {
+        static_assert(std::is_same_v<typename std::decay_t<T>::CharType, Char>);
+        // const auto strInfo = res.ToStrArgInfo();
+        const auto mapping = ArgChecker::CheckSS(res, std::forward<Args>(args)...);
+        constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
+        auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
+        argPack.Mapper = mapping;
+        std::basic_string<Char> ret;
+        FormatterBase::FormatTo<Char>(*this, ret, res, ArgsInfo, argPack);
+        return ret;
+    }
+    template<typename... Args>
+    forceinline std::basic_string<Char> FormatDynamic(std::basic_string_view<Char> format, Args&&... args)
+    {
+        const auto result = ParseResult::ParseString<Char>(format);
+        const auto res = result.ToInfo(format);
+        constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
+        const auto mapping = ArgChecker::CheckDD(res, ArgsInfo);
+        auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
+        argPack.Mapper = mapping;
+        std::basic_string<Char> ret;
+        FormatterBase::FormatTo<Char>(*this, ret, res, ArgsInfo, argPack);
+        return ret;
+    }
+};
+
+template<typename Char>
+struct FormatterBase::StaticExecutor
+{
+    struct Context 
+    {
+        std::basic_string<Char>& Dst;
+        const StrArgInfoCh<Char>& StrInfo;
+        const ArgInfo& TheArgInfo;
+        const ArgPack& TheArgPack;
+    };
+    Formatter<Char>& formatter;
+    template<typename T>
+    forceinline static std::basic_string_view<T> BuildStr(uintptr_t ptr, size_t len) noexcept
+    {
+        const auto arg = reinterpret_cast<const T*>(ptr);
+        if (len == SIZE_MAX)
+            len = std::char_traits<T>::length(arg);
+        return { arg, len };
+    }
+    forceinline void OnFmtStr(Context& context, uint32_t offset, uint32_t length)
+    {
+        formatter.PutString(context.Dst, context.StrInfo.FormatString.substr(offset, length), nullptr);
+    }
+    forceinline void OnBrace(Context& context, bool isLeft)
+    {
+        constexpr Char tmp[2] = { static_cast<Char>('{'), static_cast<Char>('}') };
+        formatter.PutString(context.Dst, std::basic_string_view<Char>{ &tmp[isLeft ? 0 : 1], 1 }, nullptr);
+    }
+    forceinline void OnColor(Context& context, ScreenColor color)
+    {
+        formatter.PutColor(context.Dst, color);
+    }
+    SYSCOMMONAPI void OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec);
 };
 
 
@@ -1450,20 +1659,24 @@ public:
     TrimedResult<Char, OpCount, NamedArgCount, IdxArgCount> ret(Result, str);\
     return ret;                                                         \
 }
-#define FmtString(str) []()                                                             \
-{                                                                                       \
-    using Char = std::decay_t<decltype(str[0])>;                                        \
-    struct Type_ { const ParseResult Data = ParseResult::ParseString(str); };           \
-    constexpr Type_ Result;                                                             \
-    constexpr auto OpCount       = Result.Data.OpCount;                                 \
-    constexpr auto NamedArgCount = Result.Data.NamedArgCount;                           \
-    constexpr auto IdxArgCount   = Result.Data.IdxArgCount;                             \
-    ParseResult::CheckErrorCompile<Result.Data.ErrorPos, OpCount>();                    \
-    struct Type : public TrimedResult<Char, OpCount, NamedArgCount, IdxArgCount>        \
-    {                                                                                   \
-        constexpr Type() noexcept : TrimedResult(Type_{}.Data, str) {}                  \
-    };                                                                                  \
-    return Type{};                                                                      \
+
+#define FmtString(str_) []()                                        \
+{                                                                   \
+    using ParseResult = common::str::exp::ParseResult;              \
+    using Char = std::decay_t<decltype(str_[0])>;                   \
+    constexpr auto Data          = ParseResult::ParseString(str_);  \
+    constexpr auto OpCount       = Data.OpCount;                    \
+    constexpr auto NamedArgCount = Data.NamedArgCount;              \
+    constexpr auto IdxArgCount   = Data.IdxArgCount;                \
+    ParseResult::CheckErrorCompile<Data.ErrorPos, OpCount>();       \
+    struct Type : public common::str::exp::TrimedResult<            \
+        Char, OpCount, NamedArgCount, IdxArgCount>                  \
+    {                                                               \
+        using CharTyp2 = Char;                                      \
+        constexpr Type() noexcept : TrimedResult(                   \
+            ParseResult::ParseString(str_), str_) {}                \
+    };                                                              \
+    return Type{};                                                  \
 }()
 
 }

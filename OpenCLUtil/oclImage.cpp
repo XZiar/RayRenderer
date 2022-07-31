@@ -214,7 +214,7 @@ oclImage_::oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t w
 oclImage_::~oclImage_()
 { 
     if (Context->ShouldDebugResurce())
-        oclLog().debug(u"oclImage {:p} with size [{}x{}x{}], being destroyed.\n", (void*)*MemID, Width, Height, Depth);
+        oclLog().Debug(u"oclImage {:p} with size [{}x{}x{}], being destroyed.\n", (void*)*MemID, Width, Height, Depth);
 }
 
 common::span<std::byte> oclImage_::MapObject(CLHandle<detail::CLCmdQue> que, const MapFlag mapFlag)
@@ -229,7 +229,7 @@ common::span<std::byte> oclImage_::MapObject(CLHandle<detail::CLCmdQue> que, con
         0, nullptr, nullptr, &ret);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot map clImage");
-    oclLog().info(u"Mapped clImage [{}x{}x{}] with row pitch [{}] and slice pitch [{}].\n", Width, Height, Depth, image_row_pitch, image_slice_pitch);
+    oclLog().Info(u"Mapped clImage [{}x{}x{}] with row pitch [{}] and slice pitch [{}].\n", Width, Height, Depth, image_row_pitch, image_slice_pitch);
     return common::span<std::byte>(reinterpret_cast<std::byte*>(ptr), size);
 }
 

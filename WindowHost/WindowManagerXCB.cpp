@@ -121,7 +121,7 @@ private:
     {
         if (err)
         {
-            Logger.error(u"Error: [{}] [{},{}]\n", err->error_code, err->major_code, err->minor_code);
+            Logger.Error(u"Error: [{}] [{},{}]\n", err->error_code, err->major_code, err->minor_code);
             free(err);
             return false;
         }
@@ -270,7 +270,7 @@ public:
         const auto xkbRet = xkb_x11_setup_xkb_extension(Connection, XCB_XKB_MAJOR_VERSION, XCB_XKB_MINOR_VERSION, XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS, &xkbVersion[0], &xkbVersion[1], &XKBEventID, &XKBErrorID);
         if (xkbRet == 0)
             COMMON_THROW(BaseException, u"Failed to setup xkb extension");
-        Logger.debug(u"xkb initialized as [{}.{}] with event id[{}][{}].\n"sv, xkbVersion[0], xkbVersion[1], XKBEventID, XKBErrorID);
+        Logger.Debug(u"xkb initialized as [{}.{}] with event id[{}][{}].\n"sv, xkbVersion[0], xkbVersion[1], XKBEventID, XKBErrorID);
         const auto kbId = xkb_x11_get_core_keyboard_device_id(Connection);
         constexpr auto evtMask = static_cast<uint16_t>(XCB_XKB_EVENT_TYPE_NEW_KEYBOARD_NOTIFY | XCB_XKB_EVENT_TYPE_MAP_NOTIFY | XCB_XKB_EVENT_TYPE_STATE_NOTIFY);
         xcb_xkb_select_events(Connection, kbId,
@@ -285,7 +285,7 @@ public:
         UpdateXKBState();
 
         auto setup = xcb_get_setup(Connection);
-        Logger.debug(u"xcb initialized as [{}.{}]\n"sv, setup->protocol_major_version, setup->protocol_minor_version);
+        Logger.Debug(u"xcb initialized as [{}.{}]\n"sv, setup->protocol_major_version, setup->protocol_minor_version);
         // Find XCB screen
         auto screenIter = xcb_setup_roots_iterator(setup);
         for (auto screenCnt = DefScreen; screenIter.rem && screenCnt--;)
@@ -454,13 +454,13 @@ public:
             }
             else
                 dragInfo.Types.assign(&data.data32[2], &data.data32[5]);
-            Logger.info(u"DragEnter from [{}] with {} types:\n", uint32_t(dragInfo.SourceWindow), dragInfo.Types.size());
+            Logger.Info(u"DragEnter from [{}] with {} types:\n", uint32_t(dragInfo.SourceWindow), dragInfo.Types.size());
             for (const auto& type : dragInfo.Types)
             {
                 if (type == UrlListAtom)
                     dragInfo.TargetType = type;
                 const auto name = QueryAtomName(type);
-                Logger.verbose(u"--[{:6}]: [{}]\n", type, name);
+                Logger.Verbose(u"--[{:6}]: [{}]\n", type, name);
             }
         }
         else if (atom == XdndLeaveAtom)
@@ -468,7 +468,7 @@ public:
             auto& dragInfo = host->DragInfo;
             dragInfo.Clear();
             const xcb_window_t source = data.data32[0];
-            Logger.info(u"DragLeave from [{}]\n", uint32_t(source));
+            Logger.Info(u"DragLeave from [{}]\n", uint32_t(source));
         }
         else if (atom == XdndPositionAtom)
         {
@@ -495,7 +495,7 @@ public:
             {
                 if (dragInfo.TargetType)
                 {
-                    Logger.info(u"DragDrop from [{}]\n", uint32_t(dragInfo.SourceWindow));
+                    Logger.Info(u"DragDrop from [{}]\n", uint32_t(dragInfo.SourceWindow));
                     xcb_convert_selection(Connection, window, XdndSelectionAtom, dragInfo.TargetType, PrimaryAtom, dragInfo.Version >= 1 ? data.data32[2] : XCB_CURRENT_TIME);
                     xcb_flush(Connection);
                     return;
@@ -523,7 +523,7 @@ public:
             UpdateXKBState();
         } break;
         default:
-            Logger.verbose(u"Recieve xkb message [{}]\n", (uint32_t)xkbType);
+            Logger.Verbose(u"Recieve xkb message [{}]\n", (uint32_t)xkbType);
         }
     }
 
@@ -544,7 +544,7 @@ public:
         bool shouldContinue = true;
         while (shouldContinue && (evt = xcb_wait_for_event(Connection)))
         {
-            // Logger.verbose(u"Recieve message [{}]\n", (uint32_t)event->response_type);
+            // Logger.Verbose(u"Recieve message [{}]\n", (uint32_t)event->response_type);
             switch (const auto evtType = evt->response_type & 0x7f; evtType)
             {
             case XCB_CREATE_NOTIFY:
@@ -617,7 +617,7 @@ public:
                 if (const auto host = GetWindow(msg.event); host)
                 {
                     const auto key = ProcessKey(msg.detail);
-                    // Logger.verbose(u"key: [{}] => [{}]\n", (uint32_t)msg.detail, common::enum_cast(key.Key));
+                    // Logger.Verbose(u"key: [{}] => [{}]\n", (uint32_t)msg.detail, common::enum_cast(key.Key));
                     if (evtType == XCB_KEY_PRESS) 
                     {
                         // dirty fix for caps state since it's updated in next message
@@ -653,7 +653,7 @@ public:
             case XCB_SELECTION_NOTIFY:
             {
                 const auto& msg = *reinterpret_cast<xcb_selection_notify_event_t*>(evt);
-                Logger.info(u"Recieve selection[{}]({}) target[{}]({}) property[{}]({})\n",
+                Logger.Info(u"Recieve selection[{}]({}) target[{}]({}) property[{}]({})\n",
                     QueryAtomName(msg.selection), uint32_t(msg.selection),
                     QueryAtomName(msg.target),    uint32_t(msg.target),
                     QueryAtomName(msg.property),  uint32_t(msg.property));
@@ -710,16 +710,16 @@ public:
             case 0: // error
             {
                 const auto& err = *reinterpret_cast<xcb_generic_error_t*>(evt);
-                Logger.error(u"Error: [{}] [{},{}]\n", err.error_code, err.major_code, err.minor_code);
+                Logger.Error(u"Error: [{}] [{},{}]\n", err.error_code, err.major_code, err.minor_code);
             } break;
             default:
             {
                 if (evtType == XKBEventID) // handle xkb event
                     HandleXKBEvent(evt);
                 else if (evtType == XKBErrorID)
-                    Logger.warning(u"Recieve xkb error [{}]\n", evt->pad0);
+                    Logger.Warning(u"Recieve xkb error [{}]\n", evt->pad0);
                 else
-                    Logger.verbose(u"Recieve message [{}]\n", evtType);
+                    Logger.Verbose(u"Recieve message [{}]\n", evtType);
             } break;
             }
             free(evt);

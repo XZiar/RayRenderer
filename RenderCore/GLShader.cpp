@@ -22,7 +22,7 @@ GLShader::GLShader(const u16string& name, const string& source, const oglu::Shad
     }
     catch (const OGLException& gle)
     {
-        dizzLog().error(u"OpenGL shader [{}] fail:\n{}\n{}\n", name, gle.Message(), gle.GetDetailMessage());
+        dizzLog().Error(u"OpenGL shader [{}] fail:\n{}\n{}\n", name, gle.Message(), gle.GetDetailMessage());
         COMMON_THROWEX(BaseException, u"OpenGL shader fail");
     }
     RegistControllable();

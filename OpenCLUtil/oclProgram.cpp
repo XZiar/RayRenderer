@@ -200,7 +200,7 @@ KernelArgStore::KernelArgStore(const detail::PlatFuncs* funcs, CLHandle<detail::
     if (reference.HasInfo)
     {
         if (reference.GetSize() != GetSize())
-            oclLog().debug(u"KerArgStore, clAPI reports [{}] arg while provided [{}].\n", GetSize(), reference.GetSize());
+            oclLog().Debug(u"KerArgStore, clAPI reports [{}] arg while provided [{}].\n", GetSize(), reference.GetSize());
         else
         {
             for (size_t i = 0; i < GetSize(); ++i)
@@ -212,7 +212,7 @@ KernelArgStore::KernelArgStore(const detail::PlatFuncs* funcs, CLHandle<detail::
                     if (cur.Name.empty())
                         ArgsInfo[i].Name = ArgTexts.AllocateString(ref.Name);
                     else
-                        oclLog().debug(u"KerArgStore, external reports arg[{}] is [{}] while provided [{}].\n",
+                        oclLog().Debug(u"KerArgStore, external reports arg[{}] is [{}] while provided [{}].\n",
                             i, ref.Name, cur.Name);
                 }
                 if (ref.Type != cur.Type)
@@ -220,24 +220,24 @@ KernelArgStore::KernelArgStore(const detail::PlatFuncs* funcs, CLHandle<detail::
                     if (cur.Type.empty())
                         ArgsInfo[i].Type = ArgTexts.AllocateString(ref.Type);
                     /*else
-                        oclLog().debug(u"KerArgStore, external reports arg[{}] is [{}] while provided [{}].\n",
+                        oclLog().Debug(u"KerArgStore, external reports arg[{}] is [{}] while provided [{}].\n",
                             i, ref.Type, cur.Type);*/
                 }
                 if (ref.Space != cur.Space)
-                    oclLog().debug(u"KerArgStore, external reports arg[{}]({}) is [{}] while provided [{}].\n", 
+                    oclLog().Debug(u"KerArgStore, external reports arg[{}]({}) is [{}] while provided [{}].\n", 
                         i, ref.Name, ref.GetSpaceName(), cur.GetSpaceName());
                 if (ref.Access != cur.Access)
-                    oclLog().debug(u"KerArgStore, external reports arg[{}]({}) is [{}] while provided [{}].\n",
+                    oclLog().Debug(u"KerArgStore, external reports arg[{}]({}) is [{}] while provided [{}].\n",
                         i, ref.Name, ref.GetImgAccessName(), cur.GetImgAccessName());
                 if (ref.Qualifier != cur.Qualifier)
-                    oclLog().debug(u"KerArgStore, external reports arg[{}]({}) is [{}] while provided [{}].\n",
+                    oclLog().Debug(u"KerArgStore, external reports arg[{}]({}) is [{}] while provided [{}].\n",
                         i, ref.Name, ref.GetQualifierName(), cur.GetQualifierName());
                 if (ref.ArgType != cur.ArgType)
                 {
                     if (cur.ArgType == KerArgType::Any)
                         ArgsInfo[i].ArgType = ref.ArgType;
                     else if (ref.ArgType != KerArgType::Any)
-                        oclLog().debug(u"KerArgStore, external reports arg[{}] is [{}] while provided [{}].\n",
+                        oclLog().Debug(u"KerArgStore, external reports arg[{}] is [{}] while provided [{}].\n",
                             i, ref.GetArgTypeName(), cur.GetArgTypeName());
                 }
             }
@@ -344,7 +344,7 @@ oclKernel_::oclKernel_(const oclProgram_* prog, void* kerID, string name, Kernel
         ArgStore = KernelArgStore(Funcs, *Kernel, argStore);
     else if (argStore.HasInfo)
     {
-        oclLog().verbose(u"use external arg-info for kernel [{}].\n", Name);
+        oclLog().Verbose(u"use external arg-info for kernel [{}].\n", Name);
         ArgStore = std::move(argStore);
     }
     ReqDbgBufSize = ArgStore.DebugBuffer == 0 ? 512 : ArgStore.DebugBuffer;
@@ -447,7 +447,7 @@ PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, D
     if (localsize == nullptr && KernelHost->WgInfo.HasCompiledWGSize())
     {
         localsize = KernelHost->WgInfo.CompiledWorkGroupSize;
-        oclLog().warning(FMT_STRING(u"passing nullptr to LocalSize, while attributes shows [{},{},{}]\n"), 
+        oclLog().Warning(FmtString(u"passing nullptr to LocalSize, while attributes shows [{},{},{}]\n"sv),
             localsize[0], localsize[1], localsize[2]);
     }
     ret = KernelHost->Funcs->clEnqueueNDRangeKernel(*que->CmdQue, *Kernel, dim, workoffset, worksize, localsize,
@@ -493,7 +493,7 @@ oclProgStub::~oclProgStub()
 {
     if (*Program)
     {
-        oclLog().warning(u"oclProg released before finished.\n");
+        oclLog().Warning(u"oclProg released before finished.\n");
         Context->Funcs->clReleaseProgram(*Program);
     }
 }
@@ -503,7 +503,7 @@ void oclProgStub::Build(const CLProgConfig& config)
     const auto minVer = std::min(Device->CVersion, Device->Version);
     const auto cver = config.Version == 0 ? minVer : config.Version;
     if (cver > minVer)
-        oclLog().warning(u"request cversion [{}] on device [{}] (Ver[{}], CVer[{}])\n", cver, Device->Name, Device->Version, Device->CVersion);
+        oclLog().Warning(u"request cversion [{}] on device [{}] (Ver[{}], CVer[{}])\n", cver, Device->Name, Device->Version, Device->CVersion);
     string options;
     switch (Context->GetVendor())
     {
@@ -545,11 +545,11 @@ void oclProgStub::Build(const CLProgConfig& config)
     u16string buildlog = Device->Name + u":\n" + GetBuildLog();
     if (ret == CL_SUCCESS)
     {
-        oclLog().success(u"build program {:p} success:\n{}\n", (void*)*Program, buildlog);
+        oclLog().Success(u"build program {:p} success:\n{}\n", (void*)*Program, buildlog);
     }
     else
     {
-        oclLog().error(u"build program {:p} failed:\nwith option:\t{}\n{}\n", (void*)*Program, options, buildlog);
+        oclLog().Error(u"build program {:p} failed:\nwith option:\t{}\n{}\n", (void*)*Program, options, buildlog);
         common::SharedString<char16_t> log(buildlog);
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"Build Program failed")
             .Attach("dev", Device)

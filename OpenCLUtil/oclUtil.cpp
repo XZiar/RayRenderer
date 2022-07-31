@@ -27,7 +27,7 @@ bool LogCLError(cl_int err, std::u16string_view msg)
 {
     if (err != CL_SUCCESS)
     {
-        oclLog().error(u"{}: [{}]({})\n", msg, oclUtil::GetErrorString(err), err);
+        oclLog().Error(u"{}: [{}]({})\n", msg, oclUtil::GetErrorString(err), err);
         return false;
     }
     return true;
@@ -41,7 +41,7 @@ void oclUtil::LogCLInfo()
         for (const auto dev : plat->GetDevices())
             fmt::format_to(std::back_inserter(strBuf), u"--Device {}: {} -- {} -- {}\n", dev->GetTypeName(),
                 dev->Name, dev->Vendor, dev->Ver);
-        oclLog().verbose(strBuf);
+        oclLog().Verbose(strBuf);
     }
 }
 

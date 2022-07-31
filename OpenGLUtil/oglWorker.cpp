@@ -21,11 +21,11 @@ void oglWorker::Start()
         common::SetThreadName(prefix);
         if (!ShareContext->UseContext())
         {
-            oglLog().error(u"{} failed with DC[{}] RC[{}]\n", prefix, ShareContext->Host->GetDeviceContext(), ShareContext->Hrc);
+            oglLog().Error(u"{} failed with DC[{}] RC[{}]\n", prefix, ShareContext->Host->GetDeviceContext(), ShareContext->Hrc);
         }
         else
         {
-            oglLog().info(u"{} success with DC[{}] RC[{}], GL version {}\n", prefix, ShareContext->Host->GetDeviceContext(), ShareContext->Hrc, ShareContext->Capability->VersionString);
+            oglLog().Info(u"{} success with DC[{}] RC[{}], GL version {}\n", prefix, ShareContext->Host->GetDeviceContext(), ShareContext->Hrc, ShareContext->Capability->VersionString);
         }
         ShareContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
         pms1.set_value();
@@ -34,7 +34,7 @@ void oglWorker::Start()
         const auto& prefix = u"[oglShare]" + Name;
         if (!ShareContext->UnloadContext())
         {
-            oglLog().error(u"{} failed with HDC[{}] HRC[{}]\n", prefix, ShareContext->Host->GetDeviceContext(), ShareContext->Hrc);
+            oglLog().Error(u"{} failed with HDC[{}] HRC[{}]\n", prefix, ShareContext->Host->GetDeviceContext(), ShareContext->Hrc);
         }
         ShareContext.reset();
     });
@@ -44,11 +44,11 @@ void oglWorker::Start()
         common::SetThreadName(prefix);
         if (!IsolateContext->UseContext())
         {
-            oglLog().error(u"{} failed with DC[{}] RC[{}]\n", prefix, ShareContext->Host->GetDeviceContext(), ShareContext->Hrc);
+            oglLog().Error(u"{} failed with DC[{}] RC[{}]\n", prefix, ShareContext->Host->GetDeviceContext(), ShareContext->Hrc);
         }
         else
         {
-            oglLog().info(u"{} success with DC[{}] RC[{}], GL version {}\n", prefix, ShareContext->Host->GetDeviceContext(), ShareContext->Hrc, ShareContext->Capability->VersionString);
+            oglLog().Info(u"{} success with DC[{}] RC[{}], GL version {}\n", prefix, ShareContext->Host->GetDeviceContext(), ShareContext->Hrc, ShareContext->Capability->VersionString);
         }
         IsolateContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
         pms2.set_value();
@@ -57,7 +57,7 @@ void oglWorker::Start()
         const auto& prefix = u"[oglIsolate]" + Name;
         if (!IsolateContext->UnloadContext())
         {
-            oglLog().error(u"{} failed with DC[{}] RC[{}]\n", prefix, IsolateContext->Host->GetDeviceContext(), IsolateContext->Hrc);
+            oglLog().Error(u"{} failed with DC[{}] RC[{}]\n", prefix, IsolateContext->Host->GetDeviceContext(), IsolateContext->Hrc);
         }
         IsolateContext.reset();
     });

@@ -153,15 +153,15 @@ static void PrepareCtxFuncs(void* hRC, const GLHost& host, std::pair<bool, bool>
 
 static void ShowQuerySuc (const std::string_view tarName, const std::string_view ext, void* ptr)
 {
-    oglLog().verbose(FMT_STRING(u"Func [{}] uses [{}] ({:p})\n"), tarName, ext, (void*)ptr);
+    oglLog().Verbose(FmtString(u"Func [{}] uses [{}] ({:p})\n"sv), tarName, ext, (void*)ptr);
 }
 static void ShowQueryFail(const std::string_view tarName)
 {
-    oglLog().warning(FMT_STRING(u"Func [{}] not found\n"), tarName);
+    oglLog().Warning(FmtString(u"Func [{}] not found\n"sv), tarName);
 }
 //static void ShowQueryFall(const std::string_view tarName)
 //{
-//    oglLog().warning(FMT_STRING(u"Func [{}] fallback to default\n"), tarName);
+//    oglLog().Warning(FMT_STRING(u"Func [{}] fallback to default\n"), tarName);
 //}
 
 
@@ -1183,7 +1183,7 @@ void CtxFuncs::GetTextureImage(GLuint texture, GLenum target, GLint level, GLenu
             }
             const auto status = CheckFramebufferStatus_(FBTarget);
             if (status != GL_FRAMEBUFFER_COMPLETE)
-                oglLog().warning("incomplete fbo.\n");
+                oglLog().Warning("incomplete fbo.\n");
             ReadPixels_(0, 0, width, height, format, type, ptr);
         }
         BindFramebuffer_(FBTarget, backup);

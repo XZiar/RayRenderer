@@ -26,9 +26,9 @@ static MiniLogger<false>& log()
 //    {
 //        const auto tid = taskid++;
 //        SimpleTimer timer;
-//        log().info(u"[{}]exception created\n", tid);
+//        log().Info(u"[{}]exception created\n", tid);
 //        agent.Sleep(sec * 1000);
-//        log().info(u"[{}]begin throw\n", tid);
+//        log().Info(u"[{}]begin throw\n", tid);
 //        COMMON_THROW(BaseException, u"Error Msg:\n" + str);
 //    };
 //}
@@ -39,15 +39,15 @@ static MiniLogger<false>& log()
 //    {
 //        const auto tid = taskid++;
 //        SimpleTimer timer;
-//        log().info(u"[{}]stall created\n", tid);
+//        log().Info(u"[{}]stall created\n", tid);
 //        while (true)
 //        {
 //            timer.Start();
 //            std::this_thread::sleep_for(std::chrono::milliseconds(stms));
-//            log().info(u"[{}]time stalled\n", tid);
+//            log().Info(u"[{}]time stalled\n", tid);
 //            agent.Sleep(slsec * 1000);
 //            timer.Stop();
-//            log().info(u"[{}]time reached within {}ms\n", tid, timer.ElapseMs());
+//            log().Info(u"[{}]time reached within {}ms\n", tid, timer.ElapseMs());
 //        }
 //    });
 //}
@@ -56,9 +56,9 @@ static MiniLogger<false>& log()
 
 static void AsyncTest()
 {
-    log().info(u"Test 25=[{}], 100=[{}]\n", GetLogLevelStr((LogLevel)25), common::mlog::GetLogLevelStr((LogLevel)100));
+    log().Info(u"Test 25=[{}], 100=[{}]\n", GetLogLevelStr((LogLevel)25), common::mlog::GetLogLevelStr((LogLevel)100));
     AsyncManager producer(u"Producer");
-    producer.Start([&] { log().success(u"Producer thread initilized.\n"); }, [&] {log().success(u"Producer thread finished.\n"); });
+    producer.Start([&] { log().Success(u"Producer thread initilized.\n"); }, [&] {log().Success(u"Producer thread finished.\n"); });
     common::WRSpinLock wrLock;
     common::PromiseResult<void> pms;
     while (true)

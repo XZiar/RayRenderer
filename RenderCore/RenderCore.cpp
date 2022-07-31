@@ -71,9 +71,9 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, 
             sharedCtx = GLInterop::CreateGLSharedContext(*glPlat, glContext);
             sharedCtx->OnMessage += [](const u16string& txt)
             {
-                dizzLog().verbose(u"From shared CLContext:\t{}\n", txt);
+                dizzLog().Verbose(u"From shared CLContext:\t{}\n", txt);
             };
-            dizzLog().success(u"Created Shared OCLContext on platform [{}]'s device [{}]!\n", glPlat->Name, sharedCtx->Devices[0]->Name);
+            dizzLog().Success(u"Created Shared OCLContext on platform [{}]'s device [{}]!\n", glPlat->Name, sharedCtx->Devices[0]->Name);
         }
         if (glPlat == venderClPlat)
             defCtx = sharedCtx;
@@ -82,15 +82,15 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, 
             defCtx = venderClPlat->CreateContext();
             defCtx->OnMessage += [](const u16string& txt)
             {
-                dizzLog().verbose(u"From CLContext:\t{}\n", txt);
+                dizzLog().Verbose(u"From CLContext:\t{}\n", txt);
             };
-            dizzLog().success(u"Created OCLContext in platform [{}]'s device [{}]!\n", venderClPlat->Name, defCtx->Devices[0]->Name);
+            dizzLog().Success(u"Created OCLContext in platform [{}]'s device [{}]!\n", venderClPlat->Name, defCtx->Devices[0]->Name);
         }
         return { defCtx, sharedCtx };
     }
     else
     {
-        dizzLog().warning(u"No avaliable OpenCL Platform found\n");
+        dizzLog().Warning(u"No avaliable OpenCL Platform found\n");
         return {};
     }
 }
@@ -245,7 +245,7 @@ void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(std:
         }
         catch (const BaseException& be)
         {
-            dizzLog().error(u"failed to load model by file {}\n", name);
+            dizzLog().Error(u"failed to load model by file {}\n", name);
             if (onError)
                 onError(be);
             else
@@ -267,7 +267,7 @@ common::PromiseResult<std::shared_ptr<Model>> RenderCore::LoadModelAsync2(const 
             }
             catch (const BaseException& be)
             {
-                dizzLog().error(u"failed to load model by file {}\n", name);
+                dizzLog().Error(u"failed to load model by file {}\n", name);
                 throw be;
             }
         }, fname);
@@ -390,7 +390,7 @@ xziar::img::Image RenderCore::Screenshot()
     auto ssTex = oglu::oglTex2DStatic_::Create(width, height, xziar::img::TextureFormat::SRGBA8);
     ssTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
     ssFBO->AttachColorTexture(ssTex);
-    dizzLog().info(u"Screenshot FBO [{}x{}], status:{}\n", width, height, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
+    dizzLog().Info(u"Screenshot FBO [{}x{}], status:{}\n", width, height, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
     ssFBO->BlitColorFrom(oglu::oglDefaultFrameBuffer_::Get(), { 0, 0, (int32_t)width, (int32_t)height });
     return ssTex->GetImage(xziar::img::ImageDataType::RGBA);
 }

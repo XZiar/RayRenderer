@@ -125,7 +125,7 @@ struct JpegHelper
     {
         if (bytes < 0)
         {
-            ImgLog().warning(u"LIBJPEG request an negative skip, ignored.\n");
+            ImgLog().Warning(u"LIBJPEG request an negative skip, ignored.\n");
             return;
         }
         if (cinfo->src->bytes_in_buffer >= static_cast<size_t>(bytes))
@@ -173,11 +173,11 @@ struct JpegHelper
         (*cinfo->err->format_message)(cinfo, message);
         if (msg_level == -1)
         {
-            ImgLog().warning(u"LIBJPEG warns {}\n", message);
+            ImgLog().Warning(u"LIBJPEG warns {}\n", message);
         }
 #ifdef _DEBUG
         else
-            ImgLog().verbose(u"LIBJPEG trace {}\n", message);
+            ImgLog().Verbose(u"LIBJPEG trace {}\n", message);
 #endif
     }
 
@@ -186,7 +186,7 @@ struct JpegHelper
         //auto reader = reinterpret_cast<JpegReader*>(cinfo->client_data);
         char jpegLastErrorMsg[JMSG_LENGTH_MAX];
         (*cinfo->err->format_message)(cinfo, jpegLastErrorMsg);
-        ImgLog().error(u"LIBJPEG report an error: {}\n", jpegLastErrorMsg);
+        ImgLog().Error(u"LIBJPEG report an error: {}\n", jpegLastErrorMsg);
         COMMON_THROW(BaseException, u"Libjpeg report an error");
     }
 };
@@ -199,7 +199,7 @@ JpegReader::JpegReader(RandomInputStream& stream) : Stream(stream)
 
     if (auto memStream = dynamic_cast<common::io::MemoryInputStream*>(&Stream))
     {
-        ImgLog().verbose(u"LIBJPEG faces MemoryStream, bypass it.\n");
+        ImgLog().Verbose(u"LIBJPEG faces MemoryStream, bypass it.\n");
         const auto [ptr, size] = memStream->ExposeAvaliable();
         jpeg_mem_src(decompStruct, reinterpret_cast<const unsigned char*>(ptr), static_cast<unsigned long>(size));
     }
@@ -249,7 +249,7 @@ bool JpegReader::Validate()
     }
     catch (const BaseException& be)
     {
-        ImgLog().warning(u"libjpeg-turbo validate failed {}\n", be.Message());
+        ImgLog().Warning(u"libjpeg-turbo validate failed {}\n", be.Message());
         return false;
     }
     return true;

@@ -90,96 +90,96 @@ static void TestImageUtil()
     SimpleTimer timer;
     {
         const fs::path srcPath = basePath / u"CTC16.TGA";
-        log().info(u"Test TGA16-Reading\n");
+        log().Info(u"Test TGA16-Reading\n");
         const auto fdata = file::ReadAll<std::byte>(srcPath);
         timer.Start();
         auto img = img::ReadImage(fdata, u"tga", img::ImageDataType::RGB);
         timer.Stop();
-        log().debug(u"zextga read cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"zextga read cost {} ms\n", timer.ElapseMs());
         STBSaveImage(basePath / u"CTC16-stb.png", img);
     }
     {
         const fs::path srcPath = basePath / u"pngtest.png";
-        log().info(u"Test PNG(Alpha)-Reading\n");
+        log().Info(u"Test PNG(Alpha)-Reading\n");
         const auto fdata = file::ReadAll<std::byte>(srcPath);
 
         timer.Start();
         auto img = img::ReadImage(fdata, u"png");
         timer.Stop();
-        log().debug(u"libpng read cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"libpng read cost {} ms\n", timer.ElapseMs());
 
         timer.Start();
         auto img2 = STBLoadImage(fdata);
         timer.Stop();
-        log().debug(u"stbpng read cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"stbpng read cost {} ms\n", timer.ElapseMs());
 
-        log().info(u"Test PNG(Alpha)-Writing\n");
+        log().Info(u"Test PNG(Alpha)-Writing\n");
         timer.Start();
         STBSaveImage(basePath / u"pngtest-stb.png", img);
         timer.Stop();
-        log().debug(u"stbpng write cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"stbpng write cost {} ms\n", timer.ElapseMs());
 
-        log().info(u"Test Gray-Writing\n");
+        log().Info(u"Test Gray-Writing\n");
         const auto img3 = keepGray(img);
         timer.Start();
         img::WriteImage(img3, basePath / u"pngtest-graya-lpng.png");
         timer.Stop();
-        log().debug(u"libpng write cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"libpng write cost {} ms\n", timer.ElapseMs());
 
         const auto img4 = img3.ConvertTo(img::ImageDataType::GRAY);
         timer.Start();
         img::WriteImage(img4, basePath / u"pngtest-gray-zex.tga");
         timer.Stop();
-        log().debug(u"zextga write cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"zextga write cost {} ms\n", timer.ElapseMs());
 
-        log().info(u"Test Gray-Reading\n");
+        log().Info(u"Test Gray-Reading\n");
         auto img5 = img::ReadImage(basePath / u"pngtest-gray-zex.tga");
         timer.Start();
         img::WriteImage(img5, basePath / u"pngtest-gray-lpng.png");
         timer.Stop();
-        log().debug(u"libpng write cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"libpng write cost {} ms\n", timer.ElapseMs());
     }
     //if (false)
     {
         const fs::path srcPath = basePath / u"qw11.png";
-        log().info(u"Test PNG-Reading\n");
+        log().Info(u"Test PNG-Reading\n");
         const auto fdata = file::ReadAll<std::byte>(srcPath);
 
         timer.Start();
         auto img = img::ReadImage(fdata, u"png");
         timer.Stop();
-        log().debug(u"libpng read cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"libpng read cost {} ms\n", timer.ElapseMs());
 
         timer.Start();
         auto img2 = STBLoadImage(fdata);
         timer.Stop();
-        log().debug(u"stbpng read cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"stbpng read cost {} ms\n", timer.ElapseMs());
 
-        log().info(u"Test PNG-Writing\n");
+        log().Info(u"Test PNG-Writing\n");
         timer.Start();
         STBSaveImage(basePath / u"qw11-stb.png", img);
         timer.Stop();
-        log().debug(u"stbpng write cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"stbpng write cost {} ms\n", timer.ElapseMs());
 
         timer.Start();
         img::WriteImage(img, basePath / u"qw11-lpng.png");
         timer.Stop();
-        log().debug(u"libpng write cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"libpng write cost {} ms\n", timer.ElapseMs());
     }
     {
         const fs::path srcPath = basePath / u"head2.tga";
-        log().info(u"Test TGA-Reading\n");
+        log().Info(u"Test TGA-Reading\n");
         const auto fdata = file::ReadAll<std::byte>(srcPath);
         timer.Start();
         auto img2 = STBLoadImage(fdata);
         timer.Stop();
-        log().debug(u"stbtga read cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"stbtga read cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img2, basePath / u"head2-stb.bmp");
 
         timer.Start();
         auto img = img::ReadImage(fdata, u"tga");
         timer.Stop();
-        log().debug(u"zextga read cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"zextga read cost {} ms\n", timer.ElapseMs());
         file::FileOutputStream(file::FileObject::OpenThrow(basePath / "head-raw.dat", file::OpenFlag::CreateNewBinary))
             .Write(img.GetSize(), img.GetRawPtr<uint8_t>());
         img::WriteImage(img, basePath / u"head2-zex.bmp");
@@ -187,58 +187,58 @@ static void TestImageUtil()
     //if (false)
     {
         const fs::path srcPath = basePath / u"qw22.jpg";
-        log().info(u"Test JPG-Reading\n");
+        log().Info(u"Test JPG-Reading\n");
         const auto fdata = file::ReadAll<std::byte>(srcPath);
         timer.Start();
         auto img = xziar::img::ReadImage(fdata, u"jpg");
         timer.Stop();
-        log().debug(u"libjpeg read cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"libjpeg read cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img, basePath / u"qw22-ljpg.png");
 
         timer.Start();
         auto img2 = STBLoadImage(fdata);
         timer.Stop();
-        log().debug(u"stbjpg read cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"stbjpg read cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img, basePath / u"qw22-stb.png");
     }
     //if (false)
     {
         const fs::path srcPath = basePath / u"qw22b8.bmp";
-        log().info(u"Test BMP-Reading\n");
+        log().Info(u"Test BMP-Reading\n");
         const auto fdata = file::ReadAll<std::byte>(srcPath);
         timer.Start();
         auto img = img::ReadImage(fdata, u"bmp");
         timer.Stop();
-        log().debug(u"zexbmp read cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"zexbmp read cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img, basePath / u"qw22b8-zex.png");
 
         timer.Start();
         auto img2 = STBLoadImage(fdata);
         timer.Stop();
-        log().debug(u"stbbmp read cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"stbbmp read cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img2, basePath / u"qw22b8-stb.bmp");
     }
     //if (false)
     {
         const fs::path srcPath = basePath / u"qw22b.bmp";
-        log().info(u"Test BMP-Reading\n");
+        log().Info(u"Test BMP-Reading\n");
         const auto fdata = file::ReadAll<std::byte>(srcPath);
         timer.Start();
         auto img = img::ReadImage(fdata, u"bmp");
         timer.Stop();
-        log().debug(u"zexbmp read cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"zexbmp read cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img, basePath / u"qw22b-zex.png");
 
         timer.Start();
         auto img2 = STBLoadImage(fdata);
         timer.Stop();
-        log().debug(u"stbbmp read cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"stbbmp read cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img2, basePath / u"qw22b-stb.bmp");
     }
     //if (false)
     {
         const fs::path srcPath = basePath / u"head.tga";
-        log().info(u"Test Image-Conversion\n");
+        log().Info(u"Test Image-Conversion\n");
         const auto fdata = file::ReadAll<std::byte>(srcPath);
         auto img = img::ReadImage(fdata, u"tga", img::ImageDataType::BGRA);
         auto imgs = img::Image(img::ImageDataType::RGB);
@@ -246,30 +246,30 @@ static void TestImageUtil()
         timer.Start();
         auto img2 = img.ConvertTo(img::ImageDataType::BGR);
         timer.Stop();
-        log().debug(u"convert RGBA to BGR cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"convert RGBA to BGR cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img2, basePath / u"head-BGR.bmp");
 
         timer.Start();
         imgs.PlaceImage(img2, 0, 0, 0, 0);
         timer.Stop();
-        log().debug(u"place without convert cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"place without convert cost {} ms\n", timer.ElapseMs());
         timer.Start();
         img2.FlipHorizontal();
         timer.Stop();
-        log().debug(u"flip horizontal(3) cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"flip horizontal(3) cost {} ms\n", timer.ElapseMs());
         imgs.PlaceImage(img2, 0, 0, img.GetWidth(), 0);
         timer.Start();
         img.FlipHorizontal();
         timer.Stop();
-        log().debug(u"flip horizontal(4) cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"flip horizontal(4) cost {} ms\n", timer.ElapseMs());
         timer.Start();
         imgs.PlaceImage(img, 0, 0, 0, img.GetHeight());
         timer.Stop();
-        log().debug(u"place with convert cost {} ms\n", timer.ElapseMs());
+        log().Debug(u"place with convert cost {} ms\n", timer.ElapseMs());
 
         img::WriteImage(imgs, basePath / u"head-4.jpg");
     }
-    log().success(u"Test ImageUtil over!\n");
+    log().Success(u"Test ImageUtil over!\n");
 }
 
 static void TestDiffShow()
@@ -287,7 +287,7 @@ static void TestDiffShow()
     for (auto size = img3.PixelCount(); size--;)
         *p3++ = (uint8_t)std::clamp(((*p1++) - (*p2++)) * 8 + 64, 0, 255);
     img::WriteImage(img3, srcPath3);
-    log().success(u"Test diff show img over!\n");
+    log().Success(u"Test diff show img over!\n");
 }
 
 static void TestFloat()

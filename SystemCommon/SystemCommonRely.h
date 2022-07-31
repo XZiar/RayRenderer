@@ -37,6 +37,44 @@ enum class CommonColor : uint8_t
 MAKE_ENUM_BITFIELD(CommonColor)
 [[nodiscard]] SYSCOMMONAPI std::string_view GetColorName(CommonColor color) noexcept;
 
+struct ScreenColor
+{
+    enum class ColorType { Default = 0, Bit8, Bit24, Common };
+    uint8_t Value[3];
+    ColorType Type : 4;
+    bool IsBackground : 2;
+    bool IsUnchanged : 2;
+    constexpr ScreenColor(bool isBackground) noexcept :
+        Value{ 0,0,0 }, Type(ColorType::Default), IsBackground(isBackground), IsUnchanged(false) { }
+    constexpr ScreenColor(bool isBackground, uint8_t color) noexcept :
+        Value{ color,0,0 }, Type(ColorType::Bit8), IsBackground(isBackground), IsUnchanged(false) { }
+    constexpr ScreenColor(bool isBackground, std::array<uint8_t, 3> color) noexcept :
+        Value{ color[0], color[1], color[2] }, Type(ColorType::Bit24), IsBackground(isBackground), IsUnchanged(false) { }
+    constexpr ScreenColor(bool isBackground, uint8_t red, uint8_t green, uint8_t blue) noexcept :
+        Value{ red, green, blue }, Type(ColorType::Bit24), IsBackground(isBackground), IsUnchanged(false) { }
+    constexpr ScreenColor(bool isBackground, CommonColor color) noexcept :
+        Value{ static_cast<uint8_t>(color), 0, 0 }, Type(ColorType::Common), IsBackground(isBackground), IsUnchanged(false) { }
+    constexpr bool operator==(const ScreenColor& other) const noexcept
+    {
+        if (Type == other.Type && IsBackground == other.IsBackground)
+        {
+            switch (Type)
+            {
+            case ColorType::Default: return true;
+            case ColorType::Bit8:
+            case ColorType::Common: return Value[0] == other.Value[0];
+            case ColorType::Bit24: return Value[0] == other.Value[0] && Value[1] == other.Value[1] && Value[2] == other.Value[2];
+            default: return false;
+            }
+        }
+        return false;
+    }
+    constexpr bool operator!=(const ScreenColor& other) const noexcept
+    {
+        return !operator==(other);
+    }
+};
+
 
 [[nodiscard]] SYSCOMMONAPI bool CheckCPUFeature(str::HashedStrView<char> feature) noexcept;
 [[nodiscard]] SYSCOMMONAPI span<const std::string_view> GetCPUFeatures() noexcept;

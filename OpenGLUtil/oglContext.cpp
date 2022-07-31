@@ -72,14 +72,14 @@ static void HandleMsg(MsgSrc msgFrom, MsgType msgType, MsgLevel msgLevel, GLsize
 
         if (msg.Type == MsgType::Error)
         {
-            oglLog().error(u"OpenGL ERROR\n{}\n", msg.Msg);
+            oglLog().Error(u"OpenGL ERROR\n{}\n", msg.Msg);
             BindingState state;
-            oglLog().debug(u"State: Prog[{}], VAO[{}], FBO[{}](D[{}]R[{}]) binding: VBO[{}], IBO[{}], EBO[{}]\n",
+            oglLog().Debug(u"State: Prog[{}], VAO[{}], FBO[{}](D[{}]R[{}]) binding: VBO[{}], IBO[{}], EBO[{}]\n",
                 state.Prog, state.VAO, state.FBO, state.DFB, state.RFB, state.VBO, state.IBO, state.EBO);
         }
         else
         {
-            oglLog().verbose(u"OpenGL message\n{}\n", msg.Msg);
+            oglLog().Verbose(u"OpenGL message\n{}\n", msg.Msg);
         }
     }
 }
@@ -146,7 +146,7 @@ static std::atomic_uint32_t SharedContextUID = 0;
 SharedContextCore::SharedContextCore() : Id(SharedContextUID++) {}
 SharedContextCore::~SharedContextCore()
 {
-    oglLog().debug(u"Here destroy GLContext Shared core [{}].\n", Id);
+    oglLog().Debug(u"Here destroy GLContext Shared core [{}].\n", Id);
     ResHandler.Release();
 }
 
@@ -211,7 +211,7 @@ oglContext_::~oglContext_()
 {
 #if defined(_DEBUG)
     //if (!IsExternal)
-        oglLog().debug(u"Here destroy glContext [{}].\n", Hrc);
+        oglLog().Debug(u"Here destroy glContext [{}].\n", Hrc);
 #endif
     ResHandler.Release();
     //if (!IsRetain)
@@ -309,7 +309,7 @@ void oglContext_::SetDepthTest(const DepthTestType type)
         CtxFunc->DepthFunc(common::enum_cast(type));
         break;
     default:
-        oglLog().warning(u"Unsupported depth test type [{}]\n", (uint32_t)type);
+        oglLog().Warning(u"Unsupported depth test type [{}]\n", (uint32_t)type);
         return;
     }
     DepthTestFunc = type;
@@ -329,7 +329,7 @@ void oglContext_::SetFaceCulling(const FaceCullingType type)
     case FaceCullingType::CullAll:
         CtxFunc->Enable(GL_CULL_FACE); CtxFunc->CullFace(GL_FRONT_AND_BACK); break;
     default:
-        oglLog().warning(u"Unsupported face culling type [{}]\n", (uint32_t)type);
+        oglLog().Warning(u"Unsupported face culling type [{}]\n", (uint32_t)type);
         return;
     }
     FaceCulling = type;
@@ -353,7 +353,7 @@ void oglContext_::SetDepthClip(const bool fix)
     }
     else
     {
-        oglLog().warning(u"ClipControl not supported on the context, ignored");
+        oglLog().Warning(u"ClipControl not supported on the context, ignored");
     }
 }
 
@@ -369,7 +369,7 @@ void oglContext_::SetSRGBFBO(const bool isEnable)
     }
     else
     {
-        oglLog().warning(u"sRGB FBO not supported on the context, ignored");
+        oglLog().Warning(u"sRGB FBO not supported on the context, ignored");
     }
 }
 
@@ -423,7 +423,7 @@ oglContext oglContext_::CurrentContext()
 //    void* hrc = PlatFuncs::GetCurrentGLContext();
 //    if (hrc == nullptr)
 //    {
-//        oglLog().debug(u"currently no GLContext\n");
+//        oglLog().Debug(u"currently no GLContext\n");
 //        return {};
 //    }
 //    Expects(PlatFunc);
@@ -500,7 +500,7 @@ oglContext oglContext_::NewContext(const bool isShared, uint32_t version) const
 //    }
 //    else
 //    {
-//        oglLog().warning(u"unretained HRC[{:p}] was request to release.\n", hrc);
+//        oglLog().Warning(u"unretained HRC[{:p}] was request to release.\n", hrc);
 //        return false;
 //    }
 //}
@@ -540,7 +540,7 @@ bool oglCtxObject<true>::EnsureValid()
     const bool result = InnerCurCtx && InnerCurCtx->SharedCore == Context.lock();
 #if defined(_DEBUG)
     if (!result)
-        oglLog().warning(u"oglCtxObject(shared) is now invalid due to released-context or uncurrent-context.\n");
+        oglLog().Warning(u"oglCtxObject(shared) is now invalid due to released-context or uncurrent-context.\n");
 #endif
     return result;
 }
@@ -554,7 +554,7 @@ bool oglCtxObject<false>::EnsureValid()
         return true;
     }
 #if defined(_DEBUG)
-    oglLog().warning(u"oglCtxObject(shared) is now invalid due to released-context.\n");
+    oglLog().Warning(u"oglCtxObject(shared) is now invalid due to released-context.\n");
 #endif
     return false;
 }

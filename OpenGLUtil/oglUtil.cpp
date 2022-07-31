@@ -55,15 +55,15 @@ common::span<const std::unique_ptr<oglLoader>> oglLoader::GetLoaders() noexcept
             }
             catch (const common::BaseException& be)
             {
-                oglLog().warning(u"Failed to create loader [{}]: {}\n{}\n", name, be.Message(), be.GetDetailMessage());
+                oglLog().Warning(u"Failed to create loader [{}]: {}\n{}\n", name, be.Message(), be.GetDetailMessage());
             }
             catch (const std::exception& ex)
             {
-                oglLog().warning(u"Failed to create loader [{}]: {}\n", name, ex.what());
+                oglLog().Warning(u"Failed to create loader [{}]: {}\n", name, ex.what());
             }
             catch (...)
             {
-                oglLog().warning(u"Failed to create loader [{}]\n", name);
+                oglLog().Warning(u"Failed to create loader [{}]\n", name);
             }
         }
         return loaders;
@@ -80,9 +80,9 @@ oglContext GLHost::CreateContext(CreateInfo cinfo, const oglContext_* sharedCtx)
         COMMON_THROWEX(OGLException, OGLException::GLComponent::Loader,
             fmt::format(u"Loader [{}] does not support [{}] context"sv, Loader.Name(), cinfo.Type == GLType::Desktop ? u"GL"sv : u"GLES"sv));
     if (cinfo.FlushWhenSwapContext && !SupportFlushControl)
-        oglLog().warning(u"Request for FlushControl[{}] not supported, will be ignored\n"sv, cinfo.FlushWhenSwapContext.value());
+        oglLog().Warning(u"Request for FlushControl[{}] not supported, will be ignored\n"sv, cinfo.FlushWhenSwapContext.value());
     if (cinfo.FramebufferSRGB && !SupportSRGBFrameBuffer)
-        oglLog().warning(u"Request for FrameBufferSRGB[{}] not supported, will be ignored\n"sv, cinfo.FramebufferSRGB.value());
+        oglLog().Warning(u"Request for FrameBufferSRGB[{}] not supported, will be ignored\n"sv, cinfo.FramebufferSRGB.value());
     const auto Versions = cinfo.Type == GLType::Desktop ? common::to_span(DesktopVersion) : common::to_span(ESVersion);
     auto& LatestVer = cinfo.Type == GLType::Desktop ? VersionDesktop : VersionES;
     if (LatestVer == 0) // perform update
@@ -96,7 +96,7 @@ oglContext GLHost::CreateContext(CreateInfo cinfo, const oglContext_* sharedCtx)
             {
                 if (const auto binfo = FillBaseInfo(ctx); binfo)
                 {
-                    oglLog().info(u"Latest GL version [{}] from [{}]\n", binfo->VersionString, binfo->VendorString);
+                    oglLog().Info(u"Latest GL version [{}] from [{}]\n", binfo->VersionString, binfo->VendorString);
                     const uint16_t realVer = gsl::narrow_cast<uint16_t>(binfo->Version);
                     common::UpdateAtomicMaximum(LatestVer, realVer);
                     DeleteGLContext(ctx);

@@ -396,7 +396,7 @@ void NLDXStructHandler::OnNewField(xcomp::XCNLStruct& target_, xcomp::XCNLStruct
             const auto eleSize = field.GetElementInfo(GetCustomStructs()).second;
             if (eleSize % 16 != 0)
             {
-                GetLogger().warning(u"Field [{}] of cbuffer struct [{}] is an {}D-array with element size [{}], may causing unexpected padding.\n",
+                GetLogger().Warning(u"Field [{}] of cbuffer struct [{}] is an {}D-array with element size [{}], may causing unexpected padding.\n",
                     target.GetFieldName(field), target.GetName(), dims.Dims.size(), eleSize);
             }
             // handle array alignment
@@ -604,7 +604,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         {
             Expects(unknwonExtra.size() > 4);
             unknwonExtra.resize(unknwonExtra.size() - 4);
-            dxLog().warning(u"BufArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
+            dxLog().Warning(u"BufArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
         }
         return std::make_tuple(space, reg, count);
     };
@@ -971,11 +971,11 @@ std::shared_ptr<xcomp::XCNLProgram> NLDXProcessor::Parse(common::span<const std:
 {
     auto& logger = Logger();
     const auto encoding = common::str::DetectEncoding(source);
-    logger.info(u"File[{}], detected encoding[{}].\n", fileName, common::str::GetEncodingName(encoding));
+    logger.Info(u"File[{}], detected encoding[{}].\n", fileName, common::str::GetEncodingName(encoding));
     auto src = common::str::to_u32string(source, encoding);
-    logger.info(u"Translate into [utf32] for [{}] chars.\n", src.size());
+    logger.Info(u"Translate into [utf32] for [{}] chars.\n", src.size());
     const auto prog = xcomp::XCNLProgram::Create(std::move(src), std::move(fileName));
-    logger.verbose(u"Parse finished, get [{}] Blocks.\n", prog->GetProgram().Size());
+    logger.Verbose(u"Parse finished, get [{}] Blocks.\n", prog->GetProgram().Size());
     return prog;
 }
 

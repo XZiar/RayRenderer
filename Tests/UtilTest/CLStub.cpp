@@ -162,7 +162,7 @@ static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const RunI
         }
         if (!config)
         {
-            log().warning(u"no config found for [{}]\n", parts[0]);
+            log().Warning(u"no config found for [{}]\n", parts[0]);
             continue;
         }
         oclKernel kernel;
@@ -225,7 +225,7 @@ static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const RunI
         if (!lcSize.GetData(true))
             lcSize = kernel->WgInfo.CompiledWorkGroupSize;
         //const SizeN<3> lcSize = kernel->WgInfo.CompiledWorkGroupSize;
-        log().verbose(u"run kernel [{}] with [{}x{}x{}] for [{}] times\n",
+        log().Verbose(u"run kernel [{}] with [{}x{}x{}] for [{}] times\n",
             kernel->Name, worksizeX, worksizeY, worksizeZ, repeats);
         common::PromiseResult<CallResult> lastPms;
         std::vector<common::PromiseResult<CallResult>> pmss; pmss.reserve(repeats);
@@ -249,7 +249,7 @@ static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const RunI
         }
         const auto e2eTime = timeMax - timeMin;
         const auto avgTime = total / repeats;
-        log().success(FMT_STRING(u"Finish, E2ETime {:1.5f}ms, avg KernelTime {:1.5f}ms.\n"), e2eTime / 1e6f, avgTime / 1e6f);
+        log().Success(FmtString(u"Finish, E2ETime {:1.5f}ms, avg KernelTime {:1.5f}ms.\n"), e2eTime / 1e6f, avgTime / 1e6f);
     }
 }
 
@@ -269,7 +269,7 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
     }
     common::fs::path filepath = fpath;
     const bool isNLCL = filepath.extension().string() == ".nlcl";
-    log().debug(u"loading cl file [{}]\n", filepath.u16string());
+    log().Debug(u"loading cl file [{}]\n", filepath.u16string());
     try
     {
         const auto kertxt = common::file::ReadAllText(filepath);
@@ -319,7 +319,7 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
             clProg = oclProgram_::CreateAndBuild(ctx, kertxt, config, dev);
         }
         const auto kernels = clProg->GetKernels();
-        log().success(u"loaded {} kernels:\n", kernels.Size());
+        log().Success(u"loaded {} kernels:\n", kernels.Size());
         common::mlog::SyncConsoleBackend();
         for (const auto& ker : kernels)
         {
@@ -368,7 +368,7 @@ static void OCLStub()
     const auto plats = oclPlatform_::GetPlatforms();
     if (plats.size() == 0)
     {
-        log().error(u"No OpenCL platform found!\n");
+        log().Error(u"No OpenCL platform found!\n");
         return;
     }
     std::vector<std::pair<oclDevice, uint32_t>> allDevs;
@@ -399,9 +399,9 @@ static void OCLStub()
         const auto dev = allDevs[devidx].first;
 
         const auto ctx = dev->Platform->CreateContext(dev);
-        ctx->OnMessage += [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
+        ctx->OnMessage += [](const auto& str) { log().Debug(u"[MSG]{}\n", str); };
         auto que = oclCmdQue_::Create(ctx, dev);
-        log().success(u"Create context with [{}] on [{}]!\n", dev->Name, dev->Platform->Name);
+        log().Success(u"Create context with [{}] on [{}]!\n", dev->Name, dev->Platform->Name);
         //ClearReturn();
         //SimpleTest(ctx);
         while (true)
@@ -415,7 +415,7 @@ static void OCLStub()
                 string exttxts("Extensions:\n");
                 for (const auto ext : dev->Extensions)
                     exttxts.append(ext).append("\n");
-                log().verbose(u"{}\n", exttxts);
+                log().Verbose(u"{}\n", exttxts);
                 continue;
             }
             else if (fpath == "IMAGE")
@@ -427,8 +427,8 @@ static void OCLStub()
                         .append(to_u16string(TexFormatUtil::GetFormatDetail(format))).append(u"\n");
                     return str;
                 };
-                log().verbose(u"{}", proc(u"2DImage Supports:\n", ctx->Img2DFormatSupport));
-                log().verbose(u"{}\n", proc(u"3DImage Supports:\n", ctx->Img3DFormatSupport));
+                log().Verbose(u"{}", proc(u"2DImage Supports:\n", ctx->Img2DFormatSupport));
+                log().Verbose(u"{}\n", proc(u"3DImage Supports:\n", ctx->Img3DFormatSupport));
                 continue;
             }
             else if (fpath == "DEBUG")
@@ -440,7 +440,7 @@ static void OCLStub()
                     fmt::format_to(std::back_inserter(str), FMT_STRING("[{:20}]: offset[{:3}] byte[{}] dim[{}]\n"),
                         field.Name, field.Offset, field.VecType.Bit / 8, field.VecType.Dim0);
                 }
-                log().verbose(u"Fields of SubgroupWgInfo:\n{}\n", str);
+                log().Verbose(u"Fields of SubgroupWgInfo:\n{}\n", str);
                 continue;
             }
             else if (fpath == "INFO")
@@ -475,7 +475,7 @@ static void OCLStub()
                 APPEND_FMT(infotxt, u"LUID: [{}]\n"sv, Hex2Str(dev->GetLUID()));
                 APPEND_FMT(infotxt, u"UUID: [{}]\n"sv, Hex2Str(dev->GetUUID()));
 #undef ADD_INFO
-                log().verbose(u"Device Info:\n{}\n", infotxt);
+                log().Verbose(u"Device Info:\n{}\n", infotxt);
                 continue;
             }
             else if (fpath == "clear")

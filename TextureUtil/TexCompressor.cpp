@@ -40,7 +40,7 @@ common::AlignedBuffer CompressToDat(const ImageView& img, const TextureFormat fo
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"not supported compression yet");
     }
     timer.Stop();
-    texLog().debug(u"Compressed a image of [{}x{}] to [{}], cost {}ms.\n",
+    texLog().Debug(u"Compressed a image of [{}x{}] to [{}], cost {}ms.\n",
         img.GetWidth(), img.GetHeight(), xziar::img::TexFormatUtil::GetFormatName(format), timer.ElapseMs());
     return result;
 }

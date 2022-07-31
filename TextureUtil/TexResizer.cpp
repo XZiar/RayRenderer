@@ -31,7 +31,7 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
         }
         catch (const OGLException& gle)
         {
-            texLog().error(u"GLTexResizer shader fail:{}\n{}\n", gle.Message(), gle.GetDetailMessage());
+            texLog().Error(u"GLTexResizer shader fail:{}\n{}\n", gle.Message(), gle.GetDetailMessage());
             COMMON_THROW(BaseException, u"GLTexResizer shader fail");
         }
         if (oglComputeProgram_::CheckSupport())
@@ -42,8 +42,8 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
             }
             catch (const OGLException& gle)
             {
-                texLog().error(u"GLResizer2 shader fail:{}\n{}\n", gle.Message(), gle.GetDetailMessage());
-                texLog().warning(u"Compute Shader is disabled");
+                texLog().Error(u"GLResizer2 shader fail:{}\n{}\n", gle.Message(), gle.GetDetailMessage());
+                texLog().Warning(u"Compute Shader is disabled");
             }
         }
         ScreenBox = oglArrayBuffer_::Create();
@@ -76,19 +76,19 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
                 KerToDat3 = clProg->GetKernel("ResizeToDat3");
                 KerToDat4 = clProg->GetKernel("ResizeToDat4");
                 const auto& wgInfo = KerToImg->WgInfo;
-                texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] pmem and [{}] smem\n",
+                texLog().Info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] pmem and [{}] smem\n",
                     wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize);
             }
             catch (const OCLException& cle)
             {
-                texLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.Message(), cle.GetDetailMessage());
+                texLog().Error(u"Fail to build opencl Program:{}\n{}\n", cle.Message(), cle.GetDetailMessage());
             }
         }
         else
-            texLog().warning(u"TexResizer has no shared CL context attached\n");
+            texLog().Warning(u"TexResizer has no shared CL context attached\n");
         if (!KerToImg)
         {
-            texLog().warning(u"OpenCL Kernel is disabled.\n");
+            texLog().Warning(u"OpenCL Kernel is disabled.\n");
         }
     })->Get();
 }
@@ -198,7 +198,7 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenGL
         const auto frame = oglFrameBuffer2D_::Create();
         frame->SetName(u"TexResizerFBO");
         frame->AttachColorTexture(outtex);
-        texLog().info(u"FBO resize to [{}x{}], status:{}\n", width, height, frame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
+        texLog().Info(u"FBO resize to [{}x{}], status:{}\n", width, height, frame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
         frame->Use();
         GLResizer->Draw()
             .SetTexture(tex, "tex")
@@ -283,7 +283,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
         const size_t worksize[] = { width, height };
         auto pms = ker->Call<2>(img, outBuf, 1u, info)(CmdQue, worksize);
         agent.Await(pms);
-        texLog().success(u"CLTexResizer Kernel runs {}us.\n", pms->ElapseNs() / 1000);
+        texLog().Success(u"CLTexResizer Kernel runs {}us.\n", pms->ElapseNs() / 1000);
         outBuf->Flush(CmdQue);
         outBuf.reset();
         Image result(std::move(buffer), width, height, HAS_FIELD(output, ImageDataType::ALPHA_MASK) ? ImageDataType::RGBA : ImageDataType::RGB);

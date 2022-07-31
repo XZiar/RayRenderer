@@ -20,6 +20,7 @@ using xcomp::debug::ArgsLayout;
 using xziar::nailang::NailangRuntimeException;
 using common::simd::VecDataInfo;
 
+#define FMTSTR32(syntax, ...) common::str::exp::Formatter<char32_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
@@ -191,7 +192,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         if (name == U"oclu.EnableDebug" || name == U"xcomp.EnableDebug")
         {
             executor.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
-            GetLogger(runtime).verbose(u"Manually enable debug.\n");
+            GetLogger(runtime).Verbose(u"Manually enable debug.\n");
             EnableDebug = true;
             return Arg{};
         }
@@ -216,7 +217,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
                 DebugBufferSize = meta.Params.empty() ? 512u : gsl::narrow_cast<uint32_t>(meta.Params[0].GetUint().value());
             }
             else
-                GetLogger(runtime).info(u"DebugOutput is disabled and ignored.\n");
+                GetLogger(runtime).Info(u"DebugOutput is disabled and ignored.\n");
         }
     }
 
@@ -335,13 +336,13 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         catch (const xziar::nailang::NailangRuntimeException& ex)
         {
             auto& runtime = static_cast<NLCLRuntime&>(executor.GetRuntime());
-            GetLogger(runtime).warning(u"Get Exception when trying to query Subgroup extension: {}\r\n", ex.Message());
+            GetLogger(runtime).Warning(u"Get Exception when trying to query Subgroup extension: {}\r\n", ex.Message());
         }
 
         if (HasSgInfo)
         {
             Context.AddPatchedBlock(U"oclu_debugsginfo"sv, []() { return NLCLDebugExtension::TextDebugSGInfo; });
-            DebugInfoStr = FMTSTR(U"    oclu_debugsginfo(_oclu_debug_buffer_size, _oclu_debug_buffer_info, {}, {});\r\n"sv, sgid, sglid);
+            DebugInfoStr = FMTSTR32(U"    oclu_debugsginfo(_oclu_debug_buffer_size, _oclu_debug_buffer_info, {}, {});\r\n"sv, sgid, sglid);
         }
         else
         {
@@ -361,7 +362,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         try
         {
             std::vector<std::byte> test(dbgData.TotalSize);
-            GetLogger(runtime).debug(FMT_STRING(u"DebugString:[{}]\n{}\ntest output:\n{}\n"sv), dbgId, formatter, dbgBlock.GetString(test));
+            GetLogger(runtime).Debug(FmtString(u"DebugString:[{}]\n{}\ntest output:\n{}\n"sv), dbgId, formatter, dbgBlock.GetString(test));
         }
         catch (const fmt::format_error& fe)
         {
@@ -369,7 +370,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
             return { U"// Formatter not match the datatype provided\r\n", {} };
         }
 
-        std::u32string func = fmt::format(FMT_STRING(U"inline void oclu_debug_{}("sv), dbgId);
+        std::u32string func = FMTSTR32(U"inline void oclu_debug_{}("sv, dbgId);
         func.append(U"\r\n    const  uint           total,"sv)
             .append(U"\r\n    global uint* restrict counter,"sv)
             .append(U"\r\n    global uint* restrict data,"sv);
@@ -392,10 +393,10 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
             if (needConv)
             {
                 const VecDataInfo vtype{ VecDataInfo::DataTypes::Unsigned, eleBit, vsize, 0 };
-                getData = FMTSTR(U"as_{}(arg{}{})"sv, NLCLRuntime::GetCLTypeName(vtype), argIdx, argAccess);
+                getData = FMTSTR32(U"as_{}(arg{}{})"sv, NLCLRuntime::GetCLTypeName(vtype), argIdx, argAccess);
             }
             else
-                getData = FMTSTR(U"arg{}{}"sv, argIdx, argAccess);
+                getData = FMTSTR32(U"arg{}{}"sv, argIdx, argAccess);
             if (vsize == 1)
             {
                 APPEND_FMT(func, U"\r\n    ((global {}*)(ptr))[{}] = {};"sv, dstTypeStr, offset / eleByte, getData);
@@ -467,10 +468,10 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         auto dep = Context.AddPatchedBlock(U"oclu_debug_"s.append(id), 
             [&]() { return DebugStringPatch(executor, id, item.first, item.second); });
 
-        std::u32string str = FMTSTR(U"oclu_debug_{}(_oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, ", id);
+        std::u32string str = FMTSTR32(U"oclu_debug_{}(_oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, ", id);
         for (size_t i = 0; i < vals.size(); ++i)
         {
-            APPEND_FMT(str, U"{}, "sv, vals[i]);
+            str.append(vals[i]).append(U", "sv);
         }
         str.pop_back(); // pop space
         str.back() = U')'; // replace ',' with ')'

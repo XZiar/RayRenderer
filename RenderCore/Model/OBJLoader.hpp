@@ -127,7 +127,7 @@ public:
         Length = Content.size() - 1;
         CurPos = 0;
         chset = common::str::DetectEncoding(Content);
-        dizzLog().debug(u"obj file[{}]--encoding[{}]\n", FilePath.u16string(), GetEncodingName(chset));
+        dizzLog().Debug(u"obj file[{}]--encoding[{}]\n", FilePath.u16string(), GetEncodingName(chset));
     }
 
     TextLine ReadLine()

@@ -87,10 +87,10 @@ private:
         txtBuf.resize(1024, '\0');
         CurLoader->GetErrorText(disp, evt->error_code, txtBuf.data(), 1024); // return value undocumented, cannot rely on that
         txtBuf.resize(std::char_traits<char>::length(txtBuf.data()));
-             if (txtBuf == "GLXBadFBConfig") oglLog().warning(u"Failed for FBConfig or unsupported version\n");
-        else if (txtBuf == "GLXBadContext")  oglLog().warning(u"Failed for invalid RenderContext\n");
-        else if (txtBuf == "BadMatch")       oglLog().warning(u"Failed for different server\n");
-        else oglLog().warning(u"Failed for X11 error with code[{}][{}]:\t{}\n", evt->error_code, evt->minor_code,
+             if (txtBuf == "GLXBadFBConfig") oglLog().Warning(u"Failed for FBConfig or unsupported version\n");
+        else if (txtBuf == "GLXBadContext")  oglLog().Warning(u"Failed for invalid RenderContext\n");
+        else if (txtBuf == "BadMatch")       oglLog().Warning(u"Failed for different server\n");
+        else oglLog().Warning(u"Failed for X11 error with code[{}][{}]:\t{}\n", evt->error_code, evt->minor_code,
             common::str::to_u16string(txtBuf, common::str::Encoding::UTF8));
         return 0;
     }
@@ -128,7 +128,7 @@ private:
                 glXQueryRendererIntegerMESA(DeviceContext, screen, 0, GLX_RENDERER_VERSION_MESA, mesaVer);
                 glXQueryRendererIntegerMESA(DeviceContext, screen, 0, GLX_RENDERER_VENDOR_ID_MESA, &VendorId);
                 glXQueryRendererIntegerMESA(DeviceContext, screen, 0, GLX_RENDERER_DEVICE_ID_MESA, &DeviceId);
-                oglLog().verbose(u"Create host on MESA[{}.{}.{}], device VID[{:#010x}] DID[{:#010x}].\n", 
+                oglLog().Verbose(u"Create host on MESA[{}.{}.{}], device VID[{:#010x}] DID[{:#010x}].\n", 
                     mesaVer[0], mesaVer[1], mesaVer[2], VendorId, DeviceId);
                 CommonDev = xcomp::LocateDevice(nullptr, nullptr, nullptr, &VendorId, &DeviceId, {});
             }
@@ -199,7 +199,7 @@ private:
         }
         void ReportFailure(std::u16string_view action) const final
         {
-            oglLog().error(u"Failed to {} on Display[{}] {}[{}], error: {}\n"sv, action, (void*)DeviceContext,
+            oglLog().Error(u"Failed to {} on Display[{}] {}[{}], error: {}\n"sv, action, (void*)DeviceContext,
                 Drawable == 0 ? u"Drawable"sv : (IsWindowDrawable ? u"Window"sv : u"Pixmap"sv), Drawable,
                 (int32_t)errno);
         }

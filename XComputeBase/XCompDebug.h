@@ -133,18 +133,16 @@ public:
 };
 
 
-struct XCOMPBASAPI MessageBlock
+struct MessageBlock
 {
     ArgsLayout Layout;
     std::u32string Name;
-    std::u32string Formatter;
+    common::str::exp::DynamicTrimedResultCh<char> FormatCache;
     uint8_t DebugId;
-    template<typename... Args>
-    MessageBlock(const uint8_t idx, const std::u32string_view name, const std::u32string_view formatter,
-        common::span<const NamedVecPair> infos) :
-        Layout(infos, 4), Name(name), Formatter(formatter), DebugId(idx) {}
-
-    common::str::u8string GetString(common::span<const std::byte> data) const;
+    XCOMPBASAPI MessageBlock(const uint8_t idx, const std::u32string_view name, const std::u32string_view formatter,
+        common::span<const NamedVecPair> infos);
+    //template<typename... Args>
+    XCOMPBASAPI common::str::u8string GetString(common::span<const std::byte> data) const;
 };
 
 

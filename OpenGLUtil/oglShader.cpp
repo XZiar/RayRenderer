@@ -32,9 +32,9 @@ oglShader_::oglShader_(const ShaderType type, const string & txt) :
     Src(txt), ShaderID(GL_INVALID_INDEX), Type(type)
 {
     if (Type == ShaderType::Compute && !CtxFunc->SupportComputeShader)
-        oglLog().warning(u"Attempt to create ComputeShader on unsupported context\n");
+        oglLog().Warning(u"Attempt to create ComputeShader on unsupported context\n");
     else if ((Type == ShaderType::TessCtrl || Type == ShaderType::TessEval) && !CtxFunc->SupportTessShader)
-        oglLog().warning(u"Attempt to create TessShader on unsupported context\n");
+        oglLog().Warning(u"Attempt to create TessShader on unsupported context\n");
     auto ptr = txt.c_str();
     ShaderID = CtxFunc->CreateShader(common::enum_cast(type));
     CtxFunc->ShaderSource(ShaderID, 1, &ptr, NULL);
@@ -61,8 +61,8 @@ void oglShader_::compile()
         string logstr((size_t)len, '\0');
         CtxFunc->GetShaderInfoLog(ShaderID, len, &len, logstr.data());
         const auto logdat = common::str::to_u16string(logstr.c_str(), Encoding::UTF8);
-        oglLog().warning(u"Compile shader failed:\n{}\n", logdat);
-        oglLog().verbose(u"source:\n{}\n\n", Src);
+        oglLog().Warning(u"Compile shader failed:\n{}\n", logdat);
+        oglLog().Verbose(u"source:\n{}\n\n", Src);
         common::SharedString<char16_t> log(logdat);
         COMMON_THROWEX(OGLException, OGLException::GLComponent::Compiler, u"Compile shader failed")
             .Attach("source", Src)
@@ -101,7 +101,7 @@ vector<oglShader> oglShader_::LoadFromFiles(path fname)
         }
         catch (const FileException& fe)
         {
-            oglLog().warning(u"skip loading {} due to Exception[{}]", fname.u16string(), fe.Message());
+            oglLog().Warning(u"skip loading {} due to Exception[{}]", fname.u16string(), fe.Message());
         }
     }
     return shaders;
@@ -488,7 +488,7 @@ struct SubroutineItem
             prefix = "";
             const bool notReplace = emulateOutput.insert_or_assign(std::string(RoutineVal), std::move(emulateInfo)).second;
             if (!notReplace)
-                oglLog().warning(u"Routine [{}]'s previous emulate info is overwrited, may cause bug.", SubroutineName);
+                oglLog().Warning(u"Routine [{}]'s previous emulate info is overwrited, may cause bug.", SubroutineName);
         }
         static thread_local std::vector<char> buf;
         buf.reserve(100);
@@ -593,7 +593,7 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
         {
             const auto& [it, ret] = subroutines.insert(SubroutineItem(line, curLine));
             if (!ret)
-                oglLog().warning(u"Repeat routine found: [{}]\n Previous was: [{}]\n", line, std::get<string_view>(lines[it->LineNum]));
+                oglLog().Warning(u"Repeat routine found: [{}]\n Previous was: [{}]\n", line, std::get<string_view>(lines[it->LineNum]));
         }
         else if (common::str::IsBeginWith(realline, "OGLU_SUBROUTINE("))
         {
@@ -605,13 +605,13 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
                 {
                     const auto& [it, ret] = ptrRoutine->Routines.emplace(sub->second, curLine);
                     if (!ret)
-                        oglLog().warning(u"Repeat subroutine found: [{}]\n Previous was: [{}]\n", line, std::get<string_view>(lines[it->second]));
+                        oglLog().Warning(u"Repeat subroutine found: [{}]\n Previous was: [{}]\n", line, std::get<string_view>(lines[it->second]));
                 }
                 else
-                    oglLog().warning(u"No routine [{}] found for subroutine [{}]\n", sub->first, sub->second);
+                    oglLog().Warning(u"No routine [{}] found for subroutine [{}]\n", sub->first, sub->second);
             }
             else
-                oglLog().warning(u"Unknown subroutine declare: [{}]\n", line);
+                oglLog().Warning(u"Unknown subroutine declare: [{}]\n", line);
         }
     }
 
@@ -644,7 +644,7 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
             version = std::stoi(mth[2]);
             constexpr std::array vers{ 110u,120u,130u,140u,150u,330u,400u,410u,420u,430u,440u,450u,460u };
             if (!std::binary_search(vers.cbegin(), vers.cend(), version))
-                oglLog().warning(u"unsupported GLSL version, fallback to highest support version");
+                oglLog().Warning(u"unsupported GLSL version, fallback to highest support version");
         }
     }
     if (version == UINT32_MAX)
@@ -684,12 +684,12 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
         if (ptrRoutine)
         {
             if (ptrRoutine->SetRoutine(srname))
-                oglLog().verbose(u"Static use subroutine [{}] for routine [{}].\n", srname, rname);
+                oglLog().Verbose(u"Static use subroutine [{}] for routine [{}].\n", srname, rname);
             else
-                oglLog().warning(u"Unknown subroutine [{}] for routine [{}] in the config.\n", srname, rname);
+                oglLog().Warning(u"Unknown subroutine [{}] for routine [{}] in the config.\n", srname, rname);
         }
         else
-            oglLog().warning(u"Unknown routine [{}] with subroutine [{}] in the config.\n", rname, srname);
+            oglLog().Warning(u"Unknown routine [{}] with subroutine [{}] in the config.\n", rname, srname);
     }
     const bool needEmulate = !CtxFunc->SupportSubroutine;
     for (const auto& sr : subroutines)
@@ -699,7 +699,7 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
     {
         extReqs.append("#extension GL_ARB_shader_subroutine : enable\r\n");
         if (!CtxFunc->SupportSubroutine)
-            oglLog().warning(u"subroutine requested on a unspported context, will try to emulate it.\n");
+            oglLog().Warning(u"subroutine requested on a unspported context, will try to emulate it.\n");
     }
 
     //apply defines
@@ -772,7 +772,7 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
                 curVer = std::max(curVer, CtxFunc->ContextType == GLType::ES ? 310u : 430u);
             } break;
         default:
-            oglLog().warning(u"meet shader type [{}], ignored.\n", stype);
+            oglLog().Warning(u"meet shader type [{}], ignored.\n", stype);
             continue;
         }
         if (shaderType == ShaderType::Compute && !allowCompute) continue;

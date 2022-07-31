@@ -246,7 +246,7 @@ struct CheckTexCtxConfig : public oglu::CtxResConfig<true, oglu::oglTex2DV>
         chkTex->SetData(xziar::img::TextureFormat::RGBA8, pixs);
         const auto texv = chkTex->GetTextureView();
         texv->SetName(u"Check Image");
-        dizzLog().verbose(u"new CheckTex generated.\n");
+        dizzLog().Verbose(u"new CheckTex generated.\n");
         return texv;
     }
 };

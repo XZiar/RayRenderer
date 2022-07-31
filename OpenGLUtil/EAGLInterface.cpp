@@ -98,7 +98,7 @@ private:
         }
         void ReportFailure(std::u16string_view action) const final
         {
-            oglLog().error(u"Failed to {}\n"sv, action);
+            oglLog().Error(u"Failed to {}\n"sv, action);
         }
         void TemporalInsideContext(void* hRC, const std::function<void(void* hRC)>& func) const final
         {

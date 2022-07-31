@@ -60,7 +60,7 @@ PtrProxy<detail::DescHeap> DxBindingManager::GetCSUHeap(const DxDevice device) c
             D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
             cbvDesc.SizeInBytes = binding.Item.Count;
             cbvDesc.BufferLocation = binding.Item.Buffer->GetGPUVirtualAddress() + binding.Item.Offset;
-            dxLog().verbose(u"Create CBV to [{}].\n"sv, binding.Item.Buffer->GetName());
+            dxLog().Verbose(u"Create CBV to [{}].\n"sv, binding.Item.Buffer->GetName());
             dev.CreateConstantBufferView(&cbvDesc, handle);
         } break;
         case BoundedResourceType::SRVs:
@@ -73,7 +73,7 @@ PtrProxy<detail::DescHeap> DxBindingManager::GetCSUHeap(const DxDevice device) c
             srvDesc.Buffer.NumElements = binding.Item.Count;
             srvDesc.Buffer.StructureByteStride = binding.Item.Stride;
             srvDesc.Buffer.Flags = isRaw ? D3D12_BUFFER_SRV_FLAG_RAW : D3D12_BUFFER_SRV_FLAG_NONE;
-            dxLog().verbose(u"Create SRV to [{}], Format[{}] Stride[{}] Flag[{}].\n"sv, binding.Item.Buffer->GetName(),
+            dxLog().Verbose(u"Create SRV to [{}], Format[{}] Stride[{}] Flag[{}].\n"sv, binding.Item.Buffer->GetName(),
                 static_cast<uint32_t>(format), srvDesc.Buffer.StructureByteStride, static_cast<uint32_t>(srvDesc.Buffer.Flags));
             dev.CreateShaderResourceView(buf.Resource, &srvDesc, handle);
         } break;
@@ -87,7 +87,7 @@ PtrProxy<detail::DescHeap> DxBindingManager::GetCSUHeap(const DxDevice device) c
             uavDesc.Buffer.StructureByteStride = binding.Item.Stride;
             uavDesc.Buffer.CounterOffsetInBytes = 0;
             uavDesc.Buffer.Flags = isRaw ? D3D12_BUFFER_UAV_FLAG_RAW : D3D12_BUFFER_UAV_FLAG_NONE;
-            dxLog().verbose(u"Create UAV to [{}], Format[{}] Stride[{}] Flag[{}].\n"sv, binding.Item.Buffer->GetName(),
+            dxLog().Verbose(u"Create UAV to [{}], Format[{}] Stride[{}] Flag[{}].\n"sv, binding.Item.Buffer->GetName(),
                 static_cast<uint32_t>(format), uavDesc.Buffer.StructureByteStride, static_cast<uint32_t>(uavDesc.Buffer.Flags));
             dev.CreateUnorderedAccessView(buf.Resource, nullptr, &uavDesc, handle);
         } break;

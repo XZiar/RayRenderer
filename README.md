@@ -94,7 +94,7 @@ python3 xzbuild buildall UtilTest
 
   [Boost Software License](./License/boost.txt)
 
-* [fmt](https://fmt.dev/) [`submodule`](https://github.com/XZiar/fmt) 8.1.1 (customized with utf-support)
+* [fmt](https://fmt.dev/) [`submodule`](https://github.com/XZiar/fmt) 9.0.0 (customized with utf-support)
 
   [MIT License](https://github.com/XZiar/fmt/blob/master/LICENSE.rst)
 

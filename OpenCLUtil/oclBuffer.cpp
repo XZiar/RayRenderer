@@ -30,7 +30,7 @@ oclSubBuffer_::oclSubBuffer_(const oclContext& ctx, const MemFlag flag, const si
 oclSubBuffer_::~oclSubBuffer_()
 { 
     if (Context->ShouldDebugResurce())
-        oclLog().debug(u"oclBuffer {:p} with size {}, being destroyed.\n", (void*)*MemID, Size);
+        oclLog().Debug(u"oclBuffer {:p} with size {}, being destroyed.\n", (void*)*MemID, Size);
 }
 
 common::span<std::byte> oclSubBuffer_::MapObject(CLHandle<detail::CLCmdQue> que, const MapFlag mapFlag)

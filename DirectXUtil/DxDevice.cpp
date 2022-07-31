@@ -117,7 +117,7 @@ DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device>
     }
     else
     {
-        dxLog().warning(FMT_STRING(u"Failed to check architecture: [{}, {}]"), feat1.HResult, feat2.HResult);
+        dxLog().Warning(FmtString(u"Failed to check architecture: [{}, {}]"), feat1.HResult.ToStr(), feat2.HResult.ToStr());
         COMMON_THROWEX(DxException, feat2.HResult, u"Failed to check architecture");
     }
 }
@@ -146,7 +146,7 @@ common::span<const DxDevice> DxDevice_::GetDevices()
             }
             else
             {
-                dxLog().warning(u"Failed to enable debug layer: {}.\n", hr);
+                dxLog().Warning(u"Failed to enable debug layer: {}.\n", hr.ToStr());
             }
         }
 #endif
@@ -168,14 +168,14 @@ common::span<const DxDevice> DxDevice_::GetDevices()
                 hrs[fid] = D3D12CreateDevice(adapter, featEnum, IID_PPV_ARGS(&device));
                 if (hrs[fid] && device)
                 {
-                    dxLog().verbose(u"Created device on [{}].\n", name);
+                    dxLog().Verbose(u"Created device on [{}].\n", name);
                     auto& dev = devs.emplace_back(MAKE_ENABLER_UNIQUE(DxDevice_, (PtrProxy<detail::Adapter>{ adapter }, PtrProxy<detail::Device>{ device }, 
                         name, featLv, isDxcore)));
                     return dev.get();
                 }
             }
             Expects(!device);
-            dxLog().warning(u"Failed to created device on [{}]:\n12_0: {}\nCore1_0: {}\n", name, hrs[0], hrs[1]);
+            dxLog().Warning(u"Failed to created device on [{}]:\n12_0: {}\nCore1_0: {}\n", name, hrs[0].ToStr(), hrs[1].ToStr());
             return nullptr;
         };
 

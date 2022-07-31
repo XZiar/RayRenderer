@@ -8,14 +8,57 @@ namespace console
 
 class ConsoleEx
 {
+private:
+    struct ConsolePrinter
+    {
+        const ConsoleEx& Console;
+        ScreenColor FgColor, BgColor;
+        ConsolePrinter(const ConsoleEx& console) : Console(console), FgColor(false), BgColor(true)
+        {
+            FgColor.IsUnchanged = true;
+            BgColor.IsUnchanged = true;
+            Console.LockOutput();
+        }
+        ~ConsolePrinter() 
+        {
+            Console.UnlockOutput();
+        }
+        void SetColor(ScreenColor color) noexcept
+        {
+            auto& target = color.IsBackground ? BgColor : FgColor;
+            if (target == color)
+                return;
+            target = color;
+            target.IsUnchanged = false;
+        }
+        void Print(std::u16string_view str)
+        {
+            Console.PrintSegment(FgColor, BgColor, str);
+            FgColor.IsUnchanged = true;
+            BgColor.IsUnchanged = true;
+        }
+        void Print(span<const std::byte> raw)
+        {
+            Console.PrintSegment(FgColor, BgColor, raw);
+            FgColor.IsUnchanged = true;
+            BgColor.IsUnchanged = true;
+        }
+    };
 protected:
     ConsoleEx();
+    virtual void LockOutput() const = 0;
+    virtual void UnlockOutput() const = 0;
+    virtual void PrintSegment(const ScreenColor fgColor, const ScreenColor bgColor, span<const std::byte> raw) const = 0;
+    virtual void PrintSegment(const ScreenColor fgColor, const ScreenColor bgColor, std::u16string_view str) const = 0;
 public:
     COMMON_NO_COPY(ConsoleEx)
     COMMON_NO_MOVE(ConsoleEx)
     virtual ~ConsoleEx();
     virtual void Print(const CommonColor color, std::u16string_view str) const = 0;
     virtual void Print(std::u16string_view str) const = 0;
+    [[nodiscard]] ConsolePrinter PrintSegments() const { return *this; }
+    [[nodiscard]] virtual std::optional<str::Encoding> PreferEncoding() const noexcept = 0;
+    [[nodiscard]] virtual bool SupportColor() const noexcept = 0;
     [[nodiscard]] virtual std::pair<uint32_t, uint32_t> GetConsoleSize() const noexcept = 0;
     virtual bool ClearConsole() const noexcept = 0;
 

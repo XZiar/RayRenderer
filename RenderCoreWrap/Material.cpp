@@ -4,6 +4,7 @@
 
 using common::container::FindInMap;
 using namespace xziar::img;
+using namespace std::string_view_literals;
 
 
 namespace DizzRender
@@ -41,7 +42,7 @@ TexMap::TexMap(dizz::TexHolder& holder, const std::shared_ptr<dizz::ThumbnailMan
     if (Holder.index() != 0)
     {
         const auto texsize = Holder.GetSize();
-        const auto& strBuffer = common::mlog::detail::StrFormater::ToU16Str(u"{}x{}[{}]",
+        const auto strBuffer = common::str::exp::Formatter<char16_t>{}.FormatDynamic(u"{}x{}[{}]"sv,
             texsize.first, texsize.second, xziar::img::TexFormatUtil::GetFormatName(Holder.GetInnerFormat()));
         description = ToStr(strBuffer);
         if (thumbman)

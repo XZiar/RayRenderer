@@ -35,22 +35,22 @@ static void TestStrConv()
     std::string utf8 = str::to_string(utf16, Encoding::UTF8);
     vector<uint8_t> tmp(utf8.cbegin(), utf8.cend());
     for (size_t i = 0; i < tmp.size(); ++i)
-        log().debug(u"byte {} : {:#x}\n", i, tmp[i]);
+        log().Debug(u"byte {} : {:#x}\n", i, tmp[i]);
 
     tmp.assign({ 0x31,0x30,0x68,0xe6,0x88,0x91 });
     utf8.assign(tmp.cbegin(), tmp.cend());
     utf16 = str::to_u16string(utf8, Encoding::UTF8);
-    log().debug(u"output u16: {}\n", utf16);
+    log().Debug(u"output u16: {}\n", utf16);
 
     const auto utf16be = str::to_string(utf16, Encoding::UTF16BE, Encoding::UTF16LE);
     for (size_t i = 0; i < utf8.size(); ++i)
-        log().debug(u"byte {} : LE {:#x}\tBE {:#x}\n", i, ((const uint8_t*)(utf16.data()))[i], (uint8_t)(utf16be[i]));
+        log().Debug(u"byte {} : LE {:#x}\tBE {:#x}\n", i, ((const uint8_t*)(utf16.data()))[i], (uint8_t)(utf16be[i]));
 
     std::string u8raw;
     file::ReadAll(basePath / u"utf8-sample.html", u8raw);
     const auto chtype = common::str::DetectEncoding(u8raw);
     utf16 = str::to_u16string(u8raw, chtype);
-    //log().debug(u"csv-u16 txt:\n{}\n", utf16);
+    //log().Debug(u"csv-u16 txt:\n{}\n", utf16);
     vector<std::byte> csvdest(utf16.size() * 2 + 2, std::byte(0));
     csvdest[0] = byte(0xff), csvdest[1] = byte(0xfe);
     memcpy_s(&csvdest[2], csvdest.size() - 2, utf16.data(), utf16.size() * 2);
@@ -68,11 +68,11 @@ static void TestStrConv()
                 const uint8_t raw = p.first, my = p.second;
                 const bool ret = raw == my;
                 if (!ret)
-                    log().debug(u"diff at byte {} : Raw {:#x}\tMy {:#x}\n", idx, (uint8_t)(raw), (uint8_t)(my));
+                    log().Debug(u"diff at byte {} : Raw {:#x}\tMy {:#x}\n", idx, (uint8_t)(raw), (uint8_t)(my));
                 idx++;
                 return ret;
             });
-        log().log(allMatch ? LogLevel::Success : LogLevel::Error, u"Test gb18030->utf8 convert over!\n");
+        log().Log(allMatch ? LogLevel::Success : LogLevel::Error, u"Test gb18030->utf8 convert over!\n");
     }
     if (false) // will throw exception for unknown codepoint
     {
@@ -85,11 +85,11 @@ static void TestStrConv()
                 auto [ref, my] = p;
                 const bool ret = ref == my;
                 if (!ret)
-                    log().debug(u"diff at byte {} : Raw {:#x}\tMy {:#x}\n", idx, (uint8_t)(ref), (uint8_t)(my));
+                    log().Debug(u"diff at byte {} : Raw {:#x}\tMy {:#x}\n", idx, (uint8_t)(ref), (uint8_t)(my));
                 idx++;
                 return ret;
             });
-        log().log(allMatch ? LogLevel::Success : LogLevel::Error, u"Test utf16->gb18030 convert over!\n");
+        log().Log(allMatch ? LogLevel::Success : LogLevel::Error, u"Test utf16->gb18030 convert over!\n");
     }
 
     getchar();

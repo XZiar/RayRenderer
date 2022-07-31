@@ -42,12 +42,12 @@ TexMipmap::TexMipmap(const std::shared_ptr<TexUtilWorker>& worker) : Worker(work
                     DownsampleRaw = clProg->GetKernel("Downsample_Raw");
                 DownsampleTest = clProg->GetKernel("Downsample_Src2");
                 /*const auto wgInfo = DownsampleSrc->GetWorkGroupInfo(CLContext->Devices[0]);
-                texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] pmem and [{}] smem\n",
+                texLog().Info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] pmem and [{}] smem\n",
                     wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize);*/
             }
             catch (const OCLException & cle)
             {
-                texLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.Message(), cle.GetDetailMessage());
+                texLog().Error(u"Fail to build opencl Program:{}\n{}\n", cle.Message(), cle.GetDetailMessage());
             }
         }
     })->Get();
@@ -132,7 +132,7 @@ void TexMipmap::Test2()
         xziar::img::WriteImage(mm, common::fs::temp_directory_path() / ("mip_" + std::to_string(i) + ".jpg"));
         i++;
     }
-    texLog().debug(u"Mipmap test2 totally cost {} us.\n", pms->ElapseNs() / 1000);
+    texLog().Debug(u"Mipmap test2 totally cost {} us.\n", pms->ElapseNs() / 1000);
 }
 
 static vector<Info> GenerateInfo(uint32_t width, uint32_t height, const uint8_t levels)
@@ -191,7 +191,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCL(const ImageView src, c
             const uint64_t totalTime = common::linq::FromIterable(pmss)
                 .Reduce<uint64_t>([](uint64_t& time, const auto& pms) { time += pms->ElapseNs(); }, 0); 
             outBuf->Flush(CmdQue);
-            texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
+            texLog().Debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;
         });
     }
@@ -222,7 +222,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCL(const ImageView src, c
             const uint64_t totalTime = common::linq::FromIterable(pmss)
                 .Reduce<uint64_t>([](uint64_t& time, const auto& pms) { time += pms->ElapseNs(); }, 0);
             outBuf->Flush(CmdQue);
-            texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
+            texLog().Debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;
         });
     }
@@ -248,7 +248,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCPU(const ImageView src, 
             img = images.back();
             agent.YieldThis();
         }
-        texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
+        texLog().Debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
         return images;
     });
 }

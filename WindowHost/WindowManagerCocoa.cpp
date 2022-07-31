@@ -473,7 +473,7 @@ public:
                 case AKType::ScreenChanged:     desc = u"ScreenChanged"sv;  break;
                 case AKType::WindowBeginMove:   desc = u"WindowBeginMove"sv;break;
                 }
-                Logger.verbose(u"Recieve [AppKit]message sub[{}][{}] host[{}] data[{}][{}]\n", 
+                Logger.Verbose(u"Recieve [AppKit]message sub[{}][{}] host[{}] data[{}][{}]\n", 
                     evt.SubType, desc, (void*)host, data1, data2);
             } break;
             case EventType::ApplicationDefined:
@@ -532,7 +532,7 @@ if (const bool has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modif
                 }
             } break;
             default: 
-                // Logger.verbose(u"Recieve message[{}] host[{}]\n", (uint32_t)evt.Type, (void*)host);
+                // Logger.Verbose(u"Recieve message[{}] host[{}]\n", (uint32_t)evt.Type, (void*)host);
                 break;
             }
             App.Call<void, id>(SelSendEvt, evt);
@@ -777,7 +777,7 @@ void WindowManagerCocoa::CocoaView::HandleEvent(id self, SEL _sel, id evt_)
             //NSString * inputText = [event characters];
             const auto str = evt.GetCharacters();
             const auto ch = str[0];
-            manager.Logger.verbose(u"key: [{}] => [{}]({})\n", keyCode, static_cast<uint16_t>(ch), ch);
+            manager.Logger.Verbose(u"key: [{}] => [{}]({})\n", keyCode, static_cast<uint16_t>(ch), ch);
         }
         if (evt.Type == EventType::KeyDown)
             host->OnKeyDown(key);
@@ -799,7 +799,7 @@ void WindowManagerCocoa::CocoaView::HandleEvent(id self, SEL _sel, id evt_)
             printf("mouse scroll pos negative: [%d,%d]\n", pos.X, pos.Y);
     } break;
     default:
-        manager.Logger.verbose(u"View Recieve message[{}] host[{}]\n", (uint32_t)evt.Type, (void*)host);
+        manager.Logger.Verbose(u"View Recieve message[{}] host[{}]\n", (uint32_t)evt.Type, (void*)host);
     }
 }
 

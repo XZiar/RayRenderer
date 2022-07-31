@@ -48,7 +48,7 @@ protected:
             }
             catch (const BaseException&)
             {
-                //dizzLog().error(u"Font Construct failure:\n{}\n", be.Message());
+                //dizzLog().Error(u"Font Construct failure:\n{}\n", be.Message());
             }
         }
     }

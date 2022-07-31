@@ -61,7 +61,7 @@ bool Scene::AddObject(const std::shared_ptr<Drawable>& drawable)
         return false;
     WaitDrawables.insert(drawable);
     SceneChanges.Add(SceneChange::Object);
-    dizzLog().success(u"Add an Drawable [{}][{}]:  {}\n", Drawables.size() - 1, drawable->GetType(), drawable->Name);
+    dizzLog().Success(u"Add an Drawable [{}][{}]:  {}\n", Drawables.size() - 1, drawable->GetType(), drawable->Name);
     return true;
 }
 
@@ -69,7 +69,7 @@ bool Scene::AddLight(const std::shared_ptr<Light>& light)
 {
     Lights.push_back(light);
     SceneChanges.Add(SceneChange::Light);
-    dizzLog().success(u"Add a Light [{}][{}]:  {}\n", Lights.size() - 1, (int32_t)light->Type, light->Name);
+    dizzLog().Success(u"Add a Light [{}][{}]:  {}\n", Lights.size() - 1, (int32_t)light->Type, light->Name);
     return true;
 }
 
@@ -128,7 +128,7 @@ void Scene::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef
         for (const auto ele : jdrawables)
         {
             const xziar::ejson::JObjectRef<true> jdrw(ele);
-            dizzLog().debug(u"Deserialize Drawable: [{}]({})\n", common::str::to_u16string(jdrw.Get<string>("Name"), Encoding::UTF8),
+            dizzLog().Debug(u"Deserialize Drawable: [{}]({})\n", common::str::to_u16string(jdrw.Get<string>("Name"), Encoding::UTF8),
                 common::str::to_u16string(jdrw.Get<string>("#Type"), Encoding::UTF8));
             const auto drw = context.DeserializeShare<Drawable>(jdrw);
             if (Drawables.try_emplace(drw->GetUid(), drw).second)

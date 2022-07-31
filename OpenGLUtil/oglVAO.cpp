@@ -157,7 +157,7 @@ struct DRAWIDCtxConfig : public CtxResConfig<true, oglVBO>
         auto drawIdVBO = oglArrayBuffer_::Create();
         drawIdVBO->SetName(u"ogluDrawID");
         drawIdVBO->WriteSpan(ids);
-        oglLog().success(u"new DrawIdVBO generated.\n");
+        oglLog().Success(u"new DrawIdVBO generated.\n");
         return drawIdVBO;
     }
 };
@@ -221,7 +221,7 @@ void oglVAO_::RangeDraw(const uint32_t size, const uint32_t offset) const noexce
         CtxFunc->DrawElements(common::enum_cast(DrawMode), size, IndexBuffer->IndexType, (const void*)intptr_t(offset * IndexBuffer->IndexSize));
         break;
     default:
-        oglLog().error(u"Only array/index mode support ranged draw, this vao[{}] has mode [{}].\n", VAOId, (uint8_t)Method);
+        oglLog().Error(u"Only array/index mode support ranged draw, this vao[{}] has mode [{}].\n", VAOId, (uint8_t)Method);
     }
     unbind();
 }
@@ -262,7 +262,7 @@ void oglVAO_::Draw() const noexcept
         CtxFunc->MultiDrawElementsIndirect(common::enum_cast(DrawMode), IndexBuffer->IndexType, *IndirectBuffer, std::get<GLint>(Offsets), std::get<GLsizei>(Count));
         break;
     case DrawMethod::UnPrepared:
-        oglLog().error(u"drawing an unprepared VAO [{}]\n", VAOId);
+        oglLog().Error(u"drawing an unprepared VAO [{}]\n", VAOId);
         break;
     }
     unbind();
@@ -302,10 +302,10 @@ void oglVAO_::InstanceDraw(const uint32_t count, const uint32_t base) const noex
     } break;
     case DrawMethod::IndirectArrays:
     case DrawMethod::IndirectIndexes:
-        oglLog().error(u"indirect draw not support when manually instance draw, this vao[{}] has mode [{}].\n", VAOId, (uint8_t)Method);
+        oglLog().Error(u"indirect draw not support when manually instance draw, this vao[{}] has mode [{}].\n", VAOId, (uint8_t)Method);
         break;
     case DrawMethod::UnPrepared:
-        oglLog().error(u"drawing an unprepared VAO [{}]\n", VAOId);
+        oglLog().Error(u"drawing an unprepared VAO [{}]\n", VAOId);
         break;
     }
     unbind();
@@ -317,7 +317,7 @@ void oglVAO_::Test() const noexcept
     bind();
     BindingState state;
     unbind();
-    oglLog().debug(u"Current VAO[{}]'s binding: VAO[{}], VBO[{}], IBO[{}], EBO[{}]\n", VAOId, state.VAO, state.VBO, state.IBO, state.EBO);
+    oglLog().Debug(u"Current VAO[{}]'s binding: VAO[{}], VBO[{}], IBO[{}], EBO[{}]\n", VAOId, state.VAO, state.VBO, state.IBO, state.EBO);
 }
 
 oglVAO oglVAO_::Create(const VAODrawMode mode)

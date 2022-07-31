@@ -51,7 +51,7 @@ FT_BASE_DEF(void) FT_Message(const char* fmt, ...)
     va_start(ap, fmt);
     auto& str = GetBuffer();
     PrintTo(str, 2000, fmt, ap);
-    Logger().warning(std::string_view(str));
+    Logger().Warning(std::string_view(str));
     va_end(ap);
 }
 
@@ -64,7 +64,7 @@ FT_BASE_DEF(void) FT_Panic(const char* fmt, ...)
     va_start(ap, fmt);
     auto& str = GetBuffer();
     PrintTo(str, 2000, fmt, ap);
-    Logger().error(std::string_view(str));
+    Logger().Error(std::string_view(str));
     va_end(ap);
 
     exit(EXIT_FAILURE);
@@ -76,7 +76,7 @@ FT_BASE_DEF(void) FT_Panic(const char* fmt, ...)
 FT_BASE_DEF(int) FT_Throw(FT_Error error, int line, const char* file)
 {
     /* activating the code in this block makes FreeType very chatty */
-    Logger().warning(u"{}:{}: error {:02x}: {}\n", 
+    Logger().Warning(u"{}:{}: error {:02x}: {}\n", 
         file, line, error, FT_Error_String(error));
 
     return 0;

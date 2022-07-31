@@ -77,7 +77,7 @@ Image ReadImage(const common::fs::path& path, const ImageDataType dataType)
 #else
     common::file::FileInputStream stream(common::file::FileObject::OpenThrow(path, OpenFlag::ReadBinary));
 #endif
-    ImgLog().debug(u"Read Image {}\n", path.u16string());
+    ImgLog().Debug(u"Read Image {}\n", path.u16string());
     return ReadImage(stream, GetExtName(path), dataType);
 }
 
@@ -95,13 +95,13 @@ Image ReadImage(RandomInputStream& stream, const std::u16string& ext, const Imag
                 stream.SetPos(0);
                 continue;
             }
-            ImgLog().debug(u"Using [{}]\n", support.Name);
+            ImgLog().Debug(u"Using [{}]\n", support.Name);
             auto img = reader->Read(dataType);
             return img;
         }
         catch (const BaseException& be)
         {
-            ImgLog().warning(u"Read Image using {} receive error {}\n", support.Name, be.Message());
+            ImgLog().Warning(u"Read Image using {} receive error {}\n", support.Name, be.Message());
         }
     }
     COMMON_THROW(BaseException, u"cannot read image");
@@ -110,7 +110,7 @@ Image ReadImage(RandomInputStream& stream, const std::u16string& ext, const Imag
 void WriteImage(const Image& image, const common::fs::path & path, const uint8_t quality)
 {
     common::file::FileOutputStream stream(common::file::FileObject::OpenThrow(path, common::file::OpenFlag::CreateNewBinary));
-    ImgLog().debug(u"Write Image {}\n", path.u16string());
+    ImgLog().Debug(u"Write Image {}\n", path.u16string());
     WriteImage(image, stream, GetExtName(path), quality);
 }
 
@@ -123,14 +123,14 @@ void WriteImage(const Image& image, RandomOutputStream& stream, const std::u16st
         try
         {
             auto writer = support.GetWriter(stream, extName);
-            ImgLog().debug(u"Using [{}]\n", support.Name);
+            ImgLog().Debug(u"Using [{}]\n", support.Name);
             writer->Write(image, quality);
             stream.Flush();
             return;
         }
         catch (const BaseException& be)
         {
-            ImgLog().warning(u"Write Image using {} receive error {}\n", support.Name, be.Message());
+            ImgLog().Warning(u"Write Image using {} receive error {}\n", support.Name, be.Message());
         }
     }
     COMMON_THROW(BaseException, u"cannot write image");

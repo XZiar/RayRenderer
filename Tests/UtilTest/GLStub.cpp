@@ -17,6 +17,7 @@
 //fucking X11 defines some terrible macro
 #   undef Always
 #   undef None
+#   undef Success
 #endif
 
 
@@ -108,7 +109,7 @@ static std::shared_ptr<GLHost> GetHost(oglLoader& loader, const Args&... args)
 #endif
     if (loader.Name() == "EGL") return GetHostEGL(loader, args...);
     
-    log().error(u"Unknown loader\n");
+    log().Error(u"Unknown loader\n");
     return {};
 }
 
@@ -124,7 +125,7 @@ static void OGLStub()
     const auto loaders = oglLoader::GetLoaders();
     if (loaders.size() == 0)
     {
-        log().error(u"No OpenGL loader found!\n");
+        log().Error(u"No OpenGL loader found!\n");
         return;
     }
 
@@ -144,7 +145,7 @@ static void OGLStub()
     Display* display = XOpenDisplay(disp ? disp : ":0.0");
     if (!display)
     {
-        log().error(u"Failed to open display\n");
+        log().Error(u"Failed to open display\n");
         COMMON_THROW(BaseException, u"Error");
     }
     const auto defScreen = DefaultScreen(display);
@@ -167,13 +168,13 @@ static void OGLStub()
 #endif
         if (!host)
         {
-            log().error(u"Failed to init [{}] Host\n", loader.Name());
+            log().Error(u"Failed to init [{}] Host\n", loader.Name());
             continue;
         }
-        log().success(u"Init GLHost[{}] version [{}.{}]\n", loader.Name(), host->GetVersion() / 10, host->GetVersion() % 10);
+        log().Success(u"Init GLHost[{}] version [{}.{}]\n", loader.Name(), host->GetVersion() / 10, host->GetVersion() % 10);
         if (const auto cmDev = host->GetCommonDevice())
         {
-            log().success(FMT_STRING(u"Host is on common device: {}\n"sv), CommonDevInfoStr(*cmDev));
+            log().Success(FmtString(u"Host is on common device: {}\n"sv), CommonDevInfoStr(*cmDev));
         }
 
         CreateInfo cinfo;
@@ -192,7 +193,7 @@ static void OGLStub()
         const auto ctx = host->CreateContext(cinfo);
         if (!ctx)
         {
-            log().error(u"Failed to init [{}] context from [{}] host\n", cinfo.Type == GLType::Desktop ? u"GL"sv : u"GLES"sv, loader.Name());
+            log().Error(u"Failed to init [{}] context from [{}] host\n", cinfo.Type == GLType::Desktop ? u"GL"sv : u"GLES"sv, loader.Name());
             continue;
         }
 
@@ -202,12 +203,12 @@ static void OGLStub()
         APPEND_FMT(infotxt, u"GL Context [{}] [{}]: [{}]\n"sv, ctx->Capability->VendorString, ctx->Capability->RendererString, ctx->Capability->VersionString);
         APPEND_FMT(infotxt, u"LUID: [{}]\n"sv, Hex2Str(ctx->GetLUID()));
         APPEND_FMT(infotxt, u"UUID: [{}]\n"sv, Hex2Str(ctx->GetUUID()));
-        log().info(infotxt);
+        log().Info(infotxt);
         if (ctx->XCompDevice)
         {
-            log().success(FMT_STRING(u"Match common device: {}\n"sv), CommonDevInfoStr(*ctx->XCompDevice));
+            log().Success(FmtString(u"Match common device: {}\n"sv), CommonDevInfoStr(*ctx->XCompDevice));
         }
-        log().info(u"{}\n", ctx->Capability->GenerateSupportLog());
+        log().Info(u"{}\n", ctx->Capability->GenerateSupportLog());
         while (true)
         {
             common::mlog::SyncConsoleBackend();
@@ -220,7 +221,7 @@ static void OGLStub()
                 exttxts.append("Extensions:\n");
                 for (const auto& ext : ctx->GetExtensions())
                     exttxts.append(ext).append("\n");
-                log().verbose(u"{}\n", exttxts);
+                log().Verbose(u"{}\n", exttxts);
                 continue;
             }
             else if (fpath == "BREAK")
@@ -234,7 +235,7 @@ static void OGLStub()
             if (fpath.size() > 0 && fpath.back() == '#')
                 fpath.pop_back(), exConfig = true;
             common::fs::path filepath = FindPath() / fpath;
-            log().debug(u"loading gl file [{}]\n", filepath.u16string());
+            log().Debug(u"loading gl file [{}]\n", filepath.u16string());
             try
             {
                 const auto shaderSrc = common::file::ReadAllText(filepath);
@@ -266,9 +267,9 @@ static void OGLStub()
                 }
                 auto stub = oglProgram_::Create();
                 stub.AddExtShaders(shaderSrc, config);
-                log().info(u"Try Draw Program\n");
+                log().Info(u"Try Draw Program\n");
                 [[maybe_unused]] auto drawProg = stub.LinkDrawProgram(u"Draw Prog");
-                log().info(u"Try Compute Program\n");
+                log().Info(u"Try Compute Program\n");
                 [[maybe_unused]] auto compProg = stub.LinkComputeProgram(u"Compute Prog");
             }
             catch (const BaseException& be)

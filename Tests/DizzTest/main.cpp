@@ -42,12 +42,12 @@ auto FindPath()
 
 void PrintException(const common::ExceptionBasicInfo& be)
 {
-    log().error(FMT_STRING(u"Error when performing test:\n{}\n"), be.Message);
+    log().Error(FmtString(u"Error when performing test:\n{}\n"), be.Message);
     std::u16string str(u"stack trace:\n");
     for (const auto& stack : be.GetStacks())
         fmt::format_to(std::back_inserter(str), FMT_STRING(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);
     str.append(u"\n");
-    log().error(str);
+    log().Error(str);
 
     if (be.InnerException)
         PrintException(*be.InnerException);
@@ -96,7 +96,7 @@ void RunDizzCore(WindowBackend& backend)
 
     window->Openning() += [&](const auto&) 
     {
-        log().info(u"opened.\n"); 
+        log().Info(u"opened.\n"); 
 #if COMMON_OS_WIN
         const auto host = loader->CreateHost(window->GetHDC());
 #elif COMMON_OS_LINUX

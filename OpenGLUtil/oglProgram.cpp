@@ -197,14 +197,14 @@ oglProgram_::oglProgram_(const std::u16string& name, const oglProgStub* stub, co
     const auto logdat = common::str::to_u16string(logstr.c_str(), Encoding::UTF8);
     if (!result)
     {
-        oglLog().warning(u"Link program failed.\n{}\n", logdat);
+        oglLog().Warning(u"Link program failed.\n{}\n", logdat);
         CtxFunc->DeleteProgram(ProgramID);
         common::SharedString<char16_t> log(logdat);
         COMMON_THROWEX(OGLException, OGLException::GLComponent::Compiler, u"Link program failed")
             .Attach("detail", log)
             .Attach("linklog", log);
     }
-    oglLog().success(u"Link program success.\n{}\n", logdat);
+    oglLog().Success(u"Link program success.\n{}\n", logdat);
     InitLocs(stub->ExtInfo);
     InitSubroutines(stub->ExtInfo);
     FilterProperties(stub->ExtInfo);
@@ -246,7 +246,7 @@ constexpr auto ResInfoPrinter = [](const auto& res, const auto& prefix)
             fmt::format_to(strBuf, FMT_STRING(u"--{:<3} -[{:^5}]- {}[{}]({})\n"), info.ifidx, info.location, info.Name, info.len, info.GetValTypeName());
     }
     if (!strBuffer.empty())
-        oglLog().debug(u"{}: \n{}", prefix, strBuffer);
+        oglLog().Debug(u"{}: \n{}", prefix, strBuffer);
 };
 void oglProgram_::InitLocs(const ShaderExtInfo& extInfo)
 {
@@ -290,7 +290,7 @@ void oglProgram_::InitLocs(const ShaderExtInfo& extInfo)
             }
         }
     }
-    oglLog().debug(u"Active {} resources\n", ProgRess.size());
+    oglLog().Debug(u"Active {} resources\n", ProgRess.size());
     GLuint maxUniLoc = 0;
     std::vector<ProgramResource> uniformRess, uboRess, texRess, imgRess;
 
@@ -389,7 +389,7 @@ void oglProgram_::InitSubroutines(const ShaderExtInfo& extInfo)
     
     if (!extInfo.EmulateSubroutines.empty())
     {
-        oglLog().warning(u"Detected emulated subroutine. Native subroutine {}.\n", CtxFunc->SupportSubroutine ? u"support" : u"unsupport");
+        oglLog().Warning(u"Detected emulated subroutine. Native subroutine {}.\n", CtxFunc->SupportSubroutine ? u"support" : u"unsupport");
         for (const auto& [srname, srinfo] : extInfo.EmulateSubroutines)
         {
             const auto uniRes = UniformRess.GetResource(srinfo.UniformName);
@@ -424,7 +424,7 @@ void oglProgram_::InitSubroutines(const ShaderExtInfo& extInfo)
             SubroutineSettings[subr.Stage][subr.UniLoc] = routine.Id;
     }
     if (!strBuffer.empty())
-        oglLog().debug(u"SubRoutine Resource: \n{}", strBuffer);
+        oglLog().Debug(u"SubRoutine Resource: \n{}", strBuffer);
 }
 
 static bool MatchType(const ShaderExtProperty& prop, const ProgramResource& res)
@@ -451,7 +451,7 @@ void oglProgram_::FilterProperties(const ShaderExtInfo& extInfo)
     ShaderProps.clear();
     for (const auto& prop : extInfo.Properties)
     {
-        oglLog().debug(u"prop[{}], typeof [{}], data[{}]\n", prop.Name, (uint8_t)prop.Type, prop.Data.has_value() ? "Has" : "None");
+        oglLog().Debug(u"prop[{}], typeof [{}], data[{}]\n", prop.Name, (uint8_t)prop.Type, prop.Data.has_value() ? "Has" : "None");
         if (auto res = FindInSet(ProgRess, prop.Name))
             if (MatchType(prop, *res))
             {
@@ -495,13 +495,13 @@ void oglProgram_::FilterProperties(const ShaderExtInfo& extInfo)
                         UniValCache.insert_or_assign(res->location, val);
                     } break;
                 default:
-                    oglLog().verbose(u"ExtProp [{}] of type[{}] and valtype[{}] is not supported to load initial value.\n", prop.Name, (uint8_t)prop.Type, res->GetValTypeName());
+                    oglLog().Verbose(u"ExtProp [{}] of type[{}] and valtype[{}] is not supported to load initial value.\n", prop.Name, (uint8_t)prop.Type, res->GetValTypeName());
                 }
             }
             else
-                oglLog().warning(u"ExtProp [{}] mismatch type[{}] with valtype[{}]\n", prop.Name, (uint8_t)prop.Type, res->GetValTypeName());
+                oglLog().Warning(u"ExtProp [{}] mismatch type[{}] with valtype[{}]\n", prop.Name, (uint8_t)prop.Type, res->GetValTypeName());
         else
-            oglLog().warning(u"ExtProp [{}] cannot find active uniform\n", prop.Name);
+            oglLog().Warning(u"ExtProp [{}] cannot find active uniform\n", prop.Name);
     }
 }
 
@@ -512,10 +512,10 @@ std::pair<const SubroutineResource*, const SubroutineResource::Routine*> oglProg
         if (auto pRoutine = pSubr->Routines.Find(routineName); pRoutine)
             return { pSubr, pRoutine };
         else
-            oglLog().warning(u"cannot find routine {} for subroutine {}\n", routineName, subrName);
+            oglLog().Warning(u"cannot find routine {} for subroutine {}\n", routineName, subrName);
     }
     else
-        oglLog().warning(u"cannot find subroutine {}\n", subrName);
+        oglLog().Warning(u"cannot find subroutine {}\n", subrName);
     return { nullptr, nullptr };
 }
 
@@ -531,7 +531,7 @@ void oglProgram_::oglProgStub::AddShader(oglShader shader)
     CheckCurrent();
     [[maybe_unused]] const auto [it, newitem] = Shaders.insert_or_assign(shader->Type, std::move(shader));
     if (!newitem)
-        oglLog().warning(u"Repeat adding shader {}, replaced\n", shader->ShaderID);
+        oglLog().Warning(u"Repeat adding shader {}, replaced\n", shader->ShaderID);
 }
 
 bool oglProgram_::oglProgStub::AddExtShaders(const std::string& src, const ShaderConfig& config, const bool allowCompute, const bool allowDraw)
@@ -566,7 +566,7 @@ const SubroutineResource::Routine* oglProgram_::GetSubroutine(const string& srun
 {
     if (const SubroutineResource* pSru = FindInSet(SubroutineRess, sruname); pSru)
         return GetSubroutine(*pSru);
-    oglLog().warning(u"cannot find subroutine object {}\n", sruname);
+    oglLog().Warning(u"cannot find subroutine object {}\n", sruname);
     return nullptr;
 }
 const SubroutineResource::Routine* oglProgram_::GetSubroutine(const SubroutineResource& sru)
@@ -615,7 +615,7 @@ void oglProgram_::SetSubroutine(const SubroutineResource::Routine* routine)
     if (SubroutineRess.find(sr) != SubroutineRess.cend())
         SetSubroutine(&sr, routine);
     else
-        oglLog().warning(u"routine [{}]-[{}] not in prog [{}]\n", sr.Name, routine->Name, Name);
+        oglLog().Warning(u"routine [{}]-[{}] not in prog [{}]\n", sr.Name, routine->Name, Name);
 }
 
 void oglProgram_::SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine)
@@ -997,7 +997,7 @@ ProgDraw& ProgDraw::SetSubroutine(const SubroutineResource::Routine* routine)
         Prog.SetSubroutine(&sr, routine);
     }
     else
-        oglLog().warning(u"routine [{}]-[{}] not in prog [{}]\n", sr.Name, routine->Name, Prog.Name);
+        oglLog().Warning(u"routine [{}]-[{}] not in prog [{}]\n", sr.Name, routine->Name, Prog.Name);
     return *this;
 }
 
@@ -1018,7 +1018,7 @@ oglComputeProgram_::oglComputeProgram_(const std::u16string& name, const oglProg
     : oglProgram_(name, stub, false)
 {
     CtxFunc->GetProgramiv(ProgramID, GL_COMPUTE_WORK_GROUP_SIZE, reinterpret_cast<GLint*>(LocalSize.data()));
-    oglLog().debug(u"Compute Shader has a LocalSize [{}x{}x{}]\n", LocalSize[0], LocalSize[1], LocalSize[2]);
+    oglLog().Debug(u"Compute Shader has a LocalSize [{}x{}x{}]\n", LocalSize[0], LocalSize[1], LocalSize[2]);
 }
 
 void oglComputeProgram_::Run(const uint32_t groupX, const uint32_t groupY, const uint32_t groupZ)

@@ -536,7 +536,7 @@ void SubgroupProvider::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtensio
         runtime.EnableExtension("cl_khr_fp64"sv) || runtime.EnableExtension("cl_amd_fp64"sv);
     for (const auto& item : Warnings)
     {
-        Logger.warning(item);
+        Logger.Warning(item);
     }
 }
 
@@ -1309,7 +1309,7 @@ void NLCLSubgroupLocal::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtensi
         const auto sgSize = kernel.GetWorkgroupSize();
         kernel.AddBodyPrefix(U"oclu_subgroup_mimic_local_slm"sv,
             FMTSTR(U"    local ulong _oclu_subgroup_local[{}];\r\n", std::max<uint32_t>(sgSize, 16)));
-        Logger.debug(u"Subgroup mimic [local] is enabled with size [{}].\n", sgSize);
+        Logger.Debug(u"Subgroup mimic [local] is enabled with size [{}].\n", sgSize);
     }
     KernelName = {};
     NLCLSubgroupKHR::OnFinish(runtime, ext, kernel);
@@ -1506,9 +1506,9 @@ NLCLSubgroupPtx::NLCLSubgroupPtx(common::mlog::MiniLogger<false>& logger, NLCLCo
     SubgroupProvider(logger, context, cap), SMVersion(smVersion)
 {
     if (smVersion == 0)
-        Logger.warning(u"Trying to use PtxSubgroup on non-NV platform.\n");
+        Logger.Warning(u"Trying to use PtxSubgroup on non-NV platform.\n");
     else if (smVersion < 30)
-        Logger.warning(u"Trying to use PtxSubgroup on sm{}, shuf is introduced since sm30.\n", smVersion);
+        Logger.Warning(u"Trying to use PtxSubgroup on sm{}, shuf is introduced since sm30.\n", smVersion);
     if (smVersion < 70)
         ExtraSync = {};
     else

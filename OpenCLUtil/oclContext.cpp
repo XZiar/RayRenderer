@@ -48,11 +48,11 @@ oclContext_::oclContext_(const oclPlatform_* plat, vector<cl_context_properties>
     detail::oclCommon(*plat), Plat(std::move(plat)), Devices(devices.begin(), devices.end()), Version(Plat->Version)
 {
     if (Plat->Version < 12)
-        oclLog().warning(u"Try to create context on [{}], which does not even support OpenCL1.2\n", Plat->Ver);
+        oclLog().Warning(u"Try to create context on [{}], which does not even support OpenCL1.2\n", Plat->Ver);
     OnMessage += [](const auto& msg) 
     { 
         if (!common::str::IsBeginWith(msg, u"Performance hint:"))
-            oclLog().verbose(u"{}\n", msg);
+            oclLog().Verbose(u"{}\n", msg);
     };
 
     cl_int ret;
@@ -82,11 +82,11 @@ oclContext_::~oclContext_()
     Funcs->clGetContextInfo(*Context, CL_CONTEXT_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
     if (refCount == 1)
     {
-        oclLog().debug(u"oclContext {:p} named {}, has {} reference being release.\n", (void*)*Context, GetPlatformName(), refCount);
+        oclLog().Debug(u"oclContext {:p} named {}, has {} reference being release.\n", (void*)*Context, GetPlatformName(), refCount);
         Funcs->clReleaseContext(*Context);
     }
     else
-        oclLog().warning(u"oclContext {:p} named {}, has {} reference and not able to release.\n", (void*)*Context, GetPlatformName(), refCount);
+        oclLog().Warning(u"oclContext {:p} named {}, has {} reference and not able to release.\n", (void*)*Context, GetPlatformName(), refCount);
 #else
     Funcs->clReleaseContext(*Context);
 #endif
@@ -149,7 +149,7 @@ common::PromiseResult<void> oclContext_::CreateUserEvent(common::PmsCore pms)
         if (const auto voidEvt = std::dynamic_pointer_cast<oclPromise<void>>(clEvt); voidEvt)
             return voidEvt;
         else
-            oclLog().warning(u"creating user-event from cl-event with result.");
+            oclLog().Warning(u"creating user-event from cl-event with result.");
     }
     if (Version < 11)
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"clUserEvent requires version at least 1.1");

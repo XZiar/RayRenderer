@@ -16,7 +16,7 @@ DependEvents::DependEvents(const common::PromiseStub& pmss)
 {
     auto clpmss = pmss.FilterOut<oclPromiseCore>();
     if (clpmss.size() < pmss.size())
-        oclLog().warning(u"Some non-ocl promise detected as dependent events, will be ignored!\n");
+        oclLog().Warning(u"Some non-ocl promise detected as dependent events, will be ignored!\n");
     std::optional<std::pair<const detail::PlatFuncs*, const oclPlatform_*>> plat;
     for (const auto& clpms : clpmss)
     {
@@ -110,7 +110,7 @@ inline void oclPromiseCore::MakeActive(common::PmsCore&& pms)
         return PromiseState::Invalid;
     if (status < 0)
     {
-        oclLog().warning(u"cl_event's status shows an error: {}\n", oclUtil::GetErrorString(status));
+        oclLog().Warning(u"cl_event's status shows an error: {}\n", oclUtil::GetErrorString(status));
         return PromiseState::Error;
     }
     switch (status)

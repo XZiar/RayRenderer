@@ -47,7 +47,7 @@ struct Lutter
             .SetDrawSize(0, 6);
         LUTFrame = oglu::oglLayeredFrameBuffer_::Create();
         LUTFrame->AttachColorTexture(LutTex);
-        log().info(u"LUT FBO status:{}\n", LUTFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
+        log().Info(u"LUT FBO status:{}\n", LUTFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
         LutGenerator->SetVal("step", 1.0f / (64 - 1));
         LutGenerator->SetVal("exposure", 1.0f);
         LutGenerator->SetVal("lutSize", 64);
@@ -68,7 +68,7 @@ struct Lutter
 static void TestErr()
 {
     if (const auto e = oglUtil::GetError(); e.has_value())
-        log().warning(u"Here occurs error due to {}.\n", e.value());
+        log().Warning(u"Here occurs error due to {}.\n", e.value());
 }
 
 static void RunTest(WindowBackend& backend)
@@ -107,7 +107,7 @@ static void RunTest(WindowBackend& backend)
     std::promise<void> closePms;
     window->Openning() += [&](const auto&) 
     {
-        log().info(u"opened.\n"); 
+        log().Info(u"opened.\n"); 
 #if COMMON_OS_WIN
         const auto host = loader->CreateHost(window->GetHDC());
 #elif COMMON_OS_LINUX
@@ -121,10 +121,10 @@ static void RunTest(WindowBackend& backend)
         context->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
         TestErr();
 
-        log().debug(u"{}\n", context->Capability->GenerateSupportLog());
+        log().Debug(u"{}\n", context->Capability->GenerateSupportLog());
         const auto fbo = oglu::oglDefaultFrameBuffer_::Get();
         fbo->SetWindowSize(1280, 720);
-        log().info(u"Def FBO is [{}]\n", fbo->IsSrgb() ? "SRGB" : "Linear");
+        log().Info(u"Def FBO is [{}]\n", fbo->IsSrgb() ? "SRGB" : "Linear");
         TestErr();
         try
         {
@@ -133,7 +133,7 @@ static void RunTest(WindowBackend& backend)
         catch (const common::BaseException& be)
         {
             common::mlog::SyncConsoleBackend();
-            log().error(u"failed to load shader: [{}]\n", be.Message());
+            log().Error(u"failed to load shader: [{}]\n", be.Message());
         }
         TestErr();
         screenBox = oglArrayBuffer_::Create();
@@ -170,7 +170,7 @@ static void RunTest(WindowBackend& backend)
             catch (const common::BaseException& be)
             {
                 common::mlog::SyncConsoleBackend();
-                log().warning(u"Failed to load LUT Generator:\n{}\n", be.Message());
+                log().Warning(u"Failed to load LUT Generator:\n{}\n", be.Message());
             }
         }
 
@@ -220,13 +220,13 @@ static void RunTest(WindowBackend& backend)
         {
             oglDefaultFrameBuffer_::Get()->SetWindowSize(width, height);
             //wd.Invalidate();
-            log().info(u"resize to [{:4} x {:4}].\n", width, height);
+            log().Info(u"resize to [{:4} x {:4}].\n", width, height);
         });
     };
     window->MouseDrag() += [&](const auto&, const auto& evt)
     {
         lutZ += evt.Delta.X / 1000.0f;
-        log().verbose("lutZ is now {}.\n", lutZ);
+        log().Verbose("lutZ is now {}.\n", lutZ);
         window->Invalidate();
     };
     window->KeyDown() += [&](const auto&, const auto& evt)
@@ -236,7 +236,7 @@ static void RunTest(WindowBackend& backend)
         case event::CommonKeys::Enter:
             shouldLut = !shouldLut;
             window->SetTitle(shouldLut ? u"WdHostGLTest - LUT"sv : u"WdHostGLTest - NoLUT"sv);
-            log().verbose("shouldLut is now {}.\n", shouldLut ? "ON" : "OFF");
+            log().Verbose("shouldLut is now {}.\n", shouldLut ? "ON" : "OFF");
             break;
         default:
             return;

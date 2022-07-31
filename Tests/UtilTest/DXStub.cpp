@@ -167,7 +167,7 @@ static void BufTest(DxDevice dev, DxComputeCmdQue cmdque)
     {
         const auto map0 = buf->Map(cmdque, MapFlags::ReadOnly, 0, 1024);
         const auto sp0 = map0.AsType<uint8_t>();
-        log().verbose("sp0: {}\n", sp0.subspan(0, 8));
+        //log().Verbose("sp0: {}\n", sp0.subspan(0, 8));
     }
     {
         std::array<uint8_t, 256> tmp;
@@ -178,13 +178,13 @@ static void BufTest(DxDevice dev, DxComputeCmdQue cmdque)
     {
         const auto map1 = buf->Map(cmdque, MapFlags::ReadOnly, 0, 1024);
         const auto sp1 = map1.AsType<uint8_t>();
-        log().verbose("sp1: {}\n", sp1.subspan(0, 8));
+        //log().Verbose("sp1: {}\n", sp1.subspan(0, 8));
     }
     {
         std::array<uint8_t, 256> tmp = { 0 };
         buf->ReadSpan(cmdque, tmp, 0)->WaitFinish();
         common::span<const uint8_t> sp2(tmp);
-        log().verbose("sp2: {}\n", sp2.subspan(0, 8));
+        //log().Verbose("sp2: {}\n", sp2.subspan(0, 8));
     }
     const auto readback = buf->Read(cmdque, 1024)->Get();
     const auto sp = readback.AsSpan<uint8_t>();
@@ -218,22 +218,22 @@ static void RunKernel(DxDevice dev, DxComputeCmdQue cmdque, DxComputeProgram pro
             {
             case BoundedResourceType::InnerTyped:
                 prepare.SetBuf(item.Name, buf->CreateTypedView(xziar::img::TextureFormat::RGBA8, 1024));
-                log().verbose(u"Attach Typed view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                log().Verbose(u"Attach Typed view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
                     dxu::detail::GetBoundedResTypeName(item.Type));
                 break;
             case BoundedResourceType::InnerStruct:
                 prepare.SetBuf(item.Name, buf->CreateStructuredView<uint32_t>(1024));
-                log().verbose(u"Attach Structured view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                log().Verbose(u"Attach Structured view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
                     dxu::detail::GetBoundedResTypeName(item.Type));
                 break;
             case BoundedResourceType::InnerRaw:
                 prepare.SetBuf(item.Name, buf->CreateRawView(1024));
-                log().verbose(u"Attach Raw view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                log().Verbose(u"Attach Raw view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
                     dxu::detail::GetBoundedResTypeName(item.Type));
                 break;
             case BoundedResourceType::InnerCBuf:
                 prepare.SetBuf(item.Name, buf->CreateConstBufView(4096));
-                log().verbose(u"Attach Const Buf view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                log().Verbose(u"Attach Const Buf view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
                     dxu::detail::GetBoundedResTypeName(item.Type));
                 break;
             default: continue;
@@ -254,7 +254,7 @@ static void RunKernel(DxDevice dev, DxComputeCmdQue cmdque, DxComputeProgram pro
     const auto query = cmdque->ExecuteWithQuery(cmdlist)->Get();
     const auto timeBegin = query.ResolveQuery(tsBegin);
     const auto timeEnd   = query.ResolveQuery(tsEnd);
-    log().debug(u"kernel execution: [{} ~ {}] = [{}]ns.\n", timeBegin, timeEnd, timeEnd - timeBegin);
+    log().Debug(u"kernel execution: [{} ~ {}] = [{}]ns.\n", timeBegin, timeEnd, timeEnd - timeBegin);
     {
         const auto rgExe = cmdque->DeclareRange(u"Readback buffer");
         for (const auto& buf : bufs)
@@ -262,7 +262,7 @@ static void RunKernel(DxDevice dev, DxComputeCmdQue cmdque, DxComputeProgram pro
             const auto mapped = buf->Map(cmdque, MapFlags::ReadOnly, 0, 64);
             const auto sp = mapped.AsType<uint32_t>();
             const auto vals = fmt::format("{}", sp);
-            log().debug(u"{}: {}\n", buf->GetName(), vals);
+            log().Debug(u"{}: {}\n", buf->GetName(), vals);
         }
         common::mlog::SyncConsoleBackend();
     }
@@ -282,7 +282,7 @@ static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
     }
     common::fs::path filepath = fpath;
     const bool isNLDX = filepath.extension().string() == ".nldx";
-    log().debug(u"loading hlsl file [{}]\n", filepath.u16string());
+    log().Debug(u"loading hlsl file [{}]\n", filepath.u16string());
     try
     {
         const auto kertxt = common::file::ReadAllText(filepath);
@@ -311,10 +311,10 @@ static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
         for (const auto& [name, prog] : progs)
         {
             const auto& tgSize = prog->GetThreadGroupSize();
-            log().success(u"program [{}], TGSize[{}x{}x{}]:\n", name, tgSize[0], tgSize[1], tgSize[2]);
+            log().Success(u"program [{}], TGSize[{}x{}x{}]:\n", name, tgSize[0], tgSize[1], tgSize[2]);
             for (const auto& item : prog->BufSlots())
             {
-                log().verbose(u"---[Buffer][{}] Space[{}] Bind[{},{}] Type[{}]\n", item.Name, item.Space, item.BindReg, item.Count,
+                log().Verbose(u"---[Buffer][{}] Space[{}] Bind[{},{}] Type[{}]\n", item.Name, item.Space, item.BindReg, item.Count,
                     dxu::detail::GetBoundedResTypeName(item.Type));
             }
         }
@@ -337,7 +337,7 @@ static void DXStub()
     const bool isAuto = common::container::FindInVec(GetCmdArgs(), [](const auto str) { return str == "auto"; }) != nullptr;
     if (devs.size() == 0)
     {
-        log().error(u"No DirectX12 devices found!\n");
+        log().Error(u"No DirectX12 devices found!\n");
         return;
     }
     while (true)
@@ -406,7 +406,7 @@ static void DXStub()
                     ADD_INFO(BackgroundProcessing);
                     APPEND_FMT(infotxt, u"LUID: [{}]\n"sv, common::MiscIntrin.HexToStr(dev->GetLUID()));
 #undef ADD_INFO
-                    log().verbose(u"Device Info:\n{}\n", infotxt);
+                    log().Verbose(u"Device Info:\n{}\n", infotxt);
                     continue;
                 }
                 else if (fpath.empty())

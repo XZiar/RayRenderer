@@ -55,7 +55,7 @@ oglBuffer_::oglMapPtr_::oglMapPtr_(oglBuffer_* buf, const MapFlag flags) :
 oglBuffer_::oglMapPtr_::~oglMapPtr_()
 {
     if (CtxFunc->UnmapNamedBuffer(common::enum_cast(Buffer.BufferType), Buffer.BufferID) == GL_FALSE)
-        oglLog().error(u"unmap buffer [{}] with size[{}] failed.\n", Buffer.BufferID, MemSpace.size());
+        oglLog().Error(u"unmap buffer [{}] with size[{}] failed.\n", Buffer.BufferID, MemSpace.size());
 }
 
 
@@ -75,7 +75,7 @@ oglBuffer_::~oglBuffer_() noexcept
     if (BufferID != GL_INVALID_INDEX)
         CtxFunc->DeleteBuffers(1, &BufferID);
     else
-        oglLog().error(u"re-release oglBuffer [{}] of type [{}] with size [{}]\n", BufferID, (uint32_t)BufferType, BufSize);
+        oglLog().Error(u"re-release oglBuffer [{}] of type [{}] with size [{}]\n", BufferID, (uint32_t)BufferType, BufSize);
 }
 
 void oglBuffer_::bind() const noexcept
@@ -83,7 +83,7 @@ void oglBuffer_::bind() const noexcept
     CheckCurrent();
     CtxFunc->BindBuffer(common::enum_cast(BufferType), BufferID);
     //if (BufferType== BufferType::Indirect)
-        //oglLog().verbose(u"binding ibo[{}].\n", BufferID);
+        //oglLog().Verbose(u"binding ibo[{}].\n", BufferID);
 }
 
 void oglBuffer_::unbind() const noexcept

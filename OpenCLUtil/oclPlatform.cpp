@@ -51,7 +51,7 @@ common::span<const oclPlatform> oclPlatform_::GetPlatforms()
             if (const auto err = platFuncs->clGetPlatformIDs(0, nullptr, &numPlatforms); err != CL_SUCCESS)
             {
                 if (dll || err != CL_PLATFORM_NOT_FOUND_KHR)
-                    oclLog().error(u"Failed to get platform ids on [{}]: [{}]({})\n", 
+                    oclLog().Error(FmtString(u"Failed to get platform ids on [{}]: [{}]({})\n"sv),
                         dll ? *dll : "icd"sv, msg, oclUtil::GetErrorString(err), err);
                 return;
             }
@@ -68,7 +68,7 @@ common::span<const oclPlatform> oclPlatform_::GetPlatforms()
                 }
                 catch (const std::exception& ex)
                 {
-                    oclLog().error(FMT_STRING(u"Failed to init platform [{}]({}):\n {}\n"), 
+                    oclLog().Error(FmtString(u"Failed to init platform [{}]({}):\n {}\n"sv), 
                         plat->Name, dll ? *dll : "icd"sv, ex.what());
                 }
             }
@@ -95,7 +95,7 @@ common::span<const oclPlatform> oclPlatform_::GetPlatforms()
                 holder.Funcs.emplace_back(std::move(platFuncs));
             }
         }
-        oclLog().debug(msg);
+        oclLog().Debug(msg);
         holder.Plats.reserve(holder.Platforms.size());
         for (const auto& plat : holder.Platforms)
             holder.Plats.emplace_back(plat.get());
@@ -166,7 +166,7 @@ void oclPlatform_::InitDevice()
     cl_uint numDevices;
     if (const auto err = Funcs->clGetDeviceIDs(*PlatformID, CL_DEVICE_TYPE_ALL, 0, nullptr, &numDevices); err != CL_SUCCESS)
     {
-        oclLog().error(u"Failed to get device ids on [{}]: [{}]({})\n", Name, oclUtil::GetErrorString(err), err);
+        oclLog().Error(u"Failed to get device ids on [{}]: [{}]({})\n", Name, oclUtil::GetErrorString(err), err);
         return;
     }
     // Get all Device Info
@@ -186,7 +186,7 @@ void oclPlatform_::InitDevice()
         }
         catch (const std::exception& ex)
         {
-            oclLog().error(FMT_STRING(u"Failed to init platform[{}]'s device[{}]({}):\n {}\n"),
+            oclLog().Error(FmtString(u"Failed to init platform[{}]'s device[{}]({}):\n {}\n"),
                 Name, dev.Name, (void*)id, ex.what());
         }
     }

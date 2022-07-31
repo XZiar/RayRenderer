@@ -343,7 +343,7 @@ void DxCmdList_::Close()
     if (!HasClosed)
     {
         if (!CheckRangeEmpty())
-            dxLog().error(u"some range not closed with cmdlist [{}]", GetName());
+            dxLog().Error(u"some range not closed with cmdlist [{}]", GetName());
         TransitToEndState();
         FlushResourceState();
         THROW_HR(CmdList->Close(), u"Failed to close CmdList");
@@ -361,7 +361,7 @@ void DxCmdList_::Close()
             {
                 if (record.FlushIdx == FlushIdx && record.Status != RecordStatus::Promote)
                 {
-                    dxLog().warning(u"resource [{}] has unfinished transit from [{:0X}] to [{:0X}]", 
+                    dxLog().Warning(u"resource [{}] has unfinished transit from [{:0X}] to [{:0X}]", 
                         record.Resource->GetName(), enum_cast(record.FromState), enum_cast(record.State));
                     continue;
                 }
@@ -422,7 +422,7 @@ void DxCmdList_::PrintFlushRecord() const
         allText += u"\n";
     }
     allText += u"\n";
-    dxLog().info(allText);
+    dxLog().Info(allText);
 }
 
 
@@ -519,7 +519,7 @@ void DxCmdQue_::Wait(const common::PromiseProvider& pms) const
     }
     else
     {
-        dxLog().warning(u"Non-dx promise detected to be wait for, will be ignored!\n");
+        dxLog().Warning(u"Non-dx promise detected to be wait for, will be ignored!\n");
     }
 }
 

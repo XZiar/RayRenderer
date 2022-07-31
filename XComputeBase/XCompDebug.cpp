@@ -6,100 +6,100 @@
 
 
 
-template<typename Char, typename T>
-struct fmt::formatter<xcomp::debug::ArgsLayout::VecItem<T>, Char>
-{
-    using R = std::conditional_t<std::is_same_v<T, half_float::half>, float, T>;
-    std::basic_string_view<Char> Presentation;
-    template<typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
-    {
-        const auto begin = ctx.begin(), end = ctx.end();
-        auto it = begin;
-        size_t count = 0;
-        while (it != end && *it != static_cast<Char>('}'))
-            ++it, ++count;
-        if (it != end && *it != static_cast<Char>('}'))
-            throw format_error("invalid format");
-        Presentation = { &(*begin), count };
-        return it;
-    }
-    template<typename FormatContext>
-    auto format(const xcomp::debug::ArgsLayout::VecItem<T>& arg, FormatContext& ctx)
-    {
-        Expects(arg.Count > 0);
-        auto it = ctx.out();
-        if (arg.Count > 1)
-        {
-            *it++ = static_cast<Char>('{');
-            *it++ = static_cast<Char>(' ');
-        }
-        if (Presentation.empty())
-        {
-            for (uint32_t idx = 0; idx < arg.Count; ++idx)
-            {
-                if (idx > 0)
-                {
-                    *it++ = static_cast<Char>(',');
-                    *it++ = static_cast<Char>(' ');
-                }
-                if constexpr (std::is_same_v<Char, char>)
-                {
-                    it = fmt::format_to(it, FMT_STRING("{}"),   static_cast<R>(arg.Ptr[idx]));
-                }
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-                else if constexpr (std::is_same_v<Char, char8_t>)
-                {
-                    it = fmt::format_to(it, FMT_STRING(u8"{}"), static_cast<R>(arg.Ptr[idx]));
-                }
-#endif
-                else if constexpr (std::is_same_v<Char, char16_t>)
-                {
-                    it = fmt::format_to(it, FMT_STRING(u"{}"),  static_cast<R>(arg.Ptr[idx]));
-                }
-                else if constexpr (std::is_same_v<Char, char32_t>)
-                {
-                    it = fmt::format_to(it, FMT_STRING(U"{}"),  static_cast<R>(arg.Ptr[idx]));
-                }
-                else if constexpr (std::is_same_v<Char, wchar_t>)
-                {
-                    it = fmt::format_to(it, FMT_STRING(L"{}"),  static_cast<R>(arg.Ptr[idx]));
-                }
-                else
-                {
-                    static_assert(!common::AlwaysTrue<T>, "Unsupportted Char type");
-                }
-            }
-        }
-        else
-        {
-            const auto baseSize = Presentation.size();
-            std::basic_string<Char> fmter; 
-            fmter.resize(baseSize + 3);
-            fmter[0]     = static_cast<Char>('{');
-            fmter[1]     = static_cast<Char>(':');
-            fmter.back() = static_cast<Char>('}');
-            const auto size = Presentation.size() * sizeof(Char);
-            memcpy_s(&fmter[2], size, Presentation.data(), size);
-            
-            for (uint32_t idx = 0; idx < arg.Count; ++idx)
-            {
-                if (idx > 0)
-                {
-                    *it++ = static_cast<Char>(',');
-                    *it++ = static_cast<Char>(' ');
-                }
-                it = fmt::format_to(it, fmter, static_cast<R>(arg.Ptr[idx]));
-            }
-        }
-        if (arg.Count > 1)
-        {
-            *it++ = static_cast<Char>(' ');
-            *it++ = static_cast<Char>('}');
-        }
-        return it;
-    }
-};
+//template<typename Char, typename T>
+//struct fmt::formatter<xcomp::debug::ArgsLayout::VecItem<T>, Char>
+//{
+//    using R = std::conditional_t<std::is_same_v<T, half_float::half>, float, T>;
+//    std::basic_string_view<Char> Presentation;
+//    template<typename ParseContext>
+//    constexpr auto parse(ParseContext& ctx)
+//    {
+//        const auto begin = ctx.begin(), end = ctx.end();
+//        auto it = begin;
+//        size_t count = 0;
+//        while (it != end && *it != static_cast<Char>('}'))
+//            ++it, ++count;
+//        if (it != end && *it != static_cast<Char>('}'))
+//            throw format_error("invalid format");
+//        Presentation = { &(*begin), count };
+//        return it;
+//    }
+//    template<typename FormatContext>
+//    auto format(const xcomp::debug::ArgsLayout::VecItem<T>& arg, FormatContext& ctx)
+//    {
+//        Expects(arg.Count > 0);
+//        auto it = ctx.out();
+//        if (arg.Count > 1)
+//        {
+//            *it++ = static_cast<Char>('{');
+//            *it++ = static_cast<Char>(' ');
+//        }
+//        if (Presentation.empty())
+//        {
+//            for (uint32_t idx = 0; idx < arg.Count; ++idx)
+//            {
+//                if (idx > 0)
+//                {
+//                    *it++ = static_cast<Char>(',');
+//                    *it++ = static_cast<Char>(' ');
+//                }
+//                if constexpr (std::is_same_v<Char, char>)
+//                {
+//                    it = fmt::format_to(it, FMT_STRING("{}"),   static_cast<R>(arg.Ptr[idx]));
+//                }
+//#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+//                else if constexpr (std::is_same_v<Char, char8_t>)
+//                {
+//                    it = fmt::format_to(it, FMT_STRING(u8"{}"), static_cast<R>(arg.Ptr[idx]));
+//                }
+//#endif
+//                else if constexpr (std::is_same_v<Char, char16_t>)
+//                {
+//                    it = fmt::format_to(it, FMT_STRING(u"{}"),  static_cast<R>(arg.Ptr[idx]));
+//                }
+//                else if constexpr (std::is_same_v<Char, char32_t>)
+//                {
+//                    it = fmt::format_to(it, FMT_STRING(U"{}"),  static_cast<R>(arg.Ptr[idx]));
+//                }
+//                else if constexpr (std::is_same_v<Char, wchar_t>)
+//                {
+//                    it = fmt::format_to(it, FMT_STRING(L"{}"),  static_cast<R>(arg.Ptr[idx]));
+//                }
+//                else
+//                {
+//                    static_assert(!common::AlwaysTrue<T>, "Unsupportted Char type");
+//                }
+//            }
+//        }
+//        else
+//        {
+//            const auto baseSize = Presentation.size();
+//            std::basic_string<Char> fmter; 
+//            fmter.resize(baseSize + 3);
+//            fmter[0]     = static_cast<Char>('{');
+//            fmter[1]     = static_cast<Char>(':');
+//            fmter.back() = static_cast<Char>('}');
+//            const auto size = Presentation.size() * sizeof(Char);
+//            memcpy_s(&fmter[2], size, Presentation.data(), size);
+//            
+//            for (uint32_t idx = 0; idx < arg.Count; ++idx)
+//            {
+//                if (idx > 0)
+//                {
+//                    *it++ = static_cast<Char>(',');
+//                    *it++ = static_cast<Char>(' ');
+//                }
+//                it = fmt::format_to(it, fmter, static_cast<R>(arg.Ptr[idx]));
+//            }
+//        }
+//        if (arg.Count > 1)
+//        {
+//            *it++ = static_cast<Char>(' ');
+//            *it++ = static_cast<Char>('}');
+//        }
+//        return it;
+//    }
+//};
 
 
 namespace xcomp::debug
@@ -164,6 +164,106 @@ ArgsLayout::ArgsLayout(common::span<const NamedVecPair> infos, const uint16_t al
 }
 
 
+MessageBlock::MessageBlock(const uint8_t idx, const std::u32string_view name, const std::u32string_view formatter,
+    common::span<const NamedVecPair> infos) :
+    Layout(infos, 4), Name(name), FormatCache([](auto fmtstr)
+        {
+            const auto fmtu8 = common::str::to_string(fmtstr, common::str::Encoding::UTF8);
+            const auto result = common::str::exp::ParseResult::ParseString<char>(fmtu8);
+            return common::str::exp::DynamicTrimedResultCh<char>{ result, fmtu8 };
+        }(formatter)), DebugId(idx) 
+{ }
+
+struct MessageFormatExecutor final : public common::str::exp::FormatterExecutor, public common::str::exp::Formatter<char>
+{
+    using CTX = common::str::exp::FormatterExecutor::Context;
+    struct Context : public CTX
+    {
+        std::basic_string<char>& Dst;
+        std::basic_string_view<char> FmtStr;
+        const ArgsLayout& Layout;
+        common::span<const std::byte> Data;
+        constexpr Context(std::basic_string<char>& dst, std::string_view fmtstr, const ArgsLayout& layout, common::span<const std::byte> data) noexcept :
+            Dst(dst), FmtStr(fmtstr), Layout(layout), Data(data)
+        { }
+    };
+
+    void OnFmtStr(CTX& ctx, uint32_t offset, uint32_t length) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        PutString(context.Dst, context.FmtStr.substr(offset, length), nullptr);
+    }
+    void OnBrace(CTX& ctx, bool isLeft) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        PutString(context.Dst, isLeft ? "{"sv : "}"sv, nullptr);
+    }
+    void OnColor(CTX& ctx, common::ScreenColor color) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        PutColor(context.Dst, color);
+    }
+    void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, const common::str::exp::FormatSpec* spec) final
+    {
+        Expects(!isNamed);
+        auto& context = static_cast<Context&>(ctx);
+        const auto& item = context.Layout[argIdx];
+        const auto data = &context.Data[item.Offset];
+        Expects(item.Info.Dim0 > 0);
+        if (item.Info.Dim0 > 1)
+        {
+            context.Dst.append("{ "sv);
+        }
+        for (uint32_t i = 0; i < item.Info.Dim0; ++i)
+        {
+            if (i > 0)
+                context.Dst.append(", "sv);
+            switch (item.Info.Type)
+            {
+            case VecDataInfo::DataTypes::Float:
+                switch (item.Info.Bit)
+                {
+                case 16: PutFloat(context.Dst, static_cast<float>(reinterpret_cast<const half_float::half*>(data)[i]), spec); break;
+                case 32: PutFloat(context.Dst, reinterpret_cast<const float *>(data)[i], spec); break;
+                case 64: PutFloat(context.Dst, reinterpret_cast<const double*>(data)[i], spec); break;
+                default: break;
+                }
+                break;
+            case VecDataInfo::DataTypes::Unsigned:
+                switch (item.Info.Bit)
+                {
+                case  8: PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const uint8_t *>(data)[i]), false, spec); break;
+                case 16: PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const uint16_t*>(data)[i]), false, spec); break;
+                case 32: PutInteger(context.Dst, reinterpret_cast<const uint32_t*>(data)[i], false, spec); break;
+                case 64: PutInteger(context.Dst, reinterpret_cast<const uint64_t*>(data)[i], false, spec); break;
+                default: break;
+                }
+                break;
+            case VecDataInfo::DataTypes::Signed:
+                switch (item.Info.Bit)
+                {
+                case  8: PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int8_t *>(data)[i]), true, spec); break;
+                case 16: PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int16_t*>(data)[i]), true, spec); break;
+                case 32: PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int32_t*>(data)[i]), true, spec); break;
+                case 64: PutInteger(context.Dst, static_cast<uint64_t>(reinterpret_cast<const int64_t*>(data)[i]), true, spec); break;
+                default: break;
+                }
+                break;
+            default: break;
+            }
+        }
+        if (item.Info.Dim0 > 1)
+        {
+            context.Dst.append(" }"sv);
+        }
+    }
+
+    using FormatterBase::Execute;
+};
+static MessageFormatExecutor MsgFmtExecutor;
+
+
+
 template<typename T>
 static forceinline void Insert(fmt::dynamic_format_arg_store<fmt::u32format_context>& store, const ArgsLayout::VecItem<T>& data)
 {
@@ -175,7 +275,16 @@ static forceinline void Insert(fmt::dynamic_format_arg_store<fmt::u32format_cont
 }
 common::str::u8string MessageBlock::GetString(common::span<const std::byte> data) const
 {
-    fmt::dynamic_format_arg_store<fmt::u32format_context> store;
+    const auto strInfo = FormatCache.ToStrArgInfo();
+    common::str::u8string ret;
+    MessageFormatExecutor::Context ctx { *reinterpret_cast<std::string*>(&ret), strInfo.FormatString, Layout, data };
+    uint32_t opOffset = 0;
+    while (opOffset < strInfo.Opcodes.size())
+    {
+        MessageFormatExecutor::Execute<common::str::exp::FormatterExecutor>(strInfo.Opcodes, opOffset, MsgFmtExecutor, ctx);
+    }
+    return ret;
+    /*fmt::dynamic_format_arg_store<fmt::u32format_context> store;
     for (const auto& arg : Layout.ByIndex())
     {
         arg.VisitData(data, [&](auto ele)
@@ -184,7 +293,7 @@ common::str::u8string MessageBlock::GetString(common::span<const std::byte> data
             });
     }
     auto str = fmt::vformat(Formatter, store);
-    return common::str::to_u8string(str);
+    return common::str::to_u8string(str);*/
 }
 
 
@@ -517,28 +626,39 @@ std::vector<std::pair<ExcelXmlPrinter::SheetPackage*, const MessageBlock*>> Exce
 }
 
 
-template<typename T>
-static forceinline void Print(std::string& output, const ArgsLayout::VecItem<T>& data)
-{
-    const auto& cellb = data.Count > 1 ? StrCellBegin : NumCellBegin;
-    const auto& celle = CellEnd;
-    output.append(cellb);
-    output.append(fmt::to_string(data));
-    output.append(celle);
-}
-static forceinline void Print(std::string& output, std::nullopt_t)
-{
-    output.append(R"(    <Cell><Data ss:Type="String">ERROR</Data></Cell>)"sv);
-}
+//template<typename T>
+//static forceinline void Print(std::string& output, const ArgsLayout::VecItem<T>& data)
+//{
+//    const auto& cellb = data.Count > 1 ? StrCellBegin : NumCellBegin;
+//    const auto& celle = CellEnd;
+//    output.append(cellb);
+//    output.append(fmt::to_string(data));
+//    output.append(celle);
+//}
+//static forceinline void Print(std::string& output, std::nullopt_t)
+//{
+//    output.append(R"(    <Cell><Data ss:Type="String">ERROR</Data></Cell>)"sv);
+//}
 void ExcelXmlPrinter::AddItem(SheetPackage& sheet, std::string_view info, common::str::u8string_view msg, const common::span<const std::byte> dat)
 {
     sheet.Contents.append(RowBegin);
     sheet.Contents.append(info);
     const auto& block = *MsgPacks[sheet.MsgPkgIdx].MsgBlock;
-    for (const auto& arg : block.Layout.ByIndex())
+    const auto strInfo = block.FormatCache.ToStrArgInfo();
+    MessageFormatExecutor::Context ctx{ sheet.Contents, strInfo.FormatString, block.Layout, dat };
+    for (uint32_t i = 0; i < block.Layout.ArgCount; ++i)
+    {
+        const auto& arg = block.Layout[i];
+        const auto& cellb = arg.Info.Dim0 > 1 ? StrCellBegin : NumCellBegin;
+        const auto& celle = CellEnd;
+        sheet.Contents.append(cellb);
+        MsgFmtExecutor.OnArg(ctx, static_cast<uint8_t>(i), false, nullptr);
+        sheet.Contents.append(celle);
+    }
+    /*for (const auto& arg : block.Layout.ByIndex())
     {
         arg.VisitData(dat, [&](const auto& vecItem) { Print(sheet.Contents, vecItem); });
-    }
+    }*/
     sheet.Contents.append(StrCellBegin);
     AppendXmlStr(sheet.Contents, { reinterpret_cast<const char*>(msg.data()), msg.size() });
     sheet.Contents.append(CellEnd);

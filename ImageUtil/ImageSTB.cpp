@@ -79,7 +79,7 @@ StbReader::StbReader(RandomInputStream& stream) : Stream(stream)
     StbContext = context;
     if (auto memStream = dynamic_cast<common::io::MemoryInputStream*>(&Stream))
     {
-        ImgLog().verbose(u"STB faces MemoryStream, bypass it.\n");
+        ImgLog().Verbose(u"STB faces MemoryStream, bypass it.\n");
         const auto [ptr, size] = memStream->ExposeAvaliable();
         stbi__start_mem(context, reinterpret_cast<const unsigned char*>(ptr), static_cast<int>(size));
     }

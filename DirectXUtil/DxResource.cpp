@@ -31,7 +31,7 @@ static HeapProps ProcessProps(HeapProps props, DxDevice dev) noexcept
             if (prop != value)
             {
                 prop = value;
-                dxLog().warning(reason);
+                dxLog().Warning(reason);
             }
         };
         if (dev->IsUMA) 
@@ -71,7 +71,7 @@ DxResource_::~DxResource_()
 DxResource_::StateTransitHolder::~StateTransitHolder()
 {
     if (Resource)
-        dxLog().warning(u"Resource [{}] has unfinished transit to [{}].\n",
+        dxLog().Warning(u"Resource [{}] has unfinished transit to [{}].\n",
             Resource->GetName(), common::enum_cast(State));
 }
 void DxResource_::StateTransitHolder::Finish()

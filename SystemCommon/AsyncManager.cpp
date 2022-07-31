@@ -12,6 +12,8 @@ namespace common::asyexe
 
 COMMON_EXCEPTION_IMPL(AsyncTaskException)
 
+using namespace std::string_view_literals;
+
 namespace detail
 {
 
@@ -151,7 +153,7 @@ uint32_t AsyncManager::PreCheckTask(std::u16string& taskName)
         taskName = fmt::format(u"task {}", tuid);
     if (!AllowStopAdd && !IsRunning()) //has stopped
     {
-        Logger.warning(u"New task cancelled due to termination [{}] [{}]\n", tuid, taskName);
+        Logger.Warning(u"New task cancelled due to termination [{}] [{}]\n"sv, tuid, taskName);
         COMMON_THROW(AsyncTaskException, AsyncTaskException::Reasons::Cancelled, u"Executor was terminated when adding task.");
     }
     return tuid;
@@ -161,7 +163,7 @@ bool AsyncManager::AddNode(detail::AsyncTaskNodeBase* node)
 {
     if (TaskList.AppendNode(node)) // need to notify worker
         Wakeup();
-    Logger.debug(FMT_STRING(u"Add new task [{}] [{}]\n"), node->TaskUid, node->Name);
+    Logger.Debug(FmtString(u"Add new task [{}] [{}]\n"sv), node->TaskUid, node->Name);
     return true;
 }
 
@@ -218,7 +220,7 @@ common::loop::LoopBase::LoopAction AsyncManager::OnLoop()
         }
         else //has returned
         {
-            Logger.debug(FMT_STRING(u"Task [{}] finished, reported executed {}us\n"), Current->Name, Current->ElapseTime / 1000);
+            Logger.Debug(FmtString(u"Task [{}] finished, reported executed {}us\n"sv), Current->Name, Current->ElapseTime / 1000);
             auto tmp = Current;
             Current = TaskList.PopNode(Current);
             detail::AsyncTaskNodeBase::ReleaseNode(tmp);
@@ -237,7 +239,7 @@ bool AsyncManager::SleepCheck() noexcept
 bool AsyncManager::OnStart(std::any cookie) noexcept
 {
     AsyncAgent::GetRawAsyncAgent() = &Agent;
-    Logger.info(u"AsyncProxy started\n");
+    Logger.Info(u"AsyncProxy started\n");
     Injector initer;
     std::tie(initer, ExitCallback) = std::any_cast<std::pair<Injector, Injector>>(std::move(cookie));
     if (initer)
@@ -247,7 +249,7 @@ bool AsyncManager::OnStart(std::any cookie) noexcept
 
 void AsyncManager::OnStop() noexcept
 {
-    Logger.verbose(u"AsyncExecutor [{}] begin to exit\n", Name);
+    Logger.Verbose(u"AsyncExecutor [{}] begin to exit\n", Name);
     Current = nullptr;
     //destroy all task
     TaskList.ForEach([&](detail::AsyncTaskNodeBase* node)
@@ -255,7 +257,7 @@ void AsyncManager::OnStop() noexcept
             switch (node->Status)
             {
             case detail::AsyncTaskStatus::New:
-                Logger.warning(u"Task [{}] cancelled due to termination.\n", node->Name);
+                Logger.Warning(u"Task [{}] cancelled due to termination.\n", node->Name);
                 try
                 {
                     COMMON_THROW(AsyncTaskException, AsyncTaskException::Reasons::Cancelled, u"Task was cancelled and not executed, due to executor was terminated.");

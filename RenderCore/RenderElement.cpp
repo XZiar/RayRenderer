@@ -31,7 +31,7 @@ private:
         Locker.LockWrite();
         const auto isAdd = TypeMap.try_emplace(id, name).second;
         if(isAdd)
-            dizzLog().debug(u"Regist Drawable [{}]\n", name);
+            dizzLog().Debug(u"Regist Drawable [{}]\n", name);
         Locker.UnlockWrite();
     }
     static u16string GetType(const std::type_index& obj)
@@ -208,7 +208,7 @@ const oglu::oglVAO& Drawable::GetVAO(const oglu::oglDrawProgram::weak_type& weak
     const auto& it = vaomap.find(std::make_tuple(this, weakProg));
     if (it != vaomap.cend())
         return it->vao;
-    dizzLog().error(u"No matching VAO found for [{}]({}), maybe prepareGL not executed.\n", Name, GetType());
+    dizzLog().Error(u"No matching VAO found for [{}]({}), maybe prepareGL not executed.\n", Name, GetType());
     return EmptyVAO;
 }
 

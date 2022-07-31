@@ -137,7 +137,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
         case "EMPTY"_hash:
             break;
         case "#"_hash:
-            dizzLog().verbose(u"--obj-note [{}]\n", line.ToUString());
+            dizzLog().Verbose(u"--obj-note [{}]\n", line.ToUString());
             break;
         case "v"_hash://vertex
             {
@@ -169,7 +169,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
                 const auto lim = common::min((size_t)4, line.Params.size() - 1);
                 if (lim < 3)
                 {
-                    dizzLog().warning(u"too few params for face, ignored : {}\n", line.Line);
+                    dizzLog().Warning(u"too few params for face, ignored : {}\n", line.Line);
                     break;
                 }
                 for (uint32_t a = 0; a < lim; ++a)
@@ -187,7 +187,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
                 {
                     if (tmpidx.X == tmpidx.Y || tmpidx.Y == tmpidx.Z || tmpidx.X == tmpidx.Z)
                     {
-                        dizzLog().warning(u"repeat index for face, ignored : {}\n", line.Line);
+                        dizzLog().Warning(u"repeat index for face, ignored : {}\n", line.Line);
                         break;
                     }
                     indexs.push_back(tmpidx.X);
@@ -223,16 +223,16 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
         oglu::GenerateTanPoint(pts[indexs[i]], pts[indexs[i + 1]], pts[indexs[i + 2]]);
     }
     tstTimer.Stop();
-    dizzLog().debug(u"tangent-generate cost {} us\n", tstTimer.ElapseUs());
+    dizzLog().Debug(u"tangent-generate cost {} us\n", tstTimer.ElapseUs());
     size = maxv - minv;
-    dizzLog().success(u"read {} vertex, {} normal, {} texcoord\n", points.size(), normals.size(), texcs.size());
-    dizzLog().success(u"OBJ:\t{} points, {} indexs, {} triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
-    dizzLog().info(u"OBJ size:\t [{:.5},{:.5},{:.5}]\n", size.X, size.Y, size.Z);
+    dizzLog().Success(u"read {} vertex, {} normal, {} texcoord\n", points.size(), normals.size(), texcs.size());
+    dizzLog().Success(u"OBJ:\t{} points, {} indexs, {} triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
+    dizzLog().Info(u"OBJ size:\t [{:.5},{:.5},{:.5}]\n", size.X, size.Y, size.Z);
     MaterialMap = mtlLoader.GetMaterialMap();
 }
 catch (const common::file::FileException&)
 {
-    dizzLog().error(u"Fail to open obj file\t[{}]\n", objpath.u16string());
+    dizzLog().Error(u"Fail to open obj file\t[{}]\n", objpath.u16string());
     COMMON_THROWEX(BaseException, u"fail to load model data");
 }
 
@@ -246,7 +246,7 @@ void _ModelMesh::InitDataBuffers(const std::shared_ptr<oglu::oglWorker>& asyncer
             InitDataBuffers();
             auto sync = oglu::oglUtil::SyncGL();
             agent.Await(sync);
-            dizzLog().info(u"ModelData initialized, reported cost {}us\n", sync->ElapseNs() / 1000);
+            dizzLog().Info(u"ModelData initialized, reported cost {}us\n", sync->ElapseNs() / 1000);
         }, fileName);
         AsyncAgent::SafeWait(task);
         return;

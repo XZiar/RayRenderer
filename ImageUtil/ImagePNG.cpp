@@ -37,12 +37,12 @@ static void OnFlushFile([[maybe_unused]] png_structp pngStruct) {}
 
 static void OnError([[maybe_unused]] png_structrp pngStruct, const char *message)
 {
-    ImgLog().error(u"LIBPNG report an error: {}\n", message);
+    ImgLog().Error(u"LIBPNG report an error: {}\n", message);
     COMMON_THROW(BaseException, u"Libpng report an error");
 }
 static void OnWarn([[maybe_unused]] png_structrp pngStruct, const char *message)
 {
-    ImgLog().warning(u"LIBPNG warns: {}\n", message);
+    ImgLog().Warning(u"LIBPNG warns: {}\n", message);
 }
 
 static png_structp CreateReadStruct()
@@ -79,7 +79,7 @@ static void ReadPng(void *pngStruct, const uint32_t passes, Image& image, const 
         png_read_rows((png_structp)pngStruct, ptrs.data(), NULL, image.GetHeight());
     }
     timer.Stop();
-    ImgLog().debug(u"[libpng]decode {} pass cost {} ms\n", passes, timer.ElapseMs());
+    ImgLog().Debug(u"[libpng]decode {} pass cost {} ms\n", passes, timer.ElapseMs());
     if (!needAlpha)
         return;
 
@@ -102,7 +102,7 @@ static void ReadPng(void *pngStruct, const uint32_t passes, Image& image, const 
             convert::GraysToGrayAs(destPtr, srcPtr, image.GetWidth());
         }
     timer.Stop();
-    ImgLog().debug(u"[png]post add alpha cost {} ms\n", timer.ElapseMs());
+    ImgLog().Debug(u"[png]post add alpha cost {} ms\n", timer.ElapseMs());
 }
 
 PngReader::PngReader(RandomInputStream& stream) :

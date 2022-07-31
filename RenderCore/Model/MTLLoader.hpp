@@ -37,7 +37,7 @@ private:
             }
         }
 #endif
-        dizzLog().warning(u"Cannot find img of [{}]\n", picPath.u16string());
+        dizzLog().Warning(u"Cannot find img of [{}]\n", picPath.u16string());
         return {};
     }
 public:
@@ -47,7 +47,7 @@ public:
     {
         using common::container::FindInMap;
         OBJLoder ldr(mtlpath);
-        dizzLog().verbose(u"Parsing mtl file [{}]\n", mtlpath.u16string());
+        dizzLog().Verbose(u"Parsing mtl file [{}]\n", mtlpath.u16string());
         std::vector<std::tuple<std::shared_ptr<PBRMaterial>, fs::path, TexLoadType>> preJobs;
         const fs::path fallbackPath = mtlpath.parent_path();
         std::shared_ptr<PBRMaterial> curmtl;
@@ -59,7 +59,7 @@ public:
             case "EMPTY"_hash:
                 break;
             case "#"_hash:
-                dizzLog().verbose(u"--mtl-note [{}]\n", line.ToUString());
+                dizzLog().Verbose(u"--mtl-note [{}]\n", line.ToUString());
                 break;
             case "newmtl"_hash:
                 {
@@ -116,7 +116,7 @@ public:
     }
     catch (const common::file::FileException&)
     {
-        dizzLog().error(u"Fail to open mtl file\t[{}]\n", mtlpath.u16string());
+        dizzLog().Error(u"Fail to open mtl file\t[{}]\n", mtlpath.u16string());
     }
 
     std::map<string, PBRMaterial> GetMaterialMap()

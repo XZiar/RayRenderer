@@ -64,7 +64,7 @@ oclMem_::~oclMem_()
         Funcs->clGetMemObjectInfo(*MemID, CL_MEM_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
         if (refCount != 1)
         {
-            oclLog().warning(u"oclMem {:p} has {} reference and not able to release.\n", (void*)*MemID, refCount);
+            oclLog().Warning(u"oclMem {:p} has {} reference and not able to release.\n", (void*)*MemID, refCount);
         }
     }
     Funcs->clReleaseMemObject(*MemID);

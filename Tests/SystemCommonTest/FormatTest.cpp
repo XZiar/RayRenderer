@@ -627,16 +627,11 @@ TEST(Format, PackArg)
 
 
 template<typename T, typename... Args>
-std::string ToString(T&& res, Args&&... args)
+auto ToString(T&& res, Args&&... args)
 {
-    const auto strInfo = res.ToStrArgInfo();
-    constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
-    const auto mapping = ArgChecker::CheckDD(strInfo, ArgsInfo);
-    auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
-    argPack.Mapper = mapping;
-    std::string ret;
-    FormatterBase::FormatTo(Formatter<char>{}, ret, strInfo, ArgsInfo, argPack);
-    return ret;
+    using Char = typename T::CharType;
+    Formatter<Char> formatter;
+    return formatter.FormatStatic(res, std::forward<Args>(args)...);
 }
 TEST(Format, Formating)
 {
@@ -656,6 +651,10 @@ TEST(Format, Formating)
         const auto ptr = reinterpret_cast<const int*>(uintptr_t(1));
         const auto ret = ToString(FmtString("{},{}"sv), ptr, false);
         EXPECT_EQ(ret, "0x1,false");
+    }
+    {
+        const auto ret = ToString(FmtString(u"{},{},{},{},{x},{:g},{:f},{:+010.4g}"sv), "hello", u"Hello", U"World"sv, 0.0, NAMEARG("x")(392.65), 4.9014e6, -392.5f, 392.65);
+        EXPECT_EQ(ret, u"hello,Hello,World,0,392.65,4.9014e+06,-392.500000,+0000392.6");
     }
 }
 

@@ -84,7 +84,7 @@ private:
 public:
     WindowManagerWin32() : Win32Backend(true), BuildNumber(common::GetWinBuildNumber())
     {
-        Logger.info(u"Win32 WindowManager with build number [{}].\n", BuildNumber);
+        Logger.Info(u"Win32 WindowManager with build number [{}].\n", BuildNumber);
         if (BuildNumber >= 15063) // since win10 1703(rs2)
         {
             for (const auto mode : DPIModes)
@@ -185,7 +185,7 @@ public:
                     finish = true;
                     break;
                 default:
-                    Logger.verbose(FMT_STRING(u"Thread unknown MSG[{:x}]\n"), msg.message);
+                    Logger.Verbose(FmtString(u"Thread unknown MSG[{:x}]\n"), msg.message);
                 }
             }
             if (finish)
@@ -207,7 +207,7 @@ public:
     {
         PostThreadMessageW(ThreadId, MessageTask, NULL, NULL);
         if (const auto err = GetLastError(); err != NO_ERROR)
-            Logger.error(u"Error when post thread message: {}\n", err);
+            Logger.Error(u"Error when post thread message: {}\n", err);
     }
 
     bool CheckCapsLock() const noexcept final
@@ -237,7 +237,7 @@ public:
     {
         if (0 == PostThreadMessageW(ThreadId, msg, data, NULL))
         {
-            Logger.error(u"Error when post thread message: {}\n", GetLastError());
+            Logger.Error(u"Error when post thread message: {}\n", GetLastError());
             return false;
         }
         return true;
@@ -366,7 +366,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
     {
         const auto& payload = *reinterpret_cast<CreatePayload*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
         const auto host = static_cast<WdHost*>(payload.Host);
-        TheManager->Logger.success(FMT_STRING(u"Create window HWND[{:x}] with host [{:p}]\n"), handle, (void*)host);
+        TheManager->Logger.Success(FmtString(u"Create window HWND[{:x}] with host [{:p}]\n"), handle, (void*)host);
         SetWindowLongPtrW(hwnd, 0, reinterpret_cast<LONG_PTR>(host));
         host->Handle = hwnd;
         host->DCHandle = GetDC(hwnd);
@@ -498,7 +498,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
             {
                 const auto pressed = TranslateButtonState(wParam);
                 /*const bool isPress = msg == WM_LBUTTONDOWN || msg == WM_MBUTTONDOWN || msg == WM_RBUTTONDOWN;
-                TheManager->Logger.verbose(u"Btn state:[{}]\n", common::enum_cast(pressed));*/
+                TheManager->Logger.Verbose(u"Btn state:[{}]\n", common::enum_cast(pressed));*/
                 host->OnMouseButtonChange(pressed);
                 if (msg == WM_LBUTTONDOWN)
                     SetCapture(hwnd);
@@ -581,7 +581,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                 break;
 
             default:
-                TheManager->Logger.verbose(FMT_STRING(u"HWND[{:x}], Host[{:p}], MSG[{:8x}]({})\n"),
+                TheManager->Logger.Verbose(FmtString(u"HWND[{:x}], Host[{:p}], MSG[{:8x}]({})\n"),
                     handle, (void*)host, msg, detail::GetMessageName(msg));
                 break;
             }

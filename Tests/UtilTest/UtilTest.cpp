@@ -70,7 +70,7 @@ string LoadShaderFallback(const std::u16string& filename, int32_t id)
     }
     catch (const common::file::FileException& fe)
     {
-        log().warning(u"unable to load shader from [{}]({}) : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), shdpath.u16string(), fe.Message());
+        log().Warning(u"unable to load shader from [{}]({}) : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), shdpath.u16string(), fe.Message());
     }
     auto data = common::ResourceHelper::GetData(L"BIN", id);
     return std::string(reinterpret_cast<const char*>(data.data()), data.size());
@@ -182,10 +182,10 @@ int main(int argc, char *argv[])
     }
     else
     {
-        log().error(u"Index out of range.\n");
+        log().Error(u"Index out of range.\n");
         auto txtdat = common::ResourceHelper::GetData(L"BIN", IDR_CL_TEST);
         std::string_view txt(reinterpret_cast<const char*>(txtdat.data()), txtdat.size());
-        log().verbose(u"\n{}\n\n", txt);
+        log().Verbose(u"\n{}\n\n", txt);
     }
     ClearReturn();
     getchar();

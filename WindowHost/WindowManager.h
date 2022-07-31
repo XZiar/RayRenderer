@@ -32,15 +32,15 @@ inline bool RegisterBackend() noexcept
     }
     catch (const common::BaseException& be)
     {
-        wdLog().warning(u"Failed to create backend [{}]: {}\n{}\n", name, be.Message(), be.GetDetailMessage());
+        wdLog().Warning(u"Failed to create backend [{}]: {}\n{}\n", name, be.Message(), be.GetDetailMessage());
     }
     catch (const std::exception& ex)
     {
-        wdLog().warning(u"Failed to create backend [{}]: {}\n", name, ex.what());
+        wdLog().Warning(u"Failed to create backend [{}]: {}\n", name, ex.what());
     }
     catch (...)
     {
-        wdLog().warning(u"Failed to create backend [{}]\n", name);
+        wdLog().Warning(u"Failed to create backend [{}]\n", name);
     }
     return true;
 }

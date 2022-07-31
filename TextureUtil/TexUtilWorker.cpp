@@ -13,13 +13,13 @@ TexUtilWorker::TexUtilWorker(oglContext&& glContext, const oclContext& clContext
     Executor.Start([this]
     {
         common::SetThreadName(u"TexUtil");
-        texLog().success(u"TexUtil thread start running.\n");
+        texLog().Success(u"TexUtil thread start running.\n");
         if (!GLContext->UseContext())
         {
-            texLog().error(u"TexUtil cannot use GL context\n");
+            texLog().Error(u"TexUtil cannot use GL context\n");
             return;
         }
-        texLog().info(u"TexUtil use GL context with version {}\n", GLContext->Capability->VersionString);
+        texLog().Info(u"TexUtil use GL context with version {}\n", GLContext->Capability->VersionString);
         GLContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
 
         if (CLContext)
@@ -29,14 +29,14 @@ TexUtilWorker::TexUtilWorker(oglContext&& glContext, const oclContext& clContext
                 COMMON_THROW(common::BaseException, u"clQueue initialized failed!");
         }
         else
-            texLog().warning(u"TexUtil has no shared CL context attached\n");
+            texLog().Warning(u"TexUtil has no shared CL context attached\n");
     }, [this]
     {
         CmdQue.reset();
         CLContext.reset();
         //exit
         if (!GLContext->UnloadContext())
-            texLog().error(u"TexUtil cannot terminate GL context\n");
+            texLog().Error(u"TexUtil cannot terminate GL context\n");
         GLContext.reset();
     });
 }

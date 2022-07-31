@@ -83,7 +83,7 @@ private:
             if (!hr) break;
             maxVer = smVer;
         }
-        dxLog().debug(u"DxcCompler support ShaderModel [{}.{}].\r\n", maxVer / 10, maxVer % 10);
+        dxLog().Debug(u"DxcCompler support ShaderModel [{}.{}].\r\n", maxVer / 10, maxVer % 10);
         return maxVer;
     }
     ComPtr<IDxcLibrary> Library;
@@ -106,7 +106,7 @@ public:
         verInfo->GetVersion(&major, &minor);
         verInfo->GetFlags(&flag);
         const auto type = static_cast<DXCType>(flag);
-        dxLog().debug(u"Validator version: [{}.{}], [{}|{}].\n", major, minor, 
+        dxLog().Debug(u"Validator version: [{}.{}], [{}|{}].\n", major, minor, 
             HAS_FIELD(type, DXCType::Debug) ? u"debug" : u"", HAS_FIELD(type, DXCType::Internal) ? u"internal" : u"");*/
     }
     constexpr uint32_t GetMaxSmVer() const noexcept { return MaxSmVer; }
@@ -242,7 +242,7 @@ void DxShaderStub_::Build(const DxShaderConfig& config)
     thread_local DXCCompiler Compiler;
     const auto smVer = std::min(reqSmVer, Compiler.GetMaxSmVer());
     if (smVer < config.SMVersion)
-        dxLog().warning(u"request [SM{}] but only support [SM{}]\n", config.SMVersion / 10.f, smVer / 10.f);
+        dxLog().Warning(u"request [SM{}] but only support [SM{}]\n", config.SMVersion / 10.f, smVer / 10.f);
     const auto [result, hr] = Compiler.Compile(Type, Source, config, smVer);
     std::u16string errorBuf;
     if (result)
@@ -281,11 +281,11 @@ void DxShaderStub_::Build(const DxShaderConfig& config)
     }
     if (hr)
     {
-        dxLog().success(u"build shader success:\n{}\n", errorBuf);
+        dxLog().Success(u"build shader success:\n{}\n", errorBuf);
         THROW_HR(result->GetResult(&Blob), u"Failed to extract shader blob");
         return;
     }
-    dxLog().error(u"build shader failed:\n{}\n", errorBuf);
+    dxLog().Error(u"build shader failed:\n{}\n", errorBuf);
     common::SharedString<char16_t> log(errorBuf);
     COMMON_THROWEX(DxException, hr, u"Failed to compile hlsl source")
         .Attach("dev", Device)
@@ -337,7 +337,7 @@ DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
         auto& res = BindResources[i];
         THROW_HR(shaderReflector->GetResourceBindingDesc(i, &res), u"Failed to get binding desc");
         res.NameSv = StrPool.AllocateString(res.Name); // Name will be invalidated after reflector destruct
-        dxLog().verbose(u"[{}] [{}] Bind[{},{}] Type[{}] SrvDim[{}], Ret[{}]\n",
+        dxLog().Verbose(u"[{}] [{}] Bind[{},{}] Type[{}] SrvDim[{}], Ret[{}]\n",
             i, res.Name, res.BindPoint, res.BindCount,
             uint32_t(res.Type), uint32_t(res.Dimension), uint32_t(res.ReturnType));
     }
