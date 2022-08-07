@@ -280,6 +280,12 @@ struct FormatterHelper : public FormatterBase
     }
 };
 
+//static auto jkk = []() 
+//{
+//    std::time_t t = std::time(nullptr);
+//    auto tmp = fmt::format("{:>20%Q}.", fmt::localtime(t));
+//    return tmp;
+//}();
 
 template<typename Char>
 void Formatter<Char>::PutColor(StrType&, ScreenColor) { }
@@ -305,14 +311,14 @@ void Formatter<Char>::PutString(StrType& ret, std::u32string_view str, const For
     FormatterHelper::PutString(ret, str, spec);
 }
 
-template<typename T>
-forceinline std::basic_string_view<T> BuildStr(uintptr_t ptr, size_t len) noexcept
-{
-    const auto arg = reinterpret_cast<const T*>(ptr);
-    if (len == SIZE_MAX)
-        len = std::char_traits<T>::length(arg);
-    return { arg, len };
-}
+//template<typename T>
+//forceinline std::basic_string_view<T> BuildStr(uintptr_t ptr, size_t len) noexcept
+//{
+//    const auto arg = reinterpret_cast<const T*>(ptr);
+//    if (len == SIZE_MAX)
+//        len = std::char_traits<T>::length(arg);
+//    return { arg, len };
+//}
 
 template<typename Char>
 void Formatter<Char>::PutInteger(StrType& ret, uint32_t val, bool isSigned, const FormatSpec* spec)
@@ -366,6 +372,39 @@ void Formatter<Char>::PutPointer(StrType& ret, uintptr_t val, const FormatSpec* 
         fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
     fmtSpec.type = fmt::presentation_type::pointer;
     fmt::detail::write_ptr<Char>(std::back_inserter(ret), val, &fmtSpec);
+}
+
+template<typename Char>
+constexpr auto GetDateStr() noexcept
+{
+    if constexpr (std::is_same_v<Char, char>)
+        return "%Y-%m-%dT%H:%M:%S"sv;
+    else if constexpr (std::is_same_v<Char, char16_t>)
+        return u"%Y-%m-%dT%H:%M:%S"sv;
+    else if constexpr (std::is_same_v<Char, char32_t>)
+        return U"%Y-%m-%dT%H:%M:%S"sv;
+    else if constexpr (std::is_same_v<Char, wchar_t>)
+        return L"%Y-%m-%dT%H:%M:%S"sv;
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    else if constexpr (std::is_same_v<Char, char8_t>)
+        return u8"%Y-%m-%dT%H:%M:%S"sv;
+#endif
+    else
+        return ""sv;
+}
+
+template<typename Char>
+void Formatter<Char>::PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date)
+{
+    /*fmt::basic_format_specs<Char> fmtSpec = {};
+    if (spec)
+        fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);*/
+    auto ins = std::back_inserter(ret);
+    if (fmtStr.empty())
+        fmtStr = GetDateStr<Char>();
+    fmt::detail::tm_writer<decltype(ins), Char> writer({}, ins, date);
+    fmt::detail::parse_chrono_format(fmtStr.data(), fmtStr.data() + fmtStr.size(), writer);
+    //fmtSpec.type = fmt::presentation_type::none;
 }
 
 template struct Formatter<char>;
@@ -492,9 +531,10 @@ void FormatterBase::Execute(common::span<const uint8_t> opcodes, uint32_t& opOff
             // bool ZeroPad        : 4;
             const auto val0 = opcodes[opOffset++];
             const auto val1 = opcodes[opOffset++];
-            spec->TypeExtra = static_cast<uint8_t>(val0 >> 4);
+            spec->TypeExtra = static_cast<uint8_t>(val0 >> 5);
             spec->Alignment = static_cast<FormatSpec::Align>((val0 & 0b1100) >> 2);
             spec->SignFlag = static_cast<FormatSpec::Sign> ((val0 & 0b0011) >> 0);
+            const bool hasExtraFmt = val0 & 0b10000;
             const auto fillSize = (val1 >> 6) & 0b11u, precSize = (val1 >> 4) & 0b11u, widthSize = (val1 >> 2) & 0b11u;
             spec->AlterForm = val1 & 0b10;
             spec->ZeroPad = val1 & 0b01;
@@ -509,12 +549,22 @@ void FormatterBase::Execute(common::span<const uint8_t> opcodes, uint32_t& opOff
                 default: return UINT32_MAX;
                 }
             };
-            spec->Fill = ValLenReader(&opcodes[opOffset], fillSize, ' ');
+            spec->Fill = ValLenReader(opcodes.data() + opOffset, fillSize, ' ');
             opOffset += fillSize;
-            spec->Precision = ValLenReader(&opcodes[opOffset], precSize, UINT32_MAX);
+            spec->Precision = ValLenReader(opcodes.data() + opOffset, precSize, UINT32_MAX);
             opOffset += precSize;
-            spec->Width = static_cast<uint16_t>(ValLenReader(&opcodes[opOffset], widthSize, 0));
+            spec->Width = static_cast<uint16_t>(ValLenReader(opcodes.data() + opOffset, widthSize, 0));
             opOffset += widthSize;
+            if (hasExtraFmt)
+            {
+                spec->TypeExtra &= static_cast<uint8_t>(0x1u);
+                const auto offsetSize = val0 & 0x80 ? 2 : 1;
+                const auto    lenSize = val0 & 0x40 ? 2 : 1;
+                spec->FmtOffset = static_cast<uint16_t>(ValLenReader(opcodes.data() + opOffset, offsetSize, 0));
+                opOffset += offsetSize;
+                spec->FmtLen    = static_cast<uint16_t>(ValLenReader(opcodes.data() + opOffset,    lenSize, 0));
+                opOffset +=    lenSize;
+            }
         }
         const auto specPtr = spec ? &*spec : nullptr;
         const bool isNamed = opfield & ParseResult::ArgOp::FieldNamed;
@@ -711,6 +761,25 @@ void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx
     {
         const auto val = *reinterpret_cast<const uintptr_t*>(argPtr);
         formatter.PutPointer(context.Dst, val, spec);
+    } break;
+    case ArgRealType::Date:
+    case ArgRealType::DateDelta:
+    {
+        std::basic_string_view<Char> fmtStr{};
+        if (spec && spec->FmtLen)
+            fmtStr = context.StrInfo.FormatString.substr(spec->FmtOffset, spec->FmtLen);
+        std::tm date{};
+        if (realType == ArgRealType::Date)
+            date = *reinterpret_cast<const CompactDate*>(argPtr);
+        else
+        {
+            const auto delta = *reinterpret_cast<const int64_t*>(argPtr);
+            const std::chrono::duration<int64_t, std::milli> d{ delta };
+            const std::chrono::time_point<std::chrono::system_clock> tp{ d };
+            const auto time = std::chrono::system_clock::to_time_t(tp);
+            date = fmt::localtime(time);
+        }
+        formatter.PutDate(context.Dst, fmtStr, date);
     } break;
     default: break;
     }

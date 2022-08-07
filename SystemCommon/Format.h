@@ -4,6 +4,8 @@
 #include "common/RefHolder.hpp"
 #include <optional>
 #include <variant>
+#include <chrono>
+#include <ctime>
 #include <boost/container/small_vector.hpp>
 
 namespace common::str::exp
@@ -12,10 +14,11 @@ namespace common::str::exp
 
 enum class ArgDispType : uint8_t
 {
-    Any = 0, String, Char, Integer, Float, Pointer, Time, Numeric, Custom,
+    Any = 0, String, Char, Integer, Float, Pointer, Date, Time, Numeric, Custom,
 };
 //- Any
 //    - String
+//    - Date
 //    - Time
 //    - Custom
 //    - Numeric
@@ -44,7 +47,7 @@ struct ParseResult
         InvalidColor, MissingColorFGBG, InvalidCommonColor, Invalid8BitColor, Invalid24BitColor,
         InvalidArgIdx, ArgIdxTooLarge, InvalidArgName, ArgNameTooLong,
         WidthTooLarge, InvalidPrecision, PrecisionTooLarge,
-        InvalidType, ExtraFmtSpec, IncompNumSpec, IncompType, InvalidFmt
+        InvalidType, ExtraFmtSpec, IncompDateSpec, IncompTimeSpec, IncompNumSpec, IncompType, InvalidFmt
     };
 #define SCSTR_HANDLE_PARSE_ERROR(handler)\
     handler(FmtTooLong,         "Format string too long"); \
@@ -67,6 +70,8 @@ struct ParseResult
     handler(PrecisionTooLarge,  "Precision is too large"); \
     handler(InvalidType,        "Invalid type specified for arg"); \
     handler(ExtraFmtSpec,       "Unknown extra format spec left at the end"); \
+    handler(IncompDateSpec,     "Extra spec applied on date type"); \
+    handler(IncompTimeSpec,     "Extra spec applied on time type"); \
     handler(IncompNumSpec,      "Numeric spec applied on non-numeric type"); \
     handler(IncompType,         "In-compatible type being specified for the arg"); \
     handler(InvalidFmt,         "Invalid format string");
@@ -133,8 +138,8 @@ struct ParseResult
             constexpr TypeIdentifier() noexcept {}
             constexpr TypeIdentifier(char ch) noexcept
             {
-                // type        ::=  "a" | "A" | "b" | "B" | "c" | "d" | "e" | "E" | "f" | "F" | "g" | "G" | "o" | "p" | "s" | "x" | "X"
-                constexpr std::string_view types{ "gGaAeEfFdbBoxXcps" };
+                // type        ::=  "a" | "A" | "b" | "B" | "c" | "d" | "e" | "E" | "f" | "F" | "g" | "G" | "o" | "p" | "s" | "x" | "X" | "T"
+                constexpr std::string_view types{ "gGaAeEfFdbBoxXcpsT" };
                 const auto typeidx = types.find_first_of(ch);
                 if (typeidx <= 7) // gGaAeEfF
                 {
@@ -146,19 +151,24 @@ struct ParseResult
                     Type = ArgDispType::Integer;
                     Extra = static_cast<uint8_t>(typeidx - 8);
                 }
-                else if (typeidx == 14)
+                else if (typeidx == 14) // c
                 {
                     Type = ArgDispType::Char;
-                    Extra = 0x80;
+                    Extra = 0x00;
                 }
-                else if (typeidx == 15)
+                else if (typeidx == 15) // p
                 {
                     Type = ArgDispType::Pointer;
                     Extra = 0x00;
                 }
-                else if (typeidx == 16)
+                else if (typeidx == 16) // s
                 {
                     Type = ArgDispType::String;
+                    Extra = 0x00;
+                }
+                else if (typeidx == 17) // T
+                {
+                    Type = ArgDispType::Date;
                     Extra = 0x00;
                 }
                 else
@@ -171,6 +181,8 @@ struct ParseResult
         uint32_t Fill       = ' ';
         uint32_t Precision  = 0;
         uint16_t Width      = 0;
+        uint16_t FmtOffset  = 0;
+        uint16_t FmtLen     = 0;
         TypeIdentifier Type;
         Align Alignment     = Align::None;
         Sign SignFlag       = Sign::None;
@@ -276,18 +288,19 @@ struct ParseResult
     };
     struct ArgOp
     {
-        static constexpr uint8_t Length[2] = { 2,14 };
+        static constexpr uint8_t SpecLength[2] = { 2,16 };
+        static constexpr uint8_t Length[2] = { 2,18 };
         static constexpr uint8_t Op = 0x80;
         static constexpr uint8_t FieldIndexed = 0x00;
         static constexpr uint8_t FieldNamed   = 0x20;
         static constexpr uint8_t FieldHasSpec = 0x10;
         static constexpr std::pair<uint8_t, uint8_t> EncodeValLen(uint32_t val) noexcept
         {
-            if (val < UINT8_MAX)  return { (uint8_t)1, (uint8_t)1 };
-            if (val < UINT16_MAX) return { (uint8_t)2, (uint8_t)2 };
+            if (val <= UINT8_MAX)  return { (uint8_t)1, (uint8_t)1 };
+            if (val <= UINT16_MAX) return { (uint8_t)2, (uint8_t)2 };
             return { (uint8_t)3, (uint8_t)4 };
         }
-        static constexpr uint8_t EncodeSpec(const FormatSpec& spec, uint8_t(&output)[12]) noexcept
+        static constexpr uint8_t EncodeSpec(const FormatSpec& spec, uint8_t(&output)[SpecLength[1]]) noexcept
         {
             /*struct FormatSpec
             {
@@ -296,13 +309,14 @@ struct ParseResult
                 enum class Sign : uint8_t { None, Pos, Neg, Space };
                 uint32_t Precision = 0;//2
                 uint16_t Width = 0;//2
-                char Type = '\0';//4
+                uint16_t FmtOffset = 0, FmtLen = 0;//1
+                char Type = '\0';//3
                 Align Alignment = Align::None;//2
                 Sign SignFlag = Sign::None;//2
                 bool AlterForm = false;//1
                 bool ZeroPad = false;//1
             };*/
-            output[0] |= static_cast<uint8_t>(spec.Type.Extra << 4);
+            output[0] |= static_cast<uint8_t>(spec.Type.Extra << 5);
             output[0] |= static_cast<uint8_t>((enum_cast(spec.Alignment) & 0x3) << 2);
             output[0] |= static_cast<uint8_t>((enum_cast(spec.SignFlag)  & 0x3) << 0);
             uint8_t idx = 2;
@@ -355,6 +369,30 @@ struct ParseResult
                     output[idx++] = static_cast<uint8_t>(spec.Width >> 8);
                 }
                 output[1] |= static_cast<uint8_t>(val << 2);
+            }
+            if (spec.FmtLen > 0) // + 0~4
+            {
+                output[0] |= static_cast<uint8_t>(0x10u);
+                if (spec.FmtOffset <= UINT8_MAX)
+                {
+                    output[idx++] = static_cast<uint8_t>(spec.FmtOffset);
+                }
+                else
+                {
+                    output[idx++] = static_cast<uint8_t>(spec.FmtOffset);
+                    output[idx++] = static_cast<uint8_t>(spec.FmtOffset >> 8);
+                    output[0] |= static_cast<uint8_t>(0x80u);
+                }
+                if (spec.FmtLen <= UINT8_MAX)
+                {
+                    output[idx++] = static_cast<uint8_t>(spec.FmtLen);
+                }
+                else
+                {
+                    output[idx++] = static_cast<uint8_t>(spec.FmtLen);
+                    output[idx++] = static_cast<uint8_t>(spec.FmtLen >> 8);
+                    output[0] |= static_cast<uint8_t>(0x40u);
+                }
             }
             if (spec.AlterForm) 
                 output[1] |= 0b10;
@@ -431,7 +469,7 @@ struct ParseResult
                 dstType = &result.IndexTypes[argIdx];
                 opcode |= FieldIndexed;
             }
-            uint8_t output[12] = { 0 }, tailopcnt = 0;
+            uint8_t output[SpecLength[1]] = { 0 }, tailopcnt = 0;
             auto type = ArgDispType::Any;
             if (spec)
             {
@@ -770,10 +808,15 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
             result.SetError(str.data() - start, ErrorCode::InvalidType);
             return false;
         }
-        if (!str.empty())
+        // time type check
+        if (fmtSpec.Type.Type == ArgDispType::Date)
         {
-            result.SetError(str.data() - start, ErrorCode::ExtraFmtSpec);
-            return false;
+            if (fmtSpec.ZeroPad || fmtSpec.AlterForm || fmtSpec.Precision != 0 || fmtSpec.Width != 0 || fmtSpec.Fill != ' ' ||
+                fmtSpec.SignFlag != FormatSpec::Sign::None || fmtSpec.Alignment != FormatSpec::Align::None)
+            {
+                result.SetError(str.data() - start, ErrorCode::IncompDateSpec);
+                return false;
+            }
         }
         // enhanced type check
         ArgDispType gneralType = ArgDispType::Any;
@@ -786,6 +829,20 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
                 result.SetError(str.data() - start, ErrorCode::IncompNumSpec);
             else
                 result.SetError(str.data() - start, ErrorCode::IncompType);
+            return false;
+        }
+        // extra field handling
+        if (fmtSpec.Type.Type == ArgDispType::Date || fmtSpec.Type.Type == ArgDispType::Custom)
+        {
+            if (!str.empty())
+            {
+                fmtSpec.FmtOffset = static_cast<uint16_t>(str.data() - start);
+                fmtSpec.FmtLen = static_cast<uint16_t>(str.size());
+            }
+        }
+        else if (!str.empty())
+        {
+            result.SetError(str.data() - start, ErrorCode::ExtraFmtSpec);
             return false;
         }
         fmtSpec.Type.Type = *newType;
@@ -859,18 +916,20 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
             if (!argPart1.empty())
             {
                 // see https://fmt.dev/latest/syntax.html#formatspec
-                // replacement_field ::=  "{" [arg_id] [":" (format_spec | chrono_format_spec)] "}"
+                // replacement_field ::=  "{" field_detail "}"
+                // field_detail      ::=  color | arg
+                // color             ::=  "@" "<" | ">" id_start | digit
+                // arg               ::=  [arg_id] [":" (format_spec)]
                 // arg_id            ::=  integer | identifier | color
                 // integer           ::=  digit+
                 // digit             ::=  "0"..."9"
                 // identifier        ::=  id_start id_continue*
                 // id_start          ::=  "a"..."z" | "A"..."Z" | "_"
                 // id_continue       ::=  id_start | digit
-                // color             ::=  "@" "<" | ">" id_start | digit
                 const auto firstCh = argPart1[0];
                 if (Char_0 == firstCh)
                 {
-                    if (argPart1.size() != 0)
+                    if (argPart1.size() != 1)
                         return result.SetError(offset, ParseResult::ErrorCode::InvalidArgIdx);
                     argId = { static_cast<uint8_t>(0) };
                 }
@@ -1186,7 +1245,7 @@ struct ArgPack
 enum class ArgRealType : uint8_t
 {
     BaseTypeMask = 0xf0, SizeMask8 = 0b111, SizeMask4 = 0b11, SpanBit = 0b1000,
-    Error = 0x00, Custom = 0x01, Ptr = 0x02, PtrVoid = 0x03, Bool = 0x04,
+    Error = 0x00, Custom = 0x01, Ptr = 0x02, PtrVoid = 0x03, Date = 0x04, DateDelta = 0x05, Bool = 0x06,
     TypeSpecial = 0x00, SpecialMax = Bool,
     SInt    = 0x10,
     UInt    = 0x20,
@@ -1197,6 +1256,68 @@ enum class ArgRealType : uint8_t
 };
 MAKE_ENUM_BITFIELD(ArgRealType)
 MAKE_ENUM_RANGE(ArgRealType)
+
+
+struct CompactDate
+{
+    int16_t Year;
+    uint16_t MWD; // 4+3+9
+    uint16_t FDH; // 4+5+5
+    uint8_t Minute;
+    uint8_t Second;
+    static constexpr uint16_t CompactMWD(uint32_t month, uint32_t week, uint32_t day) noexcept
+    {
+        uint32_t ret = 0;
+        ret |= day & 0x1ffu;
+        ret |= (week & 0x7u) << 9;
+        ret |= (month & 0xfu) << 12;
+        return static_cast<uint16_t>(ret);
+    }
+    static constexpr uint16_t CompactFDH(int32_t dst, uint32_t day, uint32_t hour) noexcept
+    {
+        uint32_t ret = 0;
+        ret |= hour & 0x1fu;
+        ret |= (day & 0x1fu) << 5;
+        if (dst < 0)
+            ret |= 0x80u;
+        else if (dst > 0)
+            ret |= 0x40u;
+        else
+            ret |= 0x00u;
+        return static_cast<uint16_t>(ret);
+    }
+    constexpr CompactDate() noexcept : Year(0), MWD(0), FDH(0), Minute(0), Second(0) {}
+    constexpr CompactDate(const std::tm& date) noexcept :
+        Year(static_cast<int16_t>(date.tm_year)), MWD(CompactMWD(date.tm_mon, date.tm_wday, date.tm_yday)),
+        FDH(CompactFDH(date.tm_isdst, date.tm_mday, date.tm_hour)), 
+        Minute(static_cast<uint8_t>(date.tm_min)), Second(static_cast<uint8_t>(date.tm_sec)) {}
+    constexpr operator std::tm() const noexcept
+    {
+        std::tm date{};
+        date.tm_year = Year;
+        date.tm_mon = MWD >> 12;
+        date.tm_wday = (MWD >> 9) & 0x7;
+        date.tm_yday = MWD & 0x1ff;
+        date.tm_isdst = FDH & 0x80 ? -1 : (FDH & 0x40 ? 1 : 0);
+        date.tm_mday = (FDH >> 5) & 0x1f;
+        date.tm_hour = FDH & 0x1f;
+        date.tm_min = Minute;
+        date.tm_sec = Second;
+        return date;
+    }
+};
+
+template<typename T>
+inline auto FormatAs(const T& arg);
+
+namespace detail
+{
+template<typename T>
+using HasFormatAsMemFn = decltype(std::declval<T&>().FormatAs());
+template<typename T>
+using HasFormatAsSpeFn = decltype(FormatAs(std::declval<const T&>()));
+}
+
 
 struct ArgInfo
 {
@@ -1283,6 +1404,22 @@ struct ArgInfo
         {
             return (std::is_unsigned_v<U> ? ArgRealType::UInt : ArgRealType::SInt) | EncodeTypeSizeData<U>();
         }
+        else if constexpr (std::is_same_v<U, std::tm> || std::is_same_v<U, CompactDate>)
+        {
+            return ArgRealType::Date;
+        }
+        else if constexpr (is_specialization<U, std::chrono::time_point>::value)
+        {
+            return ArgRealType::DateDelta;
+        }
+        else if constexpr (is_detected_v<detail::HasFormatAsMemFn, T>)
+        {
+            return GetArgType<detail::HasFormatAsMemFn<T>>();
+        }
+        else if constexpr (is_detected_v<detail::HasFormatAsSpeFn, T>)
+        {
+            return GetArgType<detail::HasFormatAsSpeFn<T>>();
+        }
         else
         {
             static_assert(!AlwaysTrue<T>, "unsupported type");
@@ -1346,6 +1483,27 @@ struct ArgInfo
             {
                 pack.Put(arg, idx);
             }
+            else if constexpr (std::is_same_v<U, CompactDate>)
+            {
+                pack.Put(arg, idx);
+            }
+            else if constexpr (std::is_same_v<U, std::tm>)
+            {
+                pack.Put(CompactDate(arg), idx);
+            }
+            else if constexpr (is_specialization<U, std::chrono::time_point>::value)
+            {
+                const auto deltaMs = std::chrono::duration_cast<std::chrono::duration<int64_t, std::milli>>(arg.time_since_epoch()).count();
+                pack.Put(deltaMs, idx);
+            }
+            else if constexpr (is_detected_v<detail::HasFormatAsMemFn, T>)
+            {
+                PackAnArg(pack, arg.FormatAs(), idx);
+            }
+            else if constexpr (is_detected_v<detail::HasFormatAsSpeFn, T>)
+            {
+                PackAnArg(pack, FormatAs(arg), idx);
+            }
             else
             {
                 static_assert(!AlwaysTrue<T>, "unsupported type");
@@ -1401,6 +1559,8 @@ struct ArgChecker
             return give == ArgRealType::String;
         case ArgDispType::Pointer:
             return give == ArgRealType::Ptr || give == ArgRealType::PtrVoid || (give == ArgRealType::String && HAS_FIELD(give, ArgRealType::StrPtrBit));
+        case ArgDispType::Date:
+            return give == ArgRealType::Date || give == ArgRealType::DateDelta;
         case ArgDispType::Custom:
             return give == ArgRealType::Custom;
         default:
@@ -1527,6 +1687,8 @@ struct FormatSpec
     uint32_t Fill       = ' ';
     uint32_t Precision  = 0;
     uint16_t Width      = 0;
+    uint16_t FmtOffset  = 0;
+    uint16_t FmtLen     = 0;
     uint8_t TypeExtra   = 0;
     Align Alignment     : 2;
     Sign SignFlag       : 2;
@@ -1583,6 +1745,7 @@ protected:
     SYSCOMMONAPI virtual void PutFloat(StrType& ret, float val, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutFloat(StrType& ret, double val, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec);
+    SYSCOMMONAPI virtual void PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date);
 public:
     template<typename T, typename... Args>
     forceinline std::basic_string<Char> FormatStatic(T&& res, Args&&... args)

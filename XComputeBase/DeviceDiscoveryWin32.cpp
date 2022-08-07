@@ -84,7 +84,7 @@ struct CommonInfoHelper
         static constexpr GUID AcceleratorClz = { 0xf01a9d53, 0x3ff6, 0x48d2, {0x9f, 0x97, 0xc8, 0xa7, 0x00, 0x4b, 0xe1, 0x0c} };
         static constexpr GUID PCIEClz        = { 0xc8ebdfb0, 0xb510, 0x11d0, {0x80, 0xe5, 0x00, 0xa0, 0xc9, 0x25, 0x42, 0xe3} };
         //constexpr GUID clzs[] = { DisplayClz, AcceleratorClz };
-        const auto& console = common::console::ConsoleEx::Get(); 
+        [[maybe_unused]] const auto& console = common::console::ConsoleEx::Get(); 
         constexpr std::wstring_view clzs[] = { L"{4d36e968-e325-11ce-bfc1-08002be10318}"sv, L"{f01a9d53-3ff6-48d2-9f97-c8a7004be10c}"sv };
         // also see https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Tools/DXGIAdapterRemovalSupportTest/src/main.cpp
         for (const auto& clz : clzs)

@@ -3,6 +3,7 @@
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/ConsoleEx.h"
+#include "SystemCommon/StringFormat.h"
 #include "common/TimeUtil.hpp"
 #include "common/ResourceHelper.h"
 #include <cstddef>

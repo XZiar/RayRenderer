@@ -1,6 +1,7 @@
 #include "SystemCommonPch.h"
 #include "AsyncAgent.h"
 #include "AsyncManager.h"
+#include "StringFormat.h"
 #define BOOST_CONTEXT_STATIC_LINK 1
 #define BOOST_CONTEXT_NO_LIB 1
 #include "3rdParty/boost.context/include/boost/context/continuation.hpp"

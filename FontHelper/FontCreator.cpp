@@ -123,7 +123,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
     finfos.reserve(fontCount * fontCount);
     
     SimpleTimer timer;
-    fntLog().Verbose(u"raster start at {}\n", fmt::format("{:%H:%M:%S}", SimpleTimer::getCurLocalTime()));
+    fntLog().Verbose(u"raster start at {:T%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
     timer.Start();
     common::AlignedBuffer buffer1(fontCount * fontCount * fontsizelim * fontsizelim * sizeof(uint8_t), 4096);
     size_t offset = 0;
@@ -152,7 +152,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
     timer.Stop();
     fntLog().Verbose(u"raster cost {} us\n", timer.ElapseUs());
 
-    fntLog().Verbose(u"prepare start at {}\n", fmt::format("{:%H:%M:%S}", SimpleTimer::getCurLocalTime()));
+    fntLog().Verbose(u"prepare start at {:T%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
     timer.Start(); 
     auto inputBuf  = oclBuffer_::Create(clCtx, MemFlag::ReadOnly  | MemFlag::HostNoAccess | MemFlag::UseHost,  buffer1.GetSize(), buffer1.GetRawPtr());
     auto infoBuf   = oclBuffer_::Create(clCtx, MemFlag::ReadOnly  | MemFlag::HostNoAccess | MemFlag::HostCopy, finfos.size() * sizeof(FontInfo), finfos.data());
@@ -162,7 +162,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
     fntLog().Verbose(u"prepare cost {} us\n", timer.ElapseUs());
     if (true)
     {
-        fntLog().Verbose(u"OpenCL start at {}\n", fmt::format("{:%H:%M:%S}", SimpleTimer::getCurLocalTime()));
+        fntLog().Verbose(u"OpenCL start at {:T%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
         timer.Start();
         size_t localsize[] = { fontsizelim / 4 }, worksize[] = { fontsizelim / 4 * count };
 
@@ -172,7 +172,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         fntLog().Verbose(u"OpenCl [sdfGray4] cost {}us ({}us by OCL)\n", timer.ElapseUs(), pms->ElapseNs() / 1000);
         outputBuf->Flush(clQue);
 
-        fntLog().Verbose(u"post-merging start at {}\n", fmt::format("{:%H:%M:%S}", SimpleTimer::getCurLocalTime()));
+        fntLog().Verbose(u"post-merging start at {:T%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
         timer.Start();
         Image fin(ImageDataType::GRAY);
         fin.SetSize(newfontsize * fontCount, newfontsize * fontCount, byte(255));
@@ -200,7 +200,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
     {
         auto middleBuf = oclBuffer_::Create(clCtx, MemFlag::ReadWrite | MemFlag::HostReadOnly, fontCount * fontCount * fontsizelim * fontsizelim * sizeof(uint16_t));
 
-        fntLog().Verbose(u"OpenCL start at {}\n", fmt::format("{:%H:%M:%S}", SimpleTimer::getCurLocalTime()));
+        fntLog().Verbose(u"OpenCL start at {:T%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
         timer.Start();
         size_t localsize[] = { fontsizelim }, worksize[] = { fontsizelim * count };
 
@@ -209,7 +209,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         fntLog().Verbose(u"OpenCl cost {} us\n", timer.ElapseUs());
         if (false)
         {
-            fntLog().Verbose(u"clDownSampler start at {}\n", fmt::format("{:%H:%M:%S}", SimpleTimer::getCurLocalTime()));
+            fntLog().Verbose(u"clDownSampler start at {:T%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
             timer.Start();
             localsize[0] /= 4, worksize[0] /= 4;
             kerDownSamp->Call<1>(infoBuf, middleBuf, outputBuf)(clQue, worksize, localsize)->WaitFinish();
@@ -217,7 +217,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
             fntLog().Verbose(u"OpenCl[clDownSampler] cost {} us\n", timer.ElapseUs());
             outputBuf->Flush(clQue);
 
-            fntLog().Verbose(u"post-merging start at {}\n", fmt::format("{:%H:%M:%S}", SimpleTimer::getCurLocalTime()));
+            fntLog().Verbose(u"post-merging start at {:T%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
             timer.Start();
             Image fin(ImageDataType::GRAY);
             fin.SetSize(newfontsize * fontCount, newfontsize * fontCount, byte(255));
@@ -245,7 +245,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         {
             const auto midPtr = middleBuf->Map(clQue, oclu::MapFlag::Read);
             const int16_t* __restrict distsq = midPtr.AsType<const int16_t>().data();
-            fntLog().Verbose(u"post-process start at {}\n", fmt::format("{:%H:%M:%S}", SimpleTimer::getCurLocalTime()));
+            fntLog().Verbose(u"post-process start at {:T%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
             timer.Start();
             Image fin(ImageDataType::GRAY);
             fin.SetSize(newfontsize * fontCount, newfontsize * fontCount, byte(255));

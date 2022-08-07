@@ -2,7 +2,6 @@
 #include "SystemCommonRely.h"
 #include "Format.h"
 #include "StringConvert.h"
-#include "StringFormat.h"
 #include "common/StrBase.hpp"
 #include "common/FileBase.hpp"
 #include "common/EnumEx.hpp"
@@ -87,17 +86,6 @@ private:
     SYSCOMMONAPI static LogMessage* MakeMessage(const detail::LoggerName& prefix, const char16_t* content, const size_t len,
         span<const detail::ColorSeg> seg, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count());
 public:
-    /*template<size_t N>
-    forceinline static LogMessage* MakeMessage(const detail::LoggerName& prefix, const char16_t(&content)[N], common::span<uint64_t> seg, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
-    {
-        return MakeMessage(prefix, content, N - 1, seg, level, time);
-    }
-    template<typename T>
-    forceinline static LogMessage* MakeMessage(const detail::LoggerName& prefix, const T& content, common::span<uint64_t> seg, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
-    {
-        static_assert(std::is_convertible_v<decltype(std::declval<const T>().data()), const char16_t*>, "only accept container of char16_t");
-        return MakeMessage(prefix, content.data(), content.size(), seg, level, time);
-    }*/
     SYSCOMMONAPI static bool Consume(LogMessage* msg);
 
     COMMON_NO_COPY(LogMessage)
@@ -181,90 +169,6 @@ public:
 };
 
 
-//struct StrFormater
-//{
-//private:
-//    template<typename Char>
-//    static decltype(auto) BufToU16(std::vector<Char>& buffer)
-//    {
-//        if constexpr (std::is_same_v<Char, char16_t>)
-//            return buffer;
-//        else if constexpr (std::is_same_v<Char, char>)
-//            return common::str::to_u16string(buffer.data(), buffer.size(), common::str::Encoding::UTF8);
-//        else if constexpr (std::is_same_v<Char, char32_t>)
-//            return common::str::to_u16string(buffer.data(), buffer.size(), common::str::Encoding::UTF32LE);
-//        else
-//            static_assert(!common::AlwaysTrue<Char>, "unexpected Char type");
-//    }
-//    template<typename Char>
-//    SYSCOMMONAPI static std::vector<Char>& GetBuffer();
-//public:
-//    template<typename T, typename... Args>
-//    static decltype(auto) ToU16Str(const T& formatter, Args&&... args)
-//    {
-//        [[maybe_unused]] constexpr bool hasArgs = sizeof...(Args) > 0;
-//        if constexpr (std::is_base_of_v<fmt::detail::compile_string, T>)
-//        {
-//            using Char = typename T::char_type;
-//            static_assert(!std::is_same_v<Char, wchar_t>, "no plan to support wchar_t at compile time");
-//            auto& buffer = GetBuffer<Char>();
-//            fmt::format_to(std::back_inserter(buffer), formatter, std::forward<Args>(args)...);
-//            return BufToU16(buffer);
-//        }
-//        else if constexpr (std::is_convertible_v<const T&, const std::string_view&>)
-//        {
-//            const auto u8str = static_cast<const std::string_view&>(formatter);
-//            if constexpr (!hasArgs)
-//                return common::str::to_u16string(u8str.data(), u8str.size(), common::str::Encoding::UTF8);
-//            else
-//            {
-//                auto& buffer = GetBuffer<char>();
-//                fmt::format_to(std::back_inserter(buffer), u8str, std::forward<Args>(args)...);
-//                return BufToU16(buffer);
-//            }
-//        }
-//        else if constexpr (std::is_convertible_v<const T&, const std::u16string_view&>)
-//        {
-//            const auto u16str = static_cast<const std::u16string_view&>(formatter);
-//            if constexpr (!hasArgs)
-//                return u16str;
-//            else
-//            {
-//                auto& buffer = GetBuffer<char16_t>();
-//                fmt::format_to(std::back_inserter(buffer), u16str, std::forward<Args>(args)...);
-//                return BufToU16(buffer);
-//            }
-//        }
-//        else if constexpr (std::is_convertible_v<const T&, const std::u32string_view&>)
-//        {
-//            const auto u32str = static_cast<const std::u32string_view&>(formatter);
-//            if constexpr (!hasArgs)
-//                return common::str::to_u16string(u32str.data(), u32str.size(), common::str::Encoding::UTF32LE);
-//            else
-//            {
-//                auto& buffer = GetBuffer<char32_t>();
-//                fmt::format_to(std::back_inserter(buffer), u32str, std::forward<Args>(args)...);
-//                return BufToU16(buffer);
-//            }
-//        }
-//        else if constexpr (std::is_convertible_v<const T&, const std::wstring_view&>)
-//        {
-//            const auto wstr = static_cast<const std::wstring_view&>(formatter);
-//            if constexpr (sizeof(wchar_t) == sizeof(char16_t))
-//                return ToU16Str(std::u16string_view(reinterpret_cast<const char16_t*>(wstr.data()), wstr.size()), std::forward<Args>(args)...);
-//            else if constexpr (sizeof(wchar_t) == sizeof(char32_t))
-//                return ToU16Str(std::u32string_view(reinterpret_cast<const char32_t*>(wstr.data()), wstr.size()), std::forward<Args>(args)...);
-//            else
-//                static_assert(!common::AlwaysTrue<T>, "unexpected wchar_t size");
-//        }
-//        else
-//        {
-//            static_assert(!common::AlwaysTrue<T>, "unknown formatter type");
-//        }
-//    }
-//};
-
-
 }
 
 
@@ -310,35 +214,6 @@ public:
     {
         Log(LogLevel::Debug, std::forward<T>(formatter), std::forward<Args>(args)...);
     }
-
-    /*template<typename T, typename... Args>
-    void log(const LogLevel level, T&& formatter, Args&&... args)
-    {
-        if (level < LeastLevel.load(std::memory_order_relaxed))
-            return;
-
-        LogMessage* msg = nullptr;
-        if constexpr (sizeof...(args) == 0)
-            msg = LogMessage::MakeMessage(Prefix, detail::StrFormater::ToU16Str(formatter), level);
-        else
-            msg = LogMessage::MakeMessage(Prefix, detail::StrFormater::ToU16Str(std::forward<T>(formatter), std::forward<Args>(args)...), level);
-
-        AddRefCount(*msg, 1);
-        SentToGlobalOutputer(msg);
-
-        if constexpr (DynamicBackend)
-        {
-            WRLock.LockRead();
-        }
-        AddRefCount(*msg, Outputer.size());
-        for (auto& backend : Outputer)
-            backend->Print(msg);
-        LogMessage::Consume(msg);
-        if constexpr (DynamicBackend)
-        {
-            WRLock.UnlockRead();
-        }
-    }*/
 
     template<typename T, typename... Args>
     void Log(const LogLevel level, T&& formatter, Args&&... args)

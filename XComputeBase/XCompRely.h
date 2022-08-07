@@ -12,6 +12,7 @@
 
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/Exceptions.h"
+#include "SystemCommon/StringFormat.h"
 
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"

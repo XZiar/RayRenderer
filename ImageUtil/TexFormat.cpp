@@ -56,7 +56,9 @@ std::string TexFormatUtil::GetFormatDetail(const TextureFormat format) noexcept
             default:                            dtype = "UNKNOWN"sv; break;
             }
             const auto channel = GetChannelSV(format & TextureFormat::MASK_CHANNEL_RAW);
-            return fmt::format(FMT_STRING("COMPOSITE [{:^7}{:3}] channel[{:^7}] {}"), dtype, rev, channel, srgb);
+            constexpr auto syntax = FmtString("COMPOSITE [{:^7}{:3}] channel[{:^7}] {}"sv);
+            return common::str::exp::Formatter<char>{}.FormatStatic(syntax, dtype, rev, channel, srgb);
+            //return fmt::format(FMT_STRING("COMPOSITE [{:^7}{:3}] channel[{:^7}] {}"), dtype, rev, channel, srgb);
         }
     case TextureFormat::DTYPE_CAT_COMPRESS:
         {
@@ -79,7 +81,9 @@ std::string TexFormatUtil::GetFormatDetail(const TextureFormat format) noexcept
             default:                            dtype = "UNKNOWN"sv; break;
             }
             const auto channel = GetChannelSV(format & TextureFormat::MASK_CHANNEL_RAW);
-            return fmt::format(FMT_STRING("COMPRESS [{:^7}] channel[{:^7}] {}"), dtype, channel, srgb);
+            constexpr auto syntax = FmtString("COMPRESS [{:^7}] channel[{:^7}] {}"sv);
+            return common::str::exp::Formatter<char>{}.FormatStatic(syntax, dtype, channel, srgb);
+            //return fmt::format(FMT_STRING("COMPRESS [{:^7}] channel[{:^7}] {}"), dtype, channel, srgb);
         }
     case TextureFormat::DTYPE_CAT_PLAIN:
         {
@@ -102,7 +106,9 @@ std::string TexFormatUtil::GetFormatDetail(const TextureFormat format) noexcept
                 }
             }
             const auto channel = GetChannelSV(format);
-            return fmt::format(FMT_STRING("PLAIN [{:^7}({:7})] channel[{:^7}] {}"), dtype, dflag, channel, srgb);
+            constexpr auto syntax = FmtString("PLAIN [{:^7}({:7})] channel[{:^7}] {}"sv);
+            return common::str::exp::Formatter<char>{}.FormatStatic(syntax, dtype, dflag, channel, srgb);
+            //return fmt::format(FMT_STRING("PLAIN [{:^7}({:7})] channel[{:^7}] {}"), dtype, dflag, channel, srgb);
         }
     default:
         return "ERROR";

@@ -3,6 +3,7 @@
 #include "SystemCommon/Format.h"
 #include "SystemCommon/Exceptions.h"
 #include "SystemCommon/StringConvert.h"
+#include "common/TimeUtil.hpp"
 
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/tuple/elem.hpp>
@@ -188,7 +189,7 @@ static void CheckIdxArgOp_(const ParseResult& ret, uint16_t& idx, uint8_t argidx
     EXPECT_EQ(ret.Opcodes[idx++], argidx);
     if (spec)
     {
-        uint8_t data[12] = { 0 };
+        uint8_t data[ParseResult::ArgOp::SpecLength[1]] = { 0 };
         const auto opcnt = ParseResult::ArgOp::EncodeSpec(*spec, data);
         common::span<const uint8_t> ref{ data, opcnt }, src{ ret.Opcodes + idx, opcnt };
         EXPECT_THAT(src, testing::ContainerEq(ref));
@@ -203,7 +204,7 @@ static void CheckNamedArgOp_(const ParseResult& ret, uint16_t& idx, uint8_t argi
     EXPECT_EQ(ret.Opcodes[idx++], argidx);
     if (spec)
     {
-        uint8_t data[12] = { 0 };
+        uint8_t data[ParseResult::ArgOp::SpecLength[1]] = { 0 };
         const auto opcnt = ParseResult::ArgOp::EncodeSpec(*spec, data);
         common::span<const uint8_t> ref{ data, opcnt }, src{ ret.Opcodes + idx, opcnt };
         EXPECT_THAT(src, testing::ContainerEq(ref));
@@ -457,6 +458,21 @@ static constexpr ArgInfo ParseArgs(Args&&...) noexcept
 {
     return ArgInfo::ParseArgs<Args...>();
 }
+
+struct TypeA
+{
+    int16_t FormatAs() const noexcept
+    {
+        return 1;
+    }
+};
+struct TypeB
+{};
+namespace common::str::exp
+{
+template<> inline auto FormatAs<TypeB>(const TypeB&) { return 3.0f; }
+}
+
 TEST(Format, ParseArg)
 {
     {
@@ -465,7 +481,7 @@ TEST(Format, ParseArg)
         EXPECT_EQ(ret.NamedArgCount, static_cast<uint8_t>(0));
     }
     {
-        constexpr auto ret = ArgInfo::ParseArgs<int, uint64_t, void*, char*, double, char32_t, std::string_view>();
+        constexpr auto ret = ArgInfo::ParseArgs<int, uint64_t, void*, char*, double, char32_t, std::string_view, TypeA, TypeB, std::tm>();
         EXPECT_EQ(ret.NamedArgCount, static_cast<uint8_t>(0));
         {
             uint8_t idx = 0;
@@ -476,12 +492,15 @@ TEST(Format, ParseArg)
             CheckArg(Idx, double,       Float,  0x3);
             CheckArg(Idx, char32_t,     Char,   0x2);
             CheckArg(Idx, string_view,  String, 0x0);
+            CheckArg(Idx, TypeA,        SInt,   0x1);
+            CheckArg(Idx, TypeB,        Float,  0x2);
+            CheckArg(Idx, std::tm,      Date,   0x0);
             CheckArgFinish(Idx);
         }
     }
     {
         constexpr void* ptr = nullptr;
-        constexpr auto ret = ParseArgs(3, UINT64_MAX, ptr, "x", 1.0, U'x', "x"sv);
+        constexpr auto ret = ParseArgs(3, UINT64_MAX, ptr, "x", 1.0, U'x', "x"sv, TypeA{}, TypeB{}, std::tm{}, std::chrono::system_clock::time_point{});
         EXPECT_EQ(ret.NamedArgCount, static_cast<uint8_t>(0));
         {
             uint8_t idx = 0;
@@ -492,6 +511,10 @@ TEST(Format, ParseArg)
             CheckArg(Idx, double,       Float,  0x3);
             CheckArg(Idx, char32_t,     Char,   0x2);
             CheckArg(Idx, string_view,  String, 0x0);
+            CheckArg(Idx, TypeA,        SInt,   0x1);
+            CheckArg(Idx, TypeB,        Float,  0x2);
+            CheckArg(Idx, std::tm,      Date,   0x0);
+            CheckArg(Idx, time_point,   DateDelta, 0x0);
             CheckArgFinish(Idx);
         }
     }
@@ -655,6 +678,9 @@ TEST(Format, Formating)
     {
         const auto ret = ToString(FmtString(u"{},{},{},{},{x},{:g},{:f},{:+010.4g}"sv), "hello", u"Hello", U"World"sv, 0.0, NAMEARG("x")(392.65), 4.9014e6, -392.5f, 392.65);
         EXPECT_EQ(ret, u"hello,Hello,World,0,392.65,4.9014e+06,-392.500000,+0000392.6");
+    }
+    {
+        const auto ret = ToString(FmtString(u"{}|{0:T}|{1:T%Y-%m-%d %H:%M:%S}"sv), common::SimpleTimer::getCurLocalTime(), std::chrono::system_clock::now());
     }
 }
 
