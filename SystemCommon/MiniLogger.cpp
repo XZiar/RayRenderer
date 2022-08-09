@@ -301,7 +301,7 @@ struct ColorSeperator
         Segments.emplace_back(gsl::narrow_cast<uint32_t>(offset), color);
         target = color;
     }
-    ColorSeperator() : Foreground({ false }), Background({ true }) {}
+    ColorSeperator() : Foreground(false), Background(true) {}
 };
 
 template<typename Char>
@@ -391,7 +391,7 @@ public:
     }
     static void PrintText(const std::u16string_view txt, const std::string_view tag = {}, int prio = ANDROID_LOG_INFO)
     {
-        const auto text = str::to_u8string(txt, str::Encoding::UTF16LE);
+        const auto text = str::to_string(txt, str::Encoding::UTF8, str::Encoding::UTF16LE);
         __android_log_write(prio, tag.data(), text.c_str());
     }
     void OnPrint(const LogMessage& msg) override
@@ -407,7 +407,7 @@ public:
 #  else
     static void PrintText(const std::u16string_view txt)
     {
-        const auto text = str::to_u8string(txt, str::Encoding::UTF16LE);
+        const auto text = str::to_string(txt, str::Encoding::UTF8, str::Encoding::UTF16LE);
         fprintf(stderr, "%s", text.c_str());
     }
 #  endif
@@ -492,7 +492,7 @@ public:
         if (SupportColor)
         {
             uint32_t prevIdx = 0;
-            for (const auto [offset, color] : msg.GetSegments())
+            for (const auto& [offset, color] : msg.GetSegments())
             {
                 if (offset != prevIdx)
                     printer.Print(txt.substr(prevIdx, offset));

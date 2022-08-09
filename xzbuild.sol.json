@@ -5,7 +5,9 @@
             {"ifhas": "android", "iflt": {"ndkVer": 2201}, "+": "ghc_fs"},
             {"ifhas": "iOS", "iflt": {"iOSVer": 130000}, "+": "ghc_fs"},
             {"ifhas": "android", "ifno": "ocl_useicd", "+": "ocl_noicd"},
-            {"ifhas": "iOS", "iflt" : {"iOSSDKVer": 100000}, "+": "ocl_noicd"}
+            {"ifhas": "iOS", "iflt" : {"iOSSDKVer": 100000}, "+": "ocl_noicd"},
+            {"ifeq": {"compiler": "gcc"}, "ifge": {"gccVer": 90000}, "key": "ver_cpp", "+": "-std=c++20"},
+            {"ifeq": {"compiler": "clang"}, "ifge": {"clangVer": 90000}, "key": "ver_cpp", "+": "-std=c++20"}
         ],
         [
             {"ifno": "ghc_fs", "ifeq": {"stdlib": "libc++"},    "iflt": {"libc++Ver":    70000}, "key": "fslib_s", "+": "c++experimental"},

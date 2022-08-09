@@ -6,7 +6,7 @@
 #define HALF_ENABLE_F16C_INTRINSICS 0 // avoid platform compatibility
 #include "3rdParty/half/half.hpp"
 #include "3rdParty/fmt/src/format.cc"
-#pragma message("Compiling StringUtil with fmt[" STRINGIZE(FMT_VERSION) "]" )
+#pragma message("Compiling SystemCommon with fmt[" STRINGIZE(FMT_VERSION) "]" )
 
 
 #if COMMON_COMPILER_MSVC
@@ -404,17 +404,47 @@ constexpr auto GetDateStr() noexcept
 }
 
 template<typename Char>
-void Formatter<Char>::PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date)
+inline void PutDate_(std::basic_string<Char>& ret, std::basic_string_view<Char> fmtStr, const std::tm& date)
 {
-    /*fmt::basic_format_specs<Char> fmtSpec = {};
-    if (spec)
-        fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);*/
     auto ins = std::back_inserter(ret);
     if (fmtStr.empty())
         fmtStr = GetDateStr<Char>();
     fmt::detail::tm_writer<decltype(ins), Char> writer({}, ins, date);
     fmt::detail::parse_chrono_format(fmtStr.data(), fmtStr.data() + fmtStr.size(), writer);
-    //fmtSpec.type = fmt::presentation_type::none;
+}
+
+template<typename Char>
+void Formatter<Char>::PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date)
+{
+    /*fmt::basic_format_specs<Char> fmtSpec = {};
+    if (spec)
+        fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);*/
+#if COMMON_OS_ANDROID // android's std::put_time is limited to char/wchar_t
+    if constexpr (std::is_same_v<Char, char> || std::is_same_v<Char, wchar_t>)
+    {
+        PutDate_(ret, fmtStr, date);
+    }
+    else if constexpr (sizeof(Char) == sizeof(wchar_t))
+    {
+        PutDate_(*reinterpret_cast<std::wstring*>(&ret), *reinterpret_cast<std::wstring_view*>(&fmtStr), date);
+    }
+    else if constexpr (sizeof(Char) == sizeof(char))
+    {
+        PutDate_(*reinterpret_cast<std::string*>(&ret), *reinterpret_cast<std::string_view*>(&fmtStr), date);
+    }
+    else
+    {
+        const auto fmtStr_ = to_string(fmtStr, Encoding::UTF8);
+        std::string tmp;
+        PutDate_<char>(tmp, fmtStr_, date);
+        if constexpr (std::is_same_v<Char, char16_t>)
+            ret.append(to_u16string(tmp, Encoding::UTF8));
+        else
+            ret.append(to_u32string(tmp, Encoding::UTF8));
+    }
+#else
+    PutDate_(ret, fmtStr, date);
+#endif
 }
 
 template struct Formatter<char>;

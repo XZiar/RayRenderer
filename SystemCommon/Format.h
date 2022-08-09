@@ -1031,7 +1031,7 @@ forceinline constexpr StrArgInfoCh<Char> ParseResult::ToInfo(const std::basic_st
     if (NamedArgCount > 0)
         namedTypes = { NamedTypes, NamedArgCount };
     common::span<const uint8_t> opCodes = { Opcodes, OpCount };
-    return { opCodes, idxTypes, namedTypes, str };
+    return { { opCodes, idxTypes, namedTypes }, str };
 }
 
 
@@ -1106,7 +1106,7 @@ public:
     DynamicTrimedResultCh(DynamicTrimedResultCh&& other) noexcept : DynamicTrimedResult(other) {}
     constexpr operator StrArgInfoCh<Char>() const noexcept
     {
-        return { GetOpcodes(), GetIndexTypes(), GetNamedTypes(),
+        return { { GetOpcodes(), GetIndexTypes(), GetNamedTypes() },
             { reinterpret_cast<Char*>(GetStrPtr()), StrSize / sizeof(Char) - 1 } };
     }
     constexpr StrArgInfoCh<Char> ToStrArgInfo() const noexcept
@@ -1187,7 +1187,7 @@ struct COMMON_EMPTY_BASES TrimedResult : public CompileTimeFormatter, public OpH
         common::span<const ParseResult::NamedArgType> namedTypes;
         if constexpr (NamedArgCount > 0)
             namedTypes = this->NamedTypes;
-        return { this->Opcodes, idxTypes, namedTypes, this->FormatString };
+        return { { this->Opcodes, idxTypes, namedTypes }, this->FormatString };
     }
     constexpr StrArgInfoCh<Char> ToStrArgInfo() const noexcept
     {

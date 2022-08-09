@@ -71,7 +71,7 @@ bool SetThreadName(const std::u16string_view threadName)
         SetThreadNameImpl(asciiThreadName, ::GetCurrentThreadId());
     }
 #else
-    const auto u8TName = str::to_u8string(threadName, str::Encoding::UTF16LE);
+    const auto u8TName = str::to_string(threadName, str::Encoding::UTF8, str::Encoding::UTF16LE);
     if (u8TName.length() >= 16) // pthread limit name to 16 bytes(including null)
         return SetThreadName(u8TName.substr(0, 15));
 # if COMMON_OS_DARWIN

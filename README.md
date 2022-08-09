@@ -54,7 +54,7 @@ To use `xzbuild`, python3.6+ is required.
 
 ## Build
 
-To build C++ parts, an C++17 compiler is needed. 
+To build C++ parts, a C++17 compiler is needed and C++20 is recommanded (defaultly used for gcc>=9 and clang>=9). 
 
 For Windows, project uses `VisualStudio2022`, VS2022(`17.0`) is needed for the vcproj version.
 

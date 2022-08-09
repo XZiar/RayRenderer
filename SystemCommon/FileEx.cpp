@@ -116,7 +116,7 @@ static std::variant<FILE*, ErrType> TryOpen(const fs::path& path, const OpenFlag
 #if COMMON_OS_WIN
     ErrType err = _wfopen_s(&fp, path.wstring().c_str(), ParseFlag(flag));
 #else
-    fp = fopen(path.u8string().c_str(), ParseFlag(flag));
+    fp = fopen(reinterpret_cast<const char*>(path.u8string().c_str()), ParseFlag(flag));
     ErrType err = (fp == nullptr) ? errno : 0;
 #endif
     if (fp != nullptr && err == 0)

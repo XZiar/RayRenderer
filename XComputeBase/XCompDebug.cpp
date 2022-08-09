@@ -263,16 +263,6 @@ struct MessageFormatExecutor final : public common::str::FormatterExecutor, publ
 static MessageFormatExecutor MsgFmtExecutor;
 
 
-
-template<typename T>
-static forceinline void Insert(fmt::dynamic_format_arg_store<fmt::u32format_context>& store, const ArgsLayout::VecItem<T>& data)
-{
-    store.push_back(data);
-}
-static forceinline void Insert(fmt::dynamic_format_arg_store<fmt::u32format_context>& store, std::nullopt_t)
-{
-    store.push_back(U"Unknown"sv);
-}
 common::str::u8string MessageBlock::GetString(common::span<const std::byte> data) const
 {
     const auto strInfo = FormatCache.ToStrArgInfo();
@@ -284,16 +274,6 @@ common::str::u8string MessageBlock::GetString(common::span<const std::byte> data
         MessageFormatExecutor::Execute<common::str::FormatterExecutor>(strInfo.Opcodes, opOffset, MsgFmtExecutor, ctx);
     }
     return ret;
-    /*fmt::dynamic_format_arg_store<fmt::u32format_context> store;
-    for (const auto& arg : Layout.ByIndex())
-    {
-        arg.VisitData(data, [&](auto ele)
-            {
-                Insert(store, ele);
-            });
-    }
-    auto str = fmt::vformat(Formatter, store);
-    return common::str::to_u8string(str);*/
 }
 
 

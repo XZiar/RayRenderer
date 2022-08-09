@@ -122,9 +122,10 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
             a,d = PList.solveElementList(cxx, "incpath", env)
             self.incpath = PList.combineElements(self.incpath, a, d)
         super().solveTarget(targets, proj, env)
+        self.version = env.get("ver_"+self.prefix(), self.langVersion())
         target = targets[self.prefix()]
         self.pch = target.get("pch", "")
-        self.version = target.get("version", self.langVersion())
+        self.version = target.get("version", self.version)
         self.visibility = target.get("visibility", self.visibility)
         a,_ = PList.solveElementList(target, "dbgSymLevel", env)
         self.dbgSymLevel = a[0] if len(a)>0 else self.dbgSymLevel
@@ -155,6 +156,9 @@ class CPPTarget(CXXTarget):
     def solveTarget(self, targets, proj, env:dict):
         super().solveTarget(targets, proj, env)
         self.flags += [env["stdlibarg"]]
+        if self.version.endswith("c++20"):
+            if (env["compiler"] == "gcc" and env["gccVer"] <= 90000) or (env["compiler"] == "clang" and env["clangVer"] <= 90000):
+                self.version.replace("c++20", "c++2a")
         # it is agains c++ rules because class members also got influnced
         # https://stackoverflow.com/questions/48621251/why-fvisibility-inlines-hidden-is-not-the-default
         # if self.visibility == "hidden":
