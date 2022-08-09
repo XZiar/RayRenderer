@@ -24,21 +24,6 @@ namespace common
 
 #if COMMON_OS_WIN
 
-typename ::fmt::u16format_context::iterator HResultHolder::Format(fmt::u16format_context& ctx) const
-{
-    _com_error err(Value);
-    return fmt::format_to(ctx.out(), FMT_STRING(u"{}"), err.ErrorMessage());
-}
-typename ::fmt::u32format_context::iterator HResultHolder::Format(fmt::u32format_context& ctx) const
-{
-    _com_error err(Value);
-    return fmt::format_to(ctx.out(), FMT_STRING(U"{}"), err.ErrorMessage());
-}
-typename ::fmt::  wformat_context::iterator HResultHolder::Format(fmt::  wformat_context& ctx) const
-{
-    _com_error err(Value);
-    return fmt::format_to(ctx.out(), FMT_STRING(L"{}"), err.ErrorMessage());
-}
 std::u16string HResultHolder::FormatHr(long hresult)
 {
     _com_error err(hresult);
@@ -53,18 +38,6 @@ static const wchar_t* FormatWin32Error(unsigned long err)
         err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), 
         tmp, 2000, NULL);
     return tmp;
-}
-typename ::fmt::u16format_context::iterator Win32ErrorHolder::Format(fmt::u16format_context& ctx) const
-{
-    return fmt::format_to(ctx.out(), FMT_STRING(u"{}"), FormatWin32Error(Value));
-}
-typename ::fmt::u32format_context::iterator Win32ErrorHolder::Format(fmt::u32format_context& ctx) const
-{
-    return fmt::format_to(ctx.out(), FMT_STRING(U"{}"), FormatWin32Error(Value));
-}
-typename ::fmt::  wformat_context::iterator Win32ErrorHolder::Format(fmt::  wformat_context& ctx) const
-{
-    return fmt::format_to(ctx.out(), FMT_STRING(L"{}"), FormatWin32Error(Value));
 }
 std::u16string Win32ErrorHolder::FormatError(unsigned long err)
 {
@@ -96,24 +69,6 @@ std::string_view ErrnoText(int32_t err)
         return errret;
 }
 #endif
-typename ::fmt::u16format_context::iterator ErrnoHolder::Format(fmt::u16format_context& ctx) const
-{
-    return fmt::format_to(ctx.out(), FMT_STRING(u"{}"), ErrnoText(Value));
-}
-typename ::fmt::u32format_context::iterator ErrnoHolder::Format(fmt::u32format_context& ctx) const
-{
-    return fmt::format_to(ctx.out(), FMT_STRING(U"{}"), ErrnoText(Value));
-}
-typename ::fmt::wformat_context::iterator ErrnoHolder::Format(fmt::wformat_context& ctx) const
-{
-#if COMMON_OS_WIN
-    return fmt::format_to(ctx.out(), FMT_STRING(L"{}"), ErrnoText(Value));
-#else
-    static_assert(sizeof(wchar_t) == sizeof(char32_t));
-    const auto str = str::to_u32string(ErrnoText(Value));
-    return fmt::format_to(ctx.out(), FMT_STRING(L"{}"), std::wstring_view{ reinterpret_cast<const wchar_t*>(str.data()), str.size() });
-#endif
-}
 std::u16string ErrnoHolder::FormatErrno(int32_t err)
 {
 #if COMMON_OS_WIN

@@ -251,17 +251,41 @@ ArrayRef::SpanVariant ArrayRef::GetSpan() const noexcept
 #undef SP
 }
 
+
+struct ArrayEleFormatter : common::str::Formatter<char32_t>
+{
+    using Formatter::PutFloat;
+    using Formatter::PutInteger;
+    using Formatter::PutString;
+};
+
 void ArrayRef::PrintToStr(std::u32string& str, std::u32string_view delim) const
 {
-    constexpr auto Append = [](std::u32string& str, auto delim, auto ptr, const size_t len)
+    ArrayEleFormatter formatter;
+    const auto Append = [&](std::u32string& str, auto delim, auto ptr, const size_t len)
     {
         for (uint32_t idx = 0; idx < len; ++idx)
         {
             if (idx > 0) str.append(delim);
-            if constexpr (std::is_same_v<const Arg&, decltype(*ptr)>)
+            using T = std::decay_t<decltype(*ptr)>;
+            if constexpr (std::is_same_v<Arg, T>)
                 str.append(ptr[idx].ToString().StrView());
+            else if constexpr (common::is_specialization<T, std::basic_string>::value || common::is_specialization<T, std::basic_string_view>::value)
+                formatter.PutString(str, ptr[idx], nullptr);
+            else if constexpr (std::is_same_v<T, bool>)
+                formatter.PutString(str, ptr[idx] ? U"true"sv : U"false"sv, nullptr);
+            else if constexpr (std::is_same_v<T, half_float::half>)
+                formatter.PutFloat(str, (float)ptr[idx], nullptr);
+            else if constexpr (std::is_floating_point_v<T>)
+                formatter.PutFloat(str, ptr[idx], nullptr);
+            else if constexpr (std::is_integral_v<T>)
+            {
+                constexpr auto isSigned = std::is_signed_v<T>;
+                using U = std::conditional_t<(sizeof(T) > 4), uint64_t, uint32_t>;
+                formatter.PutInteger(str, static_cast<U>(ptr[idx]), isSigned, nullptr);
+            }
             else
-                fmt::format_to(std::back_inserter(str), FMT_STRING(U"{}"), ptr[idx]);
+                static_assert(!common::AlwaysTrue<T>, "unexpected");
         }
     };
 #define PRT(tenum, type) case Type::tenum:                              \
@@ -401,37 +425,30 @@ std::optional<std::u32string_view> Arg::GetStr() const noexcept
     }
 }
 
-template<typename T>
-static common::str::StrVariant<char32_t> ArgToString([[maybe_unused]]const T& val) noexcept
-{
-    if constexpr (std::is_same_v<T, CustomVar> || std::is_same_v<T, std::nullopt_t>)
-        return {};
-    else
-        return fmt::format(FMT_STRING(U"{}"), val);
-}
-template<>
-common::str::StrVariant<char32_t> ArgToString<ArrayRef>(const ArrayRef& val) noexcept
-{
-    std::u32string ret = U"[";
-    val.PrintToStr(ret, U", "sv);
-    ret.append(U"]"sv);
-    return std::move(ret);
-}
-template<>
-common::str::StrVariant<char32_t> ArgToString<std::u32string_view>(const std::u32string_view& val) noexcept
-{
-    return val;
-}
 common::str::StrVariant<char32_t> Arg::ToString() const noexcept
 {
     if (IsCustom())
     {
         return GetCustom().Call<&CustomVar::Handler::ToString>();
     }
-    return Visit([](const auto& val)
-        {
-            return ArgToString(val);
-        });
+    switch (REMOVE_MASK(TypeData, Type::ConstBit))
+    {
+    default:
+    case Type::Var:     return {};
+    case Type::U32Str:  return GetVar<Type::U32Str>();
+    case Type::U32Sv:   return GetVar<Type::U32Sv>();
+    case Type::Uint:    return fmt::format(FMT_STRING(U"{}"), GetVar<Type::Uint>());
+    case Type::Int:     return fmt::format(FMT_STRING(U"{}"), GetVar<Type::Int>());
+    case Type::FP:      return fmt::format(FMT_STRING(U"{}"), GetVar<Type::FP>());
+    case Type::Bool:    return GetVar<Type::Bool>() ? U"true"sv : U"false"sv;
+    case Type::Array:
+    {
+        std::u32string ret = U"[";
+        GetVar<Type::Array>().PrintToStr(ret, U", "sv);
+        ret.append(U"]"sv);
+        return std::move(ret);
+    }
+    }
 }
 
 

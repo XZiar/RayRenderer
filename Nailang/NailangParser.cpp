@@ -66,7 +66,7 @@ void NailangParser::HandleException(const NailangParseException& ex) const
 
 common::parser::DetailToken NailangParser::OnUnExpectedToken(const common::parser::DetailToken& token, const std::u16string_view extraInfo) const
 {
-    const auto msg = fmt::format(FMT_STRING(u"Unexpected token [{}] at [{},{}]{}{}"sv),
+    const auto msg = FMTSTR2(u"Unexpected token [{}] at [{},{}]{}{}"sv,
         DescribeToken(token), token.Row, token.Col, extraInfo.empty() ? u' ' : u',', extraInfo);
     HandleException(UnexpectedTokenException(msg, token));
     return token;
@@ -561,9 +561,9 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim, A
                 if (opr.TypeData != Expr::Type::Var)
                 {
                     if (policy == AssignPolicy::AllowVar)
-                        OnUnExpectedToken(token, FMTSTR(u"assign operator is only allowed after a var, get [{}]"sv, opr.GetTypeName()));
+                        OnUnExpectedToken(token, FMTSTR2(u"assign operator is only allowed after a var, get [{}]"sv, opr.GetTypeName()));
                     if (op == AssignOps::NewCreate || op == AssignOps::NilAssign)
-                        OnUnExpectedToken(token, FMTSTR(u"NewCreate and NilAssign can only be applied after a var, get [{}]"sv, opr.GetTypeName()));
+                        OnUnExpectedToken(token, FMTSTR2(u"NewCreate and NilAssign can only be applied after a var, get [{}]"sv, opr.GetTypeName()));
                 }
                 // direct construct AssignOp
                 auto [stmt, ch] = ParseExpr(stopDelim);
@@ -665,7 +665,7 @@ Expr NailangParser::ParseExprChecked(std::string_view stopDelims, std::u32string
 {
     auto [arg, delim] = ParseExpr(stopDelims, policy);
     if (!stopChecker.empty() && stopChecker.find(delim) == std::u32string_view::npos)
-        NLPS_THROW_EX(FMTSTR(u"Ends with unexpected delim [{}], expects [{}]", delim, stopChecker));
+        NLPS_THROW_EX(FMTSTR2(u"Ends with unexpected delim [{}], expects [{}]", delim, stopChecker));
     return arg;
 }
 
@@ -793,7 +793,7 @@ void NailangParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block
             }
             else
             {
-                NLPS_THROW_EX(FMTSTR(u"Only support block/rawblock{} here, get [{}]"sv, allowNonBlock ? u"/assign/func"sv : u""sv,
+                NLPS_THROW_EX(FMTSTR2(u"Only support block/rawblock{} here, get [{}]"sv, allowNonBlock ? u"/assign/func"sv : u""sv,
                     expr.GetTypeName()));
             }
             continue;

@@ -1,6 +1,6 @@
 #pragma once
 #include "SystemCommonRely.h"
-#include "SystemCommon/StringFormat.h"
+//#include "SystemCommon/StringFormat.h"
 
 namespace common
 {
@@ -24,9 +24,9 @@ struct HResultHolder
     constexpr explicit operator long() const noexcept { return Value; }
     constexpr explicit operator bool() const noexcept { return Value >= 0; }
 
-    [[nodiscard]] SYSCOMMONAPI typename ::fmt::u16format_context::iterator Format(fmt::u16format_context& ctx) const;
+    /*[[nodiscard]] SYSCOMMONAPI typename ::fmt::u16format_context::iterator Format(fmt::u16format_context& ctx) const;
     [[nodiscard]] SYSCOMMONAPI typename ::fmt::u32format_context::iterator Format(fmt::u32format_context& ctx) const;
-    [[nodiscard]] SYSCOMMONAPI typename ::fmt::  wformat_context::iterator Format(fmt::  wformat_context& ctx) const;
+    [[nodiscard]] SYSCOMMONAPI typename ::fmt::  wformat_context::iterator Format(fmt::  wformat_context& ctx) const;*/
     [[nodiscard]] SYSCOMMONAPI static std::u16string FormatHr(long hresult);
 };
 
@@ -47,9 +47,9 @@ struct Win32ErrorHolder
     constexpr explicit operator unsigned long() const noexcept { return Value; }
     constexpr explicit operator bool() const noexcept { return Value >= 0; }
 
-    [[nodiscard]] SYSCOMMONAPI typename ::fmt::u16format_context::iterator Format(fmt::u16format_context& ctx) const;
+    /*[[nodiscard]] SYSCOMMONAPI typename ::fmt::u16format_context::iterator Format(fmt::u16format_context& ctx) const;
     [[nodiscard]] SYSCOMMONAPI typename ::fmt::u32format_context::iterator Format(fmt::u32format_context& ctx) const;
-    [[nodiscard]] SYSCOMMONAPI typename ::fmt::  wformat_context::iterator Format(fmt::  wformat_context& ctx) const;
+    [[nodiscard]] SYSCOMMONAPI typename ::fmt::  wformat_context::iterator Format(fmt::  wformat_context& ctx) const;*/
     [[nodiscard]] SYSCOMMONAPI static std::u16string FormatError(unsigned long err);
     [[nodiscard]] SYSCOMMONAPI static Win32ErrorHolder GetLastError();
 };
@@ -73,60 +73,60 @@ struct ErrnoHolder
     constexpr explicit operator int32_t() const noexcept { return Value; }
     constexpr explicit operator bool() const noexcept { return Value == 0; }
 
-    [[nodiscard]] SYSCOMMONAPI typename ::fmt::u16format_context::iterator Format(fmt::u16format_context& ctx) const;
+    /*[[nodiscard]] SYSCOMMONAPI typename ::fmt::u16format_context::iterator Format(fmt::u16format_context& ctx) const;
     [[nodiscard]] SYSCOMMONAPI typename ::fmt::u32format_context::iterator Format(fmt::u32format_context& ctx) const;
-    [[nodiscard]] SYSCOMMONAPI typename ::fmt::wformat_context::iterator Format(fmt::wformat_context& ctx) const;
+    [[nodiscard]] SYSCOMMONAPI typename ::fmt::wformat_context::iterator Format(fmt::wformat_context& ctx) const;*/
     [[nodiscard]] SYSCOMMONAPI static std::u16string FormatErrno(int32_t err);
     [[nodiscard]] SYSCOMMONAPI static ErrnoHolder GetCurError();
 };
 
 }
 
-#if COMMON_OS_WIN
-
-template<typename Char>
-struct fmt::formatter<common::HResultHolder, Char>
-{
-    template<typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
-    {
-        return ctx.begin();
-    }
-    template<typename FormatContext>
-    auto format(const common::HResultHolder& hr, FormatContext& ctx)
-    {
-        return hr.Format(ctx);
-    }
-};
-
-template<typename Char>
-struct fmt::formatter<common::Win32ErrorHolder, Char>
-{
-    template<typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
-    {
-        return ctx.begin();
-    }
-    template<typename FormatContext>
-    auto format(const common::Win32ErrorHolder& err, FormatContext& ctx)
-    {
-        return err.Format(ctx);
-    }
-};
-
-#endif
-
-template<typename Char>
-struct fmt::formatter<common::ErrnoHolder, Char>
-{
-    template<typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
-    {
-        return ctx.begin();
-    }
-    template<typename FormatContext>
-    auto format(const common::ErrnoHolder& err, FormatContext& ctx)
-    {
-        return err.Format(ctx);
-    }
-};
+//#if COMMON_OS_WIN
+//
+//template<typename Char>
+//struct fmt::formatter<common::HResultHolder, Char>
+//{
+//    template<typename ParseContext>
+//    constexpr auto parse(ParseContext& ctx)
+//    {
+//        return ctx.begin();
+//    }
+//    template<typename FormatContext>
+//    auto format(const common::HResultHolder& hr, FormatContext& ctx)
+//    {
+//        return hr.Format(ctx);
+//    }
+//};
+//
+//template<typename Char>
+//struct fmt::formatter<common::Win32ErrorHolder, Char>
+//{
+//    template<typename ParseContext>
+//    constexpr auto parse(ParseContext& ctx)
+//    {
+//        return ctx.begin();
+//    }
+//    template<typename FormatContext>
+//    auto format(const common::Win32ErrorHolder& err, FormatContext& ctx)
+//    {
+//        return err.Format(ctx);
+//    }
+//};
+//
+//#endif
+//
+//template<typename Char>
+//struct fmt::formatter<common::ErrnoHolder, Char>
+//{
+//    template<typename ParseContext>
+//    constexpr auto parse(ParseContext& ctx)
+//    {
+//        return ctx.begin();
+//    }
+//    template<typename FormatContext>
+//    auto format(const common::ErrnoHolder& err, FormatContext& ctx)
+//    {
+//        return err.Format(ctx);
+//    }
+//};

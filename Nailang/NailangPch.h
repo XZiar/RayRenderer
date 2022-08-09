@@ -4,6 +4,7 @@
 
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/MiscIntrins.h"
+#include "SystemCommon/Format.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/StringFormat.h"
 
@@ -25,6 +26,8 @@
 #include <any>
 #include <cmath>
 #include <vector>
+
+#define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 
 namespace xziar::nailang
 {

@@ -5,8 +5,6 @@
 #include <any>
 #include <memory>
 
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
-
 template<typename T>
 static std::string Hex2Str(const std::optional<T>& data)
 {

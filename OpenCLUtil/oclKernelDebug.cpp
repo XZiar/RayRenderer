@@ -20,7 +20,7 @@ using xcomp::debug::ArgsLayout;
 using xziar::nailang::NailangRuntimeException;
 using common::simd::VecDataInfo;
 
-#define FMTSTR32(syntax, ...) common::str::exp::Formatter<char32_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
+#define FMTSTR32(syntax, ...) common::str::Formatter<char32_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
@@ -165,7 +165,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
                 executor.ThrowByReplacerArgCount(func, args, info->second.size() + 1, ArgLimits::Exact);
                 return GenerateDebugFunc(Executor, id, *info, args.subspan(1));
             }
-            executor.NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugString] reference to unregisted info [{}].", id));
+            executor.NLRT_THROW_EX(FMTSTR2(u"Repalcer-Func [DebugString] reference to unregisted info [{}].", id));
         }
         else if (func == U"oclu.DebugStr"sv || func == U"xcomp.DebugStr"sv)
         {

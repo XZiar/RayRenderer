@@ -128,7 +128,9 @@ public:
             std::visit([&](const auto val)
                 {
                     using T = std::decay_t<decltype(val)>;
-                    if constexpr (!std::is_same_v<T, std::monostate>)
+                    if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>)
+                        defstrs.back().second.assign(val.begin(), val.end());
+                    else if constexpr (!std::is_same_v<T, std::monostate>)
                         defstrs.back().second = FMTSTR(u"{}", val);
                 }, v);
         }

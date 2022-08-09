@@ -137,7 +137,7 @@ struct MessageBlock
 {
     ArgsLayout Layout;
     std::u32string Name;
-    common::str::exp::DynamicTrimedResultCh<char> FormatCache;
+    common::str::DynamicTrimedResultCh<char> FormatCache;
     uint8_t DebugId;
     XCOMPBASAPI MessageBlock(const uint8_t idx, const std::u32string_view name, const std::u32string_view formatter,
         common::span<const NamedVecPair> infos);

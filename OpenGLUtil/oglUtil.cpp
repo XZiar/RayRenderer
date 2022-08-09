@@ -78,7 +78,7 @@ oglContext GLHost::CreateContext(CreateInfo cinfo, const oglContext_* sharedCtx)
     Expects(!sharedCtx || sharedCtx->Host.get() == this);
     if (!CheckSupport(cinfo.Type))
         COMMON_THROWEX(OGLException, OGLException::GLComponent::Loader,
-            fmt::format(u"Loader [{}] does not support [{}] context"sv, Loader.Name(), cinfo.Type == GLType::Desktop ? u"GL"sv : u"GLES"sv));
+            FMTSTR2(u"Loader [{}] does not support [{}] context"sv, Loader.Name(), cinfo.Type == GLType::Desktop ? u"GL"sv : u"GLES"sv));
     if (cinfo.FlushWhenSwapContext && !SupportFlushControl)
         oglLog().Warning(u"Request for FlushControl[{}] not supported, will be ignored\n"sv, cinfo.FlushWhenSwapContext.value());
     if (cinfo.FramebufferSRGB && !SupportSRGBFrameBuffer)

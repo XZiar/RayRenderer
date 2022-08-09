@@ -5,6 +5,7 @@
 #include "RenderCore/FontTest.h"
 #include "ImageUtil/ImageUtil.h"
 #include "WindowHost/WindowHost.h"
+#include "SystemCommon/Format.h"
 #include "common/Linq2.hpp"
 #include <cstdint>
 #include <cstdio>
@@ -45,7 +46,7 @@ void PrintException(const common::ExceptionBasicInfo& be)
     log().Error(FmtString(u"Error when performing test:\n{}\n"), be.Message);
     std::u16string str(u"stack trace:\n");
     for (const auto& stack : be.GetStacks())
-        fmt::format_to(std::back_inserter(str), FMT_STRING(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);
+        common::str::Formatter<char16_t>{}.FormatToStatic(str, FmtString(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);
     str.append(u"\n");
     log().Error(str);
 

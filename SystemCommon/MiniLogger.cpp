@@ -305,7 +305,7 @@ struct ColorSeperator
 };
 
 template<typename Char>
-struct COMMON_EMPTY_BASES LoggerFormatter final : public str::exp::Formatter<Char>, public ColorSeperator
+struct COMMON_EMPTY_BASES LoggerFormatter final : public str::Formatter<Char>, public ColorSeperator
 {
 private:
     void PutColor(std::basic_string<Char>&, ScreenColor color) final
@@ -318,10 +318,10 @@ public:
 
 
 template<typename Char>
-LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::exp::StrArgInfoCh<Char>& strInfo, const str::exp::ArgInfo& argInfo, const str::exp::ArgPack& argPack) const
+LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::StrArgInfoCh<Char>& strInfo, const str::ArgInfo& argInfo, const str::ArgPack& argPack) const
 {
     LoggerFormatter<Char> formatter;
-    str::exp::FormatterBase::FormatTo(formatter, formatter.Str, strInfo, argInfo, argPack);
+    str::FormatterBase::FormatTo(formatter, formatter.Str, strInfo, argInfo, argPack);
     const auto segs = to_span(formatter.Segments);
     if constexpr (!std::is_same_v<Char, char16_t>)
     {
@@ -333,10 +333,10 @@ LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::exp
         return LogMessage::MakeMessage(this->Prefix, formatter.Str.data(), formatter.Str.size(), segs, level);
     }
 }
-template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::exp::StrArgInfoCh<char    >& strInfo, const str::exp::ArgInfo& argInfo, const str::exp::ArgPack& argPack) const;
-template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::exp::StrArgInfoCh<wchar_t >& strInfo, const str::exp::ArgInfo& argInfo, const str::exp::ArgPack& argPack) const;
-template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::exp::StrArgInfoCh<char16_t>& strInfo, const str::exp::ArgInfo& argInfo, const str::exp::ArgPack& argPack) const;
-template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::exp::StrArgInfoCh<char32_t>& strInfo, const str::exp::ArgInfo& argInfo, const str::exp::ArgPack& argPack) const;
+template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::StrArgInfoCh<char    >& strInfo, const str::ArgInfo& argInfo, const str::ArgPack& argPack) const;
+template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::StrArgInfoCh<wchar_t >& strInfo, const str::ArgInfo& argInfo, const str::ArgPack& argPack) const;
+template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::StrArgInfoCh<char16_t>& strInfo, const str::ArgInfo& argInfo, const str::ArgPack& argPack) const;
+template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::StrArgInfoCh<char32_t>& strInfo, const str::ArgInfo& argInfo, const str::ArgPack& argPack) const;
 
 template<typename Char>
 LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const std::basic_string_view<Char> str) const

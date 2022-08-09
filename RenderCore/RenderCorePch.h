@@ -17,6 +17,7 @@
 #include "SystemCommon/PromiseTaskSTD.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/StringDetect.h"
+#include "SystemCommon/Format.h"
 #include "common/math/VecSIMD.hpp"
 #include "common/math/MatSIMD.hpp"
 #include "common/Linq2.hpp"
@@ -38,6 +39,7 @@
 namespace dizz
 {
 namespace msimd = common::math::simd;
+#define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 
 
 common::mlog::MiniLogger<false>& dizzLog();

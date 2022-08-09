@@ -169,14 +169,14 @@ MessageBlock::MessageBlock(const uint8_t idx, const std::u32string_view name, co
     Layout(infos, 4), Name(name), FormatCache([](auto fmtstr)
         {
             const auto fmtu8 = common::str::to_string(fmtstr, common::str::Encoding::UTF8);
-            const auto result = common::str::exp::ParseResult::ParseString<char>(fmtu8);
-            return common::str::exp::DynamicTrimedResultCh<char>{ result, fmtu8 };
+            const auto result = common::str::ParseResult::ParseString<char>(fmtu8);
+            return common::str::DynamicTrimedResultCh<char>{ result, fmtu8 };
         }(formatter)), DebugId(idx) 
 { }
 
-struct MessageFormatExecutor final : public common::str::exp::FormatterExecutor, public common::str::exp::Formatter<char>
+struct MessageFormatExecutor final : public common::str::FormatterExecutor, public common::str::Formatter<char>
 {
-    using CTX = common::str::exp::FormatterExecutor::Context;
+    using CTX = common::str::FormatterExecutor::Context;
     struct Context : public CTX
     {
         std::basic_string<char>& Dst;
@@ -191,19 +191,19 @@ struct MessageFormatExecutor final : public common::str::exp::FormatterExecutor,
     void OnFmtStr(CTX& ctx, uint32_t offset, uint32_t length) final
     {
         auto& context = static_cast<Context&>(ctx);
-        PutString(context.Dst, context.FmtStr.substr(offset, length), nullptr);
+        context.Dst.append(context.FmtStr.substr(offset, length));
     }
     void OnBrace(CTX& ctx, bool isLeft) final
     {
         auto& context = static_cast<Context&>(ctx);
-        PutString(context.Dst, isLeft ? "{"sv : "}"sv, nullptr);
+        context.Dst.push_back(isLeft ? '{' : '}');
     }
     void OnColor(CTX& ctx, common::ScreenColor color) final
     {
         auto& context = static_cast<Context&>(ctx);
         PutColor(context.Dst, color);
     }
-    void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, const common::str::exp::FormatSpec* spec) final
+    void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, const common::str::FormatSpec* spec) final
     {
         Expects(!isNamed);
         auto& context = static_cast<Context&>(ctx);
@@ -281,7 +281,7 @@ common::str::u8string MessageBlock::GetString(common::span<const std::byte> data
     uint32_t opOffset = 0;
     while (opOffset < strInfo.Opcodes.size())
     {
-        MessageFormatExecutor::Execute<common::str::exp::FormatterExecutor>(strInfo.Opcodes, opOffset, MsgFmtExecutor, ctx);
+        MessageFormatExecutor::Execute<common::str::FormatterExecutor>(strInfo.Opcodes, opOffset, MsgFmtExecutor, ctx);
     }
     return ret;
     /*fmt::dynamic_format_arg_store<fmt::u32format_context> store;

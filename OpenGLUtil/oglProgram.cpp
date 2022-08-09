@@ -23,6 +23,9 @@ using common::container::FindInVec;
 using common::container::ReplaceInVec;
 using namespace std::literals;
 
+#define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
+    .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
+
 MAKE_ENABLER_IMPL(oglDrawProgram_)
 MAKE_ENABLER_IMPL(oglComputeProgram_)
 
@@ -237,13 +240,12 @@ bool oglProgram_::usethis(oglProgram_& prog, const bool change)
 constexpr auto ResInfoPrinter = [](const auto& res, const auto& prefix)
 {
     u16string strBuffer;
-    auto strBuf = std::back_inserter(strBuffer);
     for (const auto& info : res)
     {
         if (info.size > 0)
-            fmt::format_to(strBuf, FMT_STRING(u"--{:<3} -[{:^5}]- {}[{}]({}) size[{}]\n"), info.ifidx, info.location, info.Name, info.len, info.GetValTypeName(), info.size);
+            APPEND_FMT(strBuffer, u"--{:<3} -[{:^5}]- {}[{}]({}) size[{}]\n", info.ifidx, info.location, info.Name, info.len, info.GetValTypeName(), info.size);
         else
-            fmt::format_to(strBuf, FMT_STRING(u"--{:<3} -[{:^5}]- {}[{}]({})\n"), info.ifidx, info.location, info.Name, info.len, info.GetValTypeName());
+            APPEND_FMT(strBuffer, u"--{:<3} -[{:^5}]- {}[{}]({})\n", info.ifidx, info.location, info.Name, info.len, info.GetValTypeName());
     }
     if (!strBuffer.empty())
         oglLog().Debug(u"{}: \n{}", prefix, strBuffer);
@@ -410,13 +412,12 @@ void oglProgram_::InitSubroutines(const ShaderExtInfo& extInfo)
     }
     
     u16string strBuffer;
-    auto strBuf = std::back_inserter(strBuffer);
     for (const auto& subr : SubroutineRess)
     {
-        fmt::format_to(strBuf, u"SubRoutine {} {} at [{}]:\n", subr.Name, subr.Stage == GLInvalidEnum ? u"(Emulated)" : u"", subr.UniLoc);
+        APPEND_FMT(strBuffer, u"SubRoutine {} {} at [{}]:\n", subr.Name, subr.Stage == GLInvalidEnum ? u"(Emulated)" : u"", subr.UniLoc);
         for (const auto& routine : subr.Routines)
         {
-            fmt::format_to(strBuf, FMT_STRING(u"--[{:^4}]: {}\n"), routine.Id, routine.Name);
+            APPEND_FMT(strBuffer, u"--[{:^4}]: {}\n", routine.Id, routine.Name);
         }
         const auto& routine = subr.GetRoutines()[0];
         SubroutineBindings[&subr] = &routine;

@@ -141,8 +141,8 @@ bool DxProgram_::DxProgramPrepareBase::SetBuf(HashedStrView<char> name, const Dx
         return false;
     // check type
     if ((slot->Type & BoundedResourceType::InnerTypeMask) != bufview.Type)
-        COMMON_THROW(DxException, FMTSTR(u"Bufview type mismatch, [{}] expects [{}], get [{}]", 
-            slot->HashedName, detail::GetBoundedResTypeName(slot->Type), detail::GetBoundedResTypeName(bufview.Type)));
+        COMMON_THROW(DxException, FMTSTR2(u"Bufview type mismatch, [{}] expects [{}], get [{}]", 
+            slot->HashedName.View, detail::GetBoundedResTypeName(slot->Type), detail::GetBoundedResTypeName(bufview.Type)));
     // check buf flag
     switch (slot->Type & BoundedResourceType::CategoryMask)
     {

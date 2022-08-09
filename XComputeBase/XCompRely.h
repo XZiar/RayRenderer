@@ -12,7 +12,7 @@
 
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/Exceptions.h"
-#include "SystemCommon/StringFormat.h"
+#include "SystemCommon/Format.h"
 
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"
@@ -47,6 +47,7 @@ struct PCI_BDF
     constexpr explicit operator bool() const noexcept { return Val != 0 && Val != UINT16_MAX; }
     constexpr bool operator==(const PCI_BDF& other) const noexcept { return Val == other.Val; }
     constexpr bool operator!=(const PCI_BDF& other) const noexcept { return Val != other.Val; }
+    XCOMPBASAPI std::string ToString() const noexcept;
 };
 
 
@@ -195,28 +196,4 @@ XCOMPBASAPI VTypeInfo ParseVDataType(const std::u32string_view type) noexcept;
 XCOMPBASAPI std::u32string_view StringifyVDataType(const VTypeInfo vtype) noexcept;
 
 }
-
-template<typename Char>
-struct fmt::formatter<xcomp::PCI_BDF, Char>
-{
-    template<typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
-    {
-        return ctx.begin();
-    }
-    template<typename FormatContext>
-    auto format(const xcomp::PCI_BDF& bdf, FormatContext& ctx)
-    {
-        if constexpr (std::is_same_v<Char, char16_t>)
-            return fmt::format_to(ctx.out(), FMT_STRING(u"{:02X}:{:02X}.{:1X}"), bdf.Bus(), bdf.Device(), bdf.Function());
-        else if constexpr (std::is_same_v<Char, char32_t>)
-            return fmt::format_to(ctx.out(), FMT_STRING(U"{:02X}:{:02X}.{:1X}"), bdf.Bus(), bdf.Device(), bdf.Function());
-        else if constexpr (std::is_same_v<Char, wchar_t>)
-            return fmt::format_to(ctx.out(), FMT_STRING(L"{:02X}:{:02X}.{:1X}"), bdf.Bus(), bdf.Device(), bdf.Function());
-        else if constexpr (std::is_same_v<Char, char>)
-            return fmt::format_to(ctx.out(), FMT_STRING( "{:02X}:{:02X}.{:1X}"), bdf.Bus(), bdf.Device(), bdf.Function());
-        else
-            static_assert(!common::AlwaysTrue<Char>);
-    }
-};
 

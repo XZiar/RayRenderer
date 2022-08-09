@@ -176,8 +176,9 @@ Arg AutoVarHandlerBase::AutoVarArrayHandler::HandleIndexes(const CustomVar & var
     if (tidx.has_value())
     {
         if (tidx.value() == SIZE_MAX)
-            COMMON_THROWEX(NailangRuntimeException,
-                FMTSTR(u"cannot find element for index [{}] in array of [{}]"sv, idxval.ToString().StrView(), var.Meta1), indexes.GetRaw(0));
+            COMMON_THROWEX(NailangRuntimeException, common::str::Formatter<char16_t>{}
+                .FormatStatic(FmtString(u"cannot find element for index [{}] in array of [{}]"sv), idxval.ToString().StrView(), var.Meta1),
+                indexes.GetRaw(0));
     }
     else
     {

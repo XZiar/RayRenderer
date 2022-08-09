@@ -1,5 +1,6 @@
 #include "TestRely.h"
 #include "Nailang/NailangParser.h"
+#include "SystemCommon/Format.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "SystemCommon/StringDetect.h"
 #include "SystemCommon/StringConvert.h"
@@ -24,8 +25,9 @@ static MiniLogger<false>& log()
     return log;
 }
 
+#define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 #define OutLine(clr, indent, obj, type, syntax, ...)\
-    GetConsole().Print(FMTSTR(u"\x1b[37m[{:5}]{}\x1b[92m" type " {}" syntax "\x1b[39m\n", obj.Position.first,   \
+    GetConsole().Print(FMTSTR2(u"\x1b[37m[{:5}]{}\x1b[92m" type " {}" syntax "\x1b[39m\n", obj.Position.first,   \
         indent, common::console::ConsoleEx::GetColorStr(common::CommonColor::clr), __VA_ARGS__))
 
 static void OutIndent(const u16string& indent)

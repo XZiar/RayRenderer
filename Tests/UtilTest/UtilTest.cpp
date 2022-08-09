@@ -97,12 +97,12 @@ void ClearReturn()
     std::cin.ignore(1024, '\n');
 }
 
-char GetIdx36(const size_t idx)
+char16_t GetIdx36(const size_t idx)
 {
-    constexpr std::string_view Idx36 = "0123456789abcdefghijklmnopqrstuvwxyz";
+    constexpr std::u16string_view Idx36 = u"0123456789abcdefghijklmnopqrstuvwxyz";
     if (idx < 36)
         return Idx36[idx];
-    return '*';
+    return u'*';
 }
 
 uint32_t Select36(const size_t size)
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
         for (const auto& pair : testMap)
         {
             GetConsole().Print(CommonColor::BrightWhite,
-                FMTSTR(u"[{}] {:<20} {}\n", GetIdx36(idx++), pair.first, (void*)pair.second));
+                FMTSTR2(u"[{}] {:<20} {}\n", GetIdx36(idx++), pair.first, (void*)pair.second));
         }
     }
     GetConsole().Print(CommonColor::BrightWhite, u"Select One To Execute...\n");
@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
         }
         catch (const common::BaseException& be)
         {
-            PrintException(be, FMTSTR(u"Error when performing test [{}]", it->first));
+            PrintException(be, FMTSTR2(u"Error when performing test [{}]", it->first));
         }
     }
     else

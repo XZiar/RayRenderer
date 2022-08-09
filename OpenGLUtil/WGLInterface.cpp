@@ -39,7 +39,9 @@ typedef _Check_return_ NTSTATUS(APIENTRY* PFN_D3DKMTOpenAdapterFromHdc)(const D3
 
 
 
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
+#define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
+    .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
+//fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 namespace oglu
 {

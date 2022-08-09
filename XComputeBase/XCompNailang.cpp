@@ -1,6 +1,7 @@
 #include "XCompNailang.h"
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/StringConvert.h"
+#include "SystemCommon/StringFormat.h"
 #include "common/StrParsePack.hpp"
 #include "common/StaticLookup.hpp"
 #include <shared_mutex>
@@ -42,7 +43,10 @@ MAKE_ENABLER_IMPL(XCNLProgram)
 
 
 #define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
+#define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
+    .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
+//fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
+#define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 
 
 
@@ -89,7 +93,7 @@ void NamedTextHolder::ForceAdd(std::vector<NamedText>& container, std::u32string
     for (const auto& dep : depends)
     {
         if (dep == id) // early check for self-dependency
-            COMMON_THROW(common::BaseException, FMTSTR(u"self dependency at [{}] for [{}]"sv, &dep - depends.data(), id));
+            COMMON_THROW(common::BaseException, FMTSTR2(u"self dependency at [{}] for [{}]"sv, &dep - depends.data(), id));
 
         bool match = false;
         for (size_t i = 0; i < container.size(); ++i)
@@ -116,9 +120,10 @@ void NamedTextHolder::ForceAdd(std::vector<NamedText>& container, std::u32string
 
 void NamedTextHolder::Write(std::u32string& output, const NamedText& item) const
 {
-    APPEND_FMT(output, U"    //vvvvvvvv below injected by {}  vvvvvvvv\r\n"sv, GetID(item));
+    common::str::Formatter<char32_t> fmter;
+    fmter.FormatToStatic(output, FmtString(U"    //vvvvvvvv below injected by {}  vvvvvvvv\r\n"sv), GetID(item));
     output.append(item.Content).append(U"\r\n"sv);
-    APPEND_FMT(output, U"    //^^^^^^^^ above injected by {}  ^^^^^^^^\r\n\r\n"sv, GetID(item));
+    fmter.FormatToStatic(output, FmtString(U"    //^^^^^^^^ above injected by {}  ^^^^^^^^\r\n\r\n"sv), GetID(item));
 }
 
 void NamedTextHolder::Write(std::u32string& output, const std::vector<NamedText>& container) const
@@ -148,7 +153,7 @@ void NamedTextHolder::Write(std::u32string& output, const std::vector<NamedText>
                     if (!depIdx.has_value())
                     {
                         satisfy = false;
-                        COMMON_THROW(common::BaseException, FMTSTR(u"unsolved dependency [{}] for [{}]"sv,
+                        COMMON_THROW(common::BaseException, FMTSTR2(u"unsolved dependency [{}] for [{}]"sv,
                             GetDepend(item, j), GetID(item)));
                     }
                     else if (!outputMask[depIdx.value()])
@@ -439,7 +444,7 @@ Arg XCNLExecutor::EvaluateFunc(FuncEvalPack& func)
             const auto name = func.Params[0].GetStr().value();
             const auto idx = ctx.FindStruct(name);
             if (idx == SIZE_MAX)
-                NLRT_THROW_EX(FMTSTR(u"Cannot find struct named [{}]"sv, name), func);
+                NLRT_THROW_EX(FMTSTR2(u"Cannot find struct named [{}]"sv, name), func);
             GetRuntime().PrintStruct(*ctx.CustomStructs[idx]);
             return {};
         }
@@ -485,12 +490,12 @@ bool XCNLConfigurator::HandleRawBlockMeta(const FuncCall& meta, OutputBlock& blo
     HashCase(name, U"xcomp.TemplateArgs")
     {
         if (block.Type != OutputBlock::BlockType::Template)
-            executor.NLRT_THROW_EX(FMTSTR(u"xcomp.TemplateArgs cannot be applied to [{}], which type is [{}]"sv,
+            executor.NLRT_THROW_EX(FMTSTR2(u"xcomp.TemplateArgs cannot be applied to [{}], which type is [{}]"sv,
                 block.Name(), block.GetBlockTypeName()), meta, block.Block);
         for (uint32_t i = 0; i < meta.Args.size(); ++i)
         {
             if (meta.Args[i].TypeData != Expr::Type::Var)
-                executor.NLRT_THROW_EX(FMTSTR(u"xcomp.TemplateArgs's arg[{}] is [{}]. not [Var]"sv,
+                executor.NLRT_THROW_EX(FMTSTR2(u"xcomp.TemplateArgs's arg[{}] is [{}]. not [Var]"sv,
                     i, meta.Args[i].GetTypeName()), meta, block.Block);
         }
         block.ExtraInfo = std::make_unique<TemplateBlockInfo>(meta.Args);
@@ -539,7 +544,7 @@ void XCNLRawExecutor::ThrowByReplacerArgCount(const std::u32string_view call, U3
         if (args.size() >= count) return;
         prefix = U"at least"; break;
     }
-    GetExecutor().NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [{}] requires {} [{}] args, which gives [{}]."sv, 
+    GetExecutor().NLRT_THROW_EX(FMTSTR2(u"Repalcer-Func [{}] requires {} [{}] args, which gives [{}]."sv, 
         call, prefix, count, args.size()));
 }
 
@@ -574,7 +579,7 @@ bool XCNLRawExecutor::HandleInstanceMeta(FuncPack& meta)
         else
         {
             if (meta.Params.size() != 1 || !meta.Params[0].IsCustomType<InstanceArgCustomVar>())
-                runtime.NLRT_THROW_EX(FMTSTR(u"xcom.Arg requires xcomp::arg as argument, get [{}]"sv,
+                runtime.NLRT_THROW_EX(FMTSTR2(u"xcomp.Arg requires xcomp::arg as argument, get [{}]"sv,
                     meta.TryGetOr(0, &Arg::GetTypeName, U"<empty>"sv)), meta);
             const auto& info = InstanceArgCustomVar::GetArgInfo(meta.Params[0].GetCustom());
             runtime.HandleInstanceArg(info, kerCtx, meta, &meta.Params[0]);
@@ -649,7 +654,7 @@ ReplaceResult XCNLRawExecutor::ExtensionReplaceFunc(std::u32string_view func, U3
         if (ret)
         {
             const auto& dep = ret.GetDepends();
-            auto txt = FMTSTR(u"Result for ReplaceFunc[{}] : [{}]\r\n"sv, func, str);
+            auto txt = FMTSTR2(u"Result for ReplaceFunc[{}] : [{}]\r\n"sv, func, str);
             if (auto deps = dep.GetPatchedBlock(); deps.Count() > 0)
             {
                 txt += u"Depend on PatchedBlock:\r\n";
@@ -724,13 +729,13 @@ void XCNLRawExecutor::OnReplaceVariable(std::u32string& output, [[maybe_unused]]
         const auto val = runtime.LookUpArg(var_);
         if (val.IsEmpty() || val.IsCustom())
         {
-            executor.NLRT_THROW_EX(FMTSTR(u"Arg [{}] not found when replace-variable"sv, var));
+            executor.NLRT_THROW_EX(FMTSTR2(u"Arg [{}] not found when replace-variable"sv, var));
             return;
         }
         if (toVecName)
         {
             if (!val.IsStr())
-                executor.NLRT_THROW_EX(FMTSTR(u"Arg [{}] is not a vetype string when replace-variable"sv, var));
+                executor.NLRT_THROW_EX(FMTSTR2(u"Arg [{}] is not a vetype string when replace-variable"sv, var));
             const auto str = runtime.GetVecTypeName(val.GetStr().value(), u"replace-variable"sv);
             output.append(str);
         }
@@ -761,7 +766,7 @@ void XCNLRawExecutor::OnReplaceFunction(std::u32string& output, void*, std::u32s
         }
         else
         {
-            executor.NLRT_THROW_EX(FMTSTR(u"replace-func [{}] with [{}]args error: {}", func, args.size(), ret.GetStr()));
+            executor.NLRT_THROW_EX(FMTSTR2(u"replace-func [{}] with [{}]args error: {}", func, args.size(), ret.GetStr()));
         }
     }
 }
@@ -886,10 +891,10 @@ void XCNLStructHandler::StringifyBasicField(const XCNLStruct::Field& field, cons
         typeName = GetCustomStructs()[field.Type.ToIndex()]->GetName();
     else
         typeName = GetRuntime().GetVecTypeName(field.Type);
-    APPEND_FMT(output, u"{} {}"sv, typeName, target.GetFieldName(field));
+    APPEND_FMT(output, U"{} {}"sv, typeName, target.GetFieldName(field));
     const auto dims = target.GetFieldDims(field);
     for (const auto& dim : dims.Dims)
-        APPEND_FMT(output, u"[{}]"sv, dim.Size);
+        APPEND_FMT(output, U"[{}]"sv, dim.Size);
 }
 
 std::unique_ptr<XCNLStruct> XCNLStructHandler::GenerateStruct(std::u32string_view name, xziar::nailang::MetaSet&)
@@ -934,11 +939,11 @@ bool XCNLStructHandler::EvaluateStructFunc(xziar::nailang::FuncEvalPack& func)
                 executor.ThrowByParamType(func, arg, Arg::Type::Integer, idx + 2);
                 const auto len = arg.GetUint().value();
                 if (len >= UINT16_MAX)
-                    executor.NLRT_THROW_EX(FMTSTR(u"Field [{}]'s dim[{}] exceed limit, get[{}].", name, idx, len), func);
+                    executor.NLRT_THROW_EX(FMTSTR2(u"Field [{}]'s dim[{}] exceed limit, get[{}].", name, idx, len), func);
                 dims.push_back({ static_cast<uint16_t>(len), static_cast<uint16_t>(curAlign) });
                 curAlign *= len;
                 if (curAlign >= UINT16_MAX)
-                    executor.NLRT_THROW_EX(FMTSTR(u"Field [{}]'s array size exceed limit at dim[{}], get[{}].", name, idx, curAlign), func);
+                    executor.NLRT_THROW_EX(FMTSTR2(u"Field [{}]'s array size exceed limit at dim[{}], get[{}].", name, idx, curAlign), func);
             }
         }
         else
@@ -957,11 +962,11 @@ bool XCNLStructHandler::EvaluateStructFunc(xziar::nailang::FuncEvalPack& func)
         }
         auto& target = GetStruct();
         if (!typeData.has_value())
-            executor.NLRT_THROW_EX(FMTSTR(u"Unrecoginized type [{}] when defining the field [{}] of struct [{}].", 
+            executor.NLRT_THROW_EX(FMTSTR2(u"Unrecoginized type [{}] when defining the field [{}] of struct [{}].", 
                 type, name, target.GetName()));
         const auto arrInfo = target.AddArrayInfos(dims);
         if (arrInfo >= UINT16_MAX && arrInfo != SIZE_MAX)
-            executor.NLRT_THROW_EX(FMTSTR(u"Arrar info exceed limtis for [{}] at field [{}].", target.GetName(), name), func);
+            executor.NLRT_THROW_EX(FMTSTR2(u"Arrar info exceed limtis for [{}] at field [{}].", target.GetName(), name), func);
 
         auto& field = target.AddField(name, *typeData, static_cast<uint16_t>(arrInfo));
         for (auto& meta : func.Metas->PostMetas())
@@ -998,7 +1003,7 @@ void XCNLRuntime::InnerLog(common::mlog::LogLevel level, std::u32string_view str
 
 void XCNLRuntime::PrintStruct(const XCNLStruct& target) const
 {
-    auto str = FMTSTR(u"Struct [{}], align[{}] size[{}]:\n"sv, target.GetName(), target.Alignment, target.Size);
+    auto str = FMTSTR2(u"Struct [{}], align[{}] size[{}]:\n"sv, target.GetName(), target.Alignment, target.Size);
     for (const auto& field : target.Fields)
     {
         std::u32string_view typeName;
@@ -1060,7 +1065,7 @@ std::u32string_view XCNLRuntime::GetVecTypeName(const std::u32string_view vname,
 void XCNLRuntime::ThrowByVecType(std::variant<std::u32string_view, VTypeInfo> src, std::u16string_view reason, std::u16string_view exInfo) const
 {
     const auto srcName = src.index() == 0 ? std::get<0>(src) : StringifyVDataType(std::get<1>(src));
-    NLRT_THROW_EX(FMTSTR(u"Type [{}] {}{}{}."sv, srcName, reason, exInfo.empty() ? u""sv : u", "sv, exInfo));
+    NLRT_THROW_EX(FMTSTR2(u"Type [{}] {}{}{}."sv, srcName, reason, exInfo.empty() ? u""sv : u", "sv, exInfo));
 }
 
 
@@ -1119,7 +1124,7 @@ Arg XCNLRuntime::CreateGVec(const std::u32string_view type, FuncEvalPack& func)
 {
     auto info = xcomp::ParseVDataType(type);
     if (!info)
-        NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized"sv, type), func);
+        NLRT_THROW_EX(FMTSTR2(u"Type [{}] not recognized"sv, type), func);
     Expects(!info.IsCustomType());
     const auto dim0 = info.Dim0();
     if (dim0 < 2 || dim0 > 4)
@@ -1232,7 +1237,7 @@ InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, F
             (U"tex1darr",   InstanceArgInfo::TexTypes::Tex1DArray),
             (U"tex2darr",   InstanceArgInfo::TexTypes::Tex2DArray));
         if (const auto ttype = TexTypeParser(tname); !ttype)
-            NLRT_THROW_EX(FMTSTR(u"Unrecognized Texture Type [{}]"sv, tname), func);
+            NLRT_THROW_EX(FMTSTR2(u"Unrecognized Texture Type [{}]"sv, tname), func);
         else
             texType = ttype.value();
         offset = 3;
@@ -1499,7 +1504,7 @@ size_t GeneralVecRef::ToIndex(const CustomVar& var, const ArrayRef& arr, std::u3
         return SIZE_MAX;
     if (tidx > arr.Length)
     {
-        COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot access [{}] on a vector of length[{}]"sv,
+        COMMON_THROW(NailangRuntimeException, FMTSTR2(u"Cannot access [{}] on a vector of length[{}]"sv,
             field, arr.Length), var);
     }
     return tidx;
@@ -1533,12 +1538,12 @@ bool GeneralVecRef::HandleAssign(CustomVar& var, Arg arg)
 {
     const auto arr = ToArray(var);
     if (arr.IsReadOnly)
-        COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot modify a constant {}"sv, GetExactType(arr)), var);
+        COMMON_THROW(NailangRuntimeException, FMTSTR2(u"Cannot modify a constant {}"sv, GetExactType(arr)), var);
     if (arg.IsCustomType<xcomp::GeneralVecRef>())
     {
         const auto other = ToArray(arg.GetCustom());
         if (arr.Length != other.Length)
-            COMMON_THROW(NailangRuntimeException, FMTSTR(u"vecref is assigned with different length, expect [{}] get [{}, {}]",
+            COMMON_THROW(NailangRuntimeException, FMTSTR2(u"vecref is assigned with different length, expect [{}] get [{}, {}]",
                 arr.Length, other.GetElementTypeName(), other.Length), var);
         for (size_t idx = 0; idx < arr.Length; ++idx)
             arr.Set(idx, other.Get(idx));
@@ -1550,7 +1555,7 @@ bool GeneralVecRef::HandleAssign(CustomVar& var, Arg arg)
             arr.Set(idx, arg);
         return true;
     }
-    COMMON_THROW(NailangRuntimeException, FMTSTR(u"vecref can only be set with vecref or single num, get [{}]", arg.GetTypeName()), var);
+    COMMON_THROW(NailangRuntimeException, FMTSTR2(u"vecref can only be set with vecref or single num, get [{}]", arg.GetTypeName()), var);
     return false;
 }
 CompareResult GeneralVecRef::CompareSameClass(const CustomVar& var, const CustomVar& other)

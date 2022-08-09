@@ -35,8 +35,9 @@ using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 
 
 #define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
-
+//#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
+#define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
+    .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
 
 
 NLCLExtension::NLCLExtension(NLCLContext& context) : xcomp::XCNLExtension(context), Context(context)
@@ -387,7 +388,7 @@ bool NLCLRawExecutor::HandleInstanceMeta(FuncPack& meta)
             ThrowByParamTypes<4>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String, Arg::Type::String });
             const auto space_ = meta.Params[0].GetStr().value();
             const auto space = KerArgSpaceParser(space_);
-            if (!space) NLRT_THROW_EX(fmt::format(u"Unrecognized KerArgSpace [{}]"sv, space_), meta);
+            if (!space) NLRT_THROW_EX(FMTSTR2(u"Unrecognized KerArgSpace [{}]"sv, space_), meta);
             const auto argType = meta.Params[1].GetStr().value();
             // const bool isPointer = !argType.empty() && argType.back() == U'*';
             const auto name = meta.Params[2].GetStr().value();
@@ -395,7 +396,7 @@ bool NLCLRawExecutor::HandleInstanceMeta(FuncPack& meta)
                 .Reduce([&](KerArgFlag flag, std::u32string_view part)
                     {
                         if (part == U"const"sv)     return flag | KerArgFlag::Const;
-                        NLRT_THROW_EX(fmt::format(u"Unrecognized KerArgFlag [{}]"sv, part), meta);
+                        NLRT_THROW_EX(FMTSTR2(u"Unrecognized KerArgFlag [{}]"sv, part), meta);
                         return flag;
                     }, KerArgFlag::None);
             kerCtx.AddArg(KerArgType::Simple, space.value(), ImgAccess::None, flags,
@@ -408,7 +409,7 @@ bool NLCLRawExecutor::HandleInstanceMeta(FuncPack& meta)
             const auto space_ = meta.Params[0].GetStr().value();
             const auto space = KerArgSpaceParser(space_);
             if (!space)
-                NLRT_THROW_EX(FMTSTR(u"Unrecognized KerArgSpace [{}]"sv, space_), meta);
+                NLRT_THROW_EX(FMTSTR2(u"Unrecognized KerArgSpace [{}]"sv, space_), meta);
             const auto argType = std::u32string(meta.Params[1].GetStr().value()) + U'*';
             const auto name = meta.Params[2].GetStr().value();
             const auto flags = common::str::SplitStream(meta.Params[3].GetStr().value(), U' ', false)
@@ -417,11 +418,11 @@ bool NLCLRawExecutor::HandleInstanceMeta(FuncPack& meta)
                         if (part == U"const"sv)     return flag | KerArgFlag::Const;
                         if (part == U"restrict"sv)  return flag | KerArgFlag::Restrict;
                         if (part == U"volatile"sv)  return flag | KerArgFlag::Volatile;
-                        NLRT_THROW_EX(FMTSTR(u"Unrecognized KerArgFlag [{}]"sv, part), meta);
+                        NLRT_THROW_EX(FMTSTR2(u"Unrecognized KerArgFlag [{}]"sv, part), meta);
                         return flag;
                     }, KerArgFlag::None);
             if (space.value() == KerArgSpace::Private)
-                NLRT_THROW_EX(FMTSTR(u"BufArg [{}] cannot be in private space: [{}]"sv, name, space_), meta);
+                NLRT_THROW_EX(FMTSTR2(u"BufArg [{}] cannot be in private space: [{}]"sv, name, space_), meta);
             kerCtx.AddArg(KerArgType::Buffer, space.value(), ImgAccess::None, flags,
                 common::str::to_string(name,    Encoding::UTF8, Encoding::UTF32),
                 common::str::to_string(argType, Encoding::UTF8, Encoding::UTF32));
@@ -431,7 +432,7 @@ bool NLCLRawExecutor::HandleInstanceMeta(FuncPack& meta)
             ThrowByParamTypes<3>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String });
             const auto access_ = meta.Params[0].GetStr().value();
             const auto access = ImgArgAccessParser(access_);
-            if (!access) NLRT_THROW_EX(fmt::format(u"Unrecognized ImgAccess [{}]"sv, access_), meta);
+            if (!access) NLRT_THROW_EX(FMTSTR2(u"Unrecognized ImgAccess [{}]"sv, access_), meta);
             const auto argType = meta.Params[1].GetStr().value();
             const auto name = meta.Params[2].GetStr().value();
             kerCtx.AddArg(KerArgType::Image, KerArgSpace::Global, access.value(), KerArgFlag::None,
@@ -497,7 +498,7 @@ const xcomp::XCNLExecutor& NLCLStructHandler::GetExecutor() const noexcept
 void NLCLStructHandler::OnNewField(xcomp::XCNLStruct& target, xcomp::XCNLStruct::Field& field, MetaSet&)
 {
     if (const auto dims = target.GetFieldDims(field); dims.Dims.size() > 1)
-        NLRT_THROW_EX(FMTSTR(u"Field [{}] is {}D-array, which is not supported.", target.GetFieldName(field), dims.Dims.size()));
+        NLRT_THROW_EX(FMTSTR2(u"Field [{}] is {}D-array, which is not supported.", target.GetFieldName(field), dims.Dims.size()));
 }
 
 void NLCLStructHandler::OutputStruct(const xcomp::XCNLStruct& target, std::u32string& output)
@@ -619,7 +620,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
             HashCase(extra, U"volatile")    flag |= KerArgFlag::Volatile; break;
             HashCase(extra, U"global")      space = KerArgSpace::Global; break;
             HashCase(extra, U"local")       space = KerArgSpace::Local; break;
-            HashCase(extra, U"private")     NLRT_THROW_EX(FMTSTR(u"BufArg [{}] cannot be in private space"sv, arg.Name), meta); break;
+            HashCase(extra, U"private")     NLRT_THROW_EX(FMTSTR2(u"BufArg [{}] cannot be in private space"sv, arg.Name), meta); break;
             default:                        unknwonExtra.append(extra).append(U"], ["); break;
             }
         }
@@ -636,7 +637,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     case InstanceArgInfo::Types::TypedBuf:
     {
         if (!Context.Device->SupportImage)
-            NLRT_THROW_EX(FMTSTR(u"Device [{}] does not support TypedArg [{}]"sv, Context.Device->Name, arg.Name), meta);
+            NLRT_THROW_EX(FMTSTR2(u"Device [{}] does not support TypedArg [{}]"sv, Context.Device->Name, arg.Name), meta);
         const auto access = PrepareImgAccess(u"TypedArg");
         std::u32string unknwonExtra;
         for (const auto& extra : arg.Extra)
@@ -682,7 +683,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     case InstanceArgInfo::Types::Texture:
     {
         if (!Context.Device->SupportImage)
-            NLRT_THROW_EX(FMTSTR(u"Device [{}] does not support ImgArg [{}]"sv, Context.Device->Name, arg.Name), meta);
+            NLRT_THROW_EX(FMTSTR2(u"Device [{}] does not support ImgArg [{}]"sv, Context.Device->Name, arg.Name), meta);
         const auto access = PrepareImgAccess(u"ImgArg");
         std::string_view tname;
         switch (arg.TexType)
@@ -692,7 +693,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         case InstanceArgInfo::TexTypes::Tex3D:      tname = "image3d_t"sv; break;
         case InstanceArgInfo::TexTypes::Tex1DArray: tname = "image1d_array_t"sv; break;
         case InstanceArgInfo::TexTypes::Tex2DArray: tname = "image2d_array_t"sv; break;
-        default: NLRT_THROW_EX(FMTSTR(u"ImgArg [{}] has unsupported type"sv, arg.Name), meta); break;
+        default: NLRT_THROW_EX(FMTSTR2(u"ImgArg [{}] has unsupported type"sv, arg.Name), meta); break;
         }
         std::u32string unknwonExtra;
         for (const auto& extra : arg.Extra)

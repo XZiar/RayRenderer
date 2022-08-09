@@ -1,5 +1,6 @@
 #include "XCompDebugExt.h"
 #include "Nailang/NailangRuntime.h"
+#include "SystemCommon/StringFormat.h"
 #include "common/math/VecBase.hpp"
 #include "common/math/VecSIMD.hpp"
 #include "common/math/MatBase.hpp"
@@ -10,6 +11,7 @@ namespace xcomp::debug
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 
+#define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 #define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException, __VA_ARGS__))
 
@@ -103,7 +105,7 @@ static NamedVecPair GenerateInput(XCNLRuntime& runtime, std::u32string_view str,
             for (size_t i = 1; i < name.size() && pass;)
                 pass &= restCheck(name[i++]);
             if (!pass)
-                runtime.NLRT_THROW_EX(FMTSTR(u"Arg name [{}] is not acceptable", name));
+                runtime.NLRT_THROW_EX(FMTSTR2(u"Arg name [{}] is not acceptable", name));
         }
         str.remove_prefix(idx + 1);
     }
@@ -125,7 +127,7 @@ void XCNLDebugExt::DefineMessage(XCNLExecutor& executor, const xziar::nailang::F
     for (const auto& arg : common::to_span(func.Params).subspan(2))
     {
         if (!arg.IsStr())
-            runtime.NLRT_THROW_EX(FMTSTR(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]",
+            runtime.NLRT_THROW_EX(FMTSTR2(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]",
                 i, arg.GetTypeName()), func);
         argInfos.push_back(GenerateInput(runtime, arg.GetStr().value(), [&]()
             {
@@ -133,7 +135,7 @@ void XCNLDebugExt::DefineMessage(XCNLExecutor& executor, const xziar::nailang::F
             }));
     }
     if (!DebugInfos.try_emplace(std::u32string(id), formatter, std::move(argInfos)).second)
-        runtime.NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), func);
+        runtime.NLRT_THROW_EX(FMTSTR2(u"DebugString [{}] repeately defined"sv, id), func);
 }
 
 const XCNLDebugExt::DbgContent& XCNLDebugExt::DefineMessage(XCNLRawExecutor& executor, std::u32string_view func, const common::span<const std::u32string_view> args)
@@ -144,7 +146,7 @@ const XCNLDebugExt::DbgContent& XCNLDebugExt::DefineMessage(XCNLRawExecutor& exe
     if (args.size() % 2)
         runtime.NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugStr] requires even number of args, which gives [{}]."sv, args.size()));
     if (args[1].size() < 2 || args[1].front() != U'"' || args[1].back() != U'"')
-        runtime.NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugStr]'s arg[1] expects to a string with \", get [{}]", args[1]));
+        runtime.NLRT_THROW_EX(FMTSTR2(u"Repalcer-Func [DebugStr]'s arg[1] expects to a string with \", get [{}]", args[1]));
     const auto id = args[0], formatter = args[1].substr(1, args[1].size() - 2);
 
     std::vector<NamedVecPair> types;
@@ -159,7 +161,7 @@ const XCNLDebugExt::DbgContent& XCNLDebugExt::DefineMessage(XCNLRawExecutor& exe
     }
     const auto [info, ret] = DebugInfos.try_emplace(std::u32string(id), formatter, std::move(types));
     if (!ret)
-        runtime.NLRT_THROW_EX(FMTSTR(u"DebugString [{}] repeately defined", id));
+        runtime.NLRT_THROW_EX(FMTSTR2(u"DebugString [{}] repeately defined", id));
     return info->second;
 }
 

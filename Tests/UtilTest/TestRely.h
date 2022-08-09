@@ -3,6 +3,7 @@
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/ConsoleEx.h"
+#include "SystemCommon/Format.h"
 #include "SystemCommon/StringFormat.h"
 #include "common/TimeUtil.hpp"
 #include "common/ResourceHelper.h"
@@ -15,6 +16,9 @@
 #include <cinttypes>
 #include "resource.h"
 
+#define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
+#define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
+    .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
 
 common::fs::path FindPath();
 const std::vector<std::string_view>& GetCmdArgs();
@@ -29,7 +33,7 @@ inline const common::console::ConsoleEx& GetConsole()
 void PrintException(const common::BaseException& be, std::u16string_view info);
 void ClearReturn();
 
-char GetIdx36(const size_t idx);
+char16_t GetIdx36(const size_t idx);
 uint32_t Select36(const size_t size);
 template<typename T, typename F>
 forceinline uint32_t SelectIdx(const T& container, std::u16string_view name, F&& printer)

@@ -14,7 +14,7 @@
 #endif
 
 
-namespace common::str::exp
+namespace common::str
 {
 using namespace std::string_view_literals;
 
@@ -102,11 +102,19 @@ ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<Char>& strIn
                 for (const auto ch : name_)
                     name.push_back(static_cast<char>(ch));
             }
+            std::u16string errMsg = u"NamedArg [";
+            errMsg.append(name.begin(), name.end());
             if (namedRet.GiveIndex) // type mismatch
-                COMMON_THROW(BaseException, FMTSTR(u"NamedArg [{}] type mismatch"sv, name_)).Attach("arg", name)
-                .Attach("argType", std::pair{ namedArg.Type, ArgInfo::CleanRealType(argInfo.NamedTypes[*namedRet.GiveIndex]) });
+            {
+                errMsg.append(u"] type mismatch"sv);
+                COMMON_THROW(BaseException, errMsg).Attach("arg", name)
+                    .Attach("argType", std::pair{ namedArg.Type, ArgInfo::CleanRealType(argInfo.NamedTypes[*namedRet.GiveIndex]) });
+            }
             else // arg not found
-                COMMON_THROW(BaseException, FMTSTR(u"NamedArg [{}] not found in args"sv, name_)).Attach("arg", name);
+            {
+                errMsg.append(u"] not found in args"sv);
+                COMMON_THROW(BaseException, errMsg).Attach("arg", name);
+            }
         }
         Ensures(!namedRet.GiveIndex);
         mapper = namedRet.Mapper;

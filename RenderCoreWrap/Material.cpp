@@ -42,7 +42,7 @@ TexMap::TexMap(dizz::TexHolder& holder, const std::shared_ptr<dizz::ThumbnailMan
     if (Holder.index() != 0)
     {
         const auto texsize = Holder.GetSize();
-        const auto strBuffer = common::str::exp::Formatter<char16_t>{}.FormatDynamic(u"{}x{}[{}]"sv,
+        const auto strBuffer = common::str::Formatter<char16_t>{}.FormatDynamic(u"{}x{}[{}]"sv,
             texsize.first, texsize.second, xziar::img::TexFormatUtil::GetFormatName(Holder.GetInnerFormat()));
         description = ToStr(strBuffer);
         if (thumbman)

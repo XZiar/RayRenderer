@@ -1,14 +1,16 @@
 #pragma once
 
 #include "SystemCommonRely.h"
+#include "common/StrBase.hpp"
 #include "common/RefHolder.hpp"
+#include "common/SharedString.hpp"
 #include <optional>
 #include <variant>
 #include <chrono>
 #include <ctime>
 #include <boost/container/small_vector.hpp>
 
-namespace common::str::exp
+namespace common::str
 {
 
 
@@ -1310,6 +1312,22 @@ struct CompactDate
 template<typename T>
 inline auto FormatAs(const T& arg);
 
+template<typename Char>
+inline auto FormatAs(const StrVariant<Char>& arg)
+{
+    return arg.View;
+}
+template<typename Char>
+inline auto FormatAs(const HashedStrView<Char>& arg)
+{
+    return arg.View;
+}
+template<typename Char>
+inline auto FormatAs(const SharedString<Char>& arg)
+{
+    return static_cast<std::basic_string_view<Char>>(arg);
+}
+
 namespace detail
 {
 template<typename T>
@@ -1748,7 +1766,7 @@ protected:
     SYSCOMMONAPI virtual void PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date);
 public:
     template<typename T, typename... Args>
-    forceinline std::basic_string<Char> FormatStatic(T&& res, Args&&... args)
+    forceinline void FormatToStatic(std::basic_string<Char>& dst, T&& res, Args&&... args)
     {
         static_assert(std::is_same_v<typename std::decay_t<T>::CharType, Char>);
         // const auto strInfo = res.ToStrArgInfo();
@@ -1756,21 +1774,32 @@ public:
         constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
         auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
         argPack.Mapper = mapping;
-        std::basic_string<Char> ret;
-        FormatterBase::FormatTo<Char>(*this, ret, res, ArgsInfo, argPack);
-        return ret;
+        FormatterBase::FormatTo<Char>(*this, dst, res, ArgsInfo, argPack);
     }
     template<typename... Args>
-    forceinline std::basic_string<Char> FormatDynamic(std::basic_string_view<Char> format, Args&&... args)
+    forceinline void FormatToDynamic(std::basic_string<Char>& dst, std::basic_string_view<Char> format, Args&&... args)
     {
         const auto result = ParseResult::ParseString<Char>(format);
+        ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
         const auto res = result.ToInfo(format);
         constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
         const auto mapping = ArgChecker::CheckDD(res, ArgsInfo);
         auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
         argPack.Mapper = mapping;
+        FormatterBase::FormatTo<Char>(*this, dst, res, ArgsInfo, argPack);
+    }
+    template<typename T, typename... Args>
+    forceinline std::basic_string<Char> FormatStatic(T&& res, Args&&... args)
+    {
         std::basic_string<Char> ret;
-        FormatterBase::FormatTo<Char>(*this, ret, res, ArgsInfo, argPack);
+        FormatToStatic(ret, std::forward<T>(res), std::forward<Args>(args)...);
+        return ret;
+    }
+    template<typename... Args>
+    forceinline std::basic_string<Char> FormatDynamic(std::basic_string_view<Char> format, Args&&... args)
+    {
+        std::basic_string<Char> ret;
+        FormatToDynamic(ret, format, std::forward<Args>(args)...);
         return ret;
     }
 };
@@ -1823,23 +1852,22 @@ struct FormatterBase::StaticExecutor
     return ret;                                                         \
 }
 
-#define FmtString(str_) []()                                        \
-{                                                                   \
-    using ParseResult = common::str::exp::ParseResult;              \
-    using Char = std::decay_t<decltype(str_[0])>;                   \
-    constexpr auto Data          = ParseResult::ParseString(str_);  \
-    constexpr auto OpCount       = Data.OpCount;                    \
-    constexpr auto NamedArgCount = Data.NamedArgCount;              \
-    constexpr auto IdxArgCount   = Data.IdxArgCount;                \
-    ParseResult::CheckErrorCompile<Data.ErrorPos, OpCount>();       \
-    struct Type : public common::str::exp::TrimedResult<            \
-        Char, OpCount, NamedArgCount, IdxArgCount>                  \
-    {                                                               \
-        using CharTyp2 = Char;                                      \
-        constexpr Type() noexcept : TrimedResult(                   \
-            ParseResult::ParseString(str_), str_) {}                \
-    };                                                              \
-    return Type{};                                                  \
+#define FmtString(str_) []()                                                    \
+{                                                                               \
+    using FMT_P = common::str::ParseResult;                                     \
+    using FMT_C = std::decay_t<decltype(str_[0])>;                              \
+    constexpr auto Data    = FMT_P::ParseString(str_);                          \
+    constexpr auto OpCount = Data.OpCount;                                      \
+    constexpr auto NACount = Data.NamedArgCount;                                \
+    constexpr auto IACount = Data.IdxArgCount;                                  \
+    FMT_P::CheckErrorCompile<Data.ErrorPos, OpCount>();                         \
+    using FMT_T = common::str::TrimedResult<FMT_C, OpCount, NACount, IACount>;  \
+    struct FMT_Type : public FMT_T                                              \
+    {                                                                           \
+        using CharType = FMT_C;                                                 \
+        constexpr FMT_Type() noexcept : FMT_T(FMT_P::ParseString(str_), str_) {}\
+    };                                                                          \
+    return FMT_Type{};                                                          \
 }()
 
 }

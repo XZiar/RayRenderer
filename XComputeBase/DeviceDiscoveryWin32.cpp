@@ -272,7 +272,7 @@ struct CommonInfoHelper
 
 #define FAILED_CONTINUE(eval, ...) if (const common::HResultHolder hr___ = eval; !hr___)    \
 {                                                                                           \
-    console.Print(common::CommonColor::BrightRed, fmt::format(__VA_ARGS__, hr___.ToStr())); \
+    console.Print(common::CommonColor::BrightRed, common::str::Formatter<char16_t>{}.FormatDynamic(__VA_ARGS__, hr___.ToStr())); \
     continue;                                                                               \
 }
 

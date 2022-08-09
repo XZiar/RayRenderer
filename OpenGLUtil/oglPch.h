@@ -1,6 +1,7 @@
 #pragma once
 #include "oglRely.h"
 #include "GLFuncWrapper.h"
+#include "SystemCommon/Format.h"
 #include "SystemCommon/StringFormat.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/DynamicLibrary.h"
@@ -22,6 +23,7 @@
 #include <algorithm>
 
 
+#define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 #define DEFINE_FUNC(func, name) using T_P##name = decltype(&func); static constexpr auto N_##name = #func ""sv
 #define DEFINE_FUNC2(type, func, name) using T_P##name = type; static constexpr auto N_##name = #func ""sv
 #define DECLARE_FUNC(name) T_P##name name = nullptr

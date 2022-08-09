@@ -151,7 +151,7 @@ protected:
     std::set<std::shared_ptr<LoggerBackend>> Outputer;
 
     template<typename Char>
-    SYSCOMMONAPI LogMessage* GenerateMessage(const LogLevel level, const str::exp::StrArgInfoCh<Char>& strInfo, const str::exp::ArgInfo& argInfo, const str::exp::ArgPack& argPack) const;
+    SYSCOMMONAPI LogMessage* GenerateMessage(const LogLevel level, const str::StrArgInfoCh<Char>& strInfo, const str::ArgInfo& argInfo, const str::ArgPack& argPack) const;
     template<typename Char>
     SYSCOMMONAPI LogMessage* GenerateMessage(const LogLevel level, const std::basic_string_view<Char> str) const;
 
@@ -223,9 +223,9 @@ public:
 
         LogMessage* msg = nullptr;
         using U = std::decay_t<T>;
-        if constexpr (common::is_specialization<U, common::str::exp::StrArgInfoCh>::value)
+        if constexpr (common::is_specialization<U, common::str::StrArgInfoCh>::value)
         {
-            using namespace str::exp;
+            using namespace str;
             using Char = typename U::CharType;
 
             constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
@@ -235,9 +235,9 @@ public:
 
             msg = GenerateMessage(level, formatter, ArgsInfo, argPack);
         }
-        else if constexpr (std::is_base_of_v<common::str::exp::CompileTimeFormatter, U>)
+        else if constexpr (std::is_base_of_v<common::str::CompileTimeFormatter, U>)
         {
-            using namespace str::exp;
+            using namespace str;
             using Char = typename U::CharType;
 
             constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
@@ -256,7 +256,7 @@ public:
             }
             else
             {
-                using namespace str::exp;
+                using namespace str;
                 using Char = typename decltype(fmtSv)::value_type;
                 constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
 

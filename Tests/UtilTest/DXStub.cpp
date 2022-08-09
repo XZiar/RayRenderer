@@ -27,7 +27,6 @@ static MiniLogger<false>& log()
     static MiniLogger<false> logger(u"DXStub", { GetConsoleBackend() });
     return logger;
 }
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 namespace
 {
@@ -356,8 +355,8 @@ static void DXStub()
         };
         const auto devidx = isAuto ? 0u : SelectIdx(devs, u"device", [&](DxDevice dev)
             {
-                return FMTSTR(u"[{}][@{:1}]{} \t {:5}{{SM{}.{}}}[{:2}|{:3}|{:3}]", 
-                    dev->PCIEAddress, dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : '_', dev->AdapterName, 
+                return FMTSTR2(u"[{}][@{:1}]{} \t {:5}{{SM{}.{}}}[{:2}|{:3}|{:3}]", 
+                    dev->PCIEAddress.ToString(), dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : u'_', dev->AdapterName,
                     GetFeatLvStr(dev->FeatureLevel), dev->SMVer / 10, dev->SMVer % 10, 
                     dev->IsSoftware ? u"SW"sv : u"HW"sv, dev->IsTBR ? u"TBR"sv : u""sv, dev->IsUMA ? u"UMA"sv : u""sv);
             });

@@ -384,7 +384,7 @@ void MultiMaterialHolder::Refresh()
         {
             texarr = oglu::oglTex2DArray_::Create(tid.Info.Width, tid.Info.Height, (uint16_t)(texs.size()), tid.Info.Format, tid.Info.Mipmap);
             const auto[w, h, l] = texarr->GetSize();
-            texarr->SetName(FMTSTR(u"MatTexArr {}@{}x{}x{}", xziar::img::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()),
+            texarr->SetName(FMTSTR2(u"MatTexArr {}@{}x{}x{}", xziar::img::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()),
                 w, h, l));
         }
         texarr->SetProperty(oglu::TextureFilterVal::BothLinear, oglu::TextureWrapVal::Repeat);

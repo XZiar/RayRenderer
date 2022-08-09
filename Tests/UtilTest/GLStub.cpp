@@ -155,7 +155,7 @@ static void OGLStub()
     {
         const auto ldridx = SelectIdx(loaders, u"loader", [&](const auto& loader)
             {
-                return FMTSTR(u"[{}] {}", loader->Name(), loader->Description());
+                return FMTSTR2(u"[{}] {}", loader->Name(), loader->Description());
             });
 
         auto& loader = *loaders[ldridx];

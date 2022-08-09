@@ -1,5 +1,7 @@
 #pragma once
 #include "DxRely.h"
+#include "SystemCommon/Format.h"
+#include "SystemCommon/StringFormat.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/ThreadEx.h"
@@ -30,6 +32,7 @@
 #undef MemoryBarrier
 
 
+#define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 #define THROW_HR(eval, msg) if (const common::HResultHolder hr___ = eval; !hr___) COMMON_THROWEX(DxException, hr___, msg)
 
 

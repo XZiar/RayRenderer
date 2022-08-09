@@ -36,7 +36,9 @@ using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
+//#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
+#define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
+    .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
 
 
 std::string_view NLDXStruct::GetLayoutName() const noexcept
@@ -373,7 +375,7 @@ std::unique_ptr<xcomp::XCNLStruct> NLDXStructHandler::GenerateStruct(std::u32str
             else if (layout == U"structbuf"sv)
                 ret->Layout = NLDXStruct::LayoutTarget::StructBuf;
             else
-                NLRT_THROW_EX(FMTSTR(u"Unrecognized layout [{}] for struct [{}]."sv,
+                NLRT_THROW_EX(FMTSTR2(u"Unrecognized layout [{}] for struct [{}]."sv,
                     layout, name), meta);
         }
     }
@@ -386,7 +388,7 @@ void NLDXStructHandler::OnNewField(xcomp::XCNLStruct& target_, xcomp::XCNLStruct
     if (field.Type.IsCustomType())
     {
         if (const auto& fType = static_cast<const NLDXStruct&>(*GetCustomStructs()[field.Type.ToIndex()]); fType.Layout != target.Layout)
-            NLRT_THROW_EX(FMTSTR(u"Field [{}] is custom type [{}] of layout [{}], which not the same as target struct [{}] of layout [{}]."sv,
+            NLRT_THROW_EX(FMTSTR2(u"Field [{}] is custom type [{}] of layout [{}], which not the same as target struct [{}] of layout [{}]."sv,
                 target.GetFieldName(field), fType.GetName(), fType.GetLayoutName(), target.GetName(), target.GetLayoutName()));
     }
     if (target.Layout == NLDXStruct::LayoutTarget::ConstBuf)
@@ -407,7 +409,7 @@ void NLDXStructHandler::OnNewField(xcomp::XCNLStruct& target_, xcomp::XCNLStruct
                 dim.StrideAlign = static_cast<uint16_t>(curAlign);
                 curAlign *= dim.Size;
                 if (curAlign >= UINT16_MAX)
-                    NLRT_THROW_EX(FMTSTR(u"Field [{}]'s array size exceed limit at dim[{}], get[{}].", target.GetFieldName(field), idx, curAlign));
+                    NLRT_THROW_EX(FMTSTR2(u"Field [{}]'s array size exceed limit at dim[{}], get[{}].", target.GetFieldName(field), idx, curAlign));
             }
         }
     }
@@ -547,7 +549,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
                     auto& target = pool[idx];
                     const char kerIdChar = static_cast<char>(kerCtx.KernelId);
                     if (target.KernelIds.find(kerIdChar) != std::string::npos)
-                        NLRT_THROW_EX(FMTSTR(u"Arg [{}] has already been referenced for kernel [{}]."sv,
+                        NLRT_THROW_EX(FMTSTR2(u"Arg [{}] has already been referenced for kernel [{}]."sv,
                             arg.Name, kerCtx.InsatnceName), meta);
                     target.KernelIds.push_back(kerIdChar);
                     return true;
@@ -591,7 +593,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     if (const auto pfx_##name = U"" STRINGIZE(name) "="sv; IsBeginWith(*extra, pfx_##name)) \
     {                                                                                       \
         if (!ParseNumber(extra->substr(pfx_##name.size()), name))                           \
-            NLRT_THROW_EX(FMTSTR(u"BufArg [{}] has invalid flag on [{}]: [{}]."sv,          \
+            NLRT_THROW_EX(FMTSTR2(u"BufArg [{}] has invalid flag on [{}]: [{}]."sv,         \
                 arg.Name, U"" STRINGIZE(name) ""sv, *extra), meta);                         \
             extra.SetFlag(true);                                                            \
     }
@@ -628,13 +630,13 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         if (isCBuffer)
         {
             if (isWritable)
-                NLRT_THROW_EX(FMTSTR(u"RawBufArg [{}] cannot be writable since it's in shader constants"sv, arg.Name), meta);
+                NLRT_THROW_EX(FMTSTR2(u"RawBufArg [{}] cannot be writable since it's in shader constants"sv, arg.Name), meta);
             // cbuffer array supported by SM5.1
             // https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html#constant-buffers
             /*if (count > 1)
                 NLRT_THROW_EX(FMTSTR(u"RawBufArg [{}] cannot be array since it's flagged as cbuffer"sv, arg.Name), meta);*/
             if (Context.FindStruct(arg.DataType) == SIZE_MAX)
-                NLRT_THROW_EX(FMTSTR(u"RawBufArg [{}] has unrecoginized struct datatype [{}]"sv, arg.Name, arg.DataType), meta);
+                NLRT_THROW_EX(FMTSTR2(u"RawBufArg [{}] has unrecoginized struct datatype [{}]"sv, arg.Name, arg.DataType), meta);
         }
         Context.AddResource(source, kerCtx.KernelId, to_string(arg.Name, Encoding::UTF8), to_string(arg.DataType, Encoding::UTF8),
             space, reg, count, arg.TexType, type);
@@ -650,7 +652,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     case InstanceArgInfo::Types::Simple:
     {
         if (HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write))
-            NLRT_THROW_EX(FMTSTR(u"SimpleArg [{}] cannot be writable since it's in shader constants"sv, arg.Name), meta);
+            NLRT_THROW_EX(FMTSTR2(u"SimpleArg [{}] cannot be writable since it's in shader constants"sv, arg.Name), meta);
         const auto [space, reg, count] = ParseCommonInfo();
         Context.AddConstant(source, kerCtx.KernelId, to_string(arg.Name, Encoding::UTF8), to_string(arg.DataType, Encoding::UTF8), count);
     } return;

@@ -135,7 +135,7 @@ static void WDHost()
     }
     const auto whbidx = SelectIdx(backends, u"backend", [&](const auto& backend)
         {
-            return FMTSTR(u"[{}] {:2}|{:4}|{:2}|{:2}|{:2}", backend->Name(),
+            return FMTSTR2(u"[{}] {:2}|{:4}|{:2}|{:2}|{:2}", backend->Name(),
                 backend->CheckFeature("OpenGL")     ? u"GL"   : u"",
                 backend->CheckFeature("OpenGLES")   ? u"GLES" : u"",
                 backend->CheckFeature("DirectX")    ? u"DX"   : u"",

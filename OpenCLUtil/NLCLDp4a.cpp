@@ -95,7 +95,7 @@ ReplaceResult NLCLDp4aExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executor, s
     {
         executor.ThrowByReplacerArgCount(func, args, 4, ArgLimits::AtLeast);
         if (const auto signedness = SignednessParser(args[0]); !signedness.has_value())
-            executor.NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [Dp4a]'s arg[0] expects to a string of {{uu,us,su,ss}}, get [{}]", args[0]));
+            executor.NLRT_THROW_EX(FMTSTR2(u"Repalcer-Func [Dp4a]'s arg[0] expects to a string of {{uu,us,su,ss}}, get [{}]", args[0]));
         else
         {
             bool isSat = false, isPacked = false;

@@ -27,7 +27,7 @@ public:
         using namespace common::file;
         FileOutputStream mtlFile(FileObject::OpenThrow(PathMtl, OpenFlag::CreateNewBinary));
         mtlFile.WriteFrom(BOM_UTF16LE);
-        const auto header = fmt::format(u"#XZiar Dizz Renderer MTL Exporter\r\n#Created at {:%Y-%m-%d %H:%M:%S}\r\n\r\n", 
+        const auto header = FMTSTR2(u"#XZiar Dizz Renderer MTL Exporter\r\n#Created at {:T%Y-%m-%d %H:%M:%S}\r\n\r\n", 
             common::SimpleTimer::getCurLocalTime());
         mtlFile.Write(header.size() * sizeof(char16_t), header.data());
     }
@@ -36,7 +36,7 @@ public:
         using namespace common::file;
         FileOutputStream objFile(FileObject::OpenThrow(PathObj, OpenFlag::CreateNewBinary));
         objFile.WriteFrom(BOM_UTF16LE);
-        const auto header = fmt::format(u"#XZiar Dizz Renderer OBJ Exporter\r\n#Created at {:%Y-%m-%d %H:%M:%S}\r\n\r\n", 
+        const auto header = FMTSTR2(u"#XZiar Dizz Renderer OBJ Exporter\r\n#Created at {:T%Y-%m-%d %H:%M:%S}\r\n\r\n",
             common::SimpleTimer::getCurLocalTime());
         objFile.Write(header.size() * sizeof(char16_t), header.data());
     }

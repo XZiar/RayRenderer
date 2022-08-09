@@ -123,7 +123,7 @@ static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const RunI
         size_t idx = 0;
         for (const auto& conf : info.Configs)
         {
-            GetConsole().Print(common::CommonColor::BrightWhite, FMTSTR(u"[{:3}] {}\n", idx++, conf.Name));
+            GetConsole().Print(common::CommonColor::BrightWhite, FMTSTR2(u"[{:3}] {}\n", idx++, conf.Name));
         }
     }
     while (true)
@@ -392,8 +392,8 @@ static void OCLStub()
         const auto devidx = SelectIdx(allDevs, u"device", [&](const auto& devpair)
             {
                 const auto& [dev, idx] = devpair;
-                return FMTSTR(u"[{}][@{:1}][plat{:2}]{}  {{{} | {}}}\t[{} CU]", 
-                    dev->PCIEAddress, dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : '_',
+                return FMTSTR2(u"[{}][@{:1}][plat{:2}]{}  {{{} | {}}}\t[{} CU]", 
+                    dev->PCIEAddress.ToString(), dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : u'_',
                     idx, dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits);
             });
         const auto dev = allDevs[devidx].first;

@@ -1,5 +1,6 @@
 #include "SystemCommonPch.h"
 #include "DynamicLibrary.h"
+#include "Format.h"
 #include "Exceptions.h"
 #include "StackTrace.h"
 #include "StringConvert.h"
@@ -11,13 +12,16 @@ namespace common
 {
 
 #if COMMON_OS_WIN
-#define THROW_ERR(...) do                                                                                           \
-{                                                                                                                   \
-    const auto err = Win32ErrorHolder::GetLastError();                                                              \
-	COMMON_THROWEX(BaseException, fmt::format(__VA_ARGS__)).Attach("errcode", err).Attach("detail", err.ToStr());   \
+#define THROW_ERR(syntax, ...) do                                   \
+{                                                                   \
+    const auto err = Win32ErrorHolder::GetLastError();              \
+	COMMON_THROWEX(BaseException, str::Formatter<char16_t>{}        \
+        .FormatStatic(FmtString(syntax), __VA_ARGS__))              \
+        .Attach("errcode", err).Attach("detail", err.ToStr());      \
 } while(0)
 #else
-#define THROW_ERR(...) COMMON_THROWEX(BaseException, fmt::format(__VA_ARGS__)).Attach("detail", str::to_u16string(dlerror()))
+#define THROW_ERR(syntax, ...) COMMON_THROWEX(BaseException, str::Formatter<char16_t>{}    \
+    .FormatStatic(FmtString(syntax), __VA_ARGS__)).Attach("detail", str::to_u16string(dlerror()))
 #endif
 
 void* DynLib::TryOpen(const char* path) noexcept

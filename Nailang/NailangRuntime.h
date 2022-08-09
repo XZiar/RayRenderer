@@ -232,7 +232,7 @@ class NAILANGAPI NailangFormatException : public NailangRuntimeException
     );
 public:
     NailangFormatException(const std::u32string_view formatter, const std::runtime_error& err);
-    NailangFormatException(const std::u32string_view formatter, const Arg& arg, const std::u16string_view reason = u"");
+    NailangFormatException(const std::u32string_view formatter, const Arg* arg, const std::u16string_view reason = u"");
 };
 
 class NAILANGAPI NailangCodeException : public NailangRuntimeException

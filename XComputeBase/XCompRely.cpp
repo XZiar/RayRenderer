@@ -6,6 +6,7 @@
 
 #pragma message("Compiling miniBLAS with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
+#define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 
 
 namespace xcomp
@@ -13,6 +14,14 @@ namespace xcomp
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 using common::simd::VecDataInfo;
+
+
+
+
+std::string PCI_BDF::ToString() const noexcept
+{
+    return FMTSTR("{:02X}:{:02X}.{:1X}", Bus(), Device(), Function());
+}
 
 
 #define GENV(dtype, bit, n, least) VTypeInfo{ common::simd::VecDataInfo::DataTypes::dtype, n, 0, bit, least ? VTypeInfo::TypeFlags::MinBits : VTypeInfo::TypeFlags::Empty }
@@ -126,15 +135,15 @@ const CommonDeviceInfo* LocateDevice(const std::array<std::byte, 8>* luid,
         {
             if (pcie && *pcie != ret->PCIEAddress)
                 console.Print(common::CommonColor::BrightYellow, 
-                    fmt::format(u"Found pcie-addr mismatch for device [{}]({}) to [{}]({})\n",
-                        name, *pcie, ret->Name, ret->PCIEAddress));
+                    FMTSTR2(u"Found pcie-addr mismatch for device [{}]({}) to [{}]({})\n"sv,
+                        name, pcie->ToString(), ret->Name, ret->PCIEAddress.ToString()));
             if (luid && *luid != ret->Luid)
                 console.Print(common::CommonColor::BrightYellow,
-                    fmt::format(u"Found luid mismatch for device [{}]({}) to [{}]({})\n",
+                    FMTSTR2(u"Found luid mismatch for device [{}]({}) to [{}]({})\n"sv,
                         name, common::MiscIntrin.HexToStr(*luid), ret->Name, common::MiscIntrin.HexToStr(ret->Luid)));
             if (guid && *guid != ret->Guid)
                 console.Print(common::CommonColor::BrightYellow,
-                    fmt::format(u"Found guid mismatch for device [{}]({}) to [{}]({})\n",
+                    FMTSTR2(u"Found guid mismatch for device [{}]({}) to [{}]({})\n"sv,
                         name, common::MiscIntrin.HexToStr(*guid), ret->Name, common::MiscIntrin.HexToStr(ret->Guid)));
             return ret;
         }

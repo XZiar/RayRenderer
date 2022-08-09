@@ -31,6 +31,7 @@ common::span<const CommonDeviceInfo> ProbeDevice()
 namespace xcomp
 {
 using namespace std::string_view_literals;
+#define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 
 common::span<const CommonDeviceInfo> ProbeDevice()
 {
@@ -79,7 +80,7 @@ common::span<const CommonDeviceInfo> ProbeDevice()
                     if (fd == -1)
                     {
                         const auto err = common::ErrnoHolder::GetCurError();
-                        console.Print(common::CommonColor::BrightYellow, fmt::format(u"Failed when open device node [{}]: [{}]{}\n"sv, node, err, err.Value));
+                        console.Print(common::CommonColor::BrightYellow, FMTSTR2(u"Failed when open device node [{}]: [{}]{}\n"sv, node, err.ToStr(), err.Value));
                     }
                     else
                     {

@@ -11,7 +11,7 @@
 
 using namespace std::string_literals;
 using namespace std::string_view_literals;
-using namespace common::str::exp;
+using namespace common::str;
 using common::BaseException;
 
 
@@ -468,7 +468,7 @@ struct TypeA
 };
 struct TypeB
 {};
-namespace common::str::exp
+namespace common::str
 {
 template<> inline auto FormatAs<TypeB>(const TypeB&) { return 3.0f; }
 }

@@ -3,6 +3,10 @@
 #include "SystemCommon/ConsoleEx.h"
 #include "Nailang/NailangAutoVar.h"
 
+#define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
+#define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
+    .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
+
 using namespace xziar::nailang;
 using namespace xcomp;
 using namespace std::string_view_literals;
@@ -17,7 +21,7 @@ void PrintCommonDevice()
         for (const auto& dev : xcomp::ProbeDevice())
         {
             APPEND_FMT(str, u"[{}][VID {:#010x} DID {:#010x}]{} [{}][{}]\n"sv,
-                dev.PCIEAddress, dev.VendorId, dev.DeviceId, dev.Name, 
+                dev.PCIEAddress.ToString(), dev.VendorId, dev.DeviceId, dev.Name,
                 common::MiscIntrin.HexToStr(dev.Guid), common::MiscIntrin.HexToStr(dev.Luid));
         }
         common::console::ConsoleEx::Get().Print(common::CommonColor::BrightWhite, str);
@@ -65,11 +69,11 @@ struct XCStubHelper::RunConfigVar : public xziar::nailang::AutoVarHandler<RunCon
                         argHandler.SetAssigner([&](RunArgInfo& arg, Arg val)
                             {
                                 if (!val.IsCustomType<ArgWrapperHandler>())
-                                    COMMON_THROW(xziar::nailang::NailangRuntimeException, FMTSTR(u"Arg can only be set with ArgWrapper, get [{}]", val.GetTypeName()));
+                                    COMMON_THROW(xziar::nailang::NailangRuntimeException, FMTSTR2(u"Arg can only be set with ArgWrapper, get [{}]", val.GetTypeName()));
                                 const auto& var = val.GetCustom();
                                 const auto type = static_cast<RunArgInfo::ArgType>(var.Meta2);
                                 if (!Helper.CheckType(arg, type))
-                                    COMMON_THROW(xziar::nailang::NailangRuntimeException, FMTSTR(u"Arg is set with incompatible value, type [{}] get [{}]",
+                                    COMMON_THROW(xziar::nailang::NailangRuntimeException, FMTSTR2(u"Arg is set with incompatible value, type [{}] get [{}]",
                                         Helper.GetRealTypeName(arg), RunArgInfo::GetTypeName(type)));
                                 arg.Val0 = static_cast<uint32_t>(var.Meta0);
                                 arg.Val1 = static_cast<uint32_t>(var.Meta1);
@@ -120,7 +124,7 @@ public:
                 const auto kerName = common::str::to_string(func.Params[1].GetStr().value(), Encoding::UTF8);
                 const auto cookie = Helper.TryFindKernel(Context, kerName);
                 if (!cookie.has_value())
-                    COMMON_THROW(NailangRuntimeException, FMTSTR(u"Does not found kernel [{}]", kerName));
+                    COMMON_THROW(NailangRuntimeException, FMTSTR2(u"Does not found kernel [{}]", kerName));
                 auto& config = Info.Configs.emplace_back(name, kerName);
                 Helper.FillArgs(config.Args, cookie);
                 return Helper.RunConfigHandler->CreateVar(config);
@@ -162,7 +166,7 @@ public:
                     const auto val = func.Params[0].GetUint().value();
                     return ArgWrapperHandler::CreateVal64(gsl::narrow_cast<uint64_t>(val));
                 }
-                executor.HandleException(CREATE_EXCEPTION(NailangRuntimeException, FMTSTR(u"Unknown type for ValArg [{}]", type)));
+                executor.HandleException(CREATE_EXCEPTION(NailangRuntimeException, FMTSTR2(u"Unknown type for ValArg [{}]", type)));
             }
         }
         return {};

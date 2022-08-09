@@ -1,6 +1,5 @@
 #pragma once
 #include "SystemCommonRely.h"
-#include "StringFormat.h"
 #include "common/FileBase.hpp"
 
 namespace common

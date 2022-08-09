@@ -10,6 +10,7 @@
 
 namespace xziar::nailang
 {
+using namespace std::string_literals;
 using namespace std::string_view_literals;
 using common::DJBHash;
 using common::str::HashedStrView;
@@ -19,12 +20,18 @@ using common::str::HashedStrView;
 
 COMMON_EXCEPTION_IMPL(NailangRuntimeException)
 
+static std::u16string AppendString(std::u16string_view base, std::string_view add) noexcept
+{
+    return std::u16string(base).append(add.begin(), add.end());
+}
+
 COMMON_EXCEPTION_IMPL(NailangFormatException)
 NailangFormatException::NailangFormatException(const std::u32string_view formatter, const std::runtime_error& err)
-    : NailangRuntimeException(T_<ExceptionInfo>{}, FMTSTR(u"Error when formating string: {}"sv, err.what()), formatter)
+    : NailangRuntimeException(T_<ExceptionInfo>{}, AppendString(u"Error when formating string: {}"sv, err.what()), formatter)
 { }
-NailangFormatException::NailangFormatException(const std::u32string_view formatter, const Arg& arg, const std::u16string_view reason)
-    : NailangRuntimeException(T_<ExceptionInfo>{}, FMTSTR(u"Error when formating string: {}"sv, reason), formatter, arg)
+NailangFormatException::NailangFormatException(const std::u32string_view formatter, const Arg* arg, const std::u16string_view reason)
+    : NailangRuntimeException(T_<ExceptionInfo>{}, u"Error when formating string: {}"s.append(reason), formatter, 
+        arg ? *arg : detail::ExceptionTarget{})
 { }
 
 COMMON_EXCEPTION_IMPL(NailangCodeException)
@@ -207,7 +214,7 @@ size_t NailangHelper::BiDirIndexCheck(const size_t size, const Arg& idx, const E
 {
     if (!idx.IsInteger())
     {
-        auto err = FMTSTR(u"Require integer as indexer, get[{}]"sv, idx.GetTypeName());
+        auto err = FMTSTR2(u"Require integer as indexer, get[{}]"sv, idx.GetTypeName());
         if (src)
             COMMON_THROWEX(NailangRuntimeException, err, *src);
         else
@@ -365,13 +372,13 @@ static common::StackTraceItem CreateStack(const RawBlock* block, const common::S
 {
     if (!block)
         return { fname, u"<empty raw block>"sv, 0 };
-    return { fname, FMTSTR(u"<Raw>{}"sv, block->Name), block->Position.first };
+    return { fname, FMTSTR2(u"<Raw>{}"sv, block->Name), block->Position.first };
 }
 static common::StackTraceItem CreateStack(const Block* block, const common::SharedString<char16_t>& fname) noexcept
 {
     if (!block)
         return { fname, u"<empty block>"sv, 0 };
-    return { fname, FMTSTR(u"<Block>{}"sv, block->Name), block->Position.first };
+    return { fname, FMTSTR2(u"<Block>{}"sv, block->Name), block->Position.first };
 }
 std::vector<common::StackTraceItem> NailangFrameStack::CollectStacks() const noexcept
 {
@@ -452,14 +459,14 @@ void NailangBase::ThrowByArgCount(const FuncCall& call, const size_t count, cons
         if (call.Args.size() >= count) return;
         prefix = U"at least"; break;
     }
-    NLRT_THROW_EX(FMTSTR(u"Func [{}] requires {} [{}] args, which gives [{}].", call.FullFuncName(), prefix, count, call.Args.size()),
+    NLRT_THROW_EX(FMTSTR2(u"Func [{}] requires {} [{}] args, which gives [{}].", call.FullFuncName(), prefix, count, call.Args.size()),
         detail::ExceptionTarget{}, call);
 }
 void NailangBase::ThrowByArgType(const FuncCall& func, const Expr::Type type, size_t idx) const
 {
     const auto& arg = func.Args[idx];
     if (arg.TypeData != type && type != Expr::Type::Empty)
-        NLRT_THROW_EX(FMTSTR(u"Expected [{}] for [{}]'s {} arg-expr, which gives [{}], source is [{}].",
+        NLRT_THROW_EX(FMTSTR2(u"Expected [{}] for [{}]'s {} arg-expr, which gives [{}], source is [{}].",
             Expr::TypeName(type), func.FullFuncName(), idx, arg.GetTypeName(), Serializer::Stringify(arg)),
             arg);
 }
@@ -487,7 +494,7 @@ void NailangBase::ThrowByParamType(const FuncCall& func, const Arg& arg, const A
         const auto type_ = arg.IsCustom() ? arg.GetCustom().Call<&CustomVar::Handler::QueryConvertSupport>() : arg.TypeData;
         if (HAS_FIELD(type_, type)) return;
     }
-    NLRT_THROW_EX(FMTSTR(u"Expected [{}] for [{}]'s {} arg, which gives [{}], source is [{}].",
+    NLRT_THROW_EX(FMTSTR2(u"Expected [{}] for [{}]'s {} arg, which gives [{}], source is [{}].",
         Arg::TypeName(type), func.FullFuncName(), idx, arg.GetTypeName(), Serializer::Stringify(func.Args[idx])),
         arg);
 }
@@ -503,50 +510,113 @@ void NailangBase::ThrowIfNotFuncTarget(const FuncCall& call, const FuncName::Fun
 {
     if (call.Name->Info() != type)
     {
-        NLRT_THROW_EX(FMTSTR(u"Func [{}] only support as [{}], get[{}].", call.FullFuncName(), FuncTypeName(type), FuncTypeName(call.Name->Info())),
+        NLRT_THROW_EX(FMTSTR2(u"Func [{}] only support as [{}], get[{}].", call.FullFuncName(), FuncTypeName(type), FuncTypeName(call.Name->Info())),
             call);
     }
 }
 void NailangBase::ThrowIfStatement(const FuncCall& meta, const Statement& target, const Statement::Type type) const
 {
     if (target.TypeData == type)
-        NLRT_THROW_EX(FMTSTR(u"Metafunc [{}] cannot be appllied to [{}].", meta.FullFuncName(), ContentTypeName(type)),
+        NLRT_THROW_EX(FMTSTR2(u"Metafunc [{}] cannot be appllied to [{}].", meta.FullFuncName(), ContentTypeName(type)),
             meta);
 }
 void NailangBase::ThrowIfNotStatement(const FuncCall& meta, const Statement& target, const Statement::Type type) const
 {
     if (target.TypeData != type)
-        NLRT_THROW_EX(FMTSTR(u"Metafunc [{}] can only be appllied to [{}].", meta.FullFuncName(), ContentTypeName(type)),
+        NLRT_THROW_EX(FMTSTR2(u"Metafunc [{}] can only be appllied to [{}].", meta.FullFuncName(), ContentTypeName(type)),
             meta);
 }
 bool NailangBase::ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const
 {
     const auto ret = arg.GetBool();
     if (!ret.has_value())
-        NLRT_THROW_EX(FMTSTR(u"[{}] should be bool-able, which is [{}].", varName, arg.GetTypeName()),
+        NLRT_THROW_EX(FMTSTR2(u"[{}] should be bool-able, which is [{}].", varName, arg.GetTypeName()),
             arg);
     return ret.value();
 }
 
-std::u32string NailangBase::FormatString(const std::u32string_view formatter, common::span<const Arg> args)
+struct NailangFormatExecutor final : public common::str::FormatterExecutor, public common::str::Formatter<char32_t>
 {
-    fmt::dynamic_format_arg_store<fmt::u32format_context> store;
-    for (const auto& arg : args)
+    using CTX = common::str::FormatterExecutor::Context;
+    struct Context : public CTX
     {
+        std::u32string Dst;
+        std::u32string_view FmtStr;
+        common::span<const Arg> Args;
+        Context(std::u32string_view fmtstr, common::span<const Arg> args) noexcept : FmtStr(fmtstr), Args(args)
+        { }
+    };
+
+    void OnFmtStr(CTX& ctx, uint32_t offset, uint32_t length) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        context.Dst.append(context.FmtStr.substr(offset, length));
+    }
+    void OnBrace(CTX& ctx, bool isLeft) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        context.Dst.push_back(isLeft ? '{' : '}');
+    }
+    void OnColor(CTX& ctx, common::ScreenColor color) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        PutColor(context.Dst, color);
+    }
+    void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, const common::str::FormatSpec* spec) final
+    {
+        Expects(!isNamed);
+        auto& context = static_cast<Context&>(ctx);
+        const auto& arg = context.Args[argIdx];
         switch (arg.TypeData)
         {
-        case Arg::Type::Bool:   store.push_back(arg.GetVar<Arg::Type::Bool >()); break;
-        case Arg::Type::Uint:   store.push_back(arg.GetVar<Arg::Type::Uint >()); break;
-        case Arg::Type::Int:    store.push_back(arg.GetVar<Arg::Type::Int  >()); break;
-        case Arg::Type::FP:     store.push_back(arg.GetVar<Arg::Type::FP   >()); break;
-        case Arg::Type::U32Sv:  store.push_back(arg.GetVar<Arg::Type::U32Sv>()); break;
-        case Arg::Type::U32Str: store.push_back(std::u32string(arg.GetVar<Arg::Type::U32Str>())); break;
-        default: HandleException(CREATE_EXCEPTIONEX(NailangFormatException, formatter, arg, u"Unsupported DataType")); break;
+        case Arg::Type::Bool:   PutString (context.Dst, arg.GetVar<Arg::Type::Bool>() ? U"true"sv : U"false"sv, spec); break;
+        case Arg::Type::Uint:   PutInteger(context.Dst, arg.GetVar<Arg::Type::Uint, false>(), false, spec); break;
+        case Arg::Type::Int:    PutInteger(context.Dst, arg.GetVar<Arg::Type::Uint, false>(),  true, spec); break;
+        case Arg::Type::FP:     PutFloat  (context.Dst, arg.GetVar<Arg::Type::FP>(), spec); break;
+        case Arg::Type::U32Sv:  PutString (context.Dst, arg.GetVar<Arg::Type::U32Sv>(), spec); break;
+        case Arg::Type::U32Str: PutString (context.Dst, arg.GetVar<Arg::Type::U32Str>(), spec); break;
+        default: break;
         }
     }
+    using FormatterBase::Execute;
+};
+static NailangFormatExecutor NLFmtExecutor;
+
+std::u32string NailangBase::FormatString(const std::u32string_view formatter, common::span<const Arg> args)
+{
+    using namespace common::str;
+    const auto result = ParseResult::ParseString<char32_t>(formatter);
     try
     {
-        return fmt::vformat(formatter, store);
+        ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
+        const auto strInfo = result.ToInfo(formatter);
+        ArgInfo argsInfo;
+        for (const auto& arg : args)
+        {
+            switch (arg.TypeData)
+            {
+            case Arg::Type::Bool:   ArgInfo::ParseAnArg<bool                >(argsInfo); break;
+            case Arg::Type::Uint:   ArgInfo::ParseAnArg<uint64_t            >(argsInfo); break;
+            case Arg::Type::Int:    ArgInfo::ParseAnArg<int64_t             >(argsInfo); break;
+            case Arg::Type::FP:     ArgInfo::ParseAnArg<double              >(argsInfo); break;
+            case Arg::Type::U32Sv:  ArgInfo::ParseAnArg<std::u32string_view >(argsInfo); break;
+            case Arg::Type::U32Str: ArgInfo::ParseAnArg<std::u32string_view >(argsInfo); break;
+            default: HandleException(CREATE_EXCEPTIONEX(NailangFormatException, formatter, &arg, u"Unsupported DataType")); break;
+            }
+        }
+        /*const auto mapping = */ArgChecker::CheckDD(strInfo, argsInfo);
+
+        NailangFormatExecutor::Context ctx{ formatter, args };
+        uint32_t opOffset = 0;
+        while (opOffset < strInfo.Opcodes.size())
+        {
+            NailangFormatExecutor::Execute<common::str::FormatterExecutor>(strInfo.Opcodes, opOffset, NLFmtExecutor, ctx);
+        }
+        return ctx.Dst;
+    }
+    catch (const common::BaseException& be)
+    {
+        HandleException(CREATE_EXCEPTIONEX(NailangFormatException, formatter, nullptr, be.Message()));
     }
     catch (const fmt::format_error& err)
     {
@@ -591,7 +661,7 @@ LateBindVar NailangBase::DecideDynamicVar(const Expr& arg, const std::u16string_
         return name;
     }
     default:
-        NLRT_THROW_EX(FMTSTR(u"[{}] only accept [Var]/[String], which gives [{}].", reciever, arg.GetTypeName()),
+        NLRT_THROW_EX(FMTSTR2(u"[{}] only accept [Var]/[String], which gives [{}].", reciever, arg.GetTypeName()),
             arg);
         break;
     }
@@ -852,7 +922,7 @@ Arg NailangExecutor::EvaluateFunc(const FuncCall& func, EvalTempStore& store, Me
     const auto fullName = func.FullFuncName();
     if (func.Name->IsMeta())
     {
-        NLRT_THROW_EX(FMTSTR(u"MetaFunc [{}] can not be evaluated here.", fullName), func);
+        NLRT_THROW_EX(FMTSTR2(u"MetaFunc [{}] can not be evaluated here.", fullName), func);
     }
     NailangFrame::FuncInfoHolder holder(&GetFrame(), &func);
     // only for plain function
@@ -947,7 +1017,7 @@ Arg NailangExecutor::EvaluateExtendMathFunc(FuncEvalPack& func)
             const auto& left = func.Params[maxIdx], &right = func.Params[i];
             const auto cmpRes = left.Compare(right);
             if (!cmpRes.HasOrderable())
-                NLRT_THROW_EX(FMTSTR(u"Cannot get [orderable] on type [{}],[{}]"sv, left.GetTypeName(), right.GetTypeName()), func);
+                NLRT_THROW_EX(FMTSTR2(u"Cannot get [orderable] on type [{}],[{}]"sv, left.GetTypeName(), right.GetTypeName()), func);
             if (cmpRes.GetResult() == CompareResultCore::Less) 
                 maxIdx = i;
         }
@@ -962,7 +1032,7 @@ Arg NailangExecutor::EvaluateExtendMathFunc(FuncEvalPack& func)
             const auto& left = func.Params[i], & right = func.Params[minIdx];
             const auto cmpRes = left.Compare(right);
             if (!cmpRes.HasOrderable())
-                NLRT_THROW_EX(FMTSTR(u"Cannot get [orderable] on type [{}],[{}]"sv, left.GetTypeName(), right.GetTypeName()), func);
+                NLRT_THROW_EX(FMTSTR2(u"Cannot get [orderable] on type [{}],[{}]"sv, left.GetTypeName(), right.GetTypeName()), func);
             if (cmpRes.GetResult() == CompareResultCore::Less)
                 minIdx = i;
         }
@@ -1122,7 +1192,7 @@ Arg NailangExecutor::EvaluateExtendMathFunc(FuncEvalPack& func)
         ThrowByParamTypes<1>(func, { Arg::Type::String });
         int64_t ret = 0;
         if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToInt(str, ret).first)
-            NLRT_THROW_EX(FMTSTR(u"Arg of [ParseInt] is not integer : [{}]"sv, str), func);
+            NLRT_THROW_EX(FMTSTR2(u"Arg of [ParseInt] is not integer : [{}]"sv, str), func);
         return ret;
     }
     HashCase(mathName, U"ParseUint")
@@ -1130,7 +1200,7 @@ Arg NailangExecutor::EvaluateExtendMathFunc(FuncEvalPack& func)
         ThrowByParamTypes<1>(func, { Arg::Type::String });
         uint64_t ret = 0;
         if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToInt(str, ret).first)
-            NLRT_THROW_EX(FMTSTR(u"Arg of [ParseUint] is not integer : [{}]"sv, str), func);
+            NLRT_THROW_EX(FMTSTR2(u"Arg of [ParseUint] is not integer : [{}]"sv, str), func);
         return ret;
     }
     HashCase(mathName, U"ParseFloat")
@@ -1138,7 +1208,7 @@ Arg NailangExecutor::EvaluateExtendMathFunc(FuncEvalPack& func)
         ThrowByParamTypes<1>(func, { Arg::Type::String });
         double ret = 0;
         if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToFP(str, ret, false).first)
-            NLRT_THROW_EX(FMTSTR(u"Arg of [ParseFloat] is not floatpoint : [{}]"sv, str), func);
+            NLRT_THROW_EX(FMTSTR2(u"Arg of [ParseFloat] is not floatpoint : [{}]"sv, str), func);
         return ret;
     }
     HashCase(mathName, U"ParseSciFloat")
@@ -1146,12 +1216,12 @@ Arg NailangExecutor::EvaluateExtendMathFunc(FuncEvalPack& func)
         ThrowByParamTypes<1>(func, { Arg::Type::String });
         double ret = 0;
         if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToFP(str, ret, true).first)
-            NLRT_THROW_EX(FMTSTR(u"Arg of [ParseFloat] is not scientific floatpoint : [{}]"sv, str), func);
+            NLRT_THROW_EX(FMTSTR2(u"Arg of [ParseFloat] is not scientific floatpoint : [{}]"sv, str), func);
         return ret;
     }
     default: return {};
     }
-    NLRT_THROW_EX(FMTSTR(u"MathFunc [{}] cannot be evaluated.", func.FullFuncName()), func);
+    NLRT_THROW_EX(FMTSTR2(u"MathFunc [{}] cannot be evaluated.", func.FullFuncName()), func);
     //return {};
 }
 Arg NailangExecutor::EvaluateLocalFunc(const LocalFunc& func, FuncEvalPack& pack)
@@ -1169,7 +1239,7 @@ Arg NailangExecutor::EvaluateLocalFunc(const LocalFunc& func, FuncEvalPack& pack
 }
 Arg NailangExecutor::EvaluateUnknwonFunc(FuncEvalPack& func)
 {
-    NLRT_THROW_EX(FMTSTR(u"Func [{}] with [{}] args cannot be resolved.", func.FullFuncName(), func.Args.size()), func);
+    NLRT_THROW_EX(FMTSTR2(u"Func [{}] with [{}] args cannot be resolved.", func.FullFuncName(), func.Args.size()), func);
     //return {};
 }
 
@@ -1188,12 +1258,12 @@ Arg NailangExecutor::EvaluateUnaryExpr(const UnaryExpr& expr, EvalTempStore& sto
         auto val = EvaluateExpr(expr.Operand, store);
         auto ret = val.HandleUnary(expr.Operator);
         if (ret.IsEmpty())
-            NLRT_THROW_EX(FMTSTR(u"Cannot perform unary expr [{}] on type [{}]"sv,
+            NLRT_THROW_EX(FMTSTR2(u"Cannot perform unary expr [{}] on type [{}]"sv,
                 EmbedOpHelper::GetOpName(expr.Operator), val.GetTypeName()), Expr(&expr));
         return ret;
     }
     default:
-        NLRT_THROW_EX(FMTSTR(u"Unexpected unary op [{}]"sv, EmbedOpHelper::GetOpName(expr.Operator)), Expr(&expr));
+        NLRT_THROW_EX(FMTSTR2(u"Unexpected unary op [{}]"sv, EmbedOpHelper::GetOpName(expr.Operator)), Expr(&expr));
         //return {};
     }
 }
@@ -1236,7 +1306,7 @@ Arg NailangExecutor::EvaluateBinaryExpr(const BinaryExpr& expr, EvalTempStore& s
     Arg ret = left.HandleBinary(expr.Operator, right);
     if (!ret.IsEmpty())
         return ret;
-    NLRT_THROW_EX(FMTSTR(u"Cannot perform binary expr [{}] on type [{}],[{}]"sv,
+    NLRT_THROW_EX(FMTSTR2(u"Cannot perform binary expr [{}] on type [{}],[{}]"sv,
         EmbedOpHelper::GetOpName(expr.Operator), left.GetTypeName(), right.GetTypeName()), Expr(&expr));
     //return {};
 }
@@ -1248,6 +1318,17 @@ Arg NailangExecutor::EvaluateTernaryExpr(const TernaryExpr& expr, EvalTempStore&
     return EvaluateExpr(selected, store);
 }
 
+static std::u16string_view EvaluateQueryCheck(Arg& next, bool forWrite)
+{
+    if (next.IsEmpty())
+        return u"Does not exists"sv;
+    if (forWrite && !MATCH_FIELD(next.GetAccess(), ArgAccess::Mutable))
+        return u"Can not assgin to immutable's";
+    else if (!forWrite && !HAS_FIELD(next.GetAccess(), ArgAccess::Readable))
+        return u"Can not access an get-host's";
+    return {};
+}
+
 template<typename T, Arg(Arg::* F)(SubQuery<T>&)>
 Arg NailangExecutor::EvaluateQuery(Arg target, SubQuery<T> query, EvalTempStore& store, bool forWrite)
 {
@@ -1255,12 +1336,12 @@ Arg NailangExecutor::EvaluateQuery(Arg target, SubQuery<T> query, EvalTempStore&
     while (true)
     {
         auto next = (target.*F)(query);
-        if (next.IsEmpty())
-            NLRT_THROW_EX(FMTSTR(u"Does not exists [{}]", Serializer::Stringify(query)));
-        if (forWrite && !MATCH_FIELD(next.GetAccess(), ArgAccess::Mutable))
-            NLRT_THROW_EX(FMTSTR(u"Can not assgin to immutable's [{}]", Serializer::Stringify(query)));
-        else if (!forWrite && !HAS_FIELD(next.GetAccess(), ArgAccess::Readable))
-            NLRT_THROW_EX(FMTSTR(u"Can not access an get-host's [{}]", Serializer::Stringify(query)));
+        if (const auto errMsg = EvaluateQueryCheck(next, forWrite); !errMsg.empty())
+        {
+            NLRT_THROW_EX(FMTSTR2(u"{} [{}]", errMsg, Serializer::Stringify(query)));
+            /*const auto queryStr = Serializer::Stringify(query);
+            ThrowEvaluateQueryException(*this, errMsg, queryStr);*/
+        }
         if (query.Size() > 0)
         {
             next.Decay();
@@ -1291,12 +1372,12 @@ void NailangExecutor::EvaluateAssign(const AssignExpr& assign, EvalTempStore& st
         target = EvaluateExpr(assign.Target, store, true);
     }
     if (!MATCH_FIELD(target.GetAccess(), ArgAccess::Assignable))
-        NLRT_THROW_EX(FMTSTR(u"Target [{}] is not assignable"sv, Serializer::Stringify(assign.Target)));
+        NLRT_THROW_EX(FMTSTR2(u"Target [{}] is not assignable"sv, Serializer::Stringify(assign.Target)));
     bool assignRet = false;
     if (assign.IsSelfAssign)
     {
         if (!HAS_FIELD(target.GetAccess(), ArgAccess::Readable))
-            NLRT_THROW_EX(FMTSTR(u"Target [{}] is not readable, request self assign on it"sv, Serializer::Stringify(assign.Target)));
+            NLRT_THROW_EX(FMTSTR2(u"Target [{}] is not readable, request self assign on it"sv, Serializer::Stringify(assign.Target)));
         auto tmp = target;
         tmp.Decay();
         assignRet = target.Set(tmp.HandleBinary(assignOp.value(), EvaluateExpr(assign.Statement, store)));
@@ -1304,7 +1385,7 @@ void NailangExecutor::EvaluateAssign(const AssignExpr& assign, EvalTempStore& st
     else
         assignRet = target.Set(EvaluateExpr(assign.Statement, store));
     if (!assignRet)
-        NLRT_THROW_EX(FMTSTR(u"Assign to target [{}] fails"sv, Serializer::Stringify(assign.Target)));
+        NLRT_THROW_EX(FMTSTR2(u"Assign to target [{}] fails"sv, Serializer::Stringify(assign.Target)));
 }
 
 void NailangExecutor::EvaluateRawBlock(const RawBlock&, common::span<const FuncCall>)
@@ -1425,7 +1506,7 @@ Arg NailangRuntime::LocateArg(const LateBindVar& var, const bool create) const
         if (auto theFrame = CurFrame(); theFrame)
             return theFrame->Context->LocateArg(var, create);
         else
-            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] without frame", var));
+            NLRT_THROW_EX(FMTSTR2(u"LookUpLocalArg [{}] without frame", var.Name));
         return {};
     }
 
@@ -1449,7 +1530,7 @@ Arg NailangRuntime::LocateArgForWrite(const LateBindVar& var, NilCheck nilCheck,
         case Behavior::Skip:
             return {};
         case Behavior::Throw:
-            NLRT_THROW_EX(FMTSTR(u"Var [{}] already exists"sv, var));
+            NLRT_THROW_EX(FMTSTR2(u"Var [{}] already exists"sv, var.Name));
             return {};
         default:
             return ret;
@@ -1463,11 +1544,11 @@ Arg NailangRuntime::LocateArgForWrite(const LateBindVar& var, NilCheck nilCheck,
             return {};
         case Behavior::Throw:
             if (extra.index() == 1)
-                NLRT_THROW_EX(FMTSTR(u"Var [{}] does not exists, expect perform [{}] on it"sv, 
-                    var, EmbedOpHelper::GetOpName(std::get<1>(extra))));
+                NLRT_THROW_EX(FMTSTR2(u"Var [{}] does not exists, expect perform [{}] on it"sv, 
+                    var.Name, EmbedOpHelper::GetOpName(std::get<1>(extra))));
             else
-                NLRT_THROW_EX(FMTSTR(u"Var [{}] does not exists{}"sv, 
-                    var, std::get<0>(extra) ? u""sv : u", expect perform subquery on it"sv));
+                NLRT_THROW_EX(FMTSTR2(u"Var [{}] does not exists{}"sv, 
+                    var.Name, std::get<0>(extra) ? u""sv : u", expect perform subquery on it"sv));
             return {};
         default:
             Expects(extra.index() == 1 || std::get<0>(extra) == false);
@@ -1479,14 +1560,14 @@ bool NailangRuntime::SetFunc(const Block* block, common::span<std::pair<std::u32
 {
     if (auto frame = CurFrame(); frame)
         return frame->Context->SetFunc(block, capture, args);
-    NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] without frame", block->Name));
+    NLRT_THROW_EX(FMTSTR2(u"SetFunc [{}] without frame", block->Name));
     return false;
 }
 bool NailangRuntime::SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args)
 {
     if (auto frame = CurFrame(); frame)
         return frame->Context->SetFunc(block, capture, args);
-    NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] without frame", block->Name));
+    NLRT_THROW_EX(FMTSTR2(u"SetFunc [{}] without frame", block->Name));
     return false;
 }
 
@@ -1501,11 +1582,11 @@ Arg NailangRuntime::LookUpArg(const LateBindVar& var, const bool checkNull) cons
     if (ret.IsEmpty())
     {
         if (checkNull)
-            NLRT_THROW_EX(FMTSTR(u"Var [{}] does not exist", var));
+            NLRT_THROW_EX(FMTSTR2(u"Var [{}] does not exist", var.Name));
         return {};
     }
     if (!HAS_FIELD(ret.GetAccess(), ArgAccess::Readable))
-        NLRT_THROW_EX(FMTSTR(u"LookUpArg [{}] get a unreadable result", var));
+        NLRT_THROW_EX(FMTSTR2(u"LookUpArg [{}] get a unreadable result", var.Name));
     ret.Decay();
     return ret;
 }

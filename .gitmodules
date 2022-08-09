@@ -6,7 +6,7 @@
 [submodule "3rdParty/fmt"]
 	shallow = true
 	path = 3rdParty/fmt
-	url = https://github.com/XZiar/fmt.git
+	url = https://github.com/fmtlib/fmt.git
 [submodule "3rdParty/digestpp"]
 	shallow = true
 	path = 3rdParty/digestpp

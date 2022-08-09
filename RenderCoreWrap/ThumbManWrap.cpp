@@ -21,7 +21,7 @@ TexHolder::TexHolder(const dizz::TexHolder& holder) : TypeId(static_cast<uint8_t
     }
     name = ToStr(holder.GetName());
     const auto size = holder.GetSize();
-    const auto strBuffer = common::str::exp::Formatter<char16_t>{}.FormatDynamic(u"{}x{}[Mip{}][{}]"sv,
+    const auto strBuffer = common::str::Formatter<char16_t>{}.FormatDynamic(u"{}x{}[Mip{}][{}]"sv,
         size.first, size.second, holder.GetMipmapCount(), xziar::img::TexFormatUtil::GetFormatName(holder.GetInnerFormat()));
     format = ToStr(strBuffer);
 }
