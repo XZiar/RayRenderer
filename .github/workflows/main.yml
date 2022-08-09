@@ -71,18 +71,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cxx: [gcc8, gcc9, gcc10, clang9, clang10, clang11]
+        cxx: [gcc9, gcc10, gcc11, clang9, clang10, clang11, clang12]
         include:
-          - cxx: gcc8
-            env_cc: "gcc-8"
-            env_asm: "g++-8"
-            env_cpp: "g++-8"
-            env_stalink: "gcc-ar-8"
-            env_dynlink: "g++-8"
-            env_applink: "g++-8"
-            env_module: "all"
-            env_clang: false
-            pkg: "g++-8"
           - cxx: gcc9
             env_cc: "gcc-9"
             env_asm: "g++-9"
@@ -103,6 +93,16 @@ jobs:
             env_module: "all"
             env_clang: false
             pkg: "g++-10"
+          - cxx: gcc11
+            env_cc: "gcc-11"
+            env_asm: "g++-11"
+            env_cpp: "g++-11"
+            env_stalink: "gcc-ar-11"
+            env_dynlink: "g++-11"
+            env_applink: "g++-11"
+            env_module: "all"
+            env_clang: false
+            pkg: "g++-11"
           - cxx: clang9
             env_cc: "clang-9"
             env_asm: "clang++-9"
@@ -136,6 +136,17 @@ jobs:
             env_clang: true
             env_clang_ver: 11
             pkg: "clang-11 lld-11"
+          - cxx: clang12
+            env_cc: "clang-12"
+            env_asm: "clang++-12"
+            env_cpp: "clang++-12"
+            env_stalink: "ar"
+            env_dynlink: "clang++-12"
+            env_applink: "clang++-12"
+            env_module: "all"
+            env_clang: true
+            env_clang_ver: 12
+            pkg: "clang-12 lld-12"
     
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -165,6 +176,7 @@ jobs:
 
       - name: Install packages
         run: | 
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt update -q
           [[ $(echo "$ubt_release >= 19.10" | bc -l) = 0 ]] && lrlver="7" || lrlver="8"
           sudo apt install util-linux nasm unzip python3 python3-pip ${{matrix.pkg}}

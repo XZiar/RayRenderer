@@ -5,6 +5,8 @@
 #include "StringConvert.h"
 #define HALF_ENABLE_F16C_INTRINSICS 0 // avoid platform compatibility
 #include "3rdParty/half/half.hpp"
+#include "3rdParty/fmt/src/format.cc"
+#pragma message("Compiling StringUtil with fmt[" STRINGIZE(FMT_VERSION) "]" )
 
 
 #if COMMON_COMPILER_MSVC

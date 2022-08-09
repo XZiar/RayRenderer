@@ -70,7 +70,7 @@ public:
     template<typename T, typename U>
     forceinline void ZExtCopy(T* const dest, const U* src, const size_t count) const noexcept
     {
-        constexpr size_t SizeT = sizeof(T), SizeU = sizeof(U);
+        [[maybe_unused]] constexpr size_t SizeT = sizeof(T), SizeU = sizeof(U);
         static_assert(SizeT >= SizeU);
         if constexpr (SizeT == SizeU)
         {
@@ -107,7 +107,7 @@ public:
     template<typename T, typename U>
     forceinline void SExtCopy(T* const dest, const U* src, const size_t count) const noexcept
     {
-        constexpr size_t SizeT = sizeof(T), SizeU = sizeof(U);
+        [[maybe_unused]] constexpr size_t SizeT = sizeof(T), SizeU = sizeof(U);
         static_assert(SizeT >= SizeU);
         if constexpr (SizeT == SizeU)
         {
@@ -144,7 +144,7 @@ public:
     template<typename T, typename U>
     forceinline void TruncCopy(T* const dest, const U* src, const size_t count) const noexcept
     {
-        constexpr size_t SizeT = sizeof(T), SizeU = sizeof(U);
+        [[maybe_unused]] constexpr size_t SizeT = sizeof(T), SizeU = sizeof(U);
         static_assert(SizeT <= SizeU);
         if constexpr (SizeT == SizeU)
         {

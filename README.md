@@ -56,10 +56,13 @@ To use `xzbuild`, python3.6+ is required.
 
 To build C++ parts, an C++17 compiler is needed. 
 
-For Windows, project uses `VisualStudio2019`, VS2019(`16.0`) is needed for the vcproj version.
+For Windows, project uses `VisualStudio2022`, VS2022(`17.0`) is needed for the vcproj version.
 
-For Linux, project uses [`xzbuild`](./xzbuild) (need python3.6+) with make. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on gcc(8\~10) and clang(9\~11).
-* Note that gcc7 has [compatibility issue](https://github.com/XZiar/RayRenderer/runs/3111404571?check_suite_focus=true#step:9:456) with SIMD.hpp and clang8 has [ICE](https://github.com/XZiar/RayRenderer/runs/3111404672#step:9:443) with SystemCommon, so **at least gcc8 & clang9** is required. 
+For Linux, project uses [`xzbuild`](./xzbuild) (need python3.6+) with make. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on gcc(9\~11) and clang(9\~12).
+### ICEs
+* **gcc7** has [compatibility issue](https://github.com/XZiar/RayRenderer/runs/3111404571#step:9:456) with SIMD.hpp
+* **clang8** has [ICE](https://github.com/XZiar/RayRenderer/runs/3111404672#step:9:443) with SystemCommon
+* **gcc8** has [ICE](https://github.com/XZiar/RayRenderer/runs/7739671224#step:12:201) with SystemCommonTest
 
 > Example usage of [`xzbuild`](./xzbuild)
 
@@ -94,7 +97,7 @@ python3 xzbuild buildall UtilTest
 
   [Boost Software License](./License/boost.txt)
 
-* [fmt](https://fmt.dev/) [`submodule`](https://github.com/XZiar/fmt) 9.0.0 (customized with utf-support)
+* [fmt](https://fmt.dev/) `submodule` 9.0.0
 
   [MIT License](https://github.com/XZiar/fmt/blob/master/LICENSE.rst)
 

@@ -66,9 +66,6 @@
     <ClCompile Include="StringDetect.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="StringFormat.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="DynamicLibrary.cpp">
       <Filter>源文件</Filter>
     </ClCompile>

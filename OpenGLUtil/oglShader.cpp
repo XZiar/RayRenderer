@@ -490,18 +490,13 @@ struct SubroutineItem
             if (!notReplace)
                 oglLog().Warning(u"Routine [{}]'s previous emulate info is overwrited, may cause bug.", SubroutineName);
         }
-        static thread_local std::vector<char> buf;
-        buf.reserve(100);
         {
-            buf.resize(0);
-            fmt::format_to(std::back_inserter(buf), entry, SubroutineName, RoutineVal, ReturnType, FuncParams, Routine);
-            lines[LineNum] = string(buf.data(), buf.size());
+            lines[LineNum] = common::str::Formatter<char>{}.FormatDynamic(entry, SubroutineName, RoutineVal, ReturnType, FuncParams, Routine);
+            //fmt::format_to(std::back_inserter(buf), entry, SubroutineName, RoutineVal, ReturnType, FuncParams, Routine);
         }
         for (const auto&[routine, rtline] : Routines)
         {
-            buf.resize(0);
-            fmt::format_to(std::back_inserter(buf), "{0}{1} {2}({3})", prefix, ReturnType, routine, FuncParams);
-            lines[rtline] = string(buf.data(), buf.size());
+            lines[rtline] = fmt::format("{0}{1} {2}({3})", prefix, ReturnType, routine, FuncParams);
         }
     }
     static std::optional<std::pair<string_view, string_view>> TryParseSubroutine(const string_view& line)
