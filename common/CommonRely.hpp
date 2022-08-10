@@ -126,8 +126,6 @@
 
 /* C++ language Test */
 
-#include <ciso646>
-
 #if COMMON_COMPILER_MSVC
 #   if defined(_MSVC_LANG)
 #       define COMMON_CPP_TIME _MSVC_LANG
@@ -138,6 +136,15 @@
 #   define COMMON_CPP_TIME __cplusplus
 #endif
 
+#if COMMON_CPP_TIME >= 202002L
+#   include <version>
+#else
+#   include <ciso646>
+#endif
+
+#if COMMON_CPP_TIME >= 202002L 
+#   define COMMON_CPP_20 1
+#endif
 #if COMMON_CPP_TIME >= 201703L 
 #   define COMMON_CPP_17 1
 #endif
@@ -151,6 +158,9 @@
 #   define COMMON_CPP_03 1
 #endif
 
+#ifndef COMMON_CPP_20
+#   define COMMON_CPP_20 0
+#endif
 #ifndef COMMON_CPP_17
 #   define COMMON_CPP_17 0
 #endif

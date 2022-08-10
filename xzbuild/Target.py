@@ -157,8 +157,8 @@ class CPPTarget(CXXTarget):
         super().solveTarget(targets, proj, env)
         self.flags += [env["stdlibarg"]]
         if self.version.endswith("c++20"):
-            if (env["compiler"] == "gcc" and env["gccVer"] <= 90000) or (env["compiler"] == "clang" and env["clangVer"] <= 90000):
-                self.version.replace("c++20", "c++2a")
+            if (env["compiler"] == "gcc" and env["gccVer"] < 100000) or (env["compiler"] == "clang" and env["clangVer"] < 100000):
+                self.version = self.version.replace("c++20", "c++2a")
         # it is agains c++ rules because class members also got influnced
         # https://stackoverflow.com/questions/48621251/why-fvisibility-inlines-hidden-is-not-the-default
         # if self.visibility == "hidden":

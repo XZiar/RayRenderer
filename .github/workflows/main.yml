@@ -35,7 +35,7 @@ jobs:
 
       - name: Cache boost library
         id: cache-boost
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/dependency/include/boost
           key: cache-boost-${{ env.boost_ver1 }}
@@ -50,7 +50,7 @@ jobs:
           
       - name: Cache ispc
         id: cache-ispc
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/dependency/bin/ispc
           key: cache-ispc-${{ env.ispc_ver }}
@@ -150,7 +150,7 @@ jobs:
     
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: "true"
           
@@ -185,14 +185,14 @@ jobs:
 
       - name: Cache boost library
         id: cache-boost
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/dependency/include/boost
           key: cache-boost-${{ env.boost_ver1 }}
           
       - name: Cache ispc
         id: cache-ispc
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/dependency/bin/ispc
           key: cache-ispc-${{ env.ispc_ver }}

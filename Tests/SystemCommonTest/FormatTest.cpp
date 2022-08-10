@@ -192,7 +192,7 @@ static void CheckIdxArgOp_(const ParseResult& ret, uint16_t& idx, uint8_t argidx
         uint8_t data[ParseResult::ArgOp::SpecLength[1]] = { 0 };
         const auto opcnt = ParseResult::ArgOp::EncodeSpec(*spec, data);
         common::span<const uint8_t> ref{ data, opcnt }, src{ ret.Opcodes + idx, opcnt };
-        EXPECT_THAT(src, testing::ContainerEq(ref));
+        EXPECT_THAT(src, testing::ElementsAreArray(ref));
         idx += opcnt;
     }
 }
@@ -207,7 +207,7 @@ static void CheckNamedArgOp_(const ParseResult& ret, uint16_t& idx, uint8_t argi
         uint8_t data[ParseResult::ArgOp::SpecLength[1]] = { 0 };
         const auto opcnt = ParseResult::ArgOp::EncodeSpec(*spec, data);
         common::span<const uint8_t> ref{ data, opcnt }, src{ ret.Opcodes + idx, opcnt };
-        EXPECT_THAT(src, testing::ContainerEq(ref));
+        EXPECT_THAT(src, testing::ElementsAreArray(ref));
         idx += opcnt;
     }
 }
