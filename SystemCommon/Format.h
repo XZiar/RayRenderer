@@ -1877,6 +1877,12 @@ struct CombinedExecutor : public FormatterExecutor, protected Fmter
         auto& context = static_cast<Context&>(ctx);
         Fmter::PutDateBase(context.Dst, fmtStr, date);
     }
+protected:
+    using Fmter::PutString;
+    using Fmter::PutInteger;
+    using Fmter::PutFloat;
+    using Fmter::PutPointer;
+    using Fmter::PutDate;
 private:
     void OnFmtStr(CTX& ctx, uint32_t offset, uint32_t length) final
     {
