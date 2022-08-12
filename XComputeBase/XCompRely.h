@@ -12,7 +12,7 @@
 
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/Exceptions.h"
-#include "SystemCommon/Format.h"
+#include "SystemCommon/FormatInclude.h"
 
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"
@@ -47,6 +47,7 @@ struct PCI_BDF
     constexpr explicit operator bool() const noexcept { return Val != 0 && Val != UINT16_MAX; }
     constexpr bool operator==(const PCI_BDF& other) const noexcept { return Val == other.Val; }
     constexpr bool operator!=(const PCI_BDF& other) const noexcept { return Val != other.Val; }
+    XCOMPBASAPI void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec* spec) const;
     XCOMPBASAPI std::string ToString() const noexcept;
 };
 

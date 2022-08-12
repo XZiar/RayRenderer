@@ -31,7 +31,7 @@ public:
     {
         if (const common::HResultHolder hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&Handle)); !hr)
         {
-            dxLog().Warning(u"Failed to get DXGraphicsAnalysis, [{}].\n", hr.ToStr());
+            dxLog().Warning(u"Failed to get DXGraphicsAnalysis, [{}].\n", hr);
         }
     }
     ~DxPixCapture() override {}

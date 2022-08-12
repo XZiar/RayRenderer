@@ -78,30 +78,19 @@ MessageBlock::MessageBlock(const uint8_t idx, const std::u32string_view name, co
         }(formatter)), DebugId(idx) 
 { }
 
-struct MessageFormatExecutor final : public common::str::FormatterExecutor, public common::str::Formatter<char>
+struct MessageFormatExecutor final : public common::str::CombinedExecutor<char, common::str::Formatter<char>>
 {
-    using CTX = common::str::FormatterExecutor::Context;
-    struct Context : public CTX
+    using Fmter = common::str::Formatter<char>;
+    using Base  = common::str::CombinedExecutor<char, Fmter>;
+    using CTX   = common::str::FormatterExecutor::Context;
+    struct Context : public Base::Context
     {
-        std::basic_string<char>& Dst;
-        std::basic_string_view<char> FmtStr;
         const ArgsLayout& Layout;
         common::span<const std::byte> Data;
         constexpr Context(std::basic_string<char>& dst, std::string_view fmtstr, const ArgsLayout& layout, common::span<const std::byte> data) noexcept :
-            Dst(dst), FmtStr(fmtstr), Layout(layout), Data(data)
-        { }
+            Base::Context(dst, fmtstr), Layout(layout), Data(data) { }
     };
 
-    void OnFmtStr(CTX& ctx, uint32_t offset, uint32_t length) final
-    {
-        auto& context = static_cast<Context&>(ctx);
-        context.Dst.append(context.FmtStr.substr(offset, length));
-    }
-    void OnBrace(CTX& ctx, bool isLeft) final
-    {
-        auto& context = static_cast<Context&>(ctx);
-        context.Dst.push_back(isLeft ? '{' : '}');
-    }
     void OnColor(CTX& ctx, common::ScreenColor color) final
     {
         auto& context = static_cast<Context&>(ctx);
@@ -127,29 +116,29 @@ struct MessageFormatExecutor final : public common::str::FormatterExecutor, publ
             case VecDataInfo::DataTypes::Float:
                 switch (item.Info.Bit)
                 {
-                case 16: PutFloat(context.Dst, static_cast<float>(reinterpret_cast<const half_float::half*>(data)[i]), spec); break;
-                case 32: PutFloat(context.Dst, reinterpret_cast<const float *>(data)[i], spec); break;
-                case 64: PutFloat(context.Dst, reinterpret_cast<const double*>(data)[i], spec); break;
+                case 16: Fmter::PutFloat(context.Dst, static_cast<float>(reinterpret_cast<const half_float::half*>(data)[i]), spec); break;
+                case 32: Fmter::PutFloat(context.Dst, reinterpret_cast<const float *>(data)[i], spec); break;
+                case 64: Fmter::PutFloat(context.Dst, reinterpret_cast<const double*>(data)[i], spec); break;
                 default: break;
                 }
                 break;
             case VecDataInfo::DataTypes::Unsigned:
                 switch (item.Info.Bit)
                 {
-                case  8: PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const uint8_t *>(data)[i]), false, spec); break;
-                case 16: PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const uint16_t*>(data)[i]), false, spec); break;
-                case 32: PutInteger(context.Dst, reinterpret_cast<const uint32_t*>(data)[i], false, spec); break;
-                case 64: PutInteger(context.Dst, reinterpret_cast<const uint64_t*>(data)[i], false, spec); break;
+                case  8: Fmter::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const uint8_t *>(data)[i]), false, spec); break;
+                case 16: Fmter::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const uint16_t*>(data)[i]), false, spec); break;
+                case 32: Fmter::PutInteger(context.Dst, reinterpret_cast<const uint32_t*>(data)[i], false, spec); break;
+                case 64: Fmter::PutInteger(context.Dst, reinterpret_cast<const uint64_t*>(data)[i], false, spec); break;
                 default: break;
                 }
                 break;
             case VecDataInfo::DataTypes::Signed:
                 switch (item.Info.Bit)
                 {
-                case  8: PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int8_t *>(data)[i]), true, spec); break;
-                case 16: PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int16_t*>(data)[i]), true, spec); break;
-                case 32: PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int32_t*>(data)[i]), true, spec); break;
-                case 64: PutInteger(context.Dst, static_cast<uint64_t>(reinterpret_cast<const int64_t*>(data)[i]), true, spec); break;
+                case  8: Fmter::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int8_t *>(data)[i]), true, spec); break;
+                case 16: Fmter::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int16_t*>(data)[i]), true, spec); break;
+                case 32: Fmter::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int32_t*>(data)[i]), true, spec); break;
+                case 64: Fmter::PutInteger(context.Dst, static_cast<uint64_t>(reinterpret_cast<const int64_t*>(data)[i]), true, spec); break;
                 default: break;
                 }
                 break;

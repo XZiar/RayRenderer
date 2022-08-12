@@ -80,7 +80,7 @@ common::span<const CommonDeviceInfo> ProbeDevice()
                     if (fd == -1)
                     {
                         const auto err = common::ErrnoHolder::GetCurError();
-                        console.Print(common::CommonColor::BrightYellow, FMTSTR2(u"Failed when open device node [{}]: [{}]{}\n"sv, node, err.ToStr(), err.Value));
+                        console.Print(common::CommonColor::BrightYellow, FMTSTR2(u"Failed when open device node [{}]: [{:#}]\n"sv, node, err));
                     }
                     else
                     {

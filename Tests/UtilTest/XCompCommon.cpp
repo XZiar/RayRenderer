@@ -21,7 +21,7 @@ void PrintCommonDevice()
         for (const auto& dev : xcomp::ProbeDevice())
         {
             APPEND_FMT(str, u"[{}][VID {:#010x} DID {:#010x}]{} [{}][{}]\n"sv,
-                dev.PCIEAddress.ToString(), dev.VendorId, dev.DeviceId, dev.Name,
+                dev.PCIEAddress, dev.VendorId, dev.DeviceId, dev.Name,
                 common::MiscIntrin.HexToStr(dev.Guid), common::MiscIntrin.HexToStr(dev.Luid));
         }
         common::console::ConsoleEx::Get().Print(common::CommonColor::BrightWhite, str);

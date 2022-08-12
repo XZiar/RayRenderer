@@ -1,5 +1,6 @@
 #pragma once
 #include "SystemCommonRely.h"
+#include "FormatInclude.h"
 
 namespace common
 {
@@ -15,6 +16,7 @@ struct HResultHolder
     constexpr HResultHolder(T hr) noexcept : Value(hr) {}
 
     [[nodiscard]] forceinline std::u16string ToStr() const { return FormatHr(Value); }
+    SYSCOMMONAPI void FormatWith(str::FormatterExecutor& executor, str::FormatterExecutor::Context& context, const str::FormatSpec* spec) const;
     constexpr HResultHolder& operator=(long hr) noexcept
     {
         Value = hr;
@@ -35,6 +37,7 @@ struct Win32ErrorHolder
     explicit constexpr Win32ErrorHolder(unsigned long err) noexcept : Value(err) {}
 
     [[nodiscard]] forceinline std::u16string ToStr() const { return FormatError(Value); }
+    SYSCOMMONAPI void FormatWith(str::FormatterExecutor& executor, str::FormatterExecutor::Context& context, const str::FormatSpec* spec) const;
     constexpr Win32ErrorHolder& operator=(unsigned long err) noexcept
     {
         Value = err;
@@ -58,6 +61,7 @@ struct ErrnoHolder
     constexpr ErrnoHolder(T err) noexcept : Value(err) {}
 
     [[nodiscard]] forceinline std::u16string ToStr() const { return FormatErrno(Value); }
+    SYSCOMMONAPI void FormatWith(str::FormatterExecutor& executor, str::FormatterExecutor::Context& context, const str::FormatSpec* spec) const;
     constexpr ErrnoHolder& operator=(int32_t err) noexcept
     {
         Value = err;

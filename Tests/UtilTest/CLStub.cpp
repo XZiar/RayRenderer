@@ -393,7 +393,7 @@ static void OCLStub()
             {
                 const auto& [dev, idx] = devpair;
                 return FMTSTR2(u"[{}][@{:1}][plat{:2}]{}  {{{} | {}}}\t[{} CU]", 
-                    dev->PCIEAddress.ToString(), dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : u'_',
+                    dev->PCIEAddress, dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : u'_',
                     idx, dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits);
             });
         const auto dev = allDevs[devidx].first;

@@ -117,7 +117,7 @@ DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device>
     }
     else
     {
-        dxLog().Warning(FmtString(u"Failed to check architecture: [{}, {}]"), feat1.HResult.ToStr(), feat2.HResult.ToStr());
+        dxLog().Warning(FmtString(u"Failed to check architecture: [{}, {}]"), feat1.HResult, feat2.HResult);
         COMMON_THROWEX(DxException, feat2.HResult, u"Failed to check architecture");
     }
 }
@@ -146,7 +146,7 @@ common::span<const DxDevice> DxDevice_::GetDevices()
             }
             else
             {
-                dxLog().Warning(u"Failed to enable debug layer: {}.\n", hr.ToStr());
+                dxLog().Warning(u"Failed to enable debug layer: {}.\n", hr);
             }
         }
 #endif
@@ -175,7 +175,7 @@ common::span<const DxDevice> DxDevice_::GetDevices()
                 }
             }
             Expects(!device);
-            dxLog().Warning(u"Failed to created device on [{}]:\n12_0: {}\nCore1_0: {}\n", name, hrs[0].ToStr(), hrs[1].ToStr());
+            dxLog().Warning(u"Failed to created device on [{}]:\n12_0: {}\nCore1_0: {}\n", name, hrs[0], hrs[1]);
             return nullptr;
         };
 

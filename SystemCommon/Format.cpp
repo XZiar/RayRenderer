@@ -132,6 +132,15 @@ template SYSCOMMONTPL ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const Str
 #endif
 
 
+void FormatterExecutor::OnBrace(Context& context, bool isLeft)
+{
+    PutString(context, isLeft ? "{"sv : "}"sv, nullptr);
+}
+void FormatterExecutor::OnColor(Context&, ScreenColor)
+{
+}
+
+
 struct FormatterHelper : public FormatterBase
 {
     template<typename Char>
@@ -446,6 +455,30 @@ void Formatter<Char>::PutDate(StrType& ret, std::basic_string_view<Char> fmtStr,
     PutDate_(ret, fmtStr, date);
 #endif
 }
+template<typename Char>
+void Formatter<Char>::PutDateBase(StrType& ret, std::string_view fmtStr, const std::tm& date)
+{
+    if constexpr (sizeof(Char) == sizeof(char))
+    {
+        PutDate_(*reinterpret_cast<std::string*>(&ret), fmtStr, date);
+    }
+    else
+    {
+        std::string tmp;
+        PutDate_<char>(tmp, fmtStr, date);
+        if constexpr (sizeof(Char) == sizeof(char16_t))
+        {
+            const auto tmp2 = to_u16string(tmp, Encoding::UTF8);
+            ret.append(reinterpret_cast<const Char*>(tmp2.data()), tmp2.size());
+        }
+        else
+        {
+            const auto tmp2 = to_u32string(tmp, Encoding::UTF8);
+            ret.append(reinterpret_cast<const Char*>(tmp2.data()), tmp2.size());
+        }
+    }
+}
+
 
 template struct Formatter<char>;
 template struct Formatter<wchar_t>;
@@ -685,6 +718,84 @@ template SYSCOMMONTPL void FormatterBase::Execute(common::span<const uint8_t> op
 
 
 template<typename Char>
+struct WrapExecutor final : public FormatterExecutor
+{
+public:
+    using CTX = FormatterExecutor::Context;
+    struct Context : public CTX
+    {
+        std::basic_string<Char>& Dst;
+        constexpr Context(std::basic_string<Char>& dst) noexcept : Dst(dst) { }
+    };
+    Formatter<Char>& Fmter;
+    constexpr WrapExecutor(Formatter<Char>& fmter) noexcept : Fmter(fmter) {}
+    void OnBrace(CTX& ctx, bool isLeft) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        context.Dst.push_back(ParseLiterals<Char>::BracePair[isLeft ? 0 : 1]);
+    }
+    void OnColor(CTX& ctx, ScreenColor color) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter.PutColor(context.Dst, color);
+    }
+    void PutString(CTX& ctx, std::string_view str, const FormatSpec* spec) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter.PutString(context.Dst, str, spec);
+    }
+    void PutString(CTX& ctx, std::u16string_view str, const FormatSpec* spec) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter.PutString(context.Dst, str, spec);
+    }
+    void PutString(CTX& ctx, std::u32string_view str, const FormatSpec* spec) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter.PutString(context.Dst, str, spec);
+    }
+    void PutInteger(CTX& ctx, uint32_t val, bool isSigned, const FormatSpec* spec) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter.PutInteger(context.Dst, val, isSigned, spec);
+    }
+    void PutInteger(CTX& ctx, uint64_t val, bool isSigned, const FormatSpec* spec) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter.PutInteger(context.Dst, val, isSigned, spec);
+    }
+    void PutFloat(CTX& ctx, float  val, const FormatSpec* spec) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter.PutFloat(context.Dst, val, spec);
+    }
+    void PutFloat(CTX& ctx, double val, const FormatSpec* spec) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter.PutFloat(context.Dst, val, spec);
+    }
+    void PutPointer(CTX& ctx, uintptr_t val, const FormatSpec* spec) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter.PutPointer(context.Dst, val, spec);
+    }
+    void PutDate(CTX& ctx, std::string_view fmtStr, const std::tm& date) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter.PutDateBase(context.Dst, fmtStr, date);
+    }
+private:
+    void OnFmtStr(CTX&, uint32_t, uint32_t) final
+    {
+        Expects(false);
+    }
+    void OnArg(CTX&, uint8_t, bool, const FormatSpec*) final
+    {
+        Expects(false);
+    }
+};
+
+template<typename Char>
 void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec)
 {
     [[maybe_unused]] ArgDispType fmtType = ArgDispType::Any;
@@ -718,13 +829,13 @@ void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx
         switch (enum_cast(argType & ArgRealType::SizeMask4))
         {
         case 0x0:
-            formatter.PutString(context.Dst, BuildStr<char    >(ptr, len), spec);
+            Fmter.PutString(context.Dst, BuildStr<char    >(ptr, len), spec);
             break;
         case 0x1:
-            formatter.PutString(context.Dst, BuildStr<char16_t>(ptr, len), spec);
+            Fmter.PutString(context.Dst, BuildStr<char16_t>(ptr, len), spec);
             break;
         case 0x2:
-            formatter.PutString(context.Dst, BuildStr<char32_t>(ptr, len), spec);
+            Fmter.PutString(context.Dst, BuildStr<char32_t>(ptr, len), spec);
             break;
         default:
             break;
@@ -737,17 +848,17 @@ void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx
         case 0x0:
         {
             const auto ch = *reinterpret_cast<const char    *>(argPtr);
-            formatter.PutString(context.Dst, std::   string_view{ &ch, 1 }, spec);
+            Fmter.PutString(context.Dst, std::   string_view{ &ch, 1 }, spec);
         } break;
         case 0x1:
         {
             const auto ch = *reinterpret_cast<const char16_t*>(argPtr);
-            formatter.PutString(context.Dst, std::u16string_view{ &ch, 1 }, spec);
+            Fmter.PutString(context.Dst, std::u16string_view{ &ch, 1 }, spec);
         } break;
         case 0x2:
         {
             const auto ch = *reinterpret_cast<const char32_t*>(argPtr);
-            formatter.PutString(context.Dst, std::u32string_view{ &ch, 1 }, spec);
+            Fmter.PutString(context.Dst, std::u32string_view{ &ch, 1 }, spec);
         } break;
         default:
             break;
@@ -768,12 +879,12 @@ void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx
             case 0x2: val = *reinterpret_cast<const uint32_t*>(argPtr); break;
             default: break;
             }
-            formatter.PutInteger(context.Dst, val, isSigned, spec);
+            Fmter.PutInteger(context.Dst, val, isSigned, spec);
         }
         else
         {
             const auto val = *reinterpret_cast<const uint64_t*>(argPtr);
-            formatter.PutInteger(context.Dst, val, isSigned, spec);
+            Fmter.PutInteger(context.Dst, val, isSigned, spec);
         }
     } break;
     case ArgRealType::Float:
@@ -783,24 +894,24 @@ void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx
         {
             const float val = size == 2 ? *reinterpret_cast<const float*>(argPtr) :
                 *reinterpret_cast<const half_float::half*>(argPtr);
-            formatter.PutFloat(context.Dst, val, spec);
+            Fmter.PutFloat(context.Dst, val, spec);
         }
         else
         {
             const auto val = *reinterpret_cast<const double*>(argPtr);
-            formatter.PutFloat(context.Dst, val, spec);
+            Fmter.PutFloat(context.Dst, val, spec);
         }
     } break;
     case ArgRealType::Bool:
     {
         const bool val = *reinterpret_cast<const uint8_t*>(argPtr);
-        formatter.PutString(context.Dst, GetStrTrueFalse<SimChar<Char>>(val), spec);
+        Fmter.PutString(context.Dst, GetStrTrueFalse<SimChar<Char>>(val), spec);
     } break;
     case ArgRealType::Ptr:
     case ArgRealType::PtrVoid:
     {
         const auto val = *reinterpret_cast<const uintptr_t*>(argPtr);
-        formatter.PutPointer(context.Dst, val, spec);
+        Fmter.PutPointer(context.Dst, val, spec);
     } break;
     case ArgRealType::Date:
     case ArgRealType::DateDelta:
@@ -819,7 +930,14 @@ void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx
             const auto time = std::chrono::system_clock::to_time_t(tp);
             date = fmt::localtime(time);
         }
-        formatter.PutDate(context.Dst, fmtStr, date);
+        Fmter.PutDate(context.Dst, fmtStr, date);
+    } break;
+    case ArgRealType::Custom:
+    {
+        const auto& pair = *reinterpret_cast<const detail::FmtWithPair*>(argPtr);
+        WrapExecutor<Char> executor{ Fmter };
+        typename WrapExecutor<Char>::Context context2{ context.Dst };
+        pair.Executor(pair.Data, executor, context2, spec);
     } break;
     default: break;
     }

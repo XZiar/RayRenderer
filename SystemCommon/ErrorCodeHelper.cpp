@@ -1,4 +1,5 @@
 #include "ErrorCodeHelper.h"
+#include "Format.h"
 #include "StringConvert.h"
 #include <string.h>
 
@@ -24,6 +25,17 @@ namespace common
 
 #if COMMON_OS_WIN
 
+void HResultHolder::FormatWith(str::FormatterExecutor& executor, str::FormatterExecutor::Context& context, const str::FormatSpec* spec) const
+{
+    _com_error err(Value);
+    executor.PutString(context, err.ErrorMessage(), nullptr);
+    if (spec && spec->AlterForm)
+    {
+        executor.PutString(context, "(", nullptr);
+        executor.PutInteger(context, static_cast<uint32_t>(Value), true, nullptr);
+        executor.PutString(context, ")", nullptr);
+    }
+}
 std::u16string HResultHolder::FormatHr(long hresult)
 {
     _com_error err(hresult);
@@ -38,6 +50,16 @@ static const wchar_t* FormatWin32Error(unsigned long err)
         err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), 
         tmp, 2000, NULL);
     return tmp;
+}
+void Win32ErrorHolder::FormatWith(str::FormatterExecutor& executor, str::FormatterExecutor::Context& context, const str::FormatSpec* spec) const
+{
+    executor.PutString(context, FormatWin32Error(Value), nullptr);
+    if (spec && spec->AlterForm)
+    {
+        executor.PutString(context, "(", nullptr);
+        executor.PutInteger(context, static_cast<uint32_t>(Value), false, nullptr);
+        executor.PutString(context, ")", nullptr);
+    }
 }
 std::u16string Win32ErrorHolder::FormatError(unsigned long err)
 {
@@ -69,6 +91,16 @@ std::string_view ErrnoText(int32_t err)
         return errret;
 }
 #endif
+void ErrnoHolder::FormatWith(str::FormatterExecutor& executor, str::FormatterExecutor::Context& context, const str::FormatSpec* spec) const
+{
+    executor.PutString(context, ErrnoText(Value), nullptr);
+    if (spec && spec->AlterForm)
+    {
+        executor.PutString(context, "(", nullptr);
+        executor.PutInteger(context, static_cast<uint32_t>(Value), true, nullptr);
+        executor.PutString(context, ")", nullptr);
+    }
+}
 std::u16string ErrnoHolder::FormatErrno(int32_t err)
 {
 #if COMMON_OS_WIN

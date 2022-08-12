@@ -468,9 +468,22 @@ struct TypeA
 };
 struct TypeB
 {};
+struct TypeC
+{
+    void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec*) const
+    {
+        executor.PutString(context, "5"sv, nullptr);
+    }
+};
+struct TypeD
+{};
 namespace common::str
 {
-template<> inline auto FormatAs<TypeB>(const TypeB&) { return 3.0f; }
+template<> inline auto FormatAs<TypeB>(const TypeB&) { return 3.5f; }
+template<> inline auto FormatWith<TypeD>(const TypeD&, FormatterExecutor& executor, FormatterExecutor::Context& context, const FormatSpec*)
+{ 
+    executor.PutString(context, "7.5"sv, nullptr);
+}
 }
 
 TEST(Format, ParseArg)
@@ -481,7 +494,8 @@ TEST(Format, ParseArg)
         EXPECT_EQ(ret.NamedArgCount, static_cast<uint8_t>(0));
     }
     {
-        constexpr auto ret = ArgInfo::ParseArgs<int, uint64_t, void*, char*, double, char32_t, std::string_view, TypeA, TypeB, std::tm>();
+        constexpr auto ret = ArgInfo::ParseArgs<int, uint64_t, void*, char*, double, char32_t, std::string_view, 
+            TypeA, TypeB, TypeC, TypeD, std::tm>();
         EXPECT_EQ(ret.NamedArgCount, static_cast<uint8_t>(0));
         {
             uint8_t idx = 0;
@@ -494,13 +508,16 @@ TEST(Format, ParseArg)
             CheckArg(Idx, string_view,  String, 0x0);
             CheckArg(Idx, TypeA,        SInt,   0x1);
             CheckArg(Idx, TypeB,        Float,  0x2);
+            CheckArg(Idx, TypeC,        Custom, 0x0);
+            CheckArg(Idx, TypeD,        Custom, 0x0);
             CheckArg(Idx, std::tm,      Date,   0x0);
             CheckArgFinish(Idx);
         }
     }
     {
         constexpr void* ptr = nullptr;
-        constexpr auto ret = ParseArgs(3, UINT64_MAX, ptr, "x", 1.0, U'x', "x"sv, TypeA{}, TypeB{}, std::tm{}, std::chrono::system_clock::time_point{});
+        constexpr auto ret = ParseArgs(3, UINT64_MAX, ptr, "x", 1.0, U'x', "x"sv, 
+            TypeA{}, TypeB{}, TypeC{}, TypeD{}, std::tm{}, std::chrono::system_clock::time_point{});
         EXPECT_EQ(ret.NamedArgCount, static_cast<uint8_t>(0));
         {
             uint8_t idx = 0;
@@ -513,6 +530,8 @@ TEST(Format, ParseArg)
             CheckArg(Idx, string_view,  String, 0x0);
             CheckArg(Idx, TypeA,        SInt,   0x1);
             CheckArg(Idx, TypeB,        Float,  0x2);
+            CheckArg(Idx, TypeC,        Custom, 0x0);
+            CheckArg(Idx, TypeD,        Custom, 0x0);
             CheckArg(Idx, std::tm,      Date,   0x0);
             CheckArg(Idx, time_point,   DateDelta, 0x0);
             CheckArgFinish(Idx);
@@ -678,6 +697,10 @@ TEST(Format, Formating)
     {
         const auto ret = ToString(FmtString(u"{},{},{},{},{x},{:g},{:f},{:+010.4g}"sv), "hello", u"Hello", U"World"sv, 0.0, NAMEARG("x")(392.65), 4.9014e6, -392.5f, 392.65);
         EXPECT_EQ(ret, u"hello,Hello,World,0,392.65,4.9014e+06,-392.500000,+0000392.6");
+    }
+    {
+        const auto ret = ToString(FmtString("{},{}"sv), TypeC{}, TypeD{});
+        EXPECT_EQ(ret, "5,7.5");
     }
     {
         const auto ret = ToString(FmtString(u"{}|{0:T}|{1:T%Y-%m-%d %H:%M:%S}"sv), common::SimpleTimer::getCurLocalTime(), std::chrono::system_clock::now());

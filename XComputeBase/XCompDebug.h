@@ -1,6 +1,7 @@
 #pragma once
 
 #include "XCompRely.h"
+#include "SystemCommon/Format.h"
 #include "common/EasyIterator.hpp"
 #include "common/StringPool.hpp"
 #include "common/AlignedBuffer.hpp"

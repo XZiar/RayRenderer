@@ -1,6 +1,7 @@
 #include "XCompRely.h"
 #include "common/StaticLookup.hpp"
 #include "SystemCommon/ConsoleEx.h"
+#include "SystemCommon/Format.h"
 #include "SystemCommon/StringFormat.h"
 #include "SystemCommon/MiscIntrins.h"
 
@@ -16,8 +17,34 @@ using namespace std::string_view_literals;
 using common::simd::VecDataInfo;
 
 
-
-
+void PCI_BDF::FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec*) const
+{
+    using namespace common::str;
+    constexpr auto Ref = []() 
+    {
+        ParseResult res;
+        ParseResult::FormatSpec spec;
+        auto txt = "02X"sv;
+        ParseResultCh<char>::ParseFormatSpec(res, spec, txt.data(), txt);
+        return spec;
+    }();
+    constexpr auto Base = [](const ParseResult::FormatSpec& ref)
+    {
+        FormatSpec spec{ };
+        spec.Width = ref.Width;
+        spec.Precision = ref.Precision;
+        spec.TypeExtra = ref.Type.Extra;
+        spec.ZeroPad = ref.ZeroPad;
+        return spec;
+    }(Ref);
+    auto spec = Base;
+    executor.PutInteger(context, Bus(),      false, &spec);
+    executor.PutString(context, ":"sv, nullptr);
+    executor.PutInteger(context, Device(),   false, &spec);
+    executor.PutString(context, ":"sv, nullptr);
+    spec.Width = 1;
+    executor.PutInteger(context, Function(), false, &spec);
+}
 std::string PCI_BDF::ToString() const noexcept
 {
     return FMTSTR("{:02X}:{:02X}.{:1X}", Bus(), Device(), Function());
@@ -136,7 +163,7 @@ const CommonDeviceInfo* LocateDevice(const std::array<std::byte, 8>* luid,
             if (pcie && *pcie != ret->PCIEAddress)
                 console.Print(common::CommonColor::BrightYellow, 
                     FMTSTR2(u"Found pcie-addr mismatch for device [{}]({}) to [{}]({})\n"sv,
-                        name, pcie->ToString(), ret->Name, ret->PCIEAddress.ToString()));
+                        name, *pcie, ret->Name, ret->PCIEAddress));
             if (luid && *luid != ret->Luid)
                 console.Print(common::CommonColor::BrightYellow,
                     FMTSTR2(u"Found luid mismatch for device [{}]({}) to [{}]({})\n"sv,

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SystemCommonRely.h"
+#include "FormatInclude.h"
 #include "common/StrBase.hpp"
 #include "common/RefHolder.hpp"
 #include "common/SharedString.hpp"
@@ -1309,6 +1310,7 @@ struct CompactDate
     }
 };
 
+
 template<typename T>
 inline auto FormatAs(const T& arg);
 
@@ -1328,12 +1330,26 @@ inline auto FormatAs(const SharedString<Char>& arg)
     return static_cast<std::basic_string_view<Char>>(arg);
 }
 
+
+template<typename T>
+inline auto FormatWith(const T& arg, FormatterExecutor& executor, FormatterExecutor::Context& context, const FormatSpec* spec);
+
 namespace detail
 {
 template<typename T>
-using HasFormatAsMemFn = decltype(std::declval<T&>().FormatAs());
+using HasFormatAsMemFn = decltype(std::declval<const T&>().FormatAs());
 template<typename T>
 using HasFormatAsSpeFn = decltype(FormatAs(std::declval<const T&>()));
+template<typename T>
+using HasFormatWithMemFn = decltype(std::declval<const T&>().FormatWith(std::declval<FormatterExecutor&>(), std::declval<FormatterExecutor::Context&>(), std::declval<const FormatSpec*>()));
+template<typename T>
+using HasFormatWithSpeFn = decltype(FormatWith(std::declval<const T&>(), std::declval<FormatterExecutor&>(), std::declval<FormatterExecutor::Context&>(), std::declval<const FormatSpec*>()));
+using FmtWithPtr = void(*)(const void*, FormatterExecutor&, FormatterExecutor::Context&, const FormatSpec*);
+struct FmtWithPair
+{
+    const void* Data;
+    FmtWithPtr Executor;
+};
 }
 
 
@@ -1430,13 +1446,17 @@ struct ArgInfo
         {
             return ArgRealType::DateDelta;
         }
-        else if constexpr (is_detected_v<detail::HasFormatAsMemFn, T>)
+        else if constexpr (is_detected_v<detail::HasFormatAsMemFn, U>)
         {
-            return GetArgType<detail::HasFormatAsMemFn<T>>();
+            return GetArgType<detail::HasFormatAsMemFn<U>>();
         }
-        else if constexpr (is_detected_v<detail::HasFormatAsSpeFn, T>)
+        else if constexpr (is_detected_v<detail::HasFormatAsSpeFn, U>)
         {
-            return GetArgType<detail::HasFormatAsSpeFn<T>>();
+            return GetArgType<detail::HasFormatAsSpeFn<U>>();
+        }
+        else if constexpr (is_detected_v<detail::HasFormatWithMemFn, U> || is_detected_v<detail::HasFormatWithSpeFn, U>)
+        {
+            return ArgRealType::Custom;
         }
         else
         {
@@ -1514,13 +1534,29 @@ struct ArgInfo
                 const auto deltaMs = std::chrono::duration_cast<std::chrono::duration<int64_t, std::milli>>(arg.time_since_epoch()).count();
                 pack.Put(deltaMs, idx);
             }
-            else if constexpr (is_detected_v<detail::HasFormatAsMemFn, T>)
+            else if constexpr (is_detected_v<detail::HasFormatAsMemFn, U>)
             {
                 PackAnArg(pack, arg.FormatAs(), idx);
             }
-            else if constexpr (is_detected_v<detail::HasFormatAsSpeFn, T>)
+            else if constexpr (is_detected_v<detail::HasFormatAsSpeFn, U>)
             {
                 PackAnArg(pack, FormatAs(arg), idx);
+            }
+            else if constexpr (is_detected_v<detail::HasFormatWithMemFn, U>)
+            {
+                detail::FmtWithPair data{ &arg, [](const void* data, FormatterExecutor& executor, FormatterExecutor::Context& context, const FormatSpec* spec)
+                    {
+                        reinterpret_cast<const U*>(data)->FormatWith(executor, context, spec);
+                    } };
+                pack.Put(data, idx);
+            }
+            else if constexpr (is_detected_v<detail::HasFormatWithSpeFn, U>)
+            {
+                detail::FmtWithPair data{ &arg, [](const void* data, FormatterExecutor& executor, FormatterExecutor::Context& context, const FormatSpec* spec)
+                    {
+                        FormatWith(*reinterpret_cast<const U*>(data), executor, context, spec);
+                    } };
+                pack.Put(data, idx);
             }
             else
             {
@@ -1698,38 +1734,8 @@ struct ArgChecker
 };
 
 
-struct FormatSpec
-{
-    enum class Align : uint8_t { None, Left, Right, Middle };
-    enum class Sign  : uint8_t { None, Pos, Neg, Space };
-    uint32_t Fill       = ' ';
-    uint32_t Precision  = 0;
-    uint16_t Width      = 0;
-    uint16_t FmtOffset  = 0;
-    uint16_t FmtLen     = 0;
-    uint8_t TypeExtra   = 0;
-    Align Alignment     : 2;
-    Sign SignFlag       : 2;
-    bool AlterForm      : 2;
-    bool ZeroPad        : 2;
-    constexpr FormatSpec() noexcept : 
-        Alignment(Align::None), SignFlag(Sign::None), AlterForm(false), ZeroPad(false) {}
-};
-
-struct FormatterBase;
 template<typename Char>
 struct Formatter;
-struct SYSCOMMONAPI FormatterExecutor
-{
-    friend FormatterBase;
-public:
-    struct Context { };
-protected:
-    virtual void OnFmtStr(Context& context, uint32_t offset, uint32_t length) = 0;
-    virtual void OnBrace(Context& context, bool isLeft) = 0;
-    virtual void OnColor(Context& context, ScreenColor color) = 0;
-    virtual void OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec) = 0;
-};
 struct FormatterBase
 {
 protected:
@@ -1746,7 +1752,7 @@ struct Formatter : public FormatterBase
 {
     friend FormatterBase;
     using StrType = std::basic_string<Char>;
-protected:
+public:
     SYSCOMMONAPI virtual void PutColor(StrType& ret, ScreenColor color);
     SYSCOMMONAPI virtual void PutString(StrType& ret, std::   string_view str, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutString(StrType& ret, std::  wstring_view str, const FormatSpec* spec);
@@ -1764,7 +1770,7 @@ protected:
     SYSCOMMONAPI virtual void PutFloat(StrType& ret, double val, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date);
-public:
+    SYSCOMMONAPI virtual void PutDateBase(StrType& ret, std::string_view fmtStr, const std::tm& date);
     template<typename T, typename... Args>
     forceinline void FormatToStatic(std::basic_string<Char>& dst, T&& res, Args&&... args)
     {
@@ -1804,6 +1810,81 @@ public:
     }
 };
 
+template<typename Char, typename Fmter>
+struct CombinedExecutor : public FormatterExecutor, protected Fmter
+{
+    static_assert(std::is_base_of_v<Formatter<Char>, Fmter>, "Fmter need to derive from Formatter<Char>");
+    using CTX = FormatterExecutor::Context;
+    struct Context : public CTX
+    {
+        std::basic_string<Char>& Dst;
+        std::basic_string_view<Char> FmtStr;
+        constexpr Context(std::basic_string<Char>& dst, std::basic_string_view<Char> fmtstr) noexcept : 
+            Dst(dst), FmtStr(fmtstr) { }
+    };
+    void OnBrace(CTX& ctx, bool isLeft) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        context.Dst.push_back(ParseLiterals<Char>::BracePair[isLeft ? 0 : 1]);
+    }
+    void OnColor(CTX& ctx, ScreenColor color) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter::PutColor(context.Dst, color);
+    }
+    void PutString(CTX& ctx, std::   string_view str, const FormatSpec* spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter::PutString(context.Dst, str, spec);
+    }
+    void PutString(CTX& ctx, std::u16string_view str, const FormatSpec* spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter::PutString(context.Dst, str, spec);
+    }
+    void PutString(CTX& ctx, std::u32string_view str, const FormatSpec* spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter::PutString(context.Dst, str, spec);
+    }
+    void PutInteger(CTX& ctx, uint32_t val, bool isSigned, const FormatSpec* spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter::PutInteger(context.Dst, val, isSigned, spec);
+    }
+    void PutInteger(CTX& ctx, uint64_t val, bool isSigned, const FormatSpec* spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter::PutInteger(context.Dst, val, isSigned, spec);
+    }
+    void PutFloat  (CTX& ctx, float  val, const FormatSpec* spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter::PutFloat(context.Dst, val, spec);
+    }
+    void PutFloat  (CTX& ctx, double val, const FormatSpec* spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter::PutFloat(context.Dst, val, spec);
+    }
+    void PutPointer(CTX& ctx, uintptr_t val, const FormatSpec* spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter::PutPointer(context.Dst, val, spec);
+    }
+    void PutDate   (CTX& ctx, std::string_view fmtStr, const std::tm& date) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter::PutDateBase(context.Dst, fmtStr, date);
+    }
+private:
+    void OnFmtStr(CTX& ctx, uint32_t offset, uint32_t length) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        context.Dst.append(context.FmtStr.substr(offset, length));
+    }
+};
+
 template<typename Char>
 struct FormatterBase::StaticExecutor
 {
@@ -1814,7 +1895,7 @@ struct FormatterBase::StaticExecutor
         const ArgInfo& TheArgInfo;
         const ArgPack& TheArgPack;
     };
-    Formatter<Char>& formatter;
+    Formatter<Char>& Fmter;
     template<typename T>
     forceinline static std::basic_string_view<T> BuildStr(uintptr_t ptr, size_t len) noexcept
     {
@@ -1825,16 +1906,15 @@ struct FormatterBase::StaticExecutor
     }
     forceinline void OnFmtStr(Context& context, uint32_t offset, uint32_t length)
     {
-        formatter.PutString(context.Dst, context.StrInfo.FormatString.substr(offset, length), nullptr);
+        context.Dst.append(context.StrInfo.FormatString.substr(offset, length));
     }
     forceinline void OnBrace(Context& context, bool isLeft)
     {
-        constexpr Char tmp[2] = { static_cast<Char>('{'), static_cast<Char>('}') };
-        formatter.PutString(context.Dst, std::basic_string_view<Char>{ &tmp[isLeft ? 0 : 1], 1 }, nullptr);
+        context.Dst.push_back(ParseLiterals<Char>::BracePair[isLeft ? 0 : 1]);
     }
     forceinline void OnColor(Context& context, ScreenColor color)
     {
-        formatter.PutColor(context.Dst, color);
+        Fmter.PutColor(context.Dst, color);
     }
     SYSCOMMONAPI void OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec);
 };

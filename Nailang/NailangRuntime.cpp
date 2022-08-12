@@ -535,33 +535,22 @@ bool NailangBase::ThrowIfNotBool(const Arg& arg, const std::u32string_view varNa
     return ret.value();
 }
 
-struct NailangFormatExecutor final : public common::str::FormatterExecutor, public common::str::Formatter<char32_t>
+struct NailangFormatExecutor final : public common::str::CombinedExecutor<char32_t, common::str::Formatter<char32_t>>
 {
-    using CTX = common::str::FormatterExecutor::Context;
-    struct Context : public CTX
+    using Fmter = common::str::Formatter<char32_t>;
+    using Base  = common::str::CombinedExecutor<char32_t, Fmter>;
+    using CTX   = common::str::FormatterExecutor::Context;
+    struct Context : public Base::Context
     {
-        std::u32string Dst;
-        std::u32string_view FmtStr;
         common::span<const Arg> Args;
-        Context(std::u32string_view fmtstr, common::span<const Arg> args) noexcept : FmtStr(fmtstr), Args(args)
-        { }
+        constexpr Context(std::u32string& dst, std::u32string_view fmtstr, common::span<const Arg> args) noexcept : 
+            Base::Context(dst, fmtstr), Args(args) { }
     };
-
-    void OnFmtStr(CTX& ctx, uint32_t offset, uint32_t length) final
-    {
-        auto& context = static_cast<Context&>(ctx);
-        context.Dst.append(context.FmtStr.substr(offset, length));
-    }
-    void OnBrace(CTX& ctx, bool isLeft) final
-    {
-        auto& context = static_cast<Context&>(ctx);
-        context.Dst.push_back(isLeft ? '{' : '}');
-    }
-    void OnColor(CTX& ctx, common::ScreenColor color) final
+    /*void OnColor(CTX& ctx, common::ScreenColor color) final
     {
         auto& context = static_cast<Context&>(ctx);
         PutColor(context.Dst, color);
-    }
+    }*/
     void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, const common::str::FormatSpec* spec) final
     {
         Expects(!isNamed);
@@ -569,12 +558,12 @@ struct NailangFormatExecutor final : public common::str::FormatterExecutor, publ
         const auto& arg = context.Args[argIdx];
         switch (arg.TypeData)
         {
-        case Arg::Type::Bool:   PutString (context.Dst, arg.GetVar<Arg::Type::Bool>() ? U"true"sv : U"false"sv, spec); break;
-        case Arg::Type::Uint:   PutInteger(context.Dst, arg.GetVar<Arg::Type::Uint, false>(), false, spec); break;
-        case Arg::Type::Int:    PutInteger(context.Dst, arg.GetVar<Arg::Type::Uint, false>(),  true, spec); break;
-        case Arg::Type::FP:     PutFloat  (context.Dst, arg.GetVar<Arg::Type::FP>(), spec); break;
-        case Arg::Type::U32Sv:  PutString (context.Dst, arg.GetVar<Arg::Type::U32Sv>(), spec); break;
-        case Arg::Type::U32Str: PutString (context.Dst, arg.GetVar<Arg::Type::U32Str>(), spec); break;
+        case Arg::Type::Bool:   Fmter::PutString (context.Dst, arg.GetVar<Arg::Type::Bool>() ? U"true"sv : U"false"sv, spec); break;
+        case Arg::Type::Uint:   Fmter::PutInteger(context.Dst, arg.GetVar<Arg::Type::Uint, false>(), false, spec); break;
+        case Arg::Type::Int:    Fmter::PutInteger(context.Dst, arg.GetVar<Arg::Type::Uint, false>(),  true, spec); break;
+        case Arg::Type::FP:     Fmter::PutFloat  (context.Dst, arg.GetVar<Arg::Type::FP>(), spec); break;
+        case Arg::Type::U32Sv:  Fmter::PutString (context.Dst, arg.GetVar<Arg::Type::U32Sv>(), spec); break;
+        case Arg::Type::U32Str: Fmter::PutString (context.Dst, arg.GetVar<Arg::Type::U32Str>(), spec); break;
         default: break;
         }
     }
@@ -605,14 +594,14 @@ std::u32string NailangBase::FormatString(const std::u32string_view formatter, co
             }
         }
         /*const auto mapping = */ArgChecker::CheckDD(strInfo, argsInfo);
-
-        NailangFormatExecutor::Context ctx{ formatter, args };
+        std::u32string dst;
+        NailangFormatExecutor::Context ctx{ dst, formatter, args };
         uint32_t opOffset = 0;
         while (opOffset < strInfo.Opcodes.size())
         {
             NailangFormatExecutor::Execute<common::str::FormatterExecutor>(strInfo.Opcodes, opOffset, NLFmtExecutor, ctx);
         }
-        return ctx.Dst;
+        return dst;
     }
     catch (const common::BaseException& be)
     {
