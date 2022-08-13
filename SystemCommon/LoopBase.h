@@ -16,7 +16,7 @@ class LoopBase;
 #   pragma warning(disable:4275 4251)
 #endif
 
-class SYSCOMMONAPI LoopExecutor : public NonCopyable
+class LoopExecutor
 {
     friend class LoopBase;
 protected:
@@ -40,14 +40,16 @@ private:
     virtual void DoStart() = 0; // when executor is requested to start
     virtual void WaitUtilStop() = 0; // when executor is requested to stop
 protected:
-    LoopExecutor(LoopBase& loop);
-    bool TurnToRun() noexcept;
-    void RunLoop() noexcept;
+    COMMON_NO_COPY(LoopExecutor)
+    COMMON_NO_MOVE(LoopExecutor)
+    SYSCOMMONAPI LoopExecutor(LoopBase& loop);
+    SYSCOMMONAPI bool TurnToRun() noexcept;
+    SYSCOMMONAPI void RunLoop() noexcept;
 public:
-    virtual ~LoopExecutor();
+    SYSCOMMONAPI virtual ~LoopExecutor();
 };
 
-class SYSCOMMONAPI InplaceExecutor : public LoopExecutor
+class InplaceExecutor : public LoopExecutor
 {
     friend class LoopBase;
 protected:
@@ -57,10 +59,10 @@ protected:
     void WaitUtilStop() override;
 public:
     using LoopExecutor::LoopExecutor;
-    bool RunInplace();
+    SYSCOMMONAPI bool RunInplace();
 };
 
-class SYSCOMMONAPI LoopBase : public NonCopyable, public NonMovable
+class SYSCOMMONAPI LoopBase
 {
     friend void LoopExecutor::RunLoop() noexcept;
 public:
@@ -90,6 +92,8 @@ public:
 private:
     std::unique_ptr<LoopExecutor> Host;
 protected:
+    COMMON_NO_COPY(LoopBase)
+    COMMON_NO_MOVE(LoopBase)
     [[nodiscard]] bool IsRunning() const;
     void Wakeup() const;
     virtual LoopAction OnLoop() = 0;

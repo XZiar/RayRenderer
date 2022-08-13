@@ -23,7 +23,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 |:-------|:-------:|:---:|:-------:|
 | [3rdParty](./3rdParty) | 3rd party library | C,C++ | N/A |
 | [common](./common) | Basic but useful things | Multi | N/A |
-| [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | C++ | N/A |
+| [3DBasic](./3DBasic) | 3D things, **deprecated by [common/math](./common/math)** | C++ | N/A |
 | [SystemCommon](./SystemCommon) | System-level common library | C++ | Win & Linux & Android & iOS |
 | [Nailang](./Nailang) | A customizable language | C++ | Win & Linux & Android & iOS |
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility | C++ | Win & Linux & Android & iOS |

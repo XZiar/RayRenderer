@@ -72,8 +72,8 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 * [KHR API Header](https://github.com/KhronosGroup/EGL-Registry/tree/master/api/KHR) 
 
-* [3DBasic](../3DBasic)
-  * Basic component -- providing basic 3d data structure
+* [common](../common)
+  * [math](../common/math) -- providing basic 3d data structure
 
 * [ImageUtil](../ImageUtil)
   

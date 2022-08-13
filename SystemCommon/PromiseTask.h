@@ -119,7 +119,7 @@ enum class PromiseFlags : uint8_t
 MAKE_ENUM_BITFIELD(PromiseFlags)
 
 
-class SYSCOMMONAPI COMMON_EMPTY_BASES PromiseProvider : public NonCopyable
+class SYSCOMMONAPI PromiseProvider
 {
     friend class PromiseActiveProxy;
     friend class PromiseResultCore;
@@ -127,6 +127,9 @@ class SYSCOMMONAPI COMMON_EMPTY_BASES PromiseProvider : public NonCopyable
 public:
     RWSpinLock PromiseLock;
     AtomicBitfield<PromiseFlags> Flags = PromiseFlags::None;
+    PromiseProvider() noexcept {}
+    COMMON_NO_COPY(PromiseProvider)
+    COMMON_NO_MOVE(PromiseProvider)
     virtual ~PromiseProvider();
     [[nodiscard]] virtual PromiseState GetState() noexcept;
     virtual void PreparePms();
@@ -163,7 +166,7 @@ public:
 };
 
 
-class SYSCOMMONAPI COMMON_EMPTY_BASES PromiseResultCore
+class SYSCOMMONAPI PromiseResultCore
 {
     friend class PromiseActiveProxy;
 protected:
@@ -558,7 +561,7 @@ namespace detail
 {
 
 template<typename T, typename P = BasicPromiseProvider>
-class COMMON_EMPTY_BASES BasicResult_ : public PromiseResult_<T>
+class BasicResult_ : public PromiseResult_<T>
 {
     static_assert(std::is_base_of_v<BasicPromiseProvider, P>);
     template<typename, typename> friend class ::common::BasicPromise;
@@ -651,7 +654,7 @@ public:
 };
 
 
-class [[nodiscard]] PromiseStub : public NonCopyable
+class [[nodiscard]] PromiseStub
 {
 private:
     std::vector<PmsCore> Promises;
@@ -688,6 +691,8 @@ public:
         Promises.reserve(sizeof...(Args));
         (Insert(promises), ...);
     }
+    COMMON_NO_COPY(PromiseStub)
+    COMMON_DEF_MOVE(PromiseStub)
 
     [[nodiscard]] size_t size() const noexcept
     {

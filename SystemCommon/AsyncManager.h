@@ -167,7 +167,7 @@ struct RetTypeGetter<F, false>
 
 
 
-class SYSCOMMONAPI AsyncManager final : private common::loop::LoopBase
+class AsyncManager final : private common::loop::LoopBase
 {
     friend class AsyncAgent;
 private:
@@ -184,8 +184,8 @@ private:
     std::atomic_uint32_t TaskUid{ 0 };
     bool AllowStopAdd;
 
-    uint32_t PreCheckTask(std::u16string& taskName);
-    bool AddNode(detail::AsyncTaskNodeBase* node);
+    SYSCOMMONAPI uint32_t PreCheckTask(std::u16string& taskName);
+    SYSCOMMONAPI bool AddNode(detail::AsyncTaskNodeBase* node);
 
     void Resume(detail::AsyncTaskStatus status);
     virtual LoopAction OnLoop() override;
@@ -193,14 +193,13 @@ private:
     virtual void OnStop() noexcept override;
     virtual bool SleepCheck() noexcept override; // double check if shoul sleep
 public:
-    AsyncManager(const bool isthreaded, const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);
-    AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false)
-        : AsyncManager(true, name, timeYieldSleep, timeSensitive, allowStopAdd) { }
-    virtual ~AsyncManager() override;
-    bool Start(Injector initer = {}, Injector exiter = {});
-    bool Stop();
-    bool RequestStop();
-    common::loop::LoopExecutor& GetHost();
+    SYSCOMMONAPI AsyncManager(const bool isthreaded, const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);
+    SYSCOMMONAPI AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);
+    SYSCOMMONAPI virtual ~AsyncManager() override;
+    SYSCOMMONAPI bool Start(Injector initer = {}, Injector exiter = {});
+    SYSCOMMONAPI bool Stop();
+    SYSCOMMONAPI bool RequestStop();
+    SYSCOMMONAPI common::loop::LoopExecutor& GetHost();
 
     template<typename Func>
     forceinline auto AddTask(Func&& task, std::u16string taskName = u"", uint32_t stackSize = 0)

@@ -34,23 +34,25 @@
   - [ ] Desgin common waitable, with native support of multi-wait
   - [x] Add delayed stacktrace resolve for Exceptions
   - [ ] Use libdawrf/libdw as fallback support for stacktrace
+  - [ ] Add direct support for output color-segemented text for Console
   * StringUtil
     - [x] Add general charset default value
     - [x] Add compile-time LE/BE decision
     - [ ] Applying SIMD acceleration 
     - [x] Merge fmt with better format-context support
     - [ ] Add BOM detection
-    - [ ] Add custom opcode-based compile-time parsing&format support 
+    - [x] Add custom opcode-based compile-time parsing&format support 
+    - [ ] Add encoding conversion with segement info
+    - [ ] Make r-value arg packing use deep copy 
   * MiniLogger
-    - [ ] Add pre-defined color arg
-    - [ ] Add color filter to non-terminal backend (spin-lock based processing)
-    - [ ] Use Pascal naming
-    - [ ] Use new formating strategy, handle formating on worker thread and disable color on file output
+    - [x] Use Pascal naming
+    - [x] Use new formating strategy, disable color on file output
+    - [ ] Handle formating on worker thread, with argpack and opcode conversion
   * AsyncExecutor
     - [x] Add support for returning value
     - [ ] Add passive executor, provide a way to handle task by outsider
     - [ ] Add multi thread executor
-    - [ ] Embed boost.context, make boost.context a submodule
+    - [x] Embed boost.context, make boost.context a submodule
 
 * ImageUtil
   - [x] Add memory input/output

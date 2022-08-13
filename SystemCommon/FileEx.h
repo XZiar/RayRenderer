@@ -35,7 +35,7 @@ class SYSCOMMONAPI FileException : public BaseException
 };
 
 
-class SYSCOMMONAPI FileObject : public NonCopyable, public NonMovable
+class FileObject
 {
     friend class FileStream;
 private:
@@ -45,9 +45,11 @@ private:
     FILE* FHandle;
     OpenFlag Flag;
 
-    FileObject(const fs::path& path, FILE* fp, const OpenFlag flag);
+    SYSCOMMONAPI FileObject(const fs::path& path, FILE* fp, const OpenFlag flag);
 public:
-    ~FileObject();
+    COMMON_NO_COPY(FileObject)
+    COMMON_NO_MOVE(FileObject)
+    SYSCOMMONAPI ~FileObject();
 
     [[nodiscard]] const fs::path& Path() const { return FilePath; }
     [[nodiscard]] std::u16string ExtName() const { return FilePath.extension().u16string(); }
@@ -55,8 +57,8 @@ public:
 
     //==========Open=========//
 
-    [[nodiscard]] static std::shared_ptr<FileObject> OpenFile(const fs::path& path, const OpenFlag flag);
-    [[nodiscard]] static std::shared_ptr<FileObject> OpenThrow(const fs::path& path, const OpenFlag flag);
+    SYSCOMMONAPI [[nodiscard]] static std::shared_ptr<FileObject> OpenFile(const fs::path& path, const OpenFlag flag);
+    SYSCOMMONAPI [[nodiscard]] static std::shared_ptr<FileObject> OpenThrow(const fs::path& path, const OpenFlag flag);
 };
 
 

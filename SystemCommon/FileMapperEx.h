@@ -25,7 +25,7 @@ enum class MappingFlag : uint8_t
 #endif
 
 
-class SYSCOMMONAPI FileMappingObject : public NonCopyable, public NonMovable
+class FileMappingObject
 {
     friend class FileMappingStream;
 public:
@@ -43,19 +43,21 @@ private:
     size_t Size;
     MappingFlag Flag;
 
-    FileMappingObject(std::shared_ptr<RawFileObject> file, const MappingFlag flag,
+    SYSCOMMONAPI FileMappingObject(std::shared_ptr<RawFileObject> file, const MappingFlag flag,
         const HandleType handle, const uint64_t offset, std::byte* ptr, const size_t size);
     RawFileObject::HandleType GetRawFileHandle() const noexcept { return RawFile->FileHandle; }
 public:
-    ~FileMappingObject();
+    COMMON_NO_COPY(FileMappingObject)
+    COMMON_NO_MOVE(FileMappingObject)
+    SYSCOMMONAPI ~FileMappingObject();
 
     [[nodiscard]] constexpr const std::shared_ptr<RawFileObject>& GetRawFile() const noexcept { return RawFile; }
     [[nodiscard]] const fs::path& Path() const noexcept { return RawFile->FilePath; }
     //==========Open=========//
 
-    [[nodiscard]] static std::shared_ptr<FileMappingObject> OpenMapping(std::shared_ptr<RawFileObject> rawFile, const MappingFlag flag,
+    SYSCOMMONAPI [[nodiscard]] static std::shared_ptr<FileMappingObject> OpenMapping(std::shared_ptr<RawFileObject> rawFile, const MappingFlag flag,
         const std::pair<uint64_t, uint64_t>& region = { 0, UINT64_MAX });
-    [[nodiscard]] static std::shared_ptr<FileMappingObject> OpenThrow(std::shared_ptr<RawFileObject> rawFile, const MappingFlag flag,
+    SYSCOMMONAPI [[nodiscard]] static std::shared_ptr<FileMappingObject> OpenThrow(std::shared_ptr<RawFileObject> rawFile, const MappingFlag flag,
         const std::pair<uint64_t, uint64_t>& region = { 0, UINT64_MAX });
 };
 

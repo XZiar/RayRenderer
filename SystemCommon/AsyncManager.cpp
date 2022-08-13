@@ -311,6 +311,8 @@ AsyncManager::AsyncManager(const bool isthreaded, const std::u16string& name, co
     Logger(u"Asy-" + Name, { common::mlog::GetConsoleBackend() }),
     TimeYieldSleep(timeYieldSleep), TimeSensitive(timeSensitive), AllowStopAdd(allowStopAdd)
     { }
+AsyncManager::AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd)
+        : AsyncManager(true, name, timeYieldSleep, timeSensitive, allowStopAdd) { }
 
 AsyncManager::~AsyncManager()
 { }

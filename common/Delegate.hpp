@@ -20,7 +20,7 @@ public:
 };
 
 template<typename... Args>
-class Delegate : public NonCopyable
+class Delegate
 {
 private:
     struct CallbackNode : container::IntrusiveDoubleLinkListNodeBase<CallbackNode>
@@ -74,6 +74,8 @@ private:
 public:
     constexpr Delegate() : Indexer(0), Lock(), UID(std::random_device()())
     { }
+    COMMON_NO_COPY(Delegate)
+    COMMON_NO_MOVE(Delegate)
     ~Delegate()
     {
         Clear();

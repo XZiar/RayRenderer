@@ -13,17 +13,19 @@ template<typename NodeType>
 class IntrusiveDoubleLinkList;
 
 template<typename NodeType>
-struct IntrusiveDoubleLinkListNodeBase : public NonCopyable
+struct IntrusiveDoubleLinkListNodeBase
 {
     friend class IntrusiveDoubleLinkList<NodeType>;
 private:
     NodeType *Prev, *Next; //spin-locker's memory_order_seq_cst promise their order
 protected:
     IntrusiveDoubleLinkListNodeBase() : Prev(nullptr), Next(nullptr) { }
+    COMMON_NO_COPY(IntrusiveDoubleLinkListNodeBase)
+    COMMON_NO_MOVE(IntrusiveDoubleLinkListNodeBase)
 };
 
 template<typename NodeType>
-class IntrusiveDoubleLinkList : public NonCopyable
+class IntrusiveDoubleLinkList
 {
 public:
     static_assert(std::is_base_of_v<IntrusiveDoubleLinkListNodeBase<NodeType>, NodeType>, "NodeType should deriver from BiDirLinkedListNodeBase");

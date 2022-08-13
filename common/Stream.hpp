@@ -27,7 +27,7 @@ struct RandomInputStreamEnumerateSource;
 }
 
 
-class InputStream : public NonCopyable
+class InputStream
 {
 private:
     template<size_t Size>
@@ -67,6 +67,9 @@ private:
 protected:
     [[nodiscard]] virtual size_t AvaliableSpace() { return SIZE_MAX; };
 public:
+    constexpr InputStream() noexcept {}
+    COMMON_NO_COPY(InputStream)
+    COMMON_DEF_MOVE(InputStream)
     virtual size_t ReadMany(const size_t want, const size_t perSize, void * ptr) = 0;
     virtual bool Skip(const size_t len) = 0;
     [[nodiscard]] virtual bool IsEnd() { return AvaliableSpace() == 0; }
@@ -129,7 +132,7 @@ public:
 };
 
 
-class OutputStream : public NonCopyable
+class OutputStream
 {
 private:
     template<size_t Size>
@@ -155,6 +158,9 @@ private:
 protected:
     virtual size_t AcceptableSpace() { return SIZE_MAX; };
 public:
+    constexpr OutputStream() noexcept {}
+    COMMON_NO_COPY(OutputStream)
+    COMMON_DEF_MOVE(OutputStream)
     virtual size_t WriteMany(const size_t want, const size_t perSize, const void* ptr) = 0;
     virtual void Flush() {}
     virtual ~OutputStream() {}
@@ -177,9 +183,12 @@ public:
 };
 
 
-class RandomStream : public NonCopyable
+class RandomStream
 {
 public:
+    constexpr RandomStream() noexcept {}
+    COMMON_NO_COPY(RandomStream)
+    COMMON_DEF_MOVE(RandomStream)
     [[nodiscard]] virtual size_t GetSize() = 0;
     [[nodiscard]] virtual size_t CurrentPos() const = 0;
     virtual bool SetPos(const size_t offset) = 0;

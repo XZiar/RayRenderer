@@ -23,19 +23,20 @@ SYSCOMMONAPI std::u16string GetThreadName();
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
-class SYSCOMMONAPI ThreadObject : public NonCopyable
+class ThreadObject
 {
 protected:
     uintptr_t Handle;
     uint64_t TId;
     ThreadObject(const uintptr_t handle) noexcept : Handle(handle), TId(GetId()) { }
 public:
-    static ThreadObject GetCurrentThreadObject();
-    static uint64_t GetCurrentThreadId();
+    SYSCOMMONAPI static ThreadObject GetCurrentThreadObject();
+    SYSCOMMONAPI static uint64_t GetCurrentThreadId();
 #if !defined(_MANAGED) && !defined(_M_CEE)
-    static ThreadObject GetThreadObject(std::thread& thr);
+    SYSCOMMONAPI static ThreadObject GetThreadObject(std::thread& thr);
 #endif
     constexpr ThreadObject() noexcept : Handle(0), TId(0) { }
+    COMMON_NO_COPY(ThreadObject)
     ThreadObject(ThreadObject&& other) noexcept
     {
         Handle = other.Handle;
@@ -48,10 +49,10 @@ public:
         TId = other.TId;
         return *this;
     }
-    ~ThreadObject();
-    std::optional<bool> IsAlive() const;
-    bool IsCurrent() const;
-    uint64_t GetId() const;
+    SYSCOMMONAPI ~ThreadObject();
+    SYSCOMMONAPI std::optional<bool> IsAlive() const;
+    SYSCOMMONAPI bool IsCurrent() const;
+    SYSCOMMONAPI uint64_t GetId() const;
 };
 
 #if COMMON_COMPILER_MSVC

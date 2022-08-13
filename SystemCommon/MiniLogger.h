@@ -69,7 +69,7 @@ public:
 
 struct LogMessage
 {
-    friend class detail::MiniLoggerBase;
+    friend detail::MiniLoggerBase;
 public:
     const uint64_t Timestamp;
 private:
@@ -150,10 +150,21 @@ protected:
     LoggerName Prefix;
     std::set<std::shared_ptr<LoggerBackend>> Outputer;
 
+    SYSCOMMONAPI LogMessage* GenerateMessage(const LogLevel level, const str::StrArgInfoCh<char16_t>& strInfo, const str::ArgInfo& argInfo, const str::ArgPack& argPack) const;
+    SYSCOMMONAPI LogMessage* GenerateMessage(const LogLevel level, std::basic_string_view<char16_t> formatter, const str::ArgInfo& argInfo,       str::ArgPack& argPack) const;
     template<typename Char>
-    SYSCOMMONAPI LogMessage* GenerateMessage(const LogLevel level, const str::StrArgInfoCh<Char>& strInfo, const str::ArgInfo& argInfo, const str::ArgPack& argPack) const;
-    template<typename Char>
-    SYSCOMMONAPI LogMessage* GenerateMessage(const LogLevel level, const std::basic_string_view<Char> str) const;
+    forceinline  LogMessage* GenerateMessage(const LogLevel level, const std::basic_string_view<Char> str) const
+    {
+        if constexpr (!std::is_same_v<Char, char16_t>)
+        {
+            const auto str16 = str::to_u16string(str);
+            return LogMessage::MakeMessage(this->Prefix, str16.data(), str16.size(), {}, level);
+        }
+        else
+        {
+            return LogMessage::MakeMessage(this->Prefix, str.data(), str.size(), {}, level);
+        }
+    }
 
     SYSCOMMONAPI static void SentToGlobalOutputer(LogMessage* msg);
     forceinline void AddRefCount(LogMessage& msg, const size_t count) noexcept { msg.RefCount += (uint32_t)count; }
@@ -218,15 +229,16 @@ public:
     template<typename T, typename... Args>
     void Log(const LogLevel level, T&& formatter, Args&&... args)
     {
+        using namespace str;
         if (level < LeastLevel.load(std::memory_order_relaxed))
             return;
 
         LogMessage* msg = nullptr;
         using U = std::decay_t<T>;
-        if constexpr (common::is_specialization<U, common::str::StrArgInfoCh>::value)
+        if constexpr (is_specialization<U, StrArgInfoCh>::value)
         {
-            using namespace str;
             using Char = typename U::CharType;
+            static_assert(std::is_same_v<Char, char16_t>, "Log formatter need to be char16_t");
 
             constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
             const auto mapping = ArgChecker::CheckDD(formatter, ArgsInfo);
@@ -235,10 +247,10 @@ public:
 
             msg = GenerateMessage(level, formatter, ArgsInfo, argPack);
         }
-        else if constexpr (std::is_base_of_v<common::str::CompileTimeFormatter, U>)
+        else if constexpr (std::is_base_of_v<CompileTimeFormatter, U>)
         {
-            using namespace str;
             using Char = typename U::CharType;
+            static_assert(std::is_same_v<Char, char16_t>, "Log formatter need to be char16_t");
 
             constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
             const auto mapping = ArgChecker::CheckSS(formatter, std::forward<Args>(args)...);
@@ -249,26 +261,19 @@ public:
         }
         else
         {
-            const auto fmtSv = str::ToStringView(formatter);
+            const auto fmtSv = ToStringView(formatter);
             if constexpr (sizeof...(args) == 0)
             {
                 msg = GenerateMessage(level, fmtSv);
             }
             else
             {
-                using namespace str;
                 using Char = typename decltype(fmtSv)::value_type;
+                static_assert(std::is_same_v<Char, char16_t>, "Log formatter need to be char16_t");
+
                 constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
-
-                const auto result = ParseResult::ParseString(fmtSv);
-                ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
-                const auto fmtInfo = result.ToInfo(fmtSv);
-
-                const auto mapping = ArgChecker::CheckDD(fmtInfo, ArgsInfo);
                 auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
-                argPack.Mapper = mapping;
-
-                msg = GenerateMessage(level, fmtInfo, ArgsInfo, argPack);
+                msg = GenerateMessage(level, fmtSv, ArgsInfo, argPack);
             }
         }
 

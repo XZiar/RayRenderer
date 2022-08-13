@@ -10,7 +10,7 @@ namespace common::container
 
 
 template<typename T>
-class TrunckedContainer : public common::NonCopyable
+class TrunckedContainer
 {
 protected:
     struct Trunk
@@ -88,6 +88,7 @@ public:
         Expects(DefaultTrunkAlignment % EleAlign == 0);
     }
     TrunckedContainer(TrunckedContainer&&) noexcept = default;
+    COMMON_NO_COPY(TrunckedContainer)
     ~TrunckedContainer()
     {
         for (const auto& trunk : Trunks)

@@ -45,10 +45,12 @@ MAKE_ENUM_BITFIELD(WindowFlag)
 
 struct alignas(uint64_t) WindowHost_::Pimpl
 {
-    struct InvokeNode : public NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<InvokeNode>
+    struct InvokeNode : public common::container::IntrusiveDoubleLinkListNodeBase<InvokeNode>
     {
         std::function<void(WindowHost_&)> Task;
         InvokeNode(std::function<void(WindowHost_&)>&& task) : Task(std::move(task)) { }
+        COMMON_NO_COPY(InvokeNode)
+        COMMON_NO_MOVE(InvokeNode)
     };
     common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
     common::container::ResourceDict Data;

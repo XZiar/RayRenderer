@@ -16,19 +16,19 @@ class Uchardet;
 #   pragma warning(disable:4251)
 #endif
 
-class SYSCOMMONAPI EncodingDetector
+class EncodingDetector
 {
 private:
     std::unique_ptr<detail::Uchardet> Tool;
 public:
-    EncodingDetector();
+    SYSCOMMONAPI EncodingDetector();
     EncodingDetector(EncodingDetector&&) noexcept = default;
-    ~EncodingDetector();
+    SYSCOMMONAPI ~EncodingDetector();
     EncodingDetector& operator=(EncodingDetector&&) noexcept = default;
-    bool HandleData(const common::span<const std::byte> data) const;
-    void Reset() const;
-    void EndData() const;
-    std::string GetEncoding() const;
+    SYSCOMMONAPI bool HandleData(const common::span<const std::byte> data) const;
+    SYSCOMMONAPI void Reset() const;
+    SYSCOMMONAPI void EndData() const;
+    SYSCOMMONAPI std::string GetEncoding() const;
     common::str::Encoding DetectEncoding() const
     {
         return common::str::EncodingFromName(this->GetEncoding());

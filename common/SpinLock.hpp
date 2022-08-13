@@ -30,7 +30,7 @@ namespace common
 namespace detail
 {
 template<typename T, void(T::*Lock)(), void(T::*Unlock)()>
-struct [[nodiscard]] LockScope : NonCopyable
+struct [[nodiscard]] LockScope
 {
 private:
     T* Locker;
@@ -43,6 +43,7 @@ public:
     {
         locker.Locker = nullptr;
     }
+    constexpr LockScope(const LockScope&) noexcept = delete;
     ~LockScope() noexcept
     {
         if (Locker)
@@ -57,12 +58,14 @@ struct EmptyLock
     constexpr void unlock() noexcept {}
 };
 
-struct SpinLocker : public NonCopyable
+struct SpinLocker
 {
 private:
     std::atomic_flag Flag = ATOMIC_FLAG_INIT;
 public:
     constexpr SpinLocker() noexcept { }
+    COMMON_NO_COPY(SpinLocker)
+    COMMON_NO_MOVE(SpinLocker)
     bool TryLock() noexcept
     {
         return !Flag.test_and_set();
@@ -87,7 +90,7 @@ public:
 };
 
 
-struct PreferSpinLock : public NonCopyable //Strong-first
+struct PreferSpinLock //Strong-first
 {
 private:
     std::atomic<uint32_t> Flag; //strong on high 16bit, weak on low 16bit
@@ -95,6 +98,7 @@ public:
     constexpr PreferSpinLock() noexcept : Flag(0) { }
     explicit PreferSpinLock(PreferSpinLock&& other) noexcept 
         : Flag(other.Flag.exchange(0)) { }
+    COMMON_NO_COPY(PreferSpinLock)
     void LockWeak() noexcept
     {
         uint32_t expected = Flag.load() & 0x0000ffff; //assume no strong
@@ -132,7 +136,7 @@ public:
     }
 };
 
-struct WRSpinLock : public NonCopyable //Writer-first
+struct WRSpinLock //Writer-first
 {
 private:
     std::atomic<uint32_t> Flag; //writer on most siginificant bit, reader on lower bits
@@ -140,6 +144,7 @@ public:
     constexpr WRSpinLock() noexcept : Flag(0) { }
     explicit WRSpinLock(WRSpinLock&& other) noexcept 
         : Flag(other.Flag.exchange(0)) { }
+    COMMON_NO_COPY(WRSpinLock)
     void LockRead() noexcept
     {
         uint32_t expected = Flag.load() & 0x7fffffff; //assume no writer
@@ -187,7 +192,7 @@ public:
     }
 };
 
-struct RWSpinLock : public NonCopyable, public NonMovable //Reader-first
+struct RWSpinLock //Reader-first
 {
 private:
     std::atomic<uint32_t> Flag; //writer on most siginificant bit, reader on lower bits
@@ -195,6 +200,7 @@ public:
     constexpr RWSpinLock() : Flag(0) { }
     explicit RWSpinLock(RWSpinLock&& other) noexcept
         : Flag(other.Flag.exchange(0)) { }
+    COMMON_NO_COPY(RWSpinLock)
     void LockRead() noexcept
     {
         Flag++;

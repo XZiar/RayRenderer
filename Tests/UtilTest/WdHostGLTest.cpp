@@ -226,7 +226,7 @@ static void RunTest(WindowBackend& backend)
     window->MouseDrag() += [&](const auto&, const auto& evt)
     {
         lutZ += evt.Delta.X / 1000.0f;
-        log().Verbose("lutZ is now {}.\n", lutZ);
+        log().Verbose(u"lutZ is now {}.\n", lutZ);
         window->Invalidate();
     };
     window->KeyDown() += [&](const auto&, const auto& evt)
@@ -236,7 +236,7 @@ static void RunTest(WindowBackend& backend)
         case event::CommonKeys::Enter:
             shouldLut = !shouldLut;
             window->SetTitle(shouldLut ? u"WdHostGLTest - LUT"sv : u"WdHostGLTest - NoLUT"sv);
-            log().Verbose("shouldLut is now {}.\n", shouldLut ? "ON" : "OFF");
+            log().Verbose(u"shouldLut is now {}.\n", shouldLut ? "ON" : "OFF");
             break;
         default:
             return;

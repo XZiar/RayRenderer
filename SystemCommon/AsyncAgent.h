@@ -12,17 +12,17 @@ namespace asyexe
 class AsyncManager;
 
 
-class SYSCOMMONAPI AsyncAgent
+class AsyncAgent
 {
     friend AsyncManager;
 private:
     AsyncManager &Manager;
-    void AddPms(::common::PmsCore pmscore) const;
+    SYSCOMMONAPI void AddPms(::common::PmsCore pmscore) const;
     AsyncAgent(AsyncManager& manager) : Manager(manager) {}
-    static const AsyncAgent*& GetRawAsyncAgent();
+    SYSCOMMONAPI static const AsyncAgent*& GetRawAsyncAgent();
 public:
-    void YieldThis() const;
-    void Sleep(const uint32_t ms) const;
+    SYSCOMMONAPI void YieldThis() const;
+    SYSCOMMONAPI void Sleep(const uint32_t ms) const;
     template<typename T>
     T Await(const PromiseResult<T>& pms) const
     {
@@ -35,7 +35,7 @@ public:
         AddPms(std::static_pointer_cast<common::detail::PromiseResultCore>(pms));
         return pms->Get();
     }*/
-    static const AsyncAgent* GetAsyncAgent();
+    SYSCOMMONAPI static const AsyncAgent* GetAsyncAgent();
     ///<summary>Safe wait, in case you are waiting for a task posted into the same thread, which may cause dead-lock</summary>  
     ///<param name="pms">promise</param>
     ///<returns>T</returns>

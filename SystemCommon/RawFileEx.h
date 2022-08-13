@@ -16,7 +16,7 @@ class FileMappingObject;
 #endif
 
 
-class SYSCOMMONAPI RawFileObject : public NonCopyable, public NonMovable
+class RawFileObject
 {
     friend class FileMappingObject;
     friend class RawFileStream;
@@ -32,21 +32,23 @@ private:
     HandleType FileHandle;
     OpenFlag Flag;
 
-    RawFileObject(const fs::path& path, const HandleType fileHandle, const OpenFlag flag);
+    SYSCOMMONAPI RawFileObject(const fs::path& path, const HandleType fileHandle, const OpenFlag flag);
 public:
-    ~RawFileObject();
+    COMMON_NO_COPY(RawFileObject)
+    COMMON_NO_MOVE(RawFileObject)
+    SYSCOMMONAPI ~RawFileObject();
 
     [[nodiscard]] const fs::path& Path() const { return FilePath; }
     [[nodiscard]] std::u16string ExtName() const { return FilePath.extension().u16string(); }
 
     //==========Open=========//
 
-    [[nodiscard]] static std::shared_ptr<RawFileObject> OpenFile(const fs::path& path, const OpenFlag flag);
-    [[nodiscard]] static std::shared_ptr<RawFileObject> OpenThrow(const fs::path& path, const OpenFlag flag);
+    SYSCOMMONAPI [[nodiscard]] static std::shared_ptr<RawFileObject> OpenFile(const fs::path& path, const OpenFlag flag);
+    SYSCOMMONAPI [[nodiscard]] static std::shared_ptr<RawFileObject> OpenThrow(const fs::path& path, const OpenFlag flag);
 };
 
 
-class SYSCOMMONAPI RawFileStream
+class RawFileStream
 {
 protected:
 

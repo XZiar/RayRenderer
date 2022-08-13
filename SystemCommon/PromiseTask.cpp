@@ -14,7 +14,7 @@ class PromiseActiveProxy final : private common::loop::LoopBase
 public:
     using ErrorCallback = std::function<void(const BaseException&)>;
 private:
-    struct COMMON_EMPTY_BASES ProxyNode : public NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<ProxyNode>
+    struct ProxyNode : public common::container::IntrusiveDoubleLinkListNodeBase<ProxyNode>
     {
         const PmsCore Core;
         PromiseProvider& Promise;
