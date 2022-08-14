@@ -26,7 +26,6 @@
 
 namespace common
 {
-
 namespace detail
 {
 template<typename T, void(T::*Lock)(), void(T::*Unlock)()>
@@ -52,15 +51,10 @@ public:
 };
 }
 
-struct EmptyLock
-{
-    constexpr void lock() noexcept {}
-    constexpr void unlock() noexcept {}
-};
 
 struct SpinLocker
 {
-private:
+protected:
     std::atomic_flag Flag = ATOMIC_FLAG_INIT;
 public:
     constexpr SpinLocker() noexcept { }
@@ -72,10 +66,9 @@ public:
     }
     void Lock() noexcept
     {
-        for (uint32_t i = 0; Flag.test_and_set(); ++i)
+        while (Flag.test_and_set())
         {
             COMMON_PAUSE();
-            //if (i > 16)
         }
     }
     void Unlock() noexcept
@@ -92,7 +85,7 @@ public:
 
 struct PreferSpinLock //Strong-first
 {
-private:
+protected:
     std::atomic<uint32_t> Flag; //strong on high 16bit, weak on low 16bit
 public:
     constexpr PreferSpinLock() noexcept : Flag(0) { }
@@ -101,10 +94,10 @@ public:
     COMMON_NO_COPY(PreferSpinLock)
     void LockWeak() noexcept
     {
-        uint32_t expected = Flag.load() & 0x0000ffff; //assume no strong
+        uint32_t expected = Flag.load() & 0x0000ffffu; //assume no strong
         while (!Flag.compare_exchange_strong(expected, expected + 1))
         {
-            expected &= 0x0000ffff; //assume no strong
+            expected &= 0x0000ffffu; //assume no strong
             COMMON_PAUSE();
         }
     }
@@ -114,15 +107,15 @@ public:
     }
     void LockStrong() noexcept
     {
-        Flag.fetch_add(0x00010000);
-        while((Flag.load() & 0x0000ffff) != 0) //loop until no weak
+        Flag.fetch_add(0x00010000u);
+        while((Flag.load() & 0x0000ffffu) != 0) //loop until no weak
         {
             COMMON_PAUSE();
         }
     }
     void UnlockStrong() noexcept
     {
-        Flag.fetch_sub(0x00010000);
+        Flag.fetch_sub(0x00010000u);
     }
     using WeakScopeType = detail::LockScope<PreferSpinLock, &PreferSpinLock::LockWeak, &PreferSpinLock::UnlockWeak>;
     WeakScopeType WeakScope() noexcept
@@ -138,7 +131,7 @@ public:
 
 struct WRSpinLock //Writer-first
 {
-private:
+protected:
     std::atomic<uint32_t> Flag; //writer on most siginificant bit, reader on lower bits
 public:
     constexpr WRSpinLock() noexcept : Flag(0) { }
@@ -147,10 +140,10 @@ public:
     COMMON_NO_COPY(WRSpinLock)
     void LockRead() noexcept
     {
-        uint32_t expected = Flag.load() & 0x7fffffff; //assume no writer
+        uint32_t expected = Flag.load() & 0x7fffffffu; //assume no writer
         while (!Flag.compare_exchange_weak(expected, expected + 1))
         {
-            expected &= 0x7fffffff; //assume no writer
+            expected &= 0x7fffffffu; //assume no writer
             COMMON_PAUSE();
         }
     }
@@ -160,20 +153,20 @@ public:
     }
     void LockWrite() noexcept
     {
-        uint32_t expected = Flag.load() & 0x7fffffff;
-        while (!Flag.compare_exchange_weak(expected, expected + 0x80000000))
+        uint32_t expected = Flag.load() & 0x7fffffffu;
+        while (!Flag.compare_exchange_weak(expected, expected + 0x80000000u))
         {
-            expected &= 0x7fffffff; //assume no other writer
+            expected &= 0x7fffffffu; //assume no other writer
             COMMON_PAUSE();
         }
-        while ((Flag.load() & 0x7fffffff) != 0) //loop until no reader
+        while ((Flag.load() & 0x7fffffffu) != 0) //loop until no reader
         {
             COMMON_PAUSE();
         }
     }
     void UnlockWrite() noexcept
     {
-        Flag -= 0x80000000;
+        Flag -= 0x80000000u;
         //uint32_t expected = Flag.load() | 0x80000000;
         //while (!Flag.compare_exchange_weak(expected, expected - 0x80000000))
         //{
@@ -194,7 +187,7 @@ public:
 
 struct RWSpinLock //Reader-first
 {
-private:
+protected:
     std::atomic<uint32_t> Flag; //writer on most siginificant bit, reader on lower bits
 public:
     constexpr RWSpinLock() : Flag(0) { }
@@ -204,7 +197,7 @@ public:
     void LockRead() noexcept
     {
         Flag++;
-        while ((Flag.load() & 0x80000000) != 0) //loop until no writer
+        while ((Flag.load() & 0x80000000u) != 0) //loop until no writer
         {
             COMMON_PAUSE();
         }
@@ -216,7 +209,7 @@ public:
     void LockWrite() noexcept
     {
         uint32_t expected = 0;
-        while (!Flag.compare_exchange_weak(expected, 0x80000000))
+        while (!Flag.compare_exchange_weak(expected, 0x80000000u))
         {
             expected = 0; //assume no other locker
             COMMON_PAUSE();
@@ -224,7 +217,7 @@ public:
     }
     void UnlockWrite() noexcept
     {
-        Flag -= 0x80000000;
+        Flag -= 0x80000000u;
         //uint32_t expected = Flag.load() | 0x80000000;
         //while (!Flag.compare_exchange_weak(expected, expected & 0x7fffffff))
         //{
@@ -252,10 +245,10 @@ public:
     //}
     void DowngradeToRead() noexcept
     {
-        uint32_t expected = (Flag.load() | 0x80000000) + 1;
-        while (!Flag.compare_exchange_weak(expected, expected & 0x7fffffff))
+        uint32_t expected = (Flag.load() | 0x80000000u) + 1;
+        while (!Flag.compare_exchange_weak(expected, expected & 0x7fffffffu))
         {
-            expected = (expected | 0x80000000) + 1; //ensure there's a writer
+            expected = (expected | 0x80000000u) + 1; //ensure there's a writer
         }
     }
 };

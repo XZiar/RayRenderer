@@ -1,9 +1,11 @@
 #include "SystemCommonPch.h"
 #include "MiscIntrins.h"
 #include "RuntimeFastPath.h"
+#include "SpinLock.h"
 #include "common/simd/SIMD.hpp"
 #include "common/simd/SIMD128.hpp"
 #include "common/simd/SIMD256.hpp"
+#include "common/SpinLock.hpp"
 #include "3rdParty/digestpp/algorithm/sha2.hpp"
 
 using namespace std::string_view_literals;
@@ -11,13 +13,14 @@ using common::CheckCPUFeature;
 using common::MiscIntrins;
 using common::DigestFuncs;
 
-#define LeadZero32Args BOOST_PP_VARIADIC_TO_SEQ(num)
-#define LeadZero64Args BOOST_PP_VARIADIC_TO_SEQ(num)
-#define TailZero32Args BOOST_PP_VARIADIC_TO_SEQ(num)
-#define TailZero64Args BOOST_PP_VARIADIC_TO_SEQ(num)
-#define PopCount32Args BOOST_PP_VARIADIC_TO_SEQ(num)
-#define PopCount64Args BOOST_PP_VARIADIC_TO_SEQ(num)
-#define Hex2StrArgs    BOOST_PP_VARIADIC_TO_SEQ(data, size, isCapital)
+#define LeadZero32Args  BOOST_PP_VARIADIC_TO_SEQ(num)
+#define LeadZero64Args  BOOST_PP_VARIADIC_TO_SEQ(num)
+#define TailZero32Args  BOOST_PP_VARIADIC_TO_SEQ(num)
+#define TailZero64Args  BOOST_PP_VARIADIC_TO_SEQ(num)
+#define PopCount32Args  BOOST_PP_VARIADIC_TO_SEQ(num)
+#define PopCount64Args  BOOST_PP_VARIADIC_TO_SEQ(num)
+#define Hex2StrArgs     BOOST_PP_VARIADIC_TO_SEQ(data, size, isCapital)
+#define PauseCyclesArgs BOOST_PP_VARIADIC_TO_SEQ(cycles)
 DEFINE_FASTPATH(MiscIntrins, LeadZero32);
 DEFINE_FASTPATH(MiscIntrins, LeadZero64);
 DEFINE_FASTPATH(MiscIntrins, TailZero32);
@@ -25,6 +28,7 @@ DEFINE_FASTPATH(MiscIntrins, TailZero64);
 DEFINE_FASTPATH(MiscIntrins, PopCount32);
 DEFINE_FASTPATH(MiscIntrins, PopCount64);
 DEFINE_FASTPATH(MiscIntrins, Hex2Str);
+DEFINE_FASTPATH(MiscIntrins, PauseCycles);
 #define Sha256Args BOOST_PP_VARIADIC_TO_SEQ(data, size)
 DEFINE_FASTPATH(DigestFuncs, Sha256);
 
@@ -135,9 +139,105 @@ struct SHA2
 #endif
     }
 };
+struct SSE2
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("sse2"sv);
+#else
+        return false;
+#endif
+    }
+};
+struct WAITPKG
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("waitpkg"sv);
+#else
+        return false;
+#endif
+    }
+};
 }
 
 using namespace common::simd;
+
+#if COMMON_ARCH_X86
+#    define PauseCycleLoop(...) \
+const auto tsc = __rdtsc();     \
+do                              \
+{                               \
+    __VA_ARGS__                 \
+} while (__rdtsc() - tsc < cycles);
+#else
+#    define PauseCycleLoop(...)             \
+cycles &= 0xffffff80u;                      \
+for (uint32_t i = 0; i <= cycles; i += 32)  \
+{                                           \
+    __VA_ARGS__                             \
+}
+#endif
+
+
+DEFINE_FASTPATH_METHOD(PauseCycles, COMPILER)
+{
+#if COMMON_ARCH_X86
+#   if (COMMON_COMPILER_CLANG && COMMON_CLANG_VER >= 30800) || (COMMON_COMPILER_GCC && COMMON_GCC_VER >= 40701)
+#       define PAUSE_FUNC __builtin_ia32_pause();
+#   elif COMMON_COMPILER_MSVC
+#       define PAUSE_FUNC __nop();
+#   else
+#       define PAUSE_FUNC asm volatile ("pause");
+#   endif
+#elif COMMON_ARCH_ARM
+#   if COMMON_COMPILER_MSVC
+#       define PAUSE_FUNC __yield();
+#   else
+#       define PAUSE_FUNC asm volatile ("yield");
+#   endif
+#else
+#   define PAUSE_FUNC asm do{} while(0);
+#endif
+    PauseCycleLoop(PAUSE_FUNC)
+    return true;
+#undef PAUSE_FUNC
+}
+
+#if COMMON_ARCH_X86
+
+# if COMMON_SIMD_LV >= 20
+DEFINE_FASTPATH_METHOD(PauseCycles, SSE2)
+{
+    PauseCycleLoop(_mm_pause();)
+    return true;
+}
+# endif
+
+# if (COMMON_COMPILER_MSVC && COMMON_MSVC_VER >= 192200) || (COMMON_COMPILER_CLANG && COMMON_CLANG_VER >= 70000) || (COMMON_COMPILER_GCC && COMMON_GCC_VER >= 90000)
+#   pragma message("Compiling MiscIntrins with WAITPKG")
+#   if COMMON_COMPILER_GCC
+#     pragma GCC push_options
+#     pragma GCC target("waitpkg")
+#   elif COMMON_COMPILER_CLANG
+#     pragma clang attribute push (__attribute__((target("waitpkg"))), apply_to=function)
+#   endif
+DEFINE_FASTPATH_METHOD(PauseCycles, WAITPKG)
+{
+    const auto tsc = __rdtsc();
+    return _umwait(0, tsc + cycles);
+}
+#   if COMMON_COMPILER_GCC
+#     pragma GCC pop_options
+#   elif COMMON_COMPILER_CLANG
+#     pragma clang attribute pop
+#   endif
+# endif
+
+#endif
+#undef PauseCycleLoop
 
 
 #if COMMON_COMPILER_MSVC
@@ -533,7 +633,7 @@ struct Sha256Round_SHANI : public Sha256State
     {
         // Expects len < 16
         if (len == 0)
-            return U32x4::LoadLo(0x80000000);
+            return U32x4::LoadLo(0x80000000u);
         const auto val = U32x4(data).SwapEndian();
         const U8x16 IdxConst(3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12);
         const U8x16 SizeMask(static_cast<char>(len));                                                   // x, x, x, x
@@ -810,6 +910,7 @@ common::span<const MiscIntrins::PathInfo> MiscIntrins::GetSupportMap() noexcept
         RegistFuncVars(MiscIntrins, PopCount32, POPCNT, COMPILER, NAIVE);
         RegistFuncVars(MiscIntrins, PopCount64, POPCNT, COMPILER, NAIVE);
         RegistFuncVars(MiscIntrins, Hex2Str, SIMDSSSE3, SIMD128, NAIVE);
+        RegistFuncVars(MiscIntrins, PauseCycles, WAITPKG, SSE2, COMPILER);
         return ret;
     }();
     return list;
@@ -818,7 +919,7 @@ MiscIntrins::MiscIntrins(common::span<const VarItem> requests) noexcept { Init(r
 MiscIntrins::~MiscIntrins() {}
 bool MiscIntrins::IsComplete() const noexcept
 {
-    return LeadZero32 && LeadZero64 && TailZero32 && TailZero64 && PopCount32 && PopCount64 && Hex2Str;
+    return LeadZero32 && LeadZero64 && TailZero32 && TailZero64 && PopCount32 && PopCount64 && Hex2Str && PauseCycles;
 }
 
 const MiscIntrins MiscIntrin;
@@ -842,5 +943,86 @@ bool DigestFuncs::IsComplete() const noexcept
 }
 const DigestFuncs DigestFunc;
 
+
+namespace spinlock
+{
+
+template<typename FL, typename FF> 
+forceinline void WaitFramework(FL&& lock, FF&& fix)
+{
+    for (uint32_t i = 0; i < 16; ++i)
+    {
+        if (lock()) return;
+        fix();
+        COMMON_PAUSE();
+    }
+    while (true)
+    {
+        uint32_t delays[2] = { 512, 256 };
+        for (uint32_t i = 0; i < 8; ++i)
+        {
+            if (lock()) return;
+            fix();
+            MiscIntrin.Pause(delays[0]);
+            delays[0] <<= 1;
+            if (lock()) return;
+            fix();
+            MiscIntrin.Pause(delays[1]);
+            delays[1] <<= 1;
+        }
+    }
+}
+
+void SpinLocker::Lock() noexcept
+{
+    WaitFramework([&]() { return !Flag.test_and_set(); }, []() {});
+}
+
+void PreferSpinLock::LockWeak() noexcept
+{
+    uint32_t expected = Flag.load() & 0x0000ffff; // assume no strong
+    WaitFramework([&]() { return Flag.load() == expected && Flag.compare_exchange_strong(expected, expected + 1); },
+        [&]() { expected &= 0x0000ffff; });
+}
+
+void PreferSpinLock::LockStrong() noexcept
+{
+    Flag.fetch_add(0x00010000);
+    // loop until no weak
+    WaitFramework([&]() { return (Flag.load() & 0x0000ffff) == 0; }, []() {});
+}
+
+void WRSpinLock::LockRead() noexcept
+{
+    uint32_t expected = Flag.load() & 0x7fffffffu; // assume no writer
+    WaitFramework([&]() { return Flag.load() == expected && Flag.compare_exchange_weak(expected, expected + 1); },
+        [&]() { expected &= 0x7fffffffu; });
+}
+
+void WRSpinLock::LockWrite() noexcept
+{
+    uint32_t expected = Flag.load() & 0x7fffffffu;
+    // assume no other writer
+    WaitFramework([&]() { return Flag.load() == expected && Flag.compare_exchange_weak(expected, expected + 0x80000000u); },
+        [&]() { expected &= 0x7fffffffu; });
+    // loop until no reader
+    WaitFramework([&]() { return (Flag.load() & 0x7fffffffu) == 0; }, []() {});
+}
+
+void RWSpinLock::LockRead() noexcept
+{
+    Flag++;
+    // loop until no writer
+    WaitFramework([&]() { return (Flag.load() & 0x80000000u) == 0; }, []() {});
+}
+
+void RWSpinLock::LockWrite() noexcept
+{
+    uint32_t expected = 0; // assume no other locker
+    WaitFramework([&]() { return Flag.load() == expected && Flag.compare_exchange_weak(expected, 0x80000000u); },
+        [&]() { expected = 0; });
+}
+
+}
 
 }

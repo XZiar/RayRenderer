@@ -164,6 +164,9 @@
     <ClInclude Include="FormatInclude.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="SpinLock.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

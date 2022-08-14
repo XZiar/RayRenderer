@@ -45,6 +45,9 @@
 #   if COMMON_GCC_VER < 110000
 #     define CMSIMD_WA_LOADUSI      1 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95483
 #   endif
+#   if COMMON_GCC_VER < 110300 || (COMMON_GCC_VER >= 120000 && COMMON_GCC_VER < 120100)
+#     define CMSIMD_FIX_LOADUSI     1 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=99754
+#   endif
 # elif COMMON_COMPILER_MSVC
 #   if COMMON_MSVC_VER < 120000
 #     error MSVC version too low to use this header, at least msvc 12.0 (VS6.0)
@@ -94,6 +97,26 @@
 #   define _mm_loadu_si16(mem_addr) _mm_cvtsi32_si128(*(const short*)(mem_addr))
 #   define _mm_storeu_si32(mem_addr, a) (void)(*(int*)(mem_addr) = _mm_cvtsi128_si32((a)))
 #   define _mm_storeu_si16(mem_addr, a) (void)(*(short*)(mem_addr) = (short)_mm_cvtsi128_si32((a)))
+# endif
+# ifdef CMSIMD_FIX_LOADUSI
+#   undef CMSIMD_FIX_LOADUSI
+forceinline __m128i _mm_loadu_si32_correct(const void* __restrict addr) noexcept
+{
+    return _mm_set_epi32(0, 0, 0, reinterpret_cast<const int32_t*>(addr)[0]);
+}
+forceinline __m128i _mm_loadu_si16_correct(const void* __restrict addr) noexcept
+{
+    return _mm_set_epi16(0, 0, 0, 0, 0, 0, 0, reinterpret_cast<const int16_t*>(addr)[0]);
+}
+# else
+forceinline __m128i _mm_loadu_si32_correct(const void* addr) noexcept
+{
+    return _mm_loadu_si32(addr);
+}
+forceinline __m128i _mm_loadu_si16_correct(const void* addr) noexcept
+{
+    return _mm_loadu_si16(addr);
+}
 # endif
 #elif COMMON_ARCH_ARM
 # if COMMON_COMPILER_CLANG

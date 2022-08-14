@@ -389,8 +389,8 @@ public:
             return _mm_srai_epi32(this->Data, N);
     }
 
-    forceinline static T LoadLo(const E val) noexcept { return _mm_loadu_si32(&val); }
-    forceinline static T LoadLo(const E* ptr) noexcept { return _mm_loadu_si32(ptr); }
+    forceinline static T LoadLo(const E val) noexcept { return _mm_loadu_si32_correct(&val); }
+    forceinline static T LoadLo(const E* ptr) noexcept { return _mm_loadu_si32_correct(ptr); }
 };
 
 
@@ -512,8 +512,8 @@ public:
             return _mm_srai_epi16(this->Data, N);
     }
 
-    forceinline static T LoadLo(const E val) noexcept { return _mm_loadu_si16(&val); }
-    forceinline static T LoadLo(const E* ptr) noexcept { return _mm_loadu_si16(ptr); }
+    forceinline static T LoadLo(const E val) noexcept { return _mm_loadu_si16_correct(&val); }
+    forceinline static T LoadLo(const E* ptr) noexcept { return _mm_loadu_si16_correct(ptr); }
 };
 
 

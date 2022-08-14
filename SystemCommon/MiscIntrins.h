@@ -17,6 +17,7 @@ private:
     uint32_t(*PopCount32)(const uint32_t) noexcept = nullptr;
     uint32_t(*PopCount64)(const uint64_t) noexcept = nullptr;
     std::string(*Hex2Str)(const uint8_t* data, size_t size, bool isCapital) noexcept = nullptr;
+    bool(*PauseCycles)(uint32_t) noexcept = nullptr;
 #if COMMON_COMPILER_MSVC
     [[nodiscard]] forceinline uint16_t ByteSwap16(const uint16_t num) const noexcept
     { 
@@ -115,6 +116,10 @@ public:
     [[nodiscard]] forceinline std::string HexToStr(common::span<const std::byte> data, bool isCapital = false) const noexcept
     {
         return Hex2Str(reinterpret_cast<const uint8_t*>(data.data()), data.size(), isCapital);
+    }
+    forceinline bool Pause(uint32_t cycles) const noexcept
+    {
+        return PauseCycles(cycles);
     }
 };
 

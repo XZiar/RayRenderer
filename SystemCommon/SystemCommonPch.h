@@ -12,6 +12,7 @@
 #include <boost/preprocessor/variadic/to_seq.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/seq/for_each_i.hpp>
+#include <boost/container/small_vector.hpp>
 
 #include <cassert>
 #include <thread>

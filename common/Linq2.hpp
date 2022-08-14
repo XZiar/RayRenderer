@@ -218,19 +218,17 @@ public:
     { 
         return Avaliable == 0 || Prev.IsEnd();
     }
-    [[nodiscard]] constexpr size_t Count() const
+    template<bool B = IsCountable>
+    [[nodiscard]] constexpr std::enable_if_t<B, size_t> Count() const
     {
-        if constexpr (P::IsCountable)
-            return std::min(Avaliable, Prev.Count());
-        else
-            static_assert(!common::AlwaysTrue<P>, "Not countable");
+        static_assert(B == IsCountable);
+        return std::min(Avaliable, Prev.Count());
     }
-    constexpr void MoveMultiple(const size_t count)
+    template<bool B = CanSkipMultiple>
+    constexpr std::enable_if_t<B, void> MoveMultiple(const size_t count)
     {
-        if constexpr (P::CanSkipMultiple)
-            Prev.MoveMultiple(count), Avaliable -= count;
-        else
-            static_assert(!common::AlwaysTrue<P>, "Not movemultiple");
+        static_assert(B == CanSkipMultiple);
+        Prev.MoveMultiple(count), Avaliable -= count;
     }
 };
 
@@ -467,19 +465,17 @@ protected:
     P Prev;
     constexpr NestedSource(P&& prev) : Prev(std::move(prev)) { }
 
-    [[nodiscard]] constexpr size_t Count() const
+    template<bool B = P::IsCountable>
+    [[nodiscard]] constexpr std::enable_if_t<B, size_t> Count() const
     {
-        if constexpr (P::IsCountable)
-            return Prev.Count();
-        else
-            static_assert(!common::AlwaysTrue<P>, "Not countable");
+        static_assert(B == P::IsCountable);
+        return Prev.Count();
     }
-    constexpr void MoveMultiple(const size_t count)
+    template<bool B = P::CanSkipMultiple>
+    constexpr std::enable_if_t<B, void> MoveMultiple(const size_t count)
     {
-        if constexpr (P::CanSkipMultiple)
-            Prev.MoveMultiple(count);
-        else
-            static_assert(!common::AlwaysTrue<P>, "Not movemultiple");
+        static_assert(B == P::CanSkipMultiple);
+        Prev.MoveMultiple(count);
     }
 };
 
@@ -645,19 +641,17 @@ public:
     {
         return TupledSourceHelper::IsEnd(Prevs, Indexes);
     }
-    [[nodiscard]] constexpr size_t Count() const
+    template<bool B = IsCountable>
+    [[nodiscard]] constexpr std::enable_if_t<B, size_t> Count() const
     {
-        if constexpr (IsCountable)
-            return TupledSourceHelper::Count(Prevs, Indexes);
-        else
-            static_assert(!common::AlwaysTrue<InTypes>, "Not countable");
+        static_assert(B == IsCountable);
+        return TupledSourceHelper::Count(Prevs, Indexes);
     }
-    constexpr void MoveMultiple(const size_t count)
+    template<bool B = CanSkipMultiple>
+    constexpr std::enable_if_t<B, void> MoveMultiple(const size_t count)
     {
-        if constexpr (CanSkipMultiple)
-            TupledSourceHelper::MoveMultiple(count, Prevs, Indexes);
-        else
-            static_assert(!common::AlwaysTrue<InTypes>, "Not movemultiple");
+        static_assert(B == CanSkipMultiple);
+        TupledSourceHelper::MoveMultiple(count, Prevs, Indexes);
     }
 };
 
@@ -691,19 +685,17 @@ public:
     {
         return Prev1.IsEnd() || Prev2.IsEnd();
     }
-    [[nodiscard]] constexpr size_t Count() const
+    template<bool B = IsCountable>
+    [[nodiscard]] constexpr std::enable_if_t<B, size_t> Count() const
     {
-        if constexpr (IsCountable)
-            return std::min(Prev1.Count(), Prev2.Count());
-        else
-            static_assert(!common::AlwaysTrue<P1>, "Not countable");
+        static_assert(B == IsCountable);
+        return std::min(Prev1.Count(), Prev2.Count());
     }
-    constexpr void MoveMultiple(const size_t count)
+    template<bool B = CanSkipMultiple>
+    constexpr std::enable_if_t<B, void> MoveMultiple(const size_t count)
     {
-        if constexpr (CanSkipMultiple)
-            Prev1.MoveMultiple(count), Prev2.MoveMultiple(count);
-        else
-            static_assert(!common::AlwaysTrue<P1>, "Not movemultiple");
+        static_assert(B == CanSkipMultiple);
+        Prev1.MoveMultiple(count), Prev2.MoveMultiple(count);
     }
 };
 
@@ -786,23 +778,19 @@ public:
     {
         return IsSrc2 ? Prev2.IsEnd() : Prev1.IsEnd();
     }
-    [[nodiscard]] constexpr size_t Count() const
+    template<bool B = IsCountable>
+    [[nodiscard]] constexpr std::enable_if_t<B, size_t> Count() const
     {
-        if constexpr (IsCountable)
-            return Prev1.Count() + Prev2.Count();
-        else
-            static_assert(!common::AlwaysTrue<P1>, "Not countable");
+        static_assert(B == IsCountable);
+        return Prev1.Count() + Prev2.Count();
     }
-    constexpr void MoveMultiple(const size_t count)
+    template<bool B = CanSkipMultiple>
+    constexpr std::enable_if_t<B, void> MoveMultiple(const size_t count)
     {
-        if constexpr (CanSkipMultiple)
-        {
-            const auto count1 = std::min(Prev1.Count(), count);
-            Prev1.MoveMultiple(count1);
-            Prev2.MoveMultiple(count - count1);
-        }
-        else
-            static_assert(!common::AlwaysTrue<P1>, "Not movemultiple");
+        static_assert(B == CanSkipMultiple);
+        const auto count1 = std::min(Prev1.Count(), count);
+        Prev1.MoveMultiple(count1);
+        Prev2.MoveMultiple(count - count1);
     }
 };
 
@@ -1362,8 +1350,7 @@ struct EnumerableIterator
     }
     constexpr EnumerableIterator& operator+=(size_t n)
     {
-        if (T::IsCountable && T::CanSkipMultiple)
-            Source->Skip(n);
+        Source->Skip(n);
         return *this;
     }
 };

@@ -23,6 +23,10 @@ using namespace common::simd;
 RegisterSIMDBaseTest(F64x4, 100, SEL, Add, Sub, Mul, Div, Neg, Abs, Min, Max, FMA, Rnd);
 RegisterSIMDBaseTest(F32x8, 100, SEL, Add, Sub, Mul, Div, Neg, Abs, Min, Max, FMA, Rnd);
 
+RegisterSIMDBaseTest(I64x4,  100, Load);
+RegisterSIMDBaseTest(I32x8,  100, Load);
+RegisterSIMDBaseTest(I16x16, 100, Load);
+
 
 RegisterSIMDCastTest(I32x8,  100,               F32x8, F64x4);
 RegisterSIMDCastTest(U32x8,  100, I64x4, U64x4);

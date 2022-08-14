@@ -874,6 +874,27 @@ static void TestSWE(const T* ptr)
     }
 }
 
+template<typename T>
+static void TestLoad(const T* ptr)
+{
+    using U = typename T::EleType;
+    ForKItem(1)
+    {
+        std::array<U, T::Count> ref = { 0 };
+        memcpy_s(ref.data(), sizeof(ref), &ptr[k], sizeof(T));
+        U data1[T::Count] = { 0 };
+        U data2[T::Count] = { 0 };
+        const auto ePtr = reinterpret_cast<const U*>(&ptr[k]);
+        for (uint8_t i = 0; i < T::Count; ++i)
+        {
+            data1[i] = T::LoadLo( ePtr[i]).Val[0];
+            data2[i] = T::LoadLo(&ePtr[i]).Val[0];
+        }
+        EXPECT_THAT(data1, MatchVec(ref)) << "when testing Load";
+        EXPECT_THAT(data2, MatchVec(ref)) << "when testing Load";
+    }
+}
+
 
 #undef ForKItem
 
@@ -882,7 +903,7 @@ enum class TestItem : uint32_t
     Add = 0x1, Sub = 0x2, SatAdd = 0x4, SatSub = 0x8, Mul = 0x10, MulLo = 0x20, MulHi = 0x40, MulX = 0x80, 
     Div = 0x100, Neg = 0x200, Abs = 0x400, Min = 0x800, Max = 0x1000, SLL = 0x2000, SRL = 0x4000, SRA = 0x8000,
     And = 0x10000, Or = 0x20000, Xor = 0x40000, AndNot = 0x80000, Not = 0x100000, FMA = 0x200000, Rnd = 0x400000,
-    SWE = 0x10000000, SEL = 0x20000000
+    SWE = 0x10000000, SEL = 0x20000000, Load = 0x40000000
 };
 MAKE_ENUM_BITFIELD(TestItem)
 
@@ -896,7 +917,7 @@ public:
 #define AddItem(r, data, x) if constexpr (HAS_FIELD(Items, TestItem::x)) \
     BOOST_PP_CAT(Test,x)<T>(GetRandPtr<T, typename T::EleType>());
 #define AddItems(...) BOOST_PP_SEQ_FOR_EACH(AddItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
-        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SRL, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL, FMA, Rnd)
+        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SRL, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL, FMA, Rnd, Load)
 #undef AddItems
 #undef AddItem
     }

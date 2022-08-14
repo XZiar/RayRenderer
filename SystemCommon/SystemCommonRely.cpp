@@ -72,6 +72,11 @@ struct CPUFeature
             struct cpu_raw_data_t raw;
             if (cpuid_get_raw_data(&raw) >= 0)
             {
+                if (raw.basic_cpuid[0][EAX] >= 7) 
+                {
+                    if (const auto reg = raw.basic_cpuid[7][ECX]; reg & (1u << 5))
+                        FeatureText.push_back("waitpkg"sv);
+                }
                 cpu_id_t data;
                 if (cpu_identify(&raw, &data) >= 0)
                 {
