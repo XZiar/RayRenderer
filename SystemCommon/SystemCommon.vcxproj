@@ -259,6 +259,7 @@
     <ClInclude Include="SpinLock.h" />
     <ClInclude Include="StackTrace.h" />
     <ClInclude Include="StrEncoding.hpp" />
+    <ClInclude Include="StrEncodingBase.hpp" />
     <ClInclude Include="StringConvert.h" />
     <ClInclude Include="StringDetect.h" />
     <ClInclude Include="StringFormat.h" />

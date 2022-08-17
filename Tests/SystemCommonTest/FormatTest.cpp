@@ -3,7 +3,9 @@
 #include "SystemCommon/Format.h"
 #include "SystemCommon/Exceptions.h"
 #include "SystemCommon/StringConvert.h"
+#include "SystemCommon/StringFormat.h"
 #include "common/TimeUtil.hpp"
+#include "3rdParty/fmt/include/fmt/compile.h"
 
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/tuple/elem.hpp>
@@ -418,9 +420,9 @@ TEST(Format, ParseString)
 #elif COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop
 #endif
-    [[maybe_unused]] constexpr auto parse0 = FmtString("{}"sv);
+    /*[[maybe_unused]] constexpr auto parse0 = FmtString("{}"sv);
     [[maybe_unused]] constexpr auto parse1 = FmtString("here"sv);
-    [[maybe_unused]] constexpr auto parse2 = FmtString("{3:p}xyz{@<black+}"sv);
+    [[maybe_unused]] constexpr auto parse2 = FmtString("{3:p}xyz{@<black+}"sv);*/
     /*constexpr auto klp = []()
     {
         constexpr auto Result = ParseResult::ParseString("");
@@ -671,7 +673,7 @@ TEST(Format, PackArg)
 template<typename T, typename... Args>
 auto ToString(T&& res, Args&&... args)
 {
-    using Char = typename T::CharType;
+    using Char = typename std::decay_t<T>::CharType;
     Formatter<Char> formatter;
     return formatter.FormatStatic(res, std::forward<Args>(args)...);
 }
@@ -707,3 +709,109 @@ TEST(Format, Formating)
     }
 }
 
+
+TEST(Format, Perf)
+{
+    constexpr uint32_t times = 100000;
+    common::SimpleTimer timer;
+    std::string ref[4];
+    {
+        uint64_t timens = 0;
+        for (uint32_t i = 0; i < times; ++i)
+        {
+            ref[0].clear();
+            timer.Start();
+            fmt::format_to(std::back_inserter(ref[0]), FMT_STRING("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}"),
+                "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
+            timer.Stop();
+            timens += timer.ElapseNs();
+        }
+        TestCout() << "[fmt-def] u8 use avg[" << (timens / times) << "]ns to finish\n";
+    }
+    {
+        uint64_t timens = 0;
+        for (uint32_t i = 0; i < times; ++i)
+        {
+            ref[1].clear();
+            timer.Start();
+            fmt::format_to(std::back_inserter(ref[1]), FMT_COMPILE("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}"),
+                "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
+            timer.Stop();
+            timens += timer.ElapseNs();
+        }
+        TestCout() << "[fmt-cpl] u8 use avg[" << (timens / times) << "]ns to finish\n";
+        EXPECT_TRUE(ref[1] == ref[0]);
+    }
+    {
+        uint64_t timens = 0;
+        for (uint32_t i = 0; i < times; ++i)
+        {
+            ref[2].clear();
+            timer.Start();
+            fmt::format_to(std::back_inserter(ref[2]), fmt::runtime("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}"),
+                "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
+            timer.Stop();
+            timens += timer.ElapseNs();
+        }
+        TestCout() << "[fmt-rt ] u8 use avg[" << (timens / times) << "]ns to finish\n";
+        EXPECT_TRUE(ref[2] == ref[0]);
+    }
+    {
+        uint64_t timens = 0;
+        for (uint32_t i = 0; i < times; ++i)
+        {
+            ref[3].clear();
+            timer.Start();
+            fmt::dynamic_format_arg_store<fmt::buffer_context<char>> store;
+            store.push_back("hello");
+            store.push_back(0.0);
+            store.push_back(42);
+            store.push_back(uint8_t(64));
+            store.push_back(int64_t(65535));
+            store.push_back(-70000);
+            store.push_back(4.9014e6);
+            store.push_back(-392.5f);
+            store.push_back(392.65);
+            store.push_back(uint64_t(765));
+            fmt::vformat_to(std::back_inserter(ref[3]), "123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}", store);
+            timer.Stop();
+            timens += timer.ElapseNs();
+        }
+        TestCout() << "[fmt-dyn] u8 use avg[" << (timens / times) << "]ns to finish\n";
+        EXPECT_TRUE(ref[3] == ref[0]);
+    }
+
+
+    std::string csf[2];
+    {
+        uint64_t timens = 0;
+        for (uint32_t i = 0; i < times; ++i)
+        {
+            csf[0].clear();
+            timer.Start();
+            Formatter<char> fmter;
+            fmter.FormatToDynamic(csf[0], "123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}",
+                "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
+            timer.Stop();
+            timens += timer.ElapseNs();
+        }
+        TestCout() << "[csf-dyn] u8 use avg[" << (timens / times) << "]ns to finish\n";
+        EXPECT_TRUE(csf[0] == ref[0]);
+    }
+    {
+        uint64_t timens = 0;
+        for (uint32_t i = 0; i < times; ++i)
+        {
+            csf[1].clear();
+            timer.Start();
+            Formatter<char> fmter;
+            fmter.FormatToStatic(csf[1], FmtString("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}"),
+                "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
+            timer.Stop();
+            timens += timer.ElapseNs();
+        }
+        TestCout() << "[csf-sta] u8 use avg[" << (timens / times) << "]ns to finish\n";
+        EXPECT_TRUE(csf[1] == csf[0]);
+    }
+
+}

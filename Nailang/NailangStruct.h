@@ -724,7 +724,7 @@ template<Arg::Type T, bool Check>
 {
     if constexpr (Check)
     {
-        const auto target = common::enum_cast(T);
+        constexpr auto target = common::enum_cast(T);
         const auto type = common::enum_cast(TypeData);
         Expects((type & target) == target);
     }

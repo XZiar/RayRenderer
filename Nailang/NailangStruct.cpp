@@ -258,10 +258,10 @@ struct ArrayEleFormatter : common::str::Formatter<char32_t>
     using Formatter::PutInteger;
     using Formatter::PutString;
 };
+static ArrayEleFormatter ArrayEleFmter;
 
 void ArrayRef::PrintToStr(std::u32string& str, std::u32string_view delim) const
 {
-    ArrayEleFormatter formatter;
     const auto Append = [&](std::u32string& str, auto delim, auto ptr, const size_t len)
     {
         for (uint32_t idx = 0; idx < len; ++idx)
@@ -271,18 +271,28 @@ void ArrayRef::PrintToStr(std::u32string& str, std::u32string_view delim) const
             if constexpr (std::is_same_v<Arg, T>)
                 str.append(ptr[idx].ToString().StrView());
             else if constexpr (common::is_specialization<T, std::basic_string>::value || common::is_specialization<T, std::basic_string_view>::value)
-                formatter.PutString(str, ptr[idx], nullptr);
+            {
+                using namespace common::str;
+                using Char = typename T::value_type;
+                if constexpr (sizeof(Char) == sizeof(char32_t))
+                    str.append(reinterpret_cast<const char32_t*>(ptr[idx].data()), ptr[idx].size());
+                else
+                {
+                    const auto data32 = to_u32string(ptr[idx], sizeof(Char) == sizeof(char) ? Encoding::UTF8 : DefaultEncoding<Char>);
+                    str.append(data32);
+                }
+            }
             else if constexpr (std::is_same_v<T, bool>)
-                formatter.PutString(str, ptr[idx] ? U"true"sv : U"false"sv, nullptr);
+                str.append(ptr[idx] ? U"true"sv : U"false"sv);
             else if constexpr (std::is_same_v<T, half_float::half>)
-                formatter.PutFloat(str, (float)ptr[idx], nullptr);
+                ArrayEleFmter.PutFloat(str, (float)ptr[idx], nullptr);
             else if constexpr (std::is_floating_point_v<T>)
-                formatter.PutFloat(str, ptr[idx], nullptr);
+                ArrayEleFmter.PutFloat(str, ptr[idx], nullptr);
             else if constexpr (std::is_integral_v<T>)
             {
                 constexpr auto isSigned = std::is_signed_v<T>;
                 using U = std::conditional_t<(sizeof(T) > 4), uint64_t, uint32_t>;
-                formatter.PutInteger(str, static_cast<U>(ptr[idx]), isSigned, nullptr);
+                ArrayEleFmter.PutInteger(str, static_cast<U>(ptr[idx]), isSigned, nullptr);
             }
             else
                 static_assert(!common::AlwaysTrue<T>, "unexpected");
@@ -437,10 +447,25 @@ common::str::StrVariant<char32_t> Arg::ToString() const noexcept
     case Type::Var:     return {};
     case Type::U32Str:  return GetVar<Type::U32Str>();
     case Type::U32Sv:   return GetVar<Type::U32Sv>();
-    case Type::Uint:    return fmt::format(FMT_STRING(U"{}"), GetVar<Type::Uint>());
-    case Type::Int:     return fmt::format(FMT_STRING(U"{}"), GetVar<Type::Int>());
-    case Type::FP:      return fmt::format(FMT_STRING(U"{}"), GetVar<Type::FP>());
     case Type::Bool:    return GetVar<Type::Bool>() ? U"true"sv : U"false"sv;
+    case Type::Uint: 
+    { 
+        std::u32string ret; 
+        ArrayEleFmter.PutInteger(ret, GetVar<Type::Uint>(), false, nullptr); 
+        return ret;  
+    }
+    case Type::Int:
+    {
+        std::u32string ret;
+        ArrayEleFmter.PutInteger(ret, GetVar<Type::Uint, false> (), true, nullptr);
+        return ret;
+    }
+    case Type::FP:
+    {
+        std::u32string ret;
+        ArrayEleFmter.PutFloat(ret, GetVar<Type::FP>(), nullptr);
+        return ret;
+    }
     case Type::Array:
     {
         std::u32string ret = U"[";
@@ -1044,20 +1069,17 @@ void Serializer::Stringify(std::u32string& output, const std::u32string_view str
 
 void Serializer::Stringify(std::u32string& output, const uint64_t u64)
 {
-    const auto str = fmt::to_string(u64);
-    output.insert(output.end(), str.begin(), str.end());
+    ArrayEleFmter.PutInteger(output, u64, false, nullptr);
 }
 
 void Serializer::Stringify(std::u32string& output, const int64_t i64)
 {
-    const auto str = fmt::to_string(i64);
-    output.insert(output.end(), str.begin(), str.end());
+    ArrayEleFmter.PutInteger(output, static_cast<uint64_t>(i64), true, nullptr);
 }
 
 void Serializer::Stringify(std::u32string& output, const double f64)
 {
-    const auto str = fmt::to_string(f64);
-    output.insert(output.end(), str.begin(), str.end());
+    ArrayEleFmter.PutFloat(output, f64, nullptr);
 }
 
 void Serializer::Stringify(std::u32string& output, const bool boolean)

@@ -20,30 +20,18 @@ using common::simd::VecDataInfo;
 void PCI_BDF::FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec*) const
 {
     using namespace common::str;
-    constexpr auto Ref = []() 
+    static const auto specCache = []() 
     {
-        ParseResult res;
-        ParseResult::FormatSpec spec;
-        auto txt = "02X"sv;
-        ParseResultCh<char>::ParseFormatSpec(res, spec, txt.data(), txt);
-        return spec;
+        std::array<OpaqueFormatSpec, 2> specs = {};
+        FormatterExecutor::ConvertSpec(specs[0], U"02X"sv, ArgRealType::UInt);
+        FormatterExecutor::ConvertSpec(specs[1], U"1X"sv, ArgRealType::UInt);
+        return specs;
     }();
-    constexpr auto Base = [](const ParseResult::FormatSpec& ref)
-    {
-        FormatSpec spec{ };
-        spec.Width = ref.Width;
-        spec.Precision = ref.Precision;
-        spec.TypeExtra = ref.Type.Extra;
-        spec.ZeroPad = ref.ZeroPad;
-        return spec;
-    }(Ref);
-    auto spec = Base;
-    executor.PutInteger(context, Bus(),      false, &spec);
+    executor.PutInteger(context, Bus(), false, specCache[0]);
     executor.PutString(context, ":"sv, nullptr);
-    executor.PutInteger(context, Device(),   false, &spec);
+    executor.PutInteger(context, Device(), false, specCache[0]);
     executor.PutString(context, ":"sv, nullptr);
-    spec.Width = 1;
-    executor.PutInteger(context, Function(), false, &spec);
+    executor.PutInteger(context, Function(), false, specCache[1]);
 }
 std::string PCI_BDF::ToString() const noexcept
 {

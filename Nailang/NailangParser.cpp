@@ -1,7 +1,6 @@
 #include "NailangPch.h"
 #include "NailangParser.h"
 #include "NailangParserRely.h"
-#include "SystemCommon/StringFormat.h"
 #include <boost/container/small_vector.hpp>
 
 namespace xziar::nailang
@@ -58,7 +57,7 @@ void NailangParser::HandleException(const NailangParseException& ex) const
     if (info.Position.first == 0 && info.Position.second == 0)
         info.Position = { Context.Row + 1, Context.Col };
     if (ex.GetDetailMessage().empty())
-        ex.Attach("detail", FMTSTR(u"at row[{}] col[{}], file [{}]", info.Position.first, info.Position.second, info.File));
+        ex.Attach("detail", FMTSTR2(u"at row[{}] col[{}], file [{}]", info.Position.first, info.Position.second, info.File));
     ex.ThrowSelf();
 }
 

@@ -15,23 +15,6 @@ namespace common::str
 {
 
 
-enum class ArgDispType : uint8_t
-{
-    Any = 0, String, Char, Integer, Float, Pointer, Date, Time, Numeric, Custom,
-};
-//- Any
-//    - String
-//    - Date
-//    - Time
-//    - Custom
-//    - Numeric
-//        - Integer
-//            - Char
-//            - Pointer
-//        - Float
-MAKE_ENUM_BITFIELD(ArgDispType)
-
-
 template<typename Char>
 struct StrArgInfoCh;
 
@@ -80,7 +63,7 @@ struct ParseResult
     handler(InvalidFmt,         "Invalid format string");
 
     template<uint16_t ErrorPos, uint16_t OpCount>
-    static constexpr void CheckErrorCompile() noexcept
+    static constexpr bool CheckErrorCompile() noexcept
     {
         if constexpr (ErrorPos != UINT16_MAX)
         {
@@ -89,7 +72,9 @@ struct ParseResult
             SCSTR_HANDLE_PARSE_ERROR(CHECK_ERROR_MSG)
 #undef CHECK_ERROR_MSG
             static_assert(!AlwaysTrue2<OpCount>, "Unknown internal error");
+            return false;
         }
+        return true;
     }
     SYSCOMMONAPI static void CheckErrorRuntime(uint16_t errorPos, uint16_t opCount);
 
@@ -132,8 +117,8 @@ struct ParseResult
 
     struct FormatSpec
     {
-        enum class Align : uint8_t { None, Left, Right, Middle };
-        enum class Sign  : uint8_t { None, Pos, Neg, Space };
+        using Align = str::FormatSpec::Align;
+        using Sign  = str::FormatSpec::Sign;
         struct TypeIdentifier
         {
             ArgDispType Type  = ArgDispType::Any;
@@ -1245,21 +1230,6 @@ struct ArgPack
     }
 };
 
-enum class ArgRealType : uint8_t
-{
-    BaseTypeMask = 0xf0, SizeMask8 = 0b111, SizeMask4 = 0b11, SpanBit = 0b1000,
-    Error = 0x00, Custom = 0x01, Ptr = 0x02, PtrVoid = 0x03, Date = 0x04, DateDelta = 0x05, Bool = 0x06,
-    TypeSpecial = 0x00, SpecialMax = Bool,
-    SInt    = 0x10,
-    UInt    = 0x20,
-    Float   = 0x30,
-    Char    = 0x40,
-    String  = 0x50, StrPtrBit = 0b100,
-    Empty   = 0x0,
-};
-MAKE_ENUM_BITFIELD(ArgRealType)
-MAKE_ENUM_RANGE(ArgRealType)
-
 
 struct CompactDate
 {
@@ -1491,7 +1461,7 @@ struct ArgInfo
     }
 
     template<typename T>
-    static void PackAnArg([[maybe_unused]] ArgPack& pack, [[maybe_unused]] T&& arg, [[maybe_unused]] uint16_t& idx) noexcept
+    forceinline static void PackAnArg([[maybe_unused]] ArgPack& pack, [[maybe_unused]] T&& arg, [[maybe_unused]] uint16_t& idx) noexcept
     {
         if constexpr (!std::is_base_of_v<NamedArgTag, T>)
         {
@@ -1566,13 +1536,13 @@ struct ArgInfo
         }
     }
     template<typename T>
-    static void PackAnNamedArg([[maybe_unused]] ArgPack& pack, [[maybe_unused]] T&& arg, uint16_t& idx) noexcept
+    forceinline static void PackAnNamedArg([[maybe_unused]] ArgPack& pack, [[maybe_unused]] T&& arg, [[maybe_unused]] uint16_t& idx) noexcept
     {
         if constexpr (std::is_base_of_v<NamedArgTag, T>)
             PackAnArg(pack, arg.Data, idx);
     }
     template<typename... Ts>
-    static ArgPack PackArgs(Ts&&... args) noexcept
+    forceinline static ArgPack PackArgs(Ts&&... args) noexcept
     {
         constexpr auto ArgCount = sizeof...(Ts);
         ArgPack pack;
@@ -1708,7 +1678,7 @@ struct ArgChecker
         return CheckDD(strInfo, argInfo);
     }
     template<typename StrType, typename... Args>
-    static ArgPack::NamedMapper CheckSS(const StrType&, Args&&...)
+    static constexpr ArgPack::NamedMapper CheckSS(const StrType&, Args&&...)
     {
         constexpr StrType StrInfo;
         //const TrimedResult<OpCount, NamedArgCount, IdxArgCount>& cookie
@@ -1748,6 +1718,27 @@ public:
     SYSCOMMONAPI static void FormatTo(Formatter<Char>& formatter, std::basic_string<Char>& ret, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
 };
 template<typename Char>
+struct CommonFormatter
+{
+    using StrType = std::basic_string<Char>;
+public:
+    SYSCOMMONAPI static void PutString(StrType& ret, std::   string_view str, const OpaqueFormatSpec* spec);
+    SYSCOMMONAPI static void PutString(StrType& ret, std::  wstring_view str, const OpaqueFormatSpec* spec);
+    SYSCOMMONAPI static void PutString(StrType& ret, std::u16string_view str, const OpaqueFormatSpec* spec);
+    SYSCOMMONAPI static void PutString(StrType& ret, std::u32string_view str, const OpaqueFormatSpec* spec);
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    forceinline static void PutString(StrType& ret, std::u8string_view str, const OpaqueFormatSpec* spec)
+    {
+        PutString(ret, std::string_view{ reinterpret_cast<const char*>(str.data()), str.size() }, spec);
+    }
+#endif
+    SYSCOMMONAPI static void PutInteger(StrType& ret, uint32_t val, bool isSigned, const OpaqueFormatSpec& spec);
+    SYSCOMMONAPI static void PutInteger(StrType& ret, uint64_t val, bool isSigned, const OpaqueFormatSpec& spec);
+    SYSCOMMONAPI static void PutFloat(StrType& ret, float  val, const OpaqueFormatSpec& spec);
+    SYSCOMMONAPI static void PutFloat(StrType& ret, double val, const OpaqueFormatSpec& spec);
+    SYSCOMMONAPI static void PutPointer(StrType& ret, uintptr_t val, const OpaqueFormatSpec& spec);
+};
+template<typename Char>
 struct Formatter : public FormatterBase
 {
     friend FormatterBase;
@@ -1766,21 +1757,22 @@ public:
 #endif
     SYSCOMMONAPI virtual void PutInteger(StrType& ret, uint32_t val, bool isSigned, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutInteger(StrType& ret, uint64_t val, bool isSigned, const FormatSpec* spec);
-    SYSCOMMONAPI virtual void PutFloat(StrType& ret, float val, const FormatSpec* spec);
+    SYSCOMMONAPI virtual void PutFloat(StrType& ret, float  val, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutFloat(StrType& ret, double val, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date);
     SYSCOMMONAPI virtual void PutDateBase(StrType& ret, std::string_view fmtStr, const std::tm& date);
     template<typename T, typename... Args>
-    forceinline void FormatToStatic(std::basic_string<Char>& dst, T&& res, Args&&... args)
+    forceinline void FormatToStatic(std::basic_string<Char>& dst, const T&, Args&&... args)
     {
         static_assert(std::is_same_v<typename std::decay_t<T>::CharType, Char>);
+        static constexpr T StrInfo;
         // const auto strInfo = res.ToStrArgInfo();
-        const auto mapping = ArgChecker::CheckSS(res, std::forward<Args>(args)...);
-        constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
+        const auto mapping = ArgChecker::CheckSS(StrInfo, std::forward<Args>(args)...);
+        static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
         auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
         argPack.Mapper = mapping;
-        FormatterBase::FormatTo<Char>(*this, dst, res, ArgsInfo, argPack);
+        FormatterBase::FormatTo<Char>(*this, dst, StrInfo, ArgsInfo, argPack);
     }
     template<typename... Args>
     forceinline void FormatToDynamic(std::basic_string<Char>& dst, std::basic_string_view<Char> format, Args&&... args)
@@ -1788,7 +1780,7 @@ public:
         const auto result = ParseResult::ParseString<Char>(format);
         ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
         const auto res = result.ToInfo(format);
-        constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
+        static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
         const auto mapping = ArgChecker::CheckDD(res, ArgsInfo);
         auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
         argPack.Mapper = mapping;
@@ -1814,6 +1806,7 @@ template<typename Char, typename Fmter>
 struct CombinedExecutor : public FormatterExecutor, protected Fmter
 {
     static_assert(std::is_base_of_v<Formatter<Char>, Fmter>, "Fmter need to derive from Formatter<Char>");
+    using CFmter = CommonFormatter<Char>;
     using CTX = FormatterExecutor::Context;
     struct Context : public CTX
     {
@@ -1822,6 +1815,7 @@ struct CombinedExecutor : public FormatterExecutor, protected Fmter
         constexpr Context(std::basic_string<Char>& dst, std::basic_string_view<Char> fmtstr) noexcept : 
             Dst(dst), FmtStr(fmtstr) { }
     };
+
     void OnBrace(CTX& ctx, bool isLeft) final
     {
         auto& context = static_cast<Context&>(ctx);
@@ -1832,6 +1826,48 @@ struct CombinedExecutor : public FormatterExecutor, protected Fmter
         auto& context = static_cast<Context&>(ctx);
         Fmter::PutColor(context.Dst, color);
     }
+    
+    void PutString(CTX& ctx, ::std::   string_view str, const OpaqueFormatSpec& spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        CFmter::PutString(context.Dst, str, &spec);
+    }
+    void PutString(CTX& ctx, ::std::u16string_view str, const OpaqueFormatSpec& spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        CFmter::PutString(context.Dst, str, &spec);
+    }
+    void PutString(CTX& ctx, ::std::u32string_view str, const OpaqueFormatSpec& spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        CFmter::PutString(context.Dst, str, &spec);
+    }
+    void PutInteger(CTX& ctx, uint32_t val, bool isSigned, const OpaqueFormatSpec& spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        CFmter::PutInteger(context.Dst, val, isSigned, spec);
+    }
+    void PutInteger(CTX& ctx, uint64_t val, bool isSigned, const OpaqueFormatSpec& spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        CFmter::PutInteger(context.Dst, val, isSigned, spec);
+    }
+    void PutFloat  (CTX& ctx, float  val, const OpaqueFormatSpec& spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        CFmter::PutFloat(context.Dst, val, spec);
+    }
+    void PutFloat  (CTX& ctx, double val, const OpaqueFormatSpec& spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        CFmter::PutFloat(context.Dst, val, spec);
+    }
+    void PutPointer(CTX& ctx, uintptr_t val, const OpaqueFormatSpec& spec) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        CFmter::PutPointer(context.Dst, val, spec);
+    }
+
     void PutString(CTX& ctx, std::   string_view str, const FormatSpec* spec) override
     {
         auto& context = static_cast<Context&>(ctx);
@@ -1926,19 +1962,7 @@ struct FormatterBase::StaticExecutor
 };
 
 
-#define FmtString2(str) []()                                            \
-{                                                                       \
-    using Char = std::decay_t<decltype(str[0])>;                        \
-    constexpr auto Result = ParseResult::ParseString(str);              \
-    constexpr auto OpCount       = Result.OpCount;                      \
-    constexpr auto NamedArgCount = Result.NamedArgCount;                \
-    constexpr auto IdxArgCount   = Result.IdxArgCount;                  \
-    ParseResult::CheckErrorCompile<Result.ErrorPos, OpCount>();         \
-    TrimedResult<Char, OpCount, NamedArgCount, IdxArgCount> ret(Result, str);\
-    return ret;                                                         \
-}
-
-#define FmtString(str_) []()                                                    \
+#define FmtString2(str_) []()                                                   \
 {                                                                               \
     using FMT_P = common::str::ParseResult;                                     \
     using FMT_C = std::decay_t<decltype(str_[0])>;                              \
@@ -1946,14 +1970,36 @@ struct FormatterBase::StaticExecutor
     constexpr auto OpCount = Data.OpCount;                                      \
     constexpr auto NACount = Data.NamedArgCount;                                \
     constexpr auto IACount = Data.IdxArgCount;                                  \
-    FMT_P::CheckErrorCompile<Data.ErrorPos, OpCount>();                         \
+    [[maybe_unused]] constexpr auto Check =                                     \
+        FMT_P::CheckErrorCompile<Data.ErrorPos, OpCount>();                     \
     using FMT_T = common::str::TrimedResult<FMT_C, OpCount, NACount, IACount>;  \
     struct FMT_Type : public FMT_T                                              \
     {                                                                           \
         using CharType = FMT_C;                                                 \
         constexpr FMT_Type() noexcept : FMT_T(FMT_P::ParseString(str_), str_) {}\
     };                                                                          \
-    return FMT_Type{};                                                          \
+    constexpr FMT_Type Dummy;                                                   \
+    return Dummy;                                                               \
+}()
+
+#define FmtString(str_) *[]()                                                   \
+{                                                                               \
+    using FMT_P = common::str::ParseResult;                                     \
+    using FMT_C = std::decay_t<decltype(str_[0])>;                              \
+    static constexpr auto Data = FMT_P::ParseString(str_);                      \
+    constexpr auto OpCount = Data.OpCount;                                      \
+    constexpr auto NACount = Data.NamedArgCount;                                \
+    constexpr auto IACount = Data.IdxArgCount;                                  \
+    [[maybe_unused]] constexpr auto Check =                                     \
+        FMT_P::CheckErrorCompile<Data.ErrorPos, OpCount>();                     \
+    using FMT_T = common::str::TrimedResult<FMT_C, OpCount, NACount, IACount>;  \
+    struct FMT_Type : public FMT_T                                              \
+    {                                                                           \
+        using CharType = FMT_C;                                                 \
+        constexpr FMT_Type() noexcept : FMT_T(Data, str_) {}                    \
+    };                                                                          \
+    static constexpr FMT_Type Dummy;                                            \
+    return &Dummy;                                                              \
 }()
 
 }

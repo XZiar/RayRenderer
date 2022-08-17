@@ -236,6 +236,22 @@ using u8ch_t = char;
 
 
 
+/* const-eval-init */
+
+#if defined(__cpp_constinit) && __cpp_constinit >= 201907L
+#   define COMMON_CONSTINIT constinit
+#else
+#   define COMMON_CONSTINIT
+#endif
+
+#if defined(__cpp_consteval) && __cpp_consteval >= 201811L
+#   define COMMON_CONSTEVAL consteval
+#else
+#   define COMMON_CONSTEVAL constexpr
+#endif
+
+
+
 /* basic include */
 
 #define __STDC_WANT_SECURE_LIB__ 1

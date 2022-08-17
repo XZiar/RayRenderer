@@ -6,7 +6,6 @@
 #include "SystemCommon/MiscIntrins.h"
 #include "SystemCommon/Format.h"
 #include "SystemCommon/StringConvert.h"
-#include "SystemCommon/StringFormat.h"
 
 #include "common/parser/ParserBase.hpp"
 #include "common/StringEx.hpp"

@@ -1,6 +1,7 @@
 #include "NailangPch.h"
 #include "NailangRuntime.h"
 #include "NailangParser.h"
+#include "SystemCommon/StringFormat.h"
 #include "common/Linq2.hpp"
 #include "common/StrParsePack.hpp"
 #include "common/CharConvs.hpp"
@@ -232,7 +233,7 @@ size_t NailangHelper::BiDirIndexCheck(const size_t size, const Arg& idx, const E
     }
     if (realIdx >= size)
         COMMON_THROWEX(NailangRuntimeException,
-            FMTSTR(u"index out of bound, access [{}{}] of length [{}]"sv, isReverse ? u"-"sv : u""sv, realIdx, size));
+            FMTSTR2(u"index out of bound, access [{}{}] of length [{}]"sv, isReverse ? u"-"sv : u""sv, realIdx, size));
     return isReverse ? static_cast<size_t>(size - realIdx) : static_cast<size_t>(realIdx);
 }
 
@@ -645,7 +646,7 @@ LateBindVar NailangBase::DecideDynamicVar(const Expr& arg, const std::u16string_
         const auto name = arg.GetVar<Expr::Type::Str>();
         const auto res  = NailangParser::VerifyVariableName(name);
         if (res.has_value())
-            NLRT_THROW_EX(FMTSTR(u"LateBindVar's name not valid at [{}] with len[{}]"sv, res.value(), name.size()), 
+            NLRT_THROW_EX(FMTSTR2(u"LateBindVar's name not valid at [{}] with len[{}]"sv, res.value(), name.size()), 
                 arg);
         return name;
     }
@@ -905,7 +906,7 @@ Arg NailangExecutor::EvaluateExpr(const Expr& arg, EvalTempStore& store, bool fo
     }
 }
 
-Arg NailangExecutor::EvaluateFunc(const FuncCall& func, EvalTempStore& store, MetaSet* metas)
+Arg NailangExecutor::EvaluateFunc(const FuncCall& func, EvalTempStore&, MetaSet* metas)
 {
     Expects(func.Name->PartCount > 0);
     const auto fullName = func.FullFuncName();
