@@ -76,18 +76,38 @@ string LoadShaderFallback(const std::u16string& filename, int32_t id)
     return std::string(reinterpret_cast<const char*>(data.data()), data.size());
 }
 
+
+common::mlog::detail::LoggerFormatter<char16_t>& GetLogFmt()
+{
+    thread_local common::mlog::detail::LoggerFormatter<char16_t> fmter;
+    fmter.Reset();
+    return fmter;
+}
+
+void PrintToConsole(const common::mlog::detail::LoggerFormatter<char16_t>& fmter)
+{
+    const auto& console = common::console::ConsoleEx::Get();
+    if (const auto seg = fmter.GetColorSegements(); seg.empty())
+    {
+        console.Print(fmter.Str);
+    }
+    else
+    {
+        console.PrintSegments().Print(fmter.Str, seg);
+    }
+}
+
+
+
 void PrintException(const common::BaseException& be, std::u16string_view info)
 {
+    auto& fmter = GetLogFmt();
+    fmter.FormatToStatic(fmter.Str, FmtString(u"{@<R}{}:{}\n{@<r}{}\n"), info, be.Message(), be.GetDetailMessage());
+    fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}stack trace:\n"));
+    for (const auto& stack : be.InnerInfo()->GetStacks())
+        fmter.FormatToStatic(fmter.Str, FmtString(u"{@<w}[{}:{}]\t{@<y}{}\n"), stack.File, stack.Line, stack.Func);
     common::mlog::SyncConsoleBackend();
-    GetConsole().Print(CommonColor::BrightRed,
-        FMTSTR(u"{}:{}\n{}\n", info, be.Message(), be.GetDetailMessage()));
-    {
-        std::u16string str;
-        for (const auto& stack : be.InnerInfo()->GetStacks())
-            fmt::format_to(std::back_inserter(str), FMT_STRING(u"[{}:{}]\t{}\n"), stack.File, stack.Line, stack.Func);
-        GetConsole().Print(CommonColor::BrightWhite, u"stack trace:\n");
-        GetConsole().Print(CommonColor::BrightYellow, str);
-    }
+    PrintToConsole(fmter);
     if (const auto inEx = be.NestedException(); inEx.has_value())
         return PrintException(*inEx, u"Caused by");
 }
@@ -147,8 +167,7 @@ int main(int argc, char *argv[])
         uint32_t idx = 0;
         for (const auto& pair : testMap)
         {
-            GetConsole().Print(CommonColor::BrightWhite,
-                FMTSTR2(u"[{}] {:<20} {}\n", GetIdx36(idx++), pair.first, (void*)pair.second));
+            ColorPrint(u"{@<G}[{}] {@<W}{:<20} {@<w}{}\n", GetIdx36(idx++), pair.first, pair.second);
         }
     }
     GetConsole().Print(CommonColor::BrightWhite, u"Select One To Execute...\n");

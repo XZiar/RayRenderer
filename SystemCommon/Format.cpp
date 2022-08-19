@@ -807,6 +807,16 @@ void Formatter<Char>::PutDateBase(StrType& ret, std::string_view fmtStr, const s
     }
 }
 
+template<typename Char>
+void Formatter<Char>::FormatToDynamic_(std::basic_string<Char>& dst, std::basic_string_view<Char> format, const ArgInfo& argInfo, ArgPack& argPack)
+{
+    const auto result = ParseResult::ParseString<Char>(format);
+    ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
+    const auto res = result.ToInfo(format);
+    argPack.Mapper = ArgChecker::CheckDD(res, argInfo);
+    FormatterBase::FormatTo<Char>(*this, dst, res, argInfo, argPack);
+}
+
 
 template struct Formatter<char>;
 template struct Formatter<wchar_t>;

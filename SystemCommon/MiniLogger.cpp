@@ -55,18 +55,6 @@ MiniLoggerBase::MiniLoggerBase(const std::u16string& name, std::set<std::shared_
 MiniLoggerBase::~MiniLoggerBase() { }
 
 
-//template<typename Char>
-//std::vector<Char>& StrFormater::GetBuffer()
-//{
-//    static thread_local std::vector<Char> out;
-//    out.resize(0);
-//    return out;
-//}
-//template std::vector<char>&     StrFormater::GetBuffer();
-//template std::vector<wchar_t>&  StrFormater::GetBuffer();
-//template std::vector<char16_t>& StrFormater::GetBuffer();
-//template std::vector<char32_t>& StrFormater::GetBuffer();
-
 }
 
 
@@ -82,7 +70,7 @@ struct TimeConv
 
 
 LogMessage* LogMessage::MakeMessage(const detail::LoggerName& prefix, const char16_t* content, const size_t len, 
-    common::span<const detail::ColorSeg> seg, const LogLevel level, const uint64_t time)
+    common::span<const ColorSeg> seg, const LogLevel level, const uint64_t time)
 {
     constexpr auto MsgSize = sizeof(LogMessage);
     if (len >= UINT32_MAX - 1024)
@@ -92,7 +80,7 @@ LogMessage* LogMessage::MakeMessage(const detail::LoggerName& prefix, const char
     if (!ptr)
         return nullptr; //not throw an exception yet
     LogMessage* msg = new (ptr)LogMessage(prefix, static_cast<uint32_t>(len), static_cast<uint16_t>(seg.size()), level, time);
-    const auto segPtr = reinterpret_cast<detail::ColorSeg*>(ptr + MsgSize);
+    const auto segPtr = reinterpret_cast<ColorSeg*>(ptr + MsgSize);
     memcpy_s(segPtr, segSize, seg.data(), segSize);
     const auto txtPtr = reinterpret_cast<char16_t*>(ptr + MsgSize + segSize);
     memcpy_s(txtPtr, sizeof(char16_t) * len, content, sizeof(char16_t) * len);
@@ -305,16 +293,35 @@ struct ColorSeperator
 };
 
 template<typename Char>
-struct COMMON_EMPTY_BASES LoggerFormatter final : public str::Formatter<Char>, public ColorSeperator
+LoggerFormatter<Char>::LoggerFormatter() : Seperator(std::make_unique<ColorSeperator>())
+{ }
+template<typename Char>
+LoggerFormatter<Char>::~LoggerFormatter()
+{ }
+template<typename Char>
+void LoggerFormatter<Char>::PutColor(std::basic_string<Char>&, ScreenColor color)
 {
-private:
-    void PutColor(std::basic_string<Char>&, ScreenColor color) final
-    {
-        HandleColor(color, Str.size());
-    }
-public:
-    std::basic_string<Char> Str;
-};
+    Seperator->HandleColor(color, Str.size());
+}
+template<typename Char>
+span<const ColorSeg> LoggerFormatter<Char>::GetColorSegements() const noexcept
+{
+    return Seperator->Segments;
+}
+template<typename Char>
+void LoggerFormatter<Char>::Reset() noexcept
+{
+    Str.clear();
+    Seperator->Segments.clear();
+}
+
+template struct LoggerFormatter<char>;
+template struct LoggerFormatter<wchar_t>;
+template struct LoggerFormatter<char16_t>;
+template struct LoggerFormatter<char32_t>;
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+template struct LoggerFormatter<char8_t>;
+#endif
 
 
 //template<typename Char>
@@ -322,7 +329,7 @@ LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::Str
 {
     LoggerFormatter<char16_t> formatter;
     str::FormatterBase::FormatTo(formatter, formatter.Str, strInfo, argInfo, argPack);
-    const auto segs = to_span(formatter.Segments);
+    const auto segs = to_span(formatter.GetColorSegements());
     // if constexpr (!std::is_same_v<Char, char16_t>)
     // {
     //     const auto str16 = str::to_u16string(formatter.Str);
@@ -482,18 +489,7 @@ public:
         const auto txt = msg.GetContent();
         if (SupportColor)
         {
-            uint32_t prevIdx = 0;
-            for (const auto& [offset, color] : msg.GetSegments())
-            {
-                if (offset != prevIdx)
-                    printer.Print(txt.substr(prevIdx, offset));
-                printer.SetColor(color);
-            }
-            if (prevIdx < txt.length())
-                printer.Print(txt.substr(prevIdx));
-            printer.SetColor({ false });
-            printer.SetColor({ true });
-            printer.Print(span<const std::byte>{});
+            printer.Print(txt, msg.GetSegments());
         }
         else
         {

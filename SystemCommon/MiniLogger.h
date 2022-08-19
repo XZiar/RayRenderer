@@ -9,6 +9,7 @@
 #include "common/SharedString.hpp"
 #include "common/SpinLock.hpp"
 #include <set>
+#include <memory>
 
 #if COMMON_COMPILER_MSVC
 #   pragma warning(push)
@@ -21,12 +22,11 @@ namespace common::mlog
 enum class LogLevel : uint8_t { Debug = 20, Verbose = 40, Info = 60, Success = 70, Warning = 85, Error = 100, None = 120 };
 MAKE_ENUM_RANGE(LogLevel)
 
+
 namespace detail
 {
 
 class MiniLoggerBase;
-
-using ColorSeg = std::pair<uint32_t, ScreenColor>;
 
 struct COMMON_EMPTY_BASES LoggerName : public FixedLenRefHolder<LoggerName, char16_t>
 {
@@ -65,7 +65,24 @@ public:
     }
 };
 
+struct ColorSeperator;
+
+template<typename Char>
+struct LoggerFormatter final : public str::Formatter<Char>
+{
+private:
+    void PutColor(std::basic_string<Char>&, ScreenColor color) final;
+public:
+    std::basic_string<Char> Str;
+    std::unique_ptr<detail::ColorSeperator> Seperator;
+    SYSCOMMONAPI LoggerFormatter();
+    SYSCOMMONAPI ~LoggerFormatter();
+    SYSCOMMONAPI span<const ColorSeg> GetColorSegements() const noexcept;
+    SYSCOMMONAPI void Reset() noexcept;
+};
+
 }
+
 
 struct LogMessage
 {
@@ -84,7 +101,7 @@ private:
         : Timestamp(time), Source(prefix), RefCount(1), Length(length), SegCount(segCount), Level(level) //RefCount is at first 1
     { }
     SYSCOMMONAPI static LogMessage* MakeMessage(const detail::LoggerName& prefix, const char16_t* content, const size_t len,
-        span<const detail::ColorSeg> seg, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count());
+        span<const ColorSeg> seg, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count());
 public:
     SYSCOMMONAPI static bool Consume(LogMessage* msg);
 
@@ -92,12 +109,12 @@ public:
     COMMON_NO_MOVE(LogMessage)
     [[nodiscard]] std::u16string_view GetContent() const noexcept
     {
-        const auto segSize = sizeof(detail::ColorSeg) * SegCount;
+        const auto segSize = sizeof(ColorSeg) * SegCount;
         return { reinterpret_cast<const char16_t*>(reinterpret_cast<const std::byte*>(this) + sizeof(LogMessage) + segSize), Length };
     }
-    [[nodiscard]] span<const detail::ColorSeg> GetSegments() const noexcept
+    [[nodiscard]] span<const ColorSeg> GetSegments() const noexcept
     {
-        return { reinterpret_cast<const detail::ColorSeg*>(reinterpret_cast<const std::byte*>(this) + sizeof(LogMessage)), SegCount };
+        return { reinterpret_cast<const ColorSeg*>(reinterpret_cast<const std::byte*>(this) + sizeof(LogMessage)), SegCount };
     }
     template<bool IsU16 = true>
     [[nodiscard]] constexpr auto GetSource() const noexcept

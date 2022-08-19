@@ -514,38 +514,28 @@ struct ParseLiterals;
 template<>
 struct ParseLiterals<char>
 {
-    static constexpr std::string_view BracePair = "{}", StrTrue = "true", StrFalse = "false",
-        Color_Def = "default", Color_Black = "black", Color_Red = "red", Color_Green = "green", Color_Yellow = "yellow", 
-        Color_Blue = "blue", Color_Magenta = "magenta", Color_Cyan = "cyan", Color_White = "white";
+    static constexpr std::string_view BracePair = "{}", StrTrue = "true", StrFalse = "false";
 };
 template<>
 struct ParseLiterals<char16_t>
 {
-    static constexpr std::u16string_view BracePair = u"{}", StrTrue = u"true", StrFalse = u"false",
-        Color_Def = u"default", Color_Black = u"black", Color_Red = u"red", Color_Green = u"green", Color_Yellow = u"yellow",
-        Color_Blue = u"blue", Color_Magenta = u"magenta", Color_Cyan = u"cyan", Color_White = u"white";
+    static constexpr std::u16string_view BracePair = u"{}", StrTrue = u"true", StrFalse = u"false";
 };
 template<>
 struct ParseLiterals<char32_t>
 {
-    static constexpr std::u32string_view BracePair = U"{}", StrTrue = U"true", StrFalse = U"false",
-        Color_Def = U"default", Color_Black = U"black", Color_Red = U"red", Color_Green = U"green", Color_Yellow = U"yellow",
-        Color_Blue = U"blue", Color_Magenta = U"magenta", Color_Cyan = U"cyan", Color_White = U"white";
+    static constexpr std::u32string_view BracePair = U"{}", StrTrue = U"true", StrFalse = U"false";
 };
 template<>
 struct ParseLiterals<wchar_t>
 {
-    static constexpr std::wstring_view BracePair = L"{}", StrTrue = L"true", StrFalse = L"false",
-        Color_Def = L"default", Color_Black = L"black", Color_Red = L"red", Color_Green = L"green", Color_Yellow = L"yellow",
-        Color_Blue = L"blue", Color_Magenta = L"magenta", Color_Cyan = L"cyan", Color_White = L"white";
+    static constexpr std::wstring_view BracePair = L"{}", StrTrue = L"true", StrFalse = L"false";
 };
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
 template<>
 struct ParseLiterals<char8_t>
 {
-    static constexpr std::u8string_view BracePair = u8"{}", StrTrue = u8"true", StrFalse = u8"false",
-        Color_Def = u8"default", Color_Black = u8"black", Color_Red = u8"red", Color_Green = u8"green", Color_Yellow = u8"yellow",
-        Color_Blue = u8"blue", Color_Magenta = u8"magenta", Color_Cyan = u8"cyan", Color_White = u8"white";
+    static constexpr std::u8string_view BracePair = u8"{}", StrTrue = u8"true", StrFalse = u8"false";
 };
 #endif
 
@@ -559,6 +549,7 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
         Char_f = static_cast<Char>('f'), Char_F = static_cast<Char>('F'), 
         Char_z = static_cast<Char>('z'), Char_Z = static_cast<Char>('Z'), 
         Char_b = static_cast<Char>('b'),
+        Char_x = static_cast<Char>('x'),
         Char_LT = static_cast<Char>('<'), Char_GT = static_cast<Char>('>'), Char_UP = static_cast<Char>('^'),
         Char_LB = static_cast<Char>('{'), Char_RB = static_cast<Char>('}'), 
         Char_Plus = static_cast<Char>('+'), Char_Minus = static_cast<Char>('-'), 
@@ -566,8 +557,9 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
         Char_Dot = static_cast<Char>('.'), Char_Colon = static_cast<Char>(':'),
         Char_At = static_cast<Char>('@'), Char_NumSign = static_cast<Char>('#');
     //std::basic_string_view<Char> FormatString;
-    static constexpr std::optional<uint8_t> ParseHex8bit(std::basic_string_view<Char> hex) noexcept
+    static constexpr std::optional<uint8_t> ParseHex8bit(Char hex0, Char hex1) noexcept
     {
+        Char hex[2] = { hex0, hex1 };
         uint32_t ret = 0;
         for (uint32_t i = 0; i < 2; ++i)
         {
@@ -596,7 +588,20 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
     static constexpr bool ParseColor(ParseResult& result, size_t pos, std::basic_string_view<Char> str) noexcept
     {
         using namespace std::string_view_literals;
-        if (str.size() <= 2) // at least 2 char needed
+        constexpr auto CommonColorMap = []() 
+        { // rgbcmykw, bcgkmrwy
+            std::array<uint8_t, 26> ret = { 0 };
+            ret['b' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Blue));
+            ret['c' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Cyan));
+            ret['g' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Green));
+            ret['k' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Black));
+            ret['m' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Magenta));
+            ret['r' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Red));
+            ret['w' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::White));
+            ret['y' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Yellow));
+            return ret;
+        }();
+        if (str.size() < 2) // at least 2 char needed
         {
             result.SetError(pos, ParseResult::ErrorCode::InvalidColor);
             return false;
@@ -608,59 +613,59 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
             return false;
         }
         const bool isFG = fgbg == Char_LT;
-        str.remove_prefix(1);
-        if (str == LCH::Color_Def)
-            return ColorOp::EmitDefault(result, pos, isFG);
-        std::optional<CommonColor> commonclr;
-#define CHECK_COLOR_CASE(s, clr) if (str.size() >= s.size() && std::char_traits<Char>::compare(str.data(), s.data(), s.size()) == 0)    \
-    { commonclr = CommonColor::clr; str.remove_prefix(s.size()); }
-             CHECK_COLOR_CASE(LCH::Color_Black,    Black)
-        else CHECK_COLOR_CASE(LCH::Color_Red,      Red)
-        else CHECK_COLOR_CASE(LCH::Color_Green,    Green)
-        else CHECK_COLOR_CASE(LCH::Color_Yellow,   Yellow)
-        else CHECK_COLOR_CASE(LCH::Color_Blue,     Blue)
-        else CHECK_COLOR_CASE(LCH::Color_Magenta,  Magenta)
-        else CHECK_COLOR_CASE(LCH::Color_Cyan,     Cyan)
-        else CHECK_COLOR_CASE(LCH::Color_White,    White)
-#undef CHECK_COLOR_CASE
-        if (commonclr)
+        if (str[1] == Char_Space)
         {
-            if (!str.empty())
-            {
-                if (str.size() == 1 && str[0] == Char_Plus)
-                    *commonclr |= CommonColor::BrightBlack; // make it bright
-                else
-                {
-                    result.SetError(pos, ParseResult::ErrorCode::InvalidColor);
-                    return false;
-                }
-            }
-            return ColorOp::Emit(result, pos, *commonclr, isFG);
+            if (str.size() == 2)
+                return ColorOp::EmitDefault(result, pos, isFG);
         }
-        if (str[0] == Char_b && str.size() == 3)
+        else if (str[1] == Char_x)
         {
-            const auto num = ParseHex8bit(str.substr(1));
-            if (!num)
+            if (str.size() == 4) // <xff
             {
-                result.SetError(pos, ParseResult::ErrorCode::Invalid8BitColor);
-                return false;
-            }
-            return ColorOp::Emit(result, pos, *num, isFG);
-        }
-        else if (str.size() == 6)
-        {
-            uint8_t rgb[3] = { 0, 0, 0 };
-            for (uint8_t i = 0; i < 3; ++i)
-            {
-                const auto num = ParseHex8bit(str.substr(i * 2));
+                const auto num = ParseHex8bit(str[2], str[3]);
                 if (!num)
                 {
-                    result.SetError(pos, ParseResult::ErrorCode::Invalid24BitColor);
+                    result.SetError(pos, ParseResult::ErrorCode::Invalid8BitColor);
                     return false;
                 }
-                rgb[i] = *num;
+                return ColorOp::Emit(result, pos, *num, isFG);
             }
-            return ColorOp::Emit(result, pos, rgb[0], rgb[1], rgb[2], isFG);
+            else if (str.size() == 8) // <xffeedd
+            {
+                uint8_t rgb[3] = { 0, 0, 0 };
+                for (uint8_t i = 0, j = 2; i < 3; ++i, j += 2)
+                {
+                    const auto num = ParseHex8bit(str[j], str[j + 1]);
+                    if (!num)
+                    {
+                        result.SetError(pos, ParseResult::ErrorCode::Invalid24BitColor);
+                        return false;
+                    }
+                    rgb[i] = *num;
+                }
+                return ColorOp::Emit(result, pos, rgb[0], rgb[1], rgb[2], isFG);
+            }
+        }
+        else if (str.size() == 2)
+        {
+            uint8_t tmp = 0;
+            bool isBright = false;
+            if (str[1] >= Char_a && str[1] <= Char_z)
+            {
+                tmp = CommonColorMap[str[1] - Char_a];
+            }
+            else if (str[1] >= Char_A && str[1] <= Char_Z)
+            {
+                tmp = CommonColorMap[str[1] - Char_A];
+                isBright = true;
+            }
+            if (tmp)
+            {
+                auto color = static_cast<CommonColor>(tmp & 0x7fu);
+                if (isBright)
+                    color |= CommonColor::BrightBlack; // make it bright
+                return ColorOp::Emit(result, pos, color, isFG);
+            }
         }
         result.SetError(pos, ParseResult::ErrorCode::InvalidColor);
         return false;
@@ -991,6 +996,13 @@ forceinline constexpr auto ParseResult::ParseString<wchar_t>(const std::basic_st
 {
     return ParseResultCh<wchar_t>::ParseString(str);
 }
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+template<>
+forceinline constexpr auto ParseResult::ParseString<char8_t>(const std::basic_string_view<char8_t> str) noexcept
+{
+    return ParseResultCh<char8_t>::ParseString(str);
+}
+#endif
 
 
 struct StrArgInfo
@@ -1777,14 +1789,9 @@ public:
     template<typename... Args>
     forceinline void FormatToDynamic(std::basic_string<Char>& dst, std::basic_string_view<Char> format, Args&&... args)
     {
-        const auto result = ParseResult::ParseString<Char>(format);
-        ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
-        const auto res = result.ToInfo(format);
         static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
-        const auto mapping = ArgChecker::CheckDD(res, ArgsInfo);
         auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
-        argPack.Mapper = mapping;
-        FormatterBase::FormatTo<Char>(*this, dst, res, ArgsInfo, argPack);
+        FormatToDynamic_(dst, format, ArgsInfo, argPack);
     }
     template<typename T, typename... Args>
     forceinline std::basic_string<Char> FormatStatic(T&& res, Args&&... args)
@@ -1800,6 +1807,8 @@ public:
         FormatToDynamic(ret, format, std::forward<Args>(args)...);
         return ret;
     }
+private:
+    SYSCOMMONAPI void FormatToDynamic_(std::basic_string<Char>& dst, std::basic_string_view<Char> format, const ArgInfo& argInfo, ArgPack& argPack);
 };
 
 template<typename Char, typename Fmter>

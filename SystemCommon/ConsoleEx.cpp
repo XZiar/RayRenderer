@@ -28,6 +28,24 @@ ConsoleEx::ConsoleEx()
 ConsoleEx::~ConsoleEx()
 { }
 
+void ConsoleEx::ConsolePrinter::Print(std::u16string_view str, span<const ColorSeg> seg)
+{
+    uint32_t prevIdx = 0;
+    for (const auto& [offset, color] : seg)
+    {
+        if (offset > prevIdx)
+            Print(str.substr(prevIdx, offset - prevIdx));
+        SetColor(color);
+        prevIdx = offset;
+    }
+    if (prevIdx < str.length())
+        Print(str.substr(prevIdx));
+    SetColor({ false });
+    SetColor({ true });
+    Print(span<const std::byte>{});
+}
+
+
 template<typename Char>
 struct EscapeColorFiller
 {
@@ -374,7 +392,7 @@ class ClassicConsole final : public NativeConsole
                 WriteToConsole(extra.data(), extra.size());
             str.remove_prefix(newOffset + 2);
 
-            boost::container::small_vector<uint8_t, 5> codes;
+            boost::container::small_vector<uint8_t, 8> codes;
             bool sucFinish = false;
             {
                 uint32_t val = 0;

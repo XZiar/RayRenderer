@@ -43,6 +43,7 @@ private:
             FgColor.IsUnchanged = true;
             BgColor.IsUnchanged = true;
         }
+        SYSCOMMONAPI void Print(std::u16string_view str, span<const ColorSeg> seg);
     };
 protected:
     ConsoleEx();

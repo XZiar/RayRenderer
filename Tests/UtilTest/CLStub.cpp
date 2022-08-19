@@ -123,7 +123,7 @@ static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const RunI
         size_t idx = 0;
         for (const auto& conf : info.Configs)
         {
-            GetConsole().Print(common::CommonColor::BrightWhite, FMTSTR2(u"[{:3}] {}\n", idx++, conf.Name));
+            ColorPrint(u"{@<w}[{:3}] {@<W}{}\n", idx++, conf.Name);
         }
     }
     while (true)
@@ -324,27 +324,29 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
         for (const auto& ker : kernels)
         {
             const auto& wgInfo = ker->WgInfo;
-            u16string txt;
-            APPEND_FMT(txt, u"{}:\n-Pmem[{}], Smem[{}], Spill[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name,
+            auto& fmter = GetLogFmt();
+            fmter.FormatToStatic(fmter.Str, FmtString(u"{@<G}{}:\n{@<w}-Pmem[{}], Smem[{}], {@<y}Spill[{}], {@<w}Size[{}]({}x), requireSize[{}x{}x{}]\n"sv),
+                ker->Name, 
                 wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.SpillMemSize,
                 wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
                 wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
             if (const auto sgInfo = ker->GetSubgroupInfo(3, wgInfo.CompiledWorkGroupSize); sgInfo.has_value())
             {
-                APPEND_FMT(txt, u"-Subgroup[{}] x[{}], requireSize[{}]\n", sgInfo->SubgroupSize, sgInfo->SubgroupCount, sgInfo->CompiledSubgroupSize);
+                fmter.FormatToStatic(fmter.Str, FmtString(u"{@<w}-Subgroup[{}] x[{}], requireSize[{}]\n"sv),
+                    sgInfo->SubgroupSize, sgInfo->SubgroupCount, sgInfo->CompiledSubgroupSize);
             }
-            txt.append(u"-Args:\n"sv);
-            for (const auto arg : ker->ArgStore)
+            fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}-Args:\n"sv));
+            for (const auto& arg : ker->ArgStore)
             {
                 if (arg.ArgType == KerArgType::Image)
-                    APPEND_FMT(txt, u"---[Image ][{:9}]({:12})[{:12}][{}]\n", 
+                    fmter.FormatToStatic(fmter.Str, FmtString(u"{@<m}---[Image ][{:9}]({:12})[{:12}][{}]\n"sv),
                         arg.GetImgAccessName(), arg.Type, arg.Name, arg.GetQualifierName());
                 else
-                    APPEND_FMT(txt, u"---[{:6}][{:9}]({:12})[{:12}][{}]\n", 
+                    fmter.FormatToStatic(fmter.Str, FmtString(u"{@<c}---[{:6}][{:9}]({:12})[{:12}][{}]\n"sv),
                         arg.GetArgTypeName(), arg.GetSpaceName(), arg.Type, arg.Name, arg.GetQualifierName());
             }
-            txt.append(u"\n"sv);
-            GetConsole().Print(common::CommonColor::BrightWhite, txt);
+            fmter.Str.append(u"\n"sv);
+            PrintToConsole(fmter);
         }
         const auto bin = clProg->GetBinary();
         if (!bin.empty())
@@ -386,8 +388,7 @@ static void OCLStub()
             common::mlog::SyncConsoleBackend();
             size_t idx = 0;
             for (const auto& plat : plats)
-                GetConsole().Print(common::CommonColor::BrightWhite, 
-                    FMTSTR(u"platform[{}]{} [{} dev] {{{}}}\n", idx++, plat->Name, plat->GetDevices().size(), plat->Ver));
+                ColorPrint(u"{@<W}platform[{}]{@<G}{} {@<w}[{} dev] {@<m}{{{}}}\n", idx++, plat->Name, plat->GetDevices().size(), plat->Ver);
         }
         const auto devidx = SelectIdx(allDevs, u"device", [&](const auto& devpair)
             {

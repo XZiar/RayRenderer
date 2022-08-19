@@ -332,7 +332,7 @@ TEST(Format, ParseString)
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{@<default}{@>black}{@<blue+}{@>bff}{@<b06}{@>badbad}"sv);
+        constexpr auto ret = ParseResult::ParseString("{@< }{@>k}{@<B}{@>xff}{@<x06}{@>xbadbad}"sv);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
         uint16_t idx = 0;
@@ -356,7 +356,17 @@ TEST(Format, ParseString)
         CheckIdxArgCount(ret, 0, 0);
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{@<kblack}"sv);
+        constexpr auto ret = ParseResult::ParseString("{@#e}"sv);
+        CheckFail(1, MissingColorFGBG);
+        CheckIdxArgCount(ret, 0, 0);
+    }
+    {
+        constexpr auto ret = ParseResult::ParseString("{@<x0h}"sv);
+        CheckFail(1, Invalid8BitColor);
+        CheckIdxArgCount(ret, 0, 0);
+    }
+    {
+        constexpr auto ret = ParseResult::ParseString("{@<x0f0f7x}"sv);
         CheckFail(1, Invalid24BitColor);
         CheckIdxArgCount(ret, 0, 0);
     }
@@ -401,7 +411,7 @@ TEST(Format, ParseString)
         CheckOpFinish();
     }
     {
-        constexpr auto fmtStr = "{3:p}xyz{@<black+}"sv;
+        constexpr auto fmtStr = "{3:p}xyz{@<K}"sv;
         constexpr auto ret = ParseResult::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgType(ret, 0, Any, Any, Any, Pointer);
@@ -422,7 +432,7 @@ TEST(Format, ParseString)
 #endif
     /*[[maybe_unused]] constexpr auto parse0 = FmtString("{}"sv);
     [[maybe_unused]] constexpr auto parse1 = FmtString("here"sv);
-    [[maybe_unused]] constexpr auto parse2 = FmtString("{3:p}xyz{@<black+}"sv);*/
+    [[maybe_unused]] constexpr auto parse2 = FmtString("{3:p}xyz{@<K}"sv);*/
     /*constexpr auto klp = []()
     {
         constexpr auto Result = ParseResult::ParseString("");

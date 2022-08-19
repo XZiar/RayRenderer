@@ -37,6 +37,7 @@ enum class CommonColor : uint8_t
 MAKE_ENUM_BITFIELD(CommonColor)
 [[nodiscard]] SYSCOMMONAPI std::string_view GetColorName(CommonColor color) noexcept;
 
+
 struct ScreenColor
 {
     enum class ColorType { Default = 0, Bit8, Bit24, Common };
@@ -74,6 +75,7 @@ struct ScreenColor
         return !operator==(other);
     }
 };
+using ColorSeg = std::pair<uint32_t, ScreenColor>;
 
 
 [[nodiscard]] SYSCOMMONAPI bool CheckCPUFeature(str::HashedStrView<char> feature) noexcept;

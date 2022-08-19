@@ -1,4 +1,5 @@
 #include "XCompCommon.h"
+#include "TestRely.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "Nailang/NailangAutoVar.h"
@@ -17,14 +18,15 @@ void PrintCommonDevice()
 {
     [[maybe_unused]] static auto dummy = []() 
     {
-        std::u16string str = u"Common Devices:\n";
+        auto& fmter = GetLogFmt();
+        fmter.FormatToStatic(fmter.Str, FmtString(u"{@<w}Common Devices:\n"sv));
         for (const auto& dev : xcomp::ProbeDevice())
         {
-            APPEND_FMT(str, u"[{}][VID {:#010x} DID {:#010x}]{} [{}][{}]\n"sv,
+            fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}[{}][VID {:#010x} DID {:#010x}]{@<G}{} {@<w}[{}][{}]\n"sv),
                 dev.PCIEAddress, dev.VendorId, dev.DeviceId, dev.Name,
                 common::MiscIntrin.HexToStr(dev.Guid), common::MiscIntrin.HexToStr(dev.Luid));
         }
-        common::console::ConsoleEx::Get().Print(common::CommonColor::BrightWhite, str);
+        PrintToConsole(fmter);
         return 0;
     }();
 }
