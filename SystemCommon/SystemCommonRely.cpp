@@ -1,5 +1,6 @@
 #include "SystemCommonPch.h"
 #include "Exceptions.h"
+#include "SpinLock.h"
 #include "common/FrozenDenseSet.hpp"
 #include "common/simd/SIMD.hpp"
 #if COMMON_ARCH_X86
@@ -17,6 +18,10 @@
 #   include <sdkddkver.h>
 #   pragma message("Compiling SystemCommon with WinSDK[" STRINGIZE(NTDDI_VERSION) "]" )
 #endif
+
+#include <mutex>
+#include <shared_mutex>
+#include <forward_list>
 
 namespace common
 {
@@ -47,6 +52,90 @@ uint32_t GetWinBuildNumber() noexcept
     return verNum;
 }
 #endif
+
+
+namespace detail
+{
+#if COMMON_OS_ANDROID
+void DebugErrorOutput(std::string_view str) noexcept
+{
+    __android_log_write(ANDROID_LOG_FATAL, "SystemCommon", str.data());
+}
+#elif COMMON_OS_WIN
+void DebugErrorOutput(std::string_view str) noexcept
+{
+    OutputDebugStringA(str.data());
+}
+#else
+void DebugErrorOutput(std::string_view str) noexcept
+{
+    fprintf(stderr, "%s", str.data());
+}
+#endif
+}
+
+
+struct CleanerData
+{
+    std::shared_mutex UseLock;
+    spinlock::SpinLocker ModifyLock;
+    //std::mutex ModifyLock;
+    std::forward_list<std::function<void(void)>> Callbacks;
+    bool Called = false;
+    static CleanerData& Get() noexcept
+    {
+        static CleanerData data;
+        return data;
+    }
+};
+
+uintptr_t ExitCleaner::RegisterCleaner_(std::function<void(void)> callback) noexcept
+{
+    auto& data = CleanerData::Get();
+    std::unique_lock lock(data.UseLock);
+    if (data.Called)
+        return 0;
+    try
+    {
+        auto ptr = &data.Callbacks.emplace_front(std::move(callback));
+        return reinterpret_cast<uintptr_t>(ptr);
+    }
+    catch (const std::bad_alloc& err)
+    {
+        detail::DebugErrorOutput(err.what());
+        return 0;
+    }
+    return true;
+}
+
+bool ExitCleaner::UnRegisterCleaner(uintptr_t id) noexcept
+{
+    auto& data = CleanerData::Get();
+    std::shared_lock lock(data.UseLock);
+    if (data.Called)
+        return false;
+    auto lock2 = data.ModifyLock.LockScope();
+    //std::unique_lock lock2(data.ModifyLock);
+    return data.Callbacks.remove_if([&](const auto& callback) { return reinterpret_cast<uintptr_t>(&callback) == id; }) > 0;
+}
+
+ExitCleaner::~ExitCleaner()
+{
+    auto& data = CleanerData::Get();
+    std::shared_lock lock(data.UseLock);
+    while (!data.Callbacks.empty())
+    {
+        data.ModifyLock.Lock();
+        //std::unique_lock lock2(data.ModifyLock);
+        const auto callback = std::move(data.Callbacks.front());
+        data.Callbacks.pop_front();
+        data.ModifyLock.Unlock();
+        callback();
+    }
+    data.Called = true;
+    return;
+}
+
 
 std::string_view GetColorName(CommonColor color) noexcept
 {

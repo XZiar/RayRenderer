@@ -30,13 +30,13 @@ private:
     {
         Start();
     }
-    virtual ~PromiseActiveProxy() override {}
+    ~PromiseActiveProxy() final {}
 
-    virtual bool SleepCheck() noexcept override 
+    bool SleepCheck() noexcept final 
     {
         return TaskList.IsEmpty();
     }
-    virtual bool OnStart(std::any) noexcept override
+    bool OnStart(std::any&) noexcept final
     {
         common::SetThreadName(u"PromiseActiveProxy");
         return true;
@@ -50,7 +50,7 @@ private:
             Wakeup();
         }
     }
-    virtual LoopAction OnLoop() override
+    LoopAction OnLoop() final
     {
         if (TaskList.IsEmpty())
             return LoopAction::Sleep();

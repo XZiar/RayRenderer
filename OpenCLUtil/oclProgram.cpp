@@ -71,8 +71,8 @@ string_view ArgFlags::ToCLString(const ImgAccess access) noexcept
 #   pragma warning(push)
 #   pragma warning(disable:4063)
 #elif COMMON_COMPILER_GCC | COMMON_COMPILER_CLANG
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wswitch"
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wswitch"
 #endif
 string_view ArgFlags::GetQualifierName() const noexcept
 {
@@ -117,7 +117,7 @@ string_view ArgFlags::GetQualifierName() const noexcept
 #if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #elif COMMON_COMPILER_GCC | COMMON_COMPILER_CLANG
-#pragma GCC diagnostic pop
+#   pragma GCC diagnostic pop
 #endif
 
 KernelArgStore::KernelArgStore(const detail::PlatFuncs* funcs, CLHandle<detail::CLKernel> kernel, const KernelArgStore& reference) :

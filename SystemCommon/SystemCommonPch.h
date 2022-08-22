@@ -73,6 +73,9 @@
 namespace common
 {
 
-
+namespace detail
+{
+void DebugErrorOutput(std::string_view str) noexcept;
+}
 
 }

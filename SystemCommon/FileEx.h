@@ -90,21 +90,21 @@ class SYSCOMMONAPI FileInputStream : private FileStream, public io::RandomInputS
 public:
     FileInputStream(std::shared_ptr<FileObject> file);
     FileInputStream(FileInputStream&& stream) noexcept;
-    virtual ~FileInputStream() override;
+    ~FileInputStream() override;
 
     //==========InputStream=========//
-    [[nodiscard]] virtual size_t AvaliableSpace() override;
-    virtual bool Read(const size_t len, void* ptr) override;
-    virtual size_t ReadMany(const size_t want, const size_t perSize, void* ptr) override;
-    virtual bool Skip(const size_t len) override;
-    [[nodiscard]] virtual bool IsEnd() override;
-    [[nodiscard]] virtual std::byte ReadByteNE(bool& isSuccess) override;
-    [[nodiscard]] virtual std::byte ReadByteME() override;
+    [[nodiscard]] size_t AvaliableSpace() override;
+    bool Read(const size_t len, void* ptr) override;
+    size_t ReadMany(const size_t want, const size_t perSize, void* ptr) override;
+    bool Skip(const size_t len) override;
+    [[nodiscard]] bool IsEnd() override;
+    [[nodiscard]] std::byte ReadByteNE(bool& isSuccess) override;
+    [[nodiscard]] std::byte ReadByteME() override;
 
     //==========RandomStream=========//
-    [[nodiscard]] virtual size_t GetSize() override;
-    [[nodiscard]] virtual size_t CurrentPos() const override;
-    virtual bool SetPos(const size_t offset) override;
+    [[nodiscard]] size_t GetSize() override;
+    [[nodiscard]] size_t CurrentPos() const override;
+    bool SetPos(const size_t offset) override;
 };
 
 
@@ -113,18 +113,18 @@ class SYSCOMMONAPI FileOutputStream : private FileStream, public io::RandomOutpu
 public:
     FileOutputStream(std::shared_ptr<FileObject> file);
     FileOutputStream(FileOutputStream&& stream) noexcept;
-    virtual ~FileOutputStream() override;
+    ~FileOutputStream() override;
     
     //==========OutputStream=========//
-    virtual size_t AcceptableSpace() override;
-    virtual bool Write(const size_t len, const void* ptr) override;
-    virtual size_t WriteMany(const size_t want, const size_t perSize, const void* ptr) override;
-    virtual void Flush() override;
+    size_t AcceptableSpace() override;
+    bool Write(const size_t len, const void* ptr) override;
+    size_t WriteMany(const size_t want, const size_t perSize, const void* ptr) override;
+    void Flush() override;
 
     //==========RandomStream=========//
-    [[nodiscard]] virtual size_t GetSize() override;
-    [[nodiscard]] virtual size_t CurrentPos() const override;
-    virtual bool SetPos(const size_t offset) override;
+    [[nodiscard]] size_t GetSize() override;
+    [[nodiscard]] size_t CurrentPos() const override;
+    bool SetPos(const size_t offset) override;
 };
 
 #if COMMON_COMPILER_MSVC

@@ -123,7 +123,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
 
     void BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext&) override
     {
-        AllowDebug      = EnableDebug;
+        AllowDebug      = false; // by default turn off, need explciit DebugOutput to enable
         HasDebug        = false;
         HasSgInfo       = false;
         DebugBufferSize = 0;
@@ -211,10 +211,11 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         using namespace xziar::nailang;
         if (meta.GetName() == U"oclu.DebugOutput"sv || meta.GetName() == U"xcomp.DebugOutput"sv)
         {
-            if (AllowDebug)
+            if (EnableDebug)
             {
                 executor.ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::Integer });
                 DebugBufferSize = meta.Params.empty() ? 512u : gsl::narrow_cast<uint32_t>(meta.Params[0].GetUint().value());
+                AllowDebug = true;
             }
             else
                 GetLogger(runtime).Info(u"DebugOutput is disabled and ignored.\n");

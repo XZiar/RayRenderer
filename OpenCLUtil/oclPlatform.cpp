@@ -1,7 +1,7 @@
 #include "oclPch.h"
 #include "oclPlatform.h"
 #include "oclUtil.h"
-
+#include "SystemCommon/SpinLock.h"
 
 extern "C"
 {
@@ -21,6 +21,34 @@ using common::str::Encoding;
 
 MAKE_ENABLER_IMPL(oclPlatform_)
 
+struct FilterStore
+{
+    common::spinlock::SpinLocker Locker;
+    std::vector<std::function<bool(const detail::oclCommon&)>> Filters;
+    bool IsInited = false;
+    bool DoFilter(const detail::oclCommon& target) const noexcept
+    {
+        for (const auto& filter : Filters)
+            if (!filter(target))
+                return false;
+        return true;
+    }
+};
+static FilterStore& GetFilterStore() noexcept
+{
+    static FilterStore store;
+    return store;
+}
+
+bool oclUtil::InsertInitFilter_(std::function<bool(const detail::oclCommon&)> filter) noexcept
+{
+    auto& filters = GetFilterStore();
+    auto lock = filters.Locker.LockScope();
+    if (filters.IsInited)
+        return false;
+    filters.Filters.push_back(std::move(filter));
+    return true;
+}
 
 
 common::span<const oclPlatform> oclPlatform_::GetPlatforms()
@@ -45,6 +73,7 @@ common::span<const oclPlatform> oclPlatform_::GetPlatforms()
             holder.NonIcdDllNames.resize(ele1);
             GetOpenCLIcdLoaderDllNames(false, holder.NonIcdDllNames.data());
         }
+        auto& filters = GetFilterStore();
         const auto InitPlatform = [&](const std::string_view* dll, const detail::PlatFuncs* platFuncs)
         {
             cl_uint numPlatforms = 0;
@@ -61,18 +90,23 @@ common::span<const oclPlatform> oclPlatform_::GetPlatforms()
             for (const auto& pID : platformIDs)
             {
                 auto plat = MAKE_ENABLER_UNIQUE(oclPlatform_, (platFuncs, pID));
-                try
+                if (filters.DoFilter(*plat))
                 {
-                    plat->InitDevice();
-                    holder.Platforms.emplace_back(std::move(plat));
-                }
-                catch (const std::exception& ex)
-                {
-                    oclLog().Error(FmtString(u"Failed to init platform [{}]({}):\n {}\n"sv), 
-                        plat->Name, dll ? *dll : "icd"sv, ex.what());
+                    try
+                    {
+                        plat->InitDevice();
+                        holder.Platforms.emplace_back(std::move(plat));
+                    }
+                    catch (const std::exception& ex)
+                    {
+                        oclLog().Error(FmtString(u"Failed to init platform [{}]({}):\n {}\n"sv),
+                            plat->Name, dll ? *dll : "icd"sv, ex.what());
+                    }
                 }
             }
         };
+        auto lock = filters.Locker.LockScope();
+        //std::lock_guard<std::mutex> lock(filters.Locker);
         // init icds
         {
             msg.append(u"icd dlls:\n");

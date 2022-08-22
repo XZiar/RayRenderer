@@ -20,6 +20,7 @@
 #include <memory>
 #include <vector>
 #include <string_view>
+#include <functional>
 
 
 namespace common
@@ -28,6 +29,21 @@ namespace common
 #if COMMON_OS_WIN
 [[nodiscard]] SYSCOMMONAPI uint32_t GetWinBuildNumber() noexcept;
 #endif
+
+struct ExitCleaner
+{
+private:
+    SYSCOMMONAPI static uintptr_t RegisterCleaner_(std::function<void(void)> callback) noexcept;
+public:
+    template<typename F>
+    static uintptr_t RegisterCleaner(F&& callback) noexcept
+    {
+        static_assert(noexcept(callback()), "cleaner need to be noexcept");
+        return RegisterCleaner_(std::forward<F>(callback));
+    }
+    SYSCOMMONAPI static bool UnRegisterCleaner(uintptr_t id) noexcept;
+    SYSCOMMONAPI ~ExitCleaner();
+};
 
 enum class CommonColor : uint8_t
 {

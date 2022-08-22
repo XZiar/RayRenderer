@@ -252,6 +252,7 @@ kernel*_ispc*.h
 /Tests/Temp/
 /Tests/Conv/
 /Tests/NullTest/
+/Tests/KNLMeans/
 /.vscode
 /__pycache__
 /xzbuild/__pycache__

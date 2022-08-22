@@ -15,7 +15,7 @@
     </Expand>
   </Type>
   <Type Name="oclu::oclContext_">
-    <DisplayString>{{ oclContext {{on {Plat._Ptr->Name,su}, {Devices.size()} devices}} }}</DisplayString>
+    <DisplayString>{{ oclContext {{on {Plat->Name,su}, {Devices.size()} devices}} }}</DisplayString>
     <Expand>
       <Item Name="Platform">Plat</Item>
       <Item Name="Devices">Devices</Item>
@@ -58,9 +58,9 @@
   <Type Name="oclu::oclKernel_">
     <DisplayString>{{ oclKernel {{{Name}}} }}</DisplayString>
     <Expand>
-      <Item Name="Platform">Plat</Item>
-      <Item Name="Program">Prog</Item>
-      <Item Name="[ArgsInfo]">ArgStore</Item>
+      <Item Name="Program">Program</Item>
+      <Item Name="ArgsInfo">ArgStore</Item>
+	  <Item Name="WgInfo">WgInfo</Item>
     </Expand>
   </Type>
   <Type Name="oclu::oclSubBuffer_">
@@ -87,7 +87,7 @@
         <Size>ArgsInfo.size()</Size>
         <Loop>
           <Break Condition="idx &gt;= ArgsInfo.size()" />
-          <Item Name="[{&amp;Pool[ArgsInfo[idx].Name.Offset],[ArgsInfo[idx].Name.Length]s}]">(oclu::ArgFlags*)&amp;ArgsInfo[idx],na</Item>
+          <Item Name="[{&amp;ArgTexts.Pool[ArgsInfo[idx].Name.Offset],[ArgsInfo[idx].Name.Length]s}]">(oclu::ArgFlags*)&amp;ArgsInfo[idx],na</Item>
           <Exec>idx++</Exec>
         </Loop>
       </CustomListItems>

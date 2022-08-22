@@ -62,6 +62,13 @@ TextureFormat ParseCLImageFormat(const cl_image_format& clFormat)
     }
     return format;
 }
+#if COMMON_COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4063)
+#elif COMMON_COMPILER_GCC | COMMON_COMPILER_CLANG
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wswitch"
+#endif
 static cl_image_format ParseTextureFormat(const TextureFormat format)
 {
     cl_image_format clFormat;
@@ -87,16 +94,16 @@ static cl_image_format ParseTextureFormat(const TextureFormat format)
     case TextureFormat::DTYPE_CAT_PLAIN:
         if (!TexFormatUtil::IsNormalized(format))
         {
-            switch (format & TextureFormat::MASK_PLAIN_RAW)
+            switch (format & TextureFormat::MASK_DTYPE_RAW)
             {
-            case TextureFormat::DTYPE_U8:     clFormat.image_channel_data_type = CL_UNSIGNED_INT8;  break;
-            case TextureFormat::DTYPE_I8:     clFormat.image_channel_data_type = CL_SIGNED_INT8;    break;
-            case TextureFormat::DTYPE_U16:    clFormat.image_channel_data_type = CL_UNSIGNED_INT16; break;
-            case TextureFormat::DTYPE_I16:    clFormat.image_channel_data_type = CL_SIGNED_INT16;   break;
-            case TextureFormat::DTYPE_U32:    clFormat.image_channel_data_type = CL_UNSIGNED_INT32; break;
-            case TextureFormat::DTYPE_I32:    clFormat.image_channel_data_type = CL_SIGNED_INT32;   break;
-            case TextureFormat::DTYPE_HALF:   clFormat.image_channel_data_type = CL_HALF_FLOAT;     break;
-            case TextureFormat::DTYPE_FLOAT:  clFormat.image_channel_data_type = CL_FLOAT;          break;
+            case TextureFormat::DTYPE_PLAIN_RAW | TextureFormat::DTYPE_U8:     clFormat.image_channel_data_type = CL_UNSIGNED_INT8;  break;
+            case TextureFormat::DTYPE_PLAIN_RAW | TextureFormat::DTYPE_I8:     clFormat.image_channel_data_type = CL_SIGNED_INT8;    break;
+            case TextureFormat::DTYPE_PLAIN_RAW | TextureFormat::DTYPE_U16:    clFormat.image_channel_data_type = CL_UNSIGNED_INT16; break;
+            case TextureFormat::DTYPE_PLAIN_RAW | TextureFormat::DTYPE_I16:    clFormat.image_channel_data_type = CL_SIGNED_INT16;   break;
+            case TextureFormat::DTYPE_PLAIN_RAW | TextureFormat::DTYPE_U32:    clFormat.image_channel_data_type = CL_UNSIGNED_INT32; break;
+            case TextureFormat::DTYPE_PLAIN_RAW | TextureFormat::DTYPE_I32:    clFormat.image_channel_data_type = CL_SIGNED_INT32;   break;
+            case TextureFormat::DTYPE_PLAIN_RAW | TextureFormat::DTYPE_HALF:   clFormat.image_channel_data_type = CL_HALF_FLOAT;     break;
+            case TextureFormat::DTYPE_PLAIN_RAW | TextureFormat::DTYPE_FLOAT:  clFormat.image_channel_data_type = CL_FLOAT;          break;
             default: COMMON_THROW(OCLWrongFormatException, u"unsupported integer/float format", format); // should not enter
             }
         }
@@ -140,6 +147,11 @@ static cl_image_format ParseTextureFormat(const TextureFormat format)
     }
     return clFormat;
 }
+#if COMMON_COMPILER_MSVC
+#   pragma warning(pop)
+#elif COMMON_COMPILER_GCC | COMMON_COMPILER_CLANG
+#   pragma GCC diagnostic pop
+#endif
 
 static cl_image_desc CreateImageDesc(cl_mem_object_type type, const uint32_t width, const uint32_t height, const uint32_t depth = 1)
 {

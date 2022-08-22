@@ -1093,7 +1093,7 @@ template<typename Char>
 class DynamicTrimedResultCh : public DynamicTrimedResult
 {
 public:
-    DynamicTrimedResultCh(const ParseResult& result, std::basic_string_view<Char> str) noexcept :
+    DynamicTrimedResultCh(const ParseResult& result, std::basic_string_view<Char> str) :
         DynamicTrimedResult(result, str.size(), sizeof(Char))
     {
         const auto strptr = reinterpret_cast<Char*>(GetStrPtr());
@@ -1519,10 +1519,12 @@ struct ArgInfo
             else if constexpr (is_detected_v<detail::HasFormatAsMemFn, U>)
             {
                 PackAnArg(pack, arg.FormatAs(), idx);
+                return; // index already increased
             }
             else if constexpr (is_detected_v<detail::HasFormatAsSpeFn, U>)
             {
                 PackAnArg(pack, FormatAs(arg), idx);
+                return; // index already increased
             }
             else if constexpr (is_detected_v<detail::HasFormatWithMemFn, U>)
             {

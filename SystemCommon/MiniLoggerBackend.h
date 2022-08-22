@@ -20,15 +20,17 @@ class SYSCOMMONAPI LoggerQBackend : private loop::LoopBase, public LoggerBackend
 {
 private:
     boost::lockfree::queue<uintptr_t> MsgQueue;
-    virtual bool SleepCheck() noexcept override; // double check if should sleep
-    virtual LoopAction OnLoop() override;
+    uintptr_t CleanerId = 0;
+    LoopAction OnLoop() override;
+    bool SleepCheck() noexcept override; // double check if should sleep
 protected:
-    using LoopBase::Stop;
+    bool OnStart(std::any&) noexcept override;
+    void OnStop() noexcept override;
     void EnsureRunning();
 public:
     LoggerQBackend(const size_t initSize = 64);
-    virtual ~LoggerQBackend() override;
-    void virtual Print(LogMessage* msg) override final;
+    ~LoggerQBackend() override;
+    void Print(LogMessage* msg) final;
     PromiseResult<void> Synchronize();
 
     template<class T, typename... Args>

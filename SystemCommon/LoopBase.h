@@ -98,7 +98,7 @@ protected:
     void Wakeup() const;
     virtual LoopAction OnLoop() = 0;
     [[nodiscard]] virtual bool SleepCheck() noexcept { return true; }; // double check if should sleep
-    virtual bool OnStart(std::any) noexcept { return true; }
+    virtual bool OnStart(std::any&) noexcept { return true; }
     virtual void OnStop() noexcept {}
     virtual bool OnError(std::exception_ptr) noexcept { return false; }
     template<typename T>

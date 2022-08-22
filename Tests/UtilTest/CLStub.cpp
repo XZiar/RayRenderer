@@ -381,7 +381,8 @@ static void OCLStub()
             for (const auto& dev : plat->GetDevices())
                 allDevs.emplace_back(dev, idx);
             idx++;
-        }}
+        }
+    }
     while (true)
     {
         {

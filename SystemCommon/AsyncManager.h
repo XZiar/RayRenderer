@@ -188,14 +188,14 @@ private:
     SYSCOMMONAPI bool AddNode(detail::AsyncTaskNodeBase* node);
 
     void Resume(detail::AsyncTaskStatus status);
-    virtual LoopAction OnLoop() override;
-    virtual bool OnStart(std::any cookie) noexcept override;
-    virtual void OnStop() noexcept override;
-    virtual bool SleepCheck() noexcept override; // double check if shoul sleep
+    LoopAction OnLoop() override;
+    bool OnStart(std::any& cookie) noexcept override;
+    void OnStop() noexcept override;
+    bool SleepCheck() noexcept override; // double check if shoul sleep
 public:
     SYSCOMMONAPI AsyncManager(const bool isthreaded, const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);
     SYSCOMMONAPI AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);
-    SYSCOMMONAPI virtual ~AsyncManager() override;
+    SYSCOMMONAPI ~AsyncManager() override;
     SYSCOMMONAPI bool Start(Injector initer = {}, Injector exiter = {});
     SYSCOMMONAPI bool Stop();
     SYSCOMMONAPI bool RequestStop();

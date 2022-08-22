@@ -9,18 +9,18 @@ namespace common::str
 namespace detail
 {
 
-class Uchardet : public nsUniversalDetector
+class Uchardet final : public nsUniversalDetector
 {
 protected:
     std::string Encoding;
-    virtual void Report(const char* charset) override
+    void Report(const char* charset) final
     {
         Encoding = charset;
     }
 public:
     Uchardet() : nsUniversalDetector(NS_FILTER_ALL) { }
 
-    virtual void Reset() override
+    void Reset() final
     {
         nsUniversalDetector::Reset();
         Encoding.clear();

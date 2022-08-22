@@ -103,7 +103,7 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
         if (hasSgInfo)
         {
             const auto& sginfo = static_cast<const oclu::debug::SubgroupWgInfo&>(tinfo);
-            logger.Verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}], sg[{},{}]:\n{}\n"),
+            logger.Verbose(FmtString(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}], sg[{},{}]:\n{}\n"),
                 item.ThreadId(), tinfo.GlobalId[0], tinfo.GlobalId[1], tinfo.GlobalId[2],
                 tinfo.GroupId[0], tinfo.GroupId[1], tinfo.GroupId[2],
                 tinfo.LocalId[0], tinfo.LocalId[1], tinfo.LocalId[2],
@@ -112,7 +112,7 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
         }
         else
         {
-            logger.Verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}]:\n{}\n"),
+            logger.Verbose(FmtString(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}]:\n{}\n"),
                 item.ThreadId(), tinfo.GlobalId[0], tinfo.GlobalId[1], tinfo.GlobalId[2],
                 tinfo.GroupId[0], tinfo.GroupId[1], tinfo.GroupId[2],
                 tinfo.LocalId[0], tinfo.LocalId[1], tinfo.LocalId[2],

@@ -82,7 +82,7 @@ class SYSCOMMONAPI FileMappingInputStream : private FileMappingStream, public io
 public:
     FileMappingInputStream(std::shared_ptr<FileMappingObject> mapping);
     FileMappingInputStream(FileMappingInputStream&& stream) noexcept;
-    virtual ~FileMappingInputStream() override;
+    ~FileMappingInputStream() override;
 };
 
 
@@ -93,10 +93,10 @@ private:
 public:
     FileMappingOutputStream(std::shared_ptr<FileMappingObject> mapping);
     FileMappingOutputStream(FileMappingOutputStream&& stream) noexcept;
-    virtual ~FileMappingOutputStream() override;
-    virtual bool SetPos(const size_t pos) noexcept override;
-    virtual size_t WriteMany(const size_t want, const size_t perSize, const void* ptr) override;
-    virtual void Flush() noexcept override;
+    ~FileMappingOutputStream() override;
+    bool SetPos(const size_t pos) noexcept override;
+    size_t WriteMany(const size_t want, const size_t perSize, const void* ptr) override;
+    void Flush() noexcept override;
 };
 
 #if COMMON_COMPILER_MSVC

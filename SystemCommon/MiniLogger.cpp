@@ -167,6 +167,19 @@ bool LoggerQBackend::SleepCheck() noexcept
 {
     return MsgQueue.empty();
 }
+bool LoggerQBackend::OnStart(std::any&) noexcept
+{
+    CleanerId = ExitCleaner::RegisterCleaner([&]() noexcept 
+        {
+            Stop();
+        });
+    return true;
+}
+void LoggerQBackend::OnStop() noexcept
+{
+    ExitCleaner::UnRegisterCleaner(CleanerId);
+    CleanerId = 0;
+}
 loop::LoopBase::LoopAction LoggerQBackend::OnLoop()
 {
     uintptr_t ptr = 0;
@@ -234,15 +247,15 @@ class GlobalBackend final : public LoggerQBackend
 private:
     Delegate<const LogMessage&> DoPrint;
 protected:
-    virtual bool OnStart(std::any) noexcept override
+    bool OnStart(std::any& cookie) noexcept final
     {
         common::SetThreadName(u"Debugger-GlobalBackend");
-        return true;
+        return LoggerQBackend::OnStart(cookie);
     }
 public:
     GlobalBackend() {}
-    ~GlobalBackend() override { }
-    void virtual OnPrint(const LogMessage& msg) override
+    ~GlobalBackend() final { }
+    void OnPrint(const LogMessage& msg) final
     {
         DoPrint(msg);
     }
@@ -363,13 +376,13 @@ void detail::MiniLoggerBase::SentToGlobalOutputer(LogMessage* msg)
 }
 
 
-class DebuggerBackend : public LoggerQBackend
+class DebuggerBackend final : public LoggerQBackend
 {
 protected:
-    bool virtual OnStart(std::any) noexcept override
+    bool OnStart(std::any& cookie) noexcept final
     {
         common::SetThreadName(u"Debugger-MLogger-Backend");
-        return true;
+        return LoggerQBackend::OnStart(cookie);
     }
 public:
 #if COMMON_OS_ANDROID
@@ -423,7 +436,7 @@ public:
 };
 
 
-class ConsoleBackend : public LoggerQBackend
+class ConsoleBackend final : public LoggerQBackend
 {
 private:
     const console::ConsoleEx& Console;
@@ -444,10 +457,10 @@ private:
         default:                return CommonColor::White;
         }
     }
-    bool virtual OnStart(std::any) noexcept override
+    bool OnStart(std::any& cookie) noexcept final
     {
         common::SetThreadName(u"Console-MLogger-Backend");
-        return true;
+        return LoggerQBackend::OnStart(cookie);
     }
 public:
     ConsoleBackend() : Console(console::ConsoleEx::Get()),
@@ -466,7 +479,7 @@ public:
     }
     ~ConsoleBackend() override
     { }
-    void virtual OnPrint(const LogMessage& msg) override
+    void OnPrint(const LogMessage& msg) final
     {
         auto printer = Console.PrintSegments();
         if (SupportColor)
@@ -499,16 +512,16 @@ public:
 };
 
 
-class FileBackend : public LoggerQBackend
+class FileBackend final : public LoggerQBackend
 {
 protected:
     file::FileOutputStream Stream;
-    bool virtual OnStart(std::any) noexcept override
+    bool OnStart(std::any& cookie) noexcept final
     {
         common::SetThreadName(u"File-MLogger-Backend");
-        return true;
+        return LoggerQBackend::OnStart(cookie);
     }
-    void virtual OnStop() noexcept override
+    void OnStop() noexcept final
     {
         Stream.Flush();
     }
@@ -516,8 +529,8 @@ public:
     FileBackend(const fs::path& path) : 
         Stream(file::FileObject::OpenThrow(path, file::OpenFlag::Append))
     { } // using binary to bypass encoding
-    ~FileBackend() override { }
-    void virtual OnPrint(const LogMessage& msg) override
+    ~FileBackend() final { }
+    void OnPrint(const LogMessage& msg) final
     {
         const auto lv  = GetLogLevelStr(msg.Level);
         const auto src = msg.GetSource();

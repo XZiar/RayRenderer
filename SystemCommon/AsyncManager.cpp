@@ -237,7 +237,7 @@ bool AsyncManager::SleepCheck() noexcept
     return TaskList.IsEmpty();
 }
 
-bool AsyncManager::OnStart(std::any cookie) noexcept
+bool AsyncManager::OnStart(std::any& cookie) noexcept
 {
     AsyncAgent::GetRawAsyncAgent() = &Agent;
     Logger.Info(u"AsyncProxy started\n");

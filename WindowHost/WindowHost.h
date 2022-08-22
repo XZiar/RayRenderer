@@ -167,7 +167,7 @@ private:
 
     [[nodiscard]] const std::any* GetWindowData_(std::string_view name) const noexcept;
     void SetWindowData_(std::string_view name, std::any&& data) const noexcept;
-    bool OnStart(std::any cookie) noexcept override final;
+    bool OnStart(std::any& cookie) noexcept final;
     LoopAction OnLoop() override final;
     void OnStop() noexcept override final;
     void Initialize();
