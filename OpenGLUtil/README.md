@@ -66,9 +66,9 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 ## Dependency
 
-* [OpenGL Header](https://github.com/KhronosGroup/OpenGL-Registry/tree/master/api/GL) [`submodule`](https://github.com/XZiar/OpenGL-Headers) 220105
+* [OpenGL Header](https://github.com/KhronosGroup/OpenGL-Registry/tree/master/api/GL) [`submodule`](https://github.com/XZiar/OpenGL-Headers) 220530
 
-* [EGL Header](https://github.com/KhronosGroup/EGL-Registry/tree/master/api/EGL) [`submodule`](https://github.com/XZiar/EGL-Headers) 220110
+* [EGL Header](https://github.com/KhronosGroup/EGL-Registry/tree/master/api/EGL) [`submodule`](https://github.com/XZiar/EGL-Headers) 220525
 
 * [KHR API Header](https://github.com/KhronosGroup/EGL-Registry/tree/master/api/KHR) 
 
