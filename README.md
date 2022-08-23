@@ -99,7 +99,7 @@ python3 xzbuild buildall UtilTest
 
 * [fmt](https://fmt.dev/) `submodule` 9.0.0
 
-  [MIT License](https://github.com/XZiar/fmt/blob/master/LICENSE.rst)
+  [MIT License](https://github.com/fmtlib/fmt/blob/master/LICENSE.rst)
 
 * [ghc-filesystem](https://github.com/gulrak/filesystem) `submodule` 1.5.12
 

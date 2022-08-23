@@ -10,16 +10,18 @@ namespace common::str
 
 enum class ArgDispType : uint8_t
 {
-    Any = 0, String, Char, Integer, Float, Pointer, Date, Time, Numeric, Custom,
+    Any = 0, String, Char, Integer, Float, Pointer, Date, Time, Color, Numeric, Custom,
 };
 //- Any
 //    - String
 //    - Date
 //    - Time
+//    - Color
 //    - Custom
 //    - Numeric
 //        - Integer
 //            - Char
+//                - Bool
 //            - Pointer
 //        - Float
 MAKE_ENUM_BITFIELD(ArgDispType)
@@ -27,18 +29,12 @@ MAKE_ENUM_BITFIELD(ArgDispType)
 
 enum class ArgRealType : uint8_t
 {
-    BaseTypeMask = 0xf0, SizeMask8 = 0b111, SizeMask4 = 0b11, SpanBit = 0b1000,
-    Error = 0x00, Custom = 0x01, Ptr = 0x02, PtrVoid = 0x03, Date = 0x04, DateDelta = 0x05, Bool = 0x06,
-    TypeSpecial = 0x00, SpecialMax = Bool,
-    SInt    = 0x10,
-    UInt    = 0x20,
-    Float   = 0x30,
-    Char    = 0x40,
-    String  = 0x50, StrPtrBit = 0b100,
-    Empty   = 0x0,
+    Error = 0x0, SInt = 0x1, UInt = 0x2, Char = 0x3, Float = 0x4, String = 0x5, Bool = 0x6, Ptr = 0x7, 
+    Date = 0x8, Color = 0x9, Custom = 0xf,
+    SpanBit = 0x80, EmptyBit = 0x00, StrPtrBit = 0x40, PtrVoidBit = 0x10, DateDeltaBit = 0x10,
+    BaseTypeMask = 0x0f, TypeSizeMask = 0x70,
 };
 MAKE_ENUM_BITFIELD(ArgRealType)
-MAKE_ENUM_RANGE(ArgRealType)
 
 
 struct FormatSpec

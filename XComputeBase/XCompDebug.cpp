@@ -161,11 +161,8 @@ common::str::u8string MessageBlock::GetString(common::span<const std::byte> data
     const auto strInfo = FormatCache.ToStrArgInfo();
     common::str::u8string ret;
     MessageFormatExecutor::Context ctx { *reinterpret_cast<std::string*>(&ret), strInfo.FormatString, Layout, data };
-    uint32_t opOffset = 0;
-    while (opOffset < strInfo.Opcodes.size())
-    {
-        MessageFormatExecutor::Execute<common::str::FormatterExecutor>(strInfo.Opcodes, opOffset, MsgFmtExecutor, ctx);
-    }
+    auto opcodes = strInfo.Opcodes;
+    MessageFormatExecutor::Execute<common::str::FormatterExecutor>(opcodes, MsgFmtExecutor, ctx);
     return ret;
 }
 

@@ -93,6 +93,8 @@ struct ScreenColor
 };
 using ColorSeg = std::pair<uint32_t, ScreenColor>;
 
+[[nodiscard]] SYSCOMMONAPI ScreenColor Expend256ColorToRGB(uint8_t color) noexcept;
+
 
 [[nodiscard]] SYSCOMMONAPI bool CheckCPUFeature(str::HashedStrView<char> feature) noexcept;
 [[nodiscard]] SYSCOMMONAPI span<const std::string_view> GetCPUFeatures() noexcept;

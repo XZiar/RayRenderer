@@ -148,6 +148,49 @@ std::string_view GetColorName(CommonColor color) noexcept
     return "Unknown"sv;
 }
 
+constexpr auto Color256Map = []()
+{
+    constexpr uint8_t list6[6] = { 0, 95, 135, 175, 215, 255 };
+    std::array<std::array<uint8_t, 4>, 256> ret = { {} };
+    ret[ 0] = {   0,  0,  0,0 };
+    ret[ 1] = { 128,  0,  0,0 };
+    ret[ 2] = {   0,128,  0,0 };
+    ret[ 3] = { 128,128,  0,0 };
+    ret[ 4] = {   0,  0,128,0 };
+    ret[ 5] = { 128,  0,128,0 };
+    ret[ 6] = {   0,128,128,0 };
+    ret[ 7] = { 192,192,192,0 };
+    ret[ 8] = { 128,128,128,0 };
+    ret[ 9] = { 255,  0,  0,0 };
+    ret[10] = {   0,255,  0,0 };
+    ret[11] = { 255,255,  0,0 };
+    ret[12] = {   0,  0,255,0 };
+    ret[13] = { 255,  0,255,0 };
+    ret[14] = {   0,255,255,0 };
+    ret[15] = { 255,255,255,0 };
+    for (uint32_t r = 0, idx = 16; r < 6; ++r)
+    {
+        for (uint32_t g = 0; g < 6; ++g)
+        {
+            for (uint32_t b = 0; b < 6; ++b)
+            {
+                ret[idx++] = { list6[r], list6[g], list6[b], 0 };
+            }
+        }
+    }
+    for (uint8_t idx = 232, val = 8; idx < 255; ++idx, val += 10)
+    {
+        ret[idx] = { val, val, val, 0 };
+    }
+    return ret;
+}();
+ScreenColor Expend256ColorToRGB(uint8_t color) noexcept
+{
+    const auto& newColor = Color256Map[color];
+    return { false, newColor[0], newColor[1], newColor[2] };
+}
+
+
 struct CPUFeature
 {
     std::vector<std::string_view> FeatureText;

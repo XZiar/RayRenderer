@@ -100,7 +100,7 @@ void ArgChecker::CheckDDBasic(const StrArgInfo& strInfo, const ArgInfo& argInfo)
         const auto index = ArgChecker::GetIdxArgMismatch(strInfo.IndexTypes.data(), argInfo.IndexTypes, strIndexArgCount);
         if (index != ParseResult::IdxArgSlots)
             COMMON_THROW(BaseException, FMTSTR(u"IndexArg[{}] type mismatch"sv, index)).Attach("arg", index)
-                .Attach("argType", std::pair{ strInfo.IndexTypes[index], ArgInfo::CleanRealType(argInfo.IndexTypes[index]) });
+                .Attach("argType", std::pair{ strInfo.IndexTypes[index], argInfo.IndexTypes[index] & ArgRealType::BaseTypeMask });
     }
 }
 
@@ -133,7 +133,7 @@ ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<Char>& strIn
             {
                 errMsg.append(u"] type mismatch"sv);
                 COMMON_THROW(BaseException, errMsg).Attach("arg", name)
-                    .Attach("argType", std::pair{ namedArg.Type, ArgInfo::CleanRealType(argInfo.NamedTypes[*namedRet.GiveIndex]) });
+                    .Attach("argType", std::pair{ namedArg.Type, argInfo.NamedTypes[*namedRet.GiveIndex] & ArgRealType::BaseTypeMask });
             }
             else // arg not found
             {
@@ -415,7 +415,7 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
     fmt::basic_format_specs<char> spec{};
     if (src)
         FormatterHelper::ConvertSpecNoFill(spec, *src);
-    switch (const auto realType = ArgInfo::CleanRealType(real); realType)
+    switch (const auto realType = real & ArgRealType::BaseTypeMask; realType)
     {
     case ArgRealType::String:
         spec.type = fmt::presentation_type::string;
@@ -433,7 +433,6 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
         }
         break;
     case ArgRealType::Ptr:
-    case ArgRealType::PtrVoid:
         spec.type = fmt::presentation_type::pointer;
         break;
     default:
@@ -457,7 +456,7 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view s
 
     fmt::basic_format_specs<char> spec{};
     FormatterHelper::ConvertSpecNoFill(spec, spec_);
-    switch (const auto realType = ArgInfo::CleanRealType(real); realType)
+    switch (const auto realType = real & ArgRealType::BaseTypeMask; realType)
     {
     case ArgRealType::String:
         spec.type = fmt::presentation_type::string;
@@ -471,7 +470,6 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view s
         spec.sign = FormatterHelper::ConvertSpecSign(spec_.SignFlag);
         break;
     case ArgRealType::Ptr:
-    case ArgRealType::PtrVoid:
         spec.type = fmt::presentation_type::pointer;
         break;
     default:
@@ -612,6 +610,64 @@ template struct CommonFormatter<char8_t>;
 template<typename Char>
 void Formatter<Char>::PutColor(StrType&, ScreenColor) { }
 
+
+template<typename Char>
+inline void Formatter<Char>::PutColorArg(StrType& ret, ScreenColor color, const FormatSpec* spec)
+{
+    const bool shouldColor = spec && (spec->Alignment == FormatSpec::Align::Middle || spec->Alignment == FormatSpec::Align::Right);
+    if (shouldColor)
+        PutColor(ret, color);
+    const bool shouldPrint = !spec || (spec->Alignment != FormatSpec::Align::Right);
+    if (shouldPrint)
+    {
+        switch (color.Type)
+        {
+        case ScreenColor::ColorType::Common:
+            PutString(ret, GetColorName(static_cast<CommonColor>(color.Value[0])), nullptr);
+            break;
+        case ScreenColor::ColorType::Bit8:
+            color = Expend256ColorToRGB(color.Value[0]);
+            // it's now 24bit
+            [[fallthrough]];
+        case ScreenColor::ColorType::Bit24:
+            if (spec && spec->AlterForm)
+            {
+                ret.push_back('#');
+                fmt::basic_format_specs<Char> fmtSpec = {};
+                fmtSpec.type = fmt::presentation_type::hex_lower;
+                fmtSpec.fill[0] = static_cast<Char>('0');
+                fmtSpec.width = 6;
+                const uint32_t color24 = (color.Value[0] << 0) | (color.Value[1] << 8) | (color.Value[2] << 16);
+                fmt::detail::write_int_arg<uint32_t> arg{ color24, 0 };
+                fmt::detail::write_int(std::back_inserter(ret), arg, fmtSpec, {});
+            }
+            else
+            {
+                char head[] = "rgb(";
+                ret.append(&head[0], &head[4]);
+                fmt::basic_format_specs<Char> fmtSpec = {};
+                fmtSpec.type = fmt::presentation_type::dec;
+                fmt::detail::write_int_arg<uint32_t> arg{ 0, 0 };
+
+                arg.abs_value = color.Value[0];
+                fmt::detail::write_int(std::back_inserter(ret), arg, fmtSpec, {});
+                ret.push_back(',');
+
+                arg.abs_value = color.Value[1];
+                fmt::detail::write_int(std::back_inserter(ret), arg, fmtSpec, {});
+                ret.push_back(',');
+
+                arg.abs_value = color.Value[2];
+                fmt::detail::write_int(std::back_inserter(ret), arg, fmtSpec, {});
+                ret.push_back(')');
+            }
+            break;
+        case ScreenColor::ColorType::Default:
+        default:
+            break;
+        }
+    }
+}
 
 template<typename Char>
 void Formatter<Char>::PutString(StrType& ret, std::   string_view str, const FormatSpec* spec)
@@ -851,141 +907,137 @@ static constexpr std::basic_string_view<Char> GetStrTrueFalse(bool val) noexcept
         static_assert(!AlwaysTrue<Char>);
 }
 
-template<typename Char>
-static constexpr std::basic_string_view<Char> GetStrBrace(bool isLeft) noexcept
+
+forceinline constexpr uint32_t ValLenReader(const uint8_t* opPtr, uint32_t len, uint32_t defVal) noexcept
 {
-    if constexpr (std::is_same_v<Char, char>)
-        return isLeft ?  "{"sv :  "}"sv;
-    else if constexpr (std::is_same_v<Char, wchar_t>)
-        return isLeft ? L"{"sv : L"}"sv;
-    else if constexpr (std::is_same_v<Char, char16_t>)
-        return isLeft ? u"{"sv : u"}"sv;
-    else if constexpr (std::is_same_v<Char, char32_t>)
-        return isLeft ? U"{"sv : U"}"sv;
-    else
-        static_assert(!AlwaysTrue<Char>);
-}
+    switch (len)
+    {
+    case 1:  return *opPtr;
+    case 2:  return opPtr[0] | (opPtr[1] << 8);
+    case 3:  return opPtr[0] | (opPtr[1] << 8) | (opPtr[1] << 16) | (opPtr[1] << 24);
+    case 0:
+    default: return defVal;
+    }
+};
 
 template<typename T>
-void FormatterBase::Execute(common::span<const uint8_t> opcodes, uint32_t& opOffset, T& executor, typename T::Context& context)
+forceinline uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, T& executor, typename T::Context& context, uint32_t instCount)
 {
-    const auto op = opcodes[opOffset++];
-    const auto opid = op & ParseResult::OpIdMask;
-    const auto opfield = op & ParseResult::OpFieldMask;
-    const auto opdata = op & ParseResult::OpDataMask;
-    switch (opid)
+    uint32_t icnt = 0; 
+    uint32_t opOffset = 0;
+    FormatSpec spec; // reuse since all the field will be override
+    for (; icnt < instCount && opOffset < opcodes.size(); icnt++)
     {
-    case ParseResult::BuiltinOp::Op:
-    {
-        switch (opfield)
+        const auto op = opcodes[opOffset++];
+        const auto opid = op & ParseResult::OpIdMask;
+        const auto opfield = op & ParseResult::OpFieldMask;
+        const auto opdata = op & ParseResult::OpDataMask;
+        switch (opid)
         {
-        case ParseResult::BuiltinOp::FieldFmtStr:
+        case ParseResult::BuiltinOp::Op:
         {
-            uint32_t offset = opcodes[opOffset++];
-            if (opdata & ParseResult::BuiltinOp::DataOffset16)
-                offset = (offset << 8) + opcodes[opOffset++];
-            uint32_t length = opcodes[opOffset++];
-            if (opdata & ParseResult::BuiltinOp::DataLength16)
-                length = (length << 8) + opcodes[opOffset++];
-            executor.OnFmtStr(context, offset, length);
+            switch (opfield)
+            {
+            case ParseResult::BuiltinOp::FieldFmtStr:
+            {
+                uint32_t offset = opcodes[opOffset++];
+                if (opdata & ParseResult::BuiltinOp::DataOffset16)
+                    offset = (offset << 8) + opcodes[opOffset++];
+                uint32_t length = opcodes[opOffset++];
+                if (opdata & ParseResult::BuiltinOp::DataLength16)
+                    length = (length << 8) + opcodes[opOffset++];
+                executor.OnFmtStr(context, offset, length);
+            } break;
+            case ParseResult::BuiltinOp::FieldBrace:
+            {
+                executor.OnBrace(context, opdata == 0);
+            } break;
+            default:
+                break;
+            }
         } break;
-        case ParseResult::BuiltinOp::FieldBrace:
+        case ParseResult::ColorOp::Op:
         {
-            executor.OnBrace(context, opdata == 0);
+            const bool isBG = opfield & ParseResult::ColorOp::FieldBackground;
+            if (opfield & ParseResult::ColorOp::FieldSpecial)
+            {
+                switch (opdata)
+                {
+                case ParseResult::ColorOp::DataDefault:
+                    executor.OnColor(context, { isBG });
+                    break;
+                case ParseResult::ColorOp::DataBit8:
+                    executor.OnColor(context, { isBG, opcodes[opOffset++] });
+                    break;
+                case ParseResult::ColorOp::DataBit24:
+                    executor.OnColor(context, { isBG, *reinterpret_cast<const std::array<uint8_t, 3>*>(&opcodes[opOffset]) });
+                    opOffset += 3;
+                    break;
+                default:
+                    break;
+                }
+            }
+            else
+            {
+                executor.OnColor(context, { isBG, static_cast<CommonColor>(opdata) });
+            }
+        } break;
+        case ParseResult::ArgOp::Op:
+        {
+            const auto argIdx = opcodes[opOffset++];
+            bool hasSpec = false;
+            if (opfield & ParseResult::ArgOp::FieldHasSpec)
+            {
+                hasSpec = true;
+                const auto val0 = opcodes[opOffset++];
+                const auto val1 = opcodes[opOffset++];
+                spec.TypeExtra = static_cast<uint8_t>(val0 >> 5);
+                spec.Alignment = static_cast<FormatSpec::Align>((val0 & 0b1100) >> 2);
+                spec.SignFlag = static_cast<FormatSpec::Sign> ((val0 & 0b0011) >> 0);
+                const bool hasExtraFmt = val0 & 0b10000;
+                spec.AlterForm = val1 & 0b10;
+                spec.ZeroPad = val1 & 0b01;
+                if (val1 & 0b11111100)
+                {
+                    const auto fillSize = (val1 >> 6) & 0b11u, precSize = (val1 >> 4) & 0b11u, widthSize = (val1 >> 2) & 0b11u;
+                    spec.Fill = ValLenReader(opcodes.data() + opOffset, fillSize, ' ');
+                    opOffset += fillSize;
+                    spec.Precision = ValLenReader(opcodes.data() + opOffset, precSize, UINT32_MAX);
+                    opOffset += precSize;
+                    spec.Width = static_cast<uint16_t>(ValLenReader(opcodes.data() + opOffset, widthSize, 0));
+                    opOffset += widthSize;
+                }
+                else
+                {
+                    spec.Fill = ' ';
+                    spec.Precision = UINT32_MAX;
+                    spec.Width = 0;
+                }
+                if (hasExtraFmt)
+                {
+                    spec.TypeExtra &= static_cast<uint8_t>(0x1u);
+                    const auto offsetSize = val0 & 0x80 ? 2 : 1;
+                    const auto    lenSize = val0 & 0x40 ? 2 : 1;
+                    spec.FmtOffset = static_cast<uint16_t>(ValLenReader(opcodes.data() + opOffset, offsetSize, 0));
+                    opOffset += offsetSize;
+                    spec.FmtLen = static_cast<uint16_t>(ValLenReader(opcodes.data() + opOffset, lenSize, 0));
+                    opOffset += lenSize;
+                }
+                else
+                    spec.FmtOffset = spec.FmtLen = 0;
+            }
+            const auto specPtr = hasSpec ? &spec : nullptr;
+            const bool isNamed = opfield & ParseResult::ArgOp::FieldNamed;
+            executor.OnArg(context, argIdx, isNamed, specPtr);
         } break;
         default:
             break;
         }
-    } break;
-    case ParseResult::ColorOp::Op:
-    {
-        const bool isBG = opfield & ParseResult::ColorOp::FieldBackground;
-        if (opfield & ParseResult::ColorOp::FieldSpecial)
-        {
-            switch (opdata)
-            {
-            case ParseResult::ColorOp::DataDefault:
-                executor.OnColor(context, { isBG });
-                break;
-            case ParseResult::ColorOp::DataBit8:
-                executor.OnColor(context, { isBG, opcodes[opOffset++] });
-                break;
-            case ParseResult::ColorOp::DataBit24:
-                executor.OnColor(context, { isBG, *reinterpret_cast<const std::array<uint8_t, 3>*>(&opcodes[opOffset]) });
-                opOffset += 3;
-                break;
-            default:
-                break;
-            }
-        }
-        else
-        {
-            executor.OnColor(context, { isBG, static_cast<CommonColor>(opdata) });
-        }
-    } break;
-    case ParseResult::ArgOp::Op:
-    {
-        const auto argIdx = opcodes[opOffset++];
-        //const auto realExtra = enum_cast(argType & ArgRealType::SizeMask8);
-        std::optional<FormatSpec> spec;
-        if (opfield & ParseResult::ArgOp::FieldHasSpec)
-        {
-            spec.emplace();
-            // enum class Align : uint8_t { None, Left, Right, Middle };
-            // enum class Sign  : uint8_t { None, Pos, Neg, Space };
-            // uint32_t Fill       = ' ';
-            // uint32_t Precision  = 0;
-            // uint16_t Width      = 0;
-            // Align Alignment     : 4;
-            // Sign SignFlag       : 4;
-            // bool AlterForm      : 4;
-            // bool ZeroPad        : 4;
-            const auto val0 = opcodes[opOffset++];
-            const auto val1 = opcodes[opOffset++];
-            spec->TypeExtra = static_cast<uint8_t>(val0 >> 5);
-            spec->Alignment = static_cast<FormatSpec::Align>((val0 & 0b1100) >> 2);
-            spec->SignFlag = static_cast<FormatSpec::Sign> ((val0 & 0b0011) >> 0);
-            const bool hasExtraFmt = val0 & 0b10000;
-            const auto fillSize = (val1 >> 6) & 0b11u, precSize = (val1 >> 4) & 0b11u, widthSize = (val1 >> 2) & 0b11u;
-            spec->AlterForm = val1 & 0b10;
-            spec->ZeroPad = val1 & 0b01;
-            constexpr auto ValLenReader = [](const uint8_t* opPtr, uint32_t len, uint32_t defVal) -> uint32_t
-            {
-                switch (len)
-                {
-                case 0: return defVal;
-                case 1: return *opPtr;
-                case 2: return opPtr[0] | (opPtr[1] << 8);
-                case 3: return opPtr[0] | (opPtr[1] << 8) | (opPtr[1] << 16) | (opPtr[1] << 24);
-                default: return UINT32_MAX;
-                }
-            };
-            spec->Fill = ValLenReader(opcodes.data() + opOffset, fillSize, ' ');
-            opOffset += fillSize;
-            spec->Precision = ValLenReader(opcodes.data() + opOffset, precSize, UINT32_MAX);
-            opOffset += precSize;
-            spec->Width = static_cast<uint16_t>(ValLenReader(opcodes.data() + opOffset, widthSize, 0));
-            opOffset += widthSize;
-            if (hasExtraFmt)
-            {
-                spec->TypeExtra &= static_cast<uint8_t>(0x1u);
-                const auto offsetSize = val0 & 0x80 ? 2 : 1;
-                const auto    lenSize = val0 & 0x40 ? 2 : 1;
-                spec->FmtOffset = static_cast<uint16_t>(ValLenReader(opcodes.data() + opOffset, offsetSize, 0));
-                opOffset += offsetSize;
-                spec->FmtLen    = static_cast<uint16_t>(ValLenReader(opcodes.data() + opOffset,    lenSize, 0));
-                opOffset +=    lenSize;
-            }
-        }
-        const auto specPtr = spec ? &*spec : nullptr;
-        const bool isNamed = opfield & ParseResult::ArgOp::FieldNamed;
-        executor.OnArg(context, argIdx, isNamed, specPtr);
-    } break;
-    default:
-        break;
     }
+    opcodes = opcodes.subspan(opOffset);
+    return icnt;
 }
-template SYSCOMMONTPL void FormatterBase::Execute(common::span<const uint8_t> opcodes, uint32_t& opOffset, FormatterExecutor& executor, FormatterExecutor::Context& context);
+template SYSCOMMONTPL uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, FormatterExecutor& executor, FormatterExecutor::Context& context, uint32_t instCount);
 
 
 template<typename Char>
@@ -1110,10 +1162,31 @@ private:
     }
 };
 
-template<typename Char>
-void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec)
+enum class RealSizeInfo : uint32_t { Byte1 = 0, Byte2 = 1, Byte4 = 2, Byte8 = 3 };
+template<typename T>
+constexpr RealSizeInfo GetSizeInfo() noexcept
 {
-    [[maybe_unused]] ArgDispType fmtType = ArgDispType::Any;
+    if constexpr (sizeof(T) == 1)
+        return RealSizeInfo::Byte1;
+    else if constexpr (sizeof(T) == 2)
+        return RealSizeInfo::Byte2;
+    else if constexpr (sizeof(T) == 4)
+        return RealSizeInfo::Byte4;
+    else if constexpr (sizeof(T) == 8)
+        return RealSizeInfo::Byte8;
+    else
+        static_assert(!AlwaysTrue<T>, "unsupported type size");
+}
+
+template<typename Char>
+forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec)
+{
+#if defined(DEBUG) || defined(_DEBUG)
+#   define ABORT_CHECK(...) Expects(__VA_ARGS__)
+#else
+#   define ABORT_CHECK(...)
+#endif
+    ArgDispType fmtType = ArgDispType::Any;
     const uint16_t* argPtr = nullptr;
     ArgRealType argType = ArgRealType::Error;
     if (isNamed)
@@ -1131,113 +1204,72 @@ void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx
         const auto argSlot = argIdx;
         argPtr = context.TheArgPack.Args.data() + context.TheArgPack.Args[argSlot];
     }
-    switch (const auto realType = ArgInfo::CleanRealType(argType); realType)
+    const auto realType = argType & ArgRealType::BaseTypeMask;
+    const auto intSize = static_cast<RealSizeInfo>(enum_cast(argType & ArgRealType::TypeSizeMask) >> 4);
+    switch (realType)
     {
     case ArgRealType::String:
     {
-        uintptr_t ptr = 0; 
+        uintptr_t ptr = 0;
         size_t len = SIZE_MAX;
         if (enum_cast(argType & ArgRealType::StrPtrBit))
             ptr = *reinterpret_cast<const uintptr_t*>(argPtr);
         else
             std::tie(ptr, len) = *reinterpret_cast<const std::pair<uintptr_t, size_t>*>(argPtr);
-        switch (enum_cast(argType & ArgRealType::SizeMask4))
+        if (fmtType == ArgDispType::Pointer)
         {
-        case 0x0:
-            Fmter.PutString(context.Dst, BuildStr<char    >(ptr, len), spec);
-            break;
-        case 0x1:
-            Fmter.PutString(context.Dst, BuildStr<char16_t>(ptr, len), spec);
-            break;
-        case 0x2:
-            Fmter.PutString(context.Dst, BuildStr<char32_t>(ptr, len), spec);
-            break;
-        default:
-            break;
+            Fmter.PutPointer(context.Dst, ptr, spec);
         }
-    } break;
-    case ArgRealType::Char:
-    {
-        switch (enum_cast(argType & ArgRealType::SizeMask4))
+        else
         {
-        case 0x0:
-        {
-            const auto ch = reinterpret_cast<const char    *>(argPtr);
-            Fmter.PutString(context.Dst, std::   string_view{ ch, 1 }, spec);
-        } break;
-        case 0x1:
-        {
-            const auto ch = reinterpret_cast<const char16_t*>(argPtr);
-            Fmter.PutString(context.Dst, std::u16string_view{ ch, 1 }, spec);
-        } break;
-        case 0x2:
-        {
-            const auto ch = reinterpret_cast<const char32_t*>(argPtr);
-            Fmter.PutString(context.Dst, std::u32string_view{ ch, 1 }, spec);
-        } break;
-        default:
-            break;
-        }
-    } break;
-    case ArgRealType::SInt:
-    case ArgRealType::UInt:
-    {
-        const auto isSigned = realType == ArgRealType::SInt;
-        const auto size = enum_cast(argType & ArgRealType::SizeMask8);
-        if (size <= 2) // 32bit
-        {
-            uint32_t val = 0;
-            switch (size)
+            ABORT_CHECK(fmtType == ArgDispType::String || fmtType == ArgDispType::Any);
+            switch (static_cast<RealSizeInfo>(enum_cast(intSize) & 0x3)) // remove StrPtrBit
             {
-            case 0x0: val = *reinterpret_cast<const uint8_t *>(argPtr); break;
-            case 0x1: val = *reinterpret_cast<const uint16_t*>(argPtr); break;
-            case 0x2: val = *reinterpret_cast<const uint32_t*>(argPtr); break;
+            case RealSizeInfo::Byte1: Fmter.PutString(context.Dst, BuildStr<char    >(ptr, len), spec); break;
+            case RealSizeInfo::Byte2: Fmter.PutString(context.Dst, BuildStr<char16_t>(ptr, len), spec); break;
+            case RealSizeInfo::Byte4: Fmter.PutString(context.Dst, BuildStr<char32_t>(ptr, len), spec); break;
             default: break;
             }
-            Fmter.PutInteger(context.Dst, val, isSigned, spec);
         }
-        else
-        {
-            const auto val = *reinterpret_cast<const uint64_t*>(argPtr);
-            Fmter.PutInteger(context.Dst, val, isSigned, spec);
-        }
-    } break;
-    case ArgRealType::Float:
-    {
-        const auto size = enum_cast(argType & ArgRealType::SizeMask4);
-        if (size <= 2) // 32bit
-        {
-            const float val = size == 2 ? *reinterpret_cast<const float*>(argPtr) :
-                *reinterpret_cast<const half_float::half*>(argPtr);
-            Fmter.PutFloat(context.Dst, val, spec);
-        }
-        else
-        {
-            const auto val = *reinterpret_cast<const double*>(argPtr);
-            Fmter.PutFloat(context.Dst, val, spec);
-        }
-    } break;
+    } return;
     case ArgRealType::Bool:
     {
-        const bool val = *reinterpret_cast<const uint8_t*>(argPtr);
-        Fmter.PutString(context.Dst, GetStrTrueFalse<SimChar<Char>>(val), spec);
-    } break;
+        const auto val = *reinterpret_cast<const uint16_t*>(argPtr);
+        if (fmtType == ArgDispType::Char)
+        {
+            if constexpr (sizeof(Char) == 1)
+                Fmter.PutString(context.Dst, val ?  "Y"sv : "N"sv, spec);
+            else if constexpr (sizeof(Char) == 2)
+                Fmter.PutString(context.Dst, val ? u"Y"sv : u"N"sv, spec);
+            else if constexpr (sizeof(Char) == 4)
+                Fmter.PutString(context.Dst, val ? U"Y"sv : U"N"sv, spec);
+            else
+                static_assert(!AlwaysTrue<Char>, "unsupported char size");
+        }
+        else if (fmtType == ArgDispType::Integer)
+        {
+            Fmter.PutInteger(context.Dst, val ? 1u : 0u, false, spec);
+        }
+        else
+        {
+            ABORT_CHECK(fmtType == ArgDispType::String || fmtType == ArgDispType::Any);
+            Fmter.PutString(context.Dst, GetStrTrueFalse<SimChar<Char>>(val), nullptr);
+        }
+    } return;
     case ArgRealType::Ptr:
-    case ArgRealType::PtrVoid:
     {
+        ABORT_CHECK(fmtType == ArgDispType::Pointer || fmtType == ArgDispType::Any);
         const auto val = *reinterpret_cast<const uintptr_t*>(argPtr);
         Fmter.PutPointer(context.Dst, val, spec);
-    } break;
+    } return;
     case ArgRealType::Date:
-    case ArgRealType::DateDelta:
     {
+        ABORT_CHECK(fmtType == ArgDispType::Date || fmtType == ArgDispType::Any);
         std::basic_string_view<Char> fmtStr{};
         if (spec && spec->FmtLen)
             fmtStr = context.StrInfo.FormatString.substr(spec->FmtOffset, spec->FmtLen);
         std::tm date{};
-        if (realType == ArgRealType::Date)
-            date = *reinterpret_cast<const CompactDate*>(argPtr);
-        else
+        if (HAS_FIELD(argType, ArgRealType::DateDeltaBit))
         {
             const auto delta = *reinterpret_cast<const int64_t*>(argPtr);
             const std::chrono::duration<int64_t, std::milli> d{ delta };
@@ -1245,16 +1277,69 @@ void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx
             const auto time = std::chrono::system_clock::to_time_t(tp);
             date = fmt::localtime(time);
         }
+        else
+            date = *reinterpret_cast<const CompactDate*>(argPtr);
         Fmter.PutDate(context.Dst, fmtStr, date);
-    } break;
+    } return;
+    case ArgRealType::Color:
+    {
+        ABORT_CHECK(fmtType == ArgDispType::Color || fmtType == ArgDispType::Any);
+        switch (intSize)
+        {
+        case RealSizeInfo::Byte1: Fmter.PutColorArg(context.Dst, { false, *reinterpret_cast<const CommonColor*>(argPtr) }, spec); break;
+        case RealSizeInfo::Byte4: Fmter.PutColorArg(context.Dst,          *reinterpret_cast<const ScreenColor*>(argPtr)  , spec); break;
+        default: break;
+        }
+    } return;
     case ArgRealType::Custom:
     {
         const auto& pair = *reinterpret_cast<const detail::FmtWithPair*>(argPtr);
         WrapExecutor<Char> executor{ Fmter };
         typename WrapExecutor<Char>::Context context2{ context.Dst };
         pair.Executor(pair.Data, executor, context2, spec);
-    } break;
-    default: break;
+    } return;
+    case ArgRealType::Float:
+    {
+        switch (intSize)
+        {
+        case RealSizeInfo::Byte2: Fmter.PutFloat(context.Dst, static_cast<float>(*reinterpret_cast<const half_float::half*>(argPtr)), spec); break;
+        case RealSizeInfo::Byte4: Fmter.PutFloat(context.Dst,                    *reinterpret_cast<const float           *>(argPtr),  spec); break;
+        case RealSizeInfo::Byte8: Fmter.PutFloat(context.Dst,                    *reinterpret_cast<const double          *>(argPtr),  spec); break;
+        default: break;
+        }
+    } return;
+    // Below are integer
+    case ArgRealType::Char:
+    {
+        if (fmtType == ArgDispType::Char || fmtType == ArgDispType::Any)
+        {
+            switch (intSize)
+            {
+            case RealSizeInfo::Byte1: Fmter.PutString(context.Dst, std::   string_view{ reinterpret_cast<const char    *>(argPtr), 1 }, spec); break;
+            case RealSizeInfo::Byte2: Fmter.PutString(context.Dst, std::u16string_view{ reinterpret_cast<const char16_t*>(argPtr), 1 }, spec); break;
+            case RealSizeInfo::Byte4: Fmter.PutString(context.Dst, std::u32string_view{ reinterpret_cast<const char32_t*>(argPtr), 1 }, spec); break;
+            default: break;
+            }
+            return;
+        }
+    }
+    [[fallthrough]];
+    case ArgRealType::SInt:
+    case ArgRealType::UInt:
+    {
+        ABORT_CHECK(fmtType == ArgDispType::Integer || fmtType == ArgDispType::Any);
+        const auto isSigned = realType == ArgRealType::SInt;
+        switch (intSize)
+        {
+        case RealSizeInfo::Byte1: Fmter.PutInteger(context.Dst, static_cast<uint32_t>(*reinterpret_cast<const uint8_t *>(argPtr)), isSigned, spec); break;
+        case RealSizeInfo::Byte2: Fmter.PutInteger(context.Dst, static_cast<uint32_t>(*reinterpret_cast<const uint16_t*>(argPtr)), isSigned, spec); break;
+        case RealSizeInfo::Byte4: Fmter.PutInteger(context.Dst, static_cast<uint32_t>(*reinterpret_cast<const uint32_t*>(argPtr)), isSigned, spec); break;
+        case RealSizeInfo::Byte8: Fmter.PutInteger(context.Dst, static_cast<uint64_t>(*reinterpret_cast<const uint64_t*>(argPtr)), isSigned, spec); break;
+        default: break;
+        }
+    } return;
+    default:
+        return;
     }
 }
 template SYSCOMMONTPL void FormatterBase::StaticExecutor<char>    ::OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec);
@@ -1269,13 +1354,10 @@ template SYSCOMMONTPL void FormatterBase::StaticExecutor<char8_t> ::OnArg(Contex
 template<typename Char>
 void FormatterBase::FormatTo(Formatter<Char>& formatter, std::basic_string<Char>& ret, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, const ArgPack& argPack)
 {
-    uint32_t opOffset = 0;
     typename StaticExecutor<Char>::Context context{ ret, strInfo, argInfo, argPack };
     StaticExecutor<Char> executor{ formatter };
-    while (opOffset < strInfo.Opcodes.size())
-    {
-        Execute(strInfo.Opcodes, opOffset, executor, context);
-    }
+    auto opcodes = strInfo.Opcodes;
+    Execute(opcodes, executor, context);
 }
 template SYSCOMMONTPL void FormatterBase::FormatTo(Formatter<char>    & formatter, std::basic_string<char>    & ret, const StrArgInfoCh<char>    & strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
 template SYSCOMMONTPL void FormatterBase::FormatTo(Formatter<wchar_t> & formatter, std::basic_string<wchar_t> & ret, const StrArgInfoCh<wchar_t> & strInfo, const ArgInfo& argInfo, const ArgPack& argPack);

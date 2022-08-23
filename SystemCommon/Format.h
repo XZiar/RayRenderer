@@ -33,7 +33,7 @@ struct ParseResult
         InvalidColor, MissingColorFGBG, InvalidCommonColor, Invalid8BitColor, Invalid24BitColor,
         InvalidArgIdx, ArgIdxTooLarge, InvalidArgName, ArgNameTooLong,
         WidthTooLarge, InvalidPrecision, PrecisionTooLarge,
-        InvalidType, ExtraFmtSpec, IncompDateSpec, IncompTimeSpec, IncompNumSpec, IncompType, InvalidFmt
+        InvalidType, ExtraFmtSpec, IncompDateSpec, IncompTimeSpec, IncompColorSpec, IncompNumSpec, IncompType, InvalidFmt
     };
 #define SCSTR_HANDLE_PARSE_ERROR(handler)\
     handler(FmtTooLong,         "Format string too long"); \
@@ -58,6 +58,7 @@ struct ParseResult
     handler(ExtraFmtSpec,       "Unknown extra format spec left at the end"); \
     handler(IncompDateSpec,     "Extra spec applied on date type"); \
     handler(IncompTimeSpec,     "Extra spec applied on time type"); \
+    handler(IncompColorSpec,    "Extra spec applied on color type"); \
     handler(IncompNumSpec,      "Numeric spec applied on non-numeric type"); \
     handler(IncompType,         "In-compatible type being specified for the arg"); \
     handler(InvalidFmt,         "Invalid format string");
@@ -126,8 +127,8 @@ struct ParseResult
             constexpr TypeIdentifier() noexcept {}
             constexpr TypeIdentifier(char ch) noexcept
             {
-                // type        ::=  "a" | "A" | "b" | "B" | "c" | "d" | "e" | "E" | "f" | "F" | "g" | "G" | "o" | "p" | "s" | "x" | "X" | "T"
-                constexpr std::string_view types{ "gGaAeEfFdbBoxXcpsT" };
+                // type        ::=  "a" | "A" | "b" | "B" | "c" | "d" | "e" | "E" | "f" | "F" | "g" | "G" | "o" | "p" | "s" | "x" | "X" | "T" | "@"
+                constexpr std::string_view types{ "gGaAeEfFdbBoxXcpsT@" };
                 const auto typeidx = types.find_first_of(ch);
                 if (typeidx <= 7) // gGaAeEfF
                 {
@@ -157,6 +158,11 @@ struct ParseResult
                 else if (typeidx == 17) // T
                 {
                     Type = ArgDispType::Date;
+                    Extra = 0x00;
+                }
+                else if (typeidx == 18) // T
+                {
+                    Type = ArgDispType::Color;
                     Extra = 0x00;
                 }
                 else
@@ -811,6 +817,15 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
                 return false;
             }
         }
+        else if (fmtSpec.Type.Type == ArgDispType::Color)
+        {
+            if (fmtSpec.ZeroPad || fmtSpec.Precision != 0 || fmtSpec.Width != 0 || fmtSpec.Fill != ' ' ||
+                fmtSpec.SignFlag != FormatSpec::Sign::None)
+            {
+                result.SetError(str.data() - start, ErrorCode::IncompColorSpec);
+                return false;
+            }
+        }
         // enhanced type check
         ArgDispType gneralType = ArgDispType::Any;
         if (fmtSpec.ZeroPad || fmtSpec.SignFlag != FormatSpec::Sign::None)
@@ -1341,41 +1356,26 @@ struct ArgInfo
     ArgRealType NamedTypes[ParseResult::NamedArgSlots] = { ArgRealType::Error };
     ArgRealType IndexTypes[ParseResult::IdxArgSlots] = { ArgRealType::Error };
     uint8_t NamedArgCount = 0, IdxArgCount = 0;
-    static constexpr ArgRealType CleanRealType(ArgRealType type) noexcept
-    {
-        const auto base = type & ArgRealType::BaseTypeMask;
-        switch (base)
-        {
-        case ArgRealType::SInt:
-        case ArgRealType::UInt:
-        case ArgRealType::Float:
-        case ArgRealType::Char:
-        case ArgRealType::String:
-            return base;
-        default:
-            return type <= ArgRealType::SpecialMax ? type : ArgRealType::Error;
-        }
-    }
     template<typename T>
-    static constexpr ArgRealType EncodeTypeSizeData() noexcept
+    forceinline static constexpr ArgRealType EncodeTypeSizeData() noexcept
     {
         switch (sizeof(T))
         {
-        case 1:  return static_cast<ArgRealType>(0x0);
-        case 2:  return static_cast<ArgRealType>(0x1);
-        case 4:  return static_cast<ArgRealType>(0x2);
-        case 8:  return static_cast<ArgRealType>(0x3);
-        case 16: return static_cast<ArgRealType>(0x4);
-        case 32: return static_cast<ArgRealType>(0x5);
-        case 64: return static_cast<ArgRealType>(0x6);
-        default: return static_cast<ArgRealType>(0xff);
+        case 1:   return static_cast<ArgRealType>(0x00);
+        case 2:   return static_cast<ArgRealType>(0x10);
+        case 4:   return static_cast<ArgRealType>(0x20);
+        case 8:   return static_cast<ArgRealType>(0x30);
+        case 16:  return static_cast<ArgRealType>(0x40);
+        case 32:  return static_cast<ArgRealType>(0x50);
+        case 64:  return static_cast<ArgRealType>(0x60);
+        default:  return static_cast<ArgRealType>(0xff);
         }
     }
     template<typename T>
-    static constexpr ArgRealType GetCharTypeData() noexcept
+    forceinline static constexpr ArgRealType GetCharTypeData() noexcept
     {
         constexpr auto data = EncodeTypeSizeData<T>();
-        static_assert(enum_cast(data) <= 0x2);
+        static_assert(enum_cast(data) <= 0x20);
         return data;
     }
     template<typename T>
@@ -1385,6 +1385,19 @@ struct ArgInfo
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
         result |= std::is_same_v<T, char8_t>;
 #endif
+        return result;
+    }
+    template<typename T, bool AllowPair = false>
+    static constexpr bool CheckColorType() noexcept
+    {
+        using U = std::decay_t<T>;
+        bool result = std::is_same_v<U, CommonColor> || std::is_same_v<U, ScreenColor>;
+        if constexpr (AllowPair && is_specialization<U, std::pair>::value)
+        {
+            using T1 = std::decay_t<typename U::first_type>;
+            using T2 = std::decay_t<typename U::second_type>;
+            result = std::is_same_v<T1, T2> && CheckColorType<T1, false>() && CheckColorType<T2, false>();
+        }
         return result;
     }
     template<typename T>
@@ -1406,7 +1419,7 @@ struct ArgInfo
             if constexpr (CheckCharType<X>())
                 return ArgRealType::String | ArgRealType::StrPtrBit | GetCharTypeData<X>();
             else
-                return std::is_same_v<X, void> ? ArgRealType::PtrVoid : ArgRealType::Ptr;
+                return ArgRealType::Ptr | (std::is_same_v<X, void> ? ArgRealType::PtrVoidBit : ArgRealType::EmptyBit);
         }
         else if constexpr (std::is_floating_point_v<U>)
         {
@@ -1426,7 +1439,12 @@ struct ArgInfo
         }
         else if constexpr (is_specialization<U, std::chrono::time_point>::value)
         {
-            return ArgRealType::DateDelta;
+            return ArgRealType::Date | ArgRealType::DateDeltaBit;
+        }
+        else if constexpr (CheckColorType<U>())
+        {
+            // size 1,2,4,8: CommonColor, pair<CommonColor>, ScreenColor, pair<ScreenColor>
+            return ArgRealType::Color | EncodeTypeSizeData<U>();
         }
         else if constexpr (is_detected_v<detail::HasFormatAsMemFn, U>)
         {
@@ -1497,7 +1515,7 @@ struct ArgInfo
             }
             else if constexpr (std::is_same_v<U, bool>)
             {
-                pack.Put(static_cast<uint8_t>(arg ? 1 : 0), idx);
+                pack.Put(static_cast<uint16_t>(arg ? 1 : 0), idx);
             }
             else if constexpr (std::is_integral_v<U>)
             {
@@ -1515,6 +1533,10 @@ struct ArgInfo
             {
                 const auto deltaMs = std::chrono::duration_cast<std::chrono::duration<int64_t, std::milli>>(arg.time_since_epoch()).count();
                 pack.Put(deltaMs, idx);
+            }
+            else if constexpr (CheckColorType<U>())
+            {
+                pack.Put(arg, idx);
             }
             else if constexpr (is_detected_v<detail::HasFormatAsMemFn, U>)
             {
@@ -1579,26 +1601,28 @@ struct ArgChecker
     };
     static constexpr bool CheckCompatible(ArgDispType ask, ArgRealType give_) noexcept
     {
-        const auto give = ArgInfo::CleanRealType(give_);
+        const auto give = give_ & ArgRealType::BaseTypeMask; // ArgInfo::CleanRealType(give_);
         if (give == ArgRealType::Error) return false;
         if (ask == ArgDispType::Any) return true;
-        const auto isInteger = give == ArgRealType::SInt || give == ArgRealType::UInt || give == ArgRealType::Char || give == ArgRealType::Bool;
+        const auto isInteger = give == ArgRealType::SInt || give == ArgRealType::UInt || give == ArgRealType::Char;
         switch (ask)
         {
         case ArgDispType::Integer:
-            return isInteger || give == ArgRealType::Ptr;
+            return isInteger || give == ArgRealType::Bool;
         case ArgDispType::Float:
-            return isInteger || give == ArgRealType::Float;
-        case ArgDispType::Numeric:
-            return isInteger || give == ArgRealType::Float || give == ArgRealType::Ptr;
+            return give == ArgRealType::Float;
+        /*case ArgDispType::Numeric:
+            return isInteger || give == ArgRealType::Bool || give == ArgRealType::Float;*/
         case ArgDispType::Char:
             return give == ArgRealType::Char || give == ArgRealType::Bool;
         case ArgDispType::String:
-            return give == ArgRealType::String;
+            return give == ArgRealType::String || give == ArgRealType::Bool;
         case ArgDispType::Pointer:
-            return give == ArgRealType::Ptr || give == ArgRealType::PtrVoid || (give == ArgRealType::String && HAS_FIELD(give, ArgRealType::StrPtrBit));
+            return give == ArgRealType::Ptr || give == ArgRealType::String;
+        case ArgDispType::Color:
+            return give == ArgRealType::Color;
         case ArgDispType::Date:
-            return give == ArgRealType::Date || give == ArgRealType::DateDelta;
+            return give == ArgRealType::Date;
         case ArgDispType::Custom:
             return give == ArgRealType::Custom;
         default:
@@ -1724,7 +1748,7 @@ struct FormatterBase
 {
 protected:
     template<typename T>
-    SYSCOMMONAPI static void Execute(common::span<const uint8_t> opcodes, uint32_t& opOffset, T& executor, typename T::Context& context);
+    SYSCOMMONAPI static uint32_t Execute(span<const uint8_t>& opcodes, T& executor, typename T::Context& context, uint32_t instCount = UINT32_MAX);
     template<typename Char>
     struct StaticExecutor;
 public:
@@ -1759,6 +1783,7 @@ struct Formatter : public FormatterBase
     using StrType = std::basic_string<Char>;
 public:
     SYSCOMMONAPI virtual void PutColor(StrType& ret, ScreenColor color);
+    SYSCOMMONAPI         void PutColorArg(StrType& ret, ScreenColor color, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutString(StrType& ret, std::   string_view str, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutString(StrType& ret, std::  wstring_view str, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutString(StrType& ret, std::u16string_view str, const FormatSpec* spec);
@@ -1934,7 +1959,7 @@ private:
     void OnFmtStr(CTX& ctx, uint32_t offset, uint32_t length) final
     {
         auto& context = static_cast<Context&>(ctx);
-        context.Dst.append(context.FmtStr.substr(offset, length));
+        context.Dst.append(context.FmtStr.data() + offset, length);
     }
 };
 
@@ -1959,7 +1984,7 @@ struct FormatterBase::StaticExecutor
     }
     forceinline void OnFmtStr(Context& context, uint32_t offset, uint32_t length)
     {
-        context.Dst.append(context.StrInfo.FormatString.substr(offset, length));
+        context.Dst.append(context.StrInfo.FormatString.data() + offset, length);
     }
     forceinline void OnBrace(Context& context, bool isLeft)
     {

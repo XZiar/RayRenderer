@@ -40,15 +40,15 @@ There' 2 kind of Executor:
 In order to reduce overhead of sleep/wait and lock, LoopBase uses a **"4-state"** sleep strategy.
 
 ```
-                                     |========|
-Others wakeup prevent sleeping    -> | Forbid | --|
-                                 /   |========|   |
-                                /                 |
-|=========|       |==========| /     |========|   |
-| Running | ----> | Prending | ----> | Sleep  | --| Others   really wait  and notify
-|=========|       |==========|       |========|   | Executor really sleep
-     ^                                            |
-     |--------------------------------------------|
+                                    |========|
+Others wakeup prevent sleeping   -> | Forbid | --|
+                                /   |========|   |
+                               /                 |
+|=========|       |=========| /     |========|   |
+| Running | ----> | Pending | ----> | Sleep  | --| Others   really wait  and notify
+|=========|       |=========|       |========|   | Executor really sleep
+     ^                                           |
+     |-------------------------------------------|
 ```
 
 ### [PromiseTask](./PromiseTask.h)
@@ -115,12 +115,11 @@ Provide console-related operation.
 * Console size quering
 * `getch`, `getche` for linux using `termios`.
 * getline with history support for linux using `libreadline`.
-* 
 #### ColorConsole
 
 Provide color support for console. For Win32 which doesn't support VT mode, it emulating it using `SetConsoleTextAttribute`.
 
-[MiniLogger](./MiniLogger.cpp)'s `ConsoleBackend` is based on this.
+It provide support for printing color-segement-based string. [MiniLogger](./MiniLogger.cpp)'s `ConsoleBackend` is based on this.
 
 ### [ThreadEx](./ThreadEx.h)
 

@@ -597,11 +597,8 @@ std::u32string NailangBase::FormatString(const std::u32string_view formatter, co
         /*const auto mapping = */ArgChecker::CheckDD(strInfo, argsInfo);
         std::u32string dst;
         NailangFormatExecutor::Context ctx{ dst, formatter, args };
-        uint32_t opOffset = 0;
-        while (opOffset < strInfo.Opcodes.size())
-        {
-            NailangFormatExecutor::Execute<common::str::FormatterExecutor>(strInfo.Opcodes, opOffset, NLFmtExecutor, ctx);
-        }
+        auto opcodes = strInfo.Opcodes;
+        NailangFormatExecutor::Execute<common::str::FormatterExecutor>(opcodes, NLFmtExecutor, ctx);
         return dst;
     }
     catch (const common::BaseException& be)

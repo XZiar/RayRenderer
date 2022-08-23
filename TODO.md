@@ -42,6 +42,8 @@
     - [x] Merge fmt with better format-context support
     - [ ] Add BOM detection
     - [x] Add custom opcode-based compile-time parsing&format support 
+    - [ ] Make arg spec decoding delayed so cached spec can be helpful
+    - [ ] Make parsing use template host, so runtime parsing can use fast-path, or directly store into dynamic storage
     - [ ] Add encoding conversion with segement info
     - [ ] Make r-value arg packing use deep copy 
   * MiniLogger
