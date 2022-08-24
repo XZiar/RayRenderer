@@ -18,8 +18,7 @@
         "cpp":
         {
             "sources": ["posix/stack_traits.cpp"],
-            "incpath": ["../include"],
-            "visibility": "default"
+            "incpath": ["../include"]
         },
         "asm":
         {

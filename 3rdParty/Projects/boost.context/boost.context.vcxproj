@@ -75,6 +75,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
     <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\marmasm.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -191,29 +192,50 @@
       <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
       <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UseSafeExceptionHandlers>true</UseSafeExceptionHandlers>
     </MASM>
     <MASM Include="$(RealSourceDir)\asm\jump_x86_64_ms_pe_masm.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
       <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
+    <MARMASM Include="$(RealSourceDir)\asm\jump_arm64_aapcs_pe_armasm.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </MARMASM>
     <MASM Include="$(RealSourceDir)\asm\make_i386_ms_pe_masm.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
       <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UseSafeExceptionHandlers>true</UseSafeExceptionHandlers>
     </MASM>
     <MASM Include="$(RealSourceDir)\asm\make_x86_64_ms_pe_masm.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
       <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
+    <MARMASM Include="$(RealSourceDir)\asm\make_arm64_aapcs_pe_armasm.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </MARMASM>
     <MASM Include="$(RealSourceDir)\asm\ontop_i386_ms_pe_masm.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
       <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UseSafeExceptionHandlers>true</UseSafeExceptionHandlers>
     </MASM>
     <MASM Include="$(RealSourceDir)\asm\ontop_x86_64_ms_pe_masm.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
       <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
+    <MARMASM Include="$(RealSourceDir)\asm\ontop_arm64_aapcs_pe_armasm.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </MARMASM>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(RealSourceDir)\windows\stack_traits.cpp" />
@@ -224,5 +246,6 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\marmasm.targets" />
   </ImportGroup>
 </Project>

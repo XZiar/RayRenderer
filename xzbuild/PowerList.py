@@ -57,3 +57,11 @@ def combineElements(original, adds, dels):
     wantDel = set(dels)
     return list(x for x in added.keys() if x not in wantDel)
 
+def solveSingleElement(target, field:str, env:dict, defaultVal) -> any:
+    (adds, dels) = solveElementList(target, field, env)
+    if len(dels) > 0: raise Exception(f'expect no "-" for {field}')
+    if len(adds) == 0: return defaultVal
+    trimAdds = set(adds)
+    if len(trimAdds) > 1: raise Exception(f'get multiple result for {field}: {trimAdds}')
+    return trimAdds[0]
+    

@@ -690,39 +690,38 @@ auto ToString(T&& res, Args&&... args)
 TEST(Format, Formating)
 {
     {
-        const auto ref = fmt::format(FMT_STRING("{},{x},{:>6},{:_^7}"), "hello", "Hello", "World"sv, fmt::arg("x", "world"));
+        const auto ref = fmt::format("{},{x},{:>6},{:_^7}", "hello", "Hello", "World"sv, fmt::arg("x", "world"));
         const auto ret = ToString(FmtString("{},{x},{:>6},{:_^7}"sv), "hello", NAMEARG("x")("world"sv), u"Hello", U"World"sv);
         EXPECT_EQ(ret, ref);
         EXPECT_EQ(ret, "hello,world, Hello,_World_");
     }
     {
-        const auto ref = fmt::format(FMT_STRING("{},{x},{:b},{:#X},{:05o}"), 13, uint8_t(64), int64_t(65535), 042, fmt::arg("x", -99));
+        const auto ref = fmt::format("{},{x},{:b},{:#X},{:05o}", 13, uint8_t(64), int64_t(65535), 042, fmt::arg("x", -99));
         const auto ret = ToString(FmtString("{},{x},{:b},{:#X},{:05o}"sv), 13, NAMEARG("x")(-99), uint8_t(64), int64_t(65535), 042);
         EXPECT_EQ(ret, ref);
         EXPECT_EQ(ret, "13,-99,1000000,0XFFFF,00042");
     }
     {
-        const auto ref = fmt::format(FMT_STRING("{},{x},{:g},{:f},{:+010.4g}"), 0.0, 4.9014e6, -392.5f, 392.65, fmt::arg("x", 392.65));
+        const auto ref = fmt::format("{},{x},{:g},{:f},{:+010.4g}", 0.0, 4.9014e6, -392.5f, 392.65, fmt::arg("x", 392.65));
         const auto ret = ToString(FmtString("{},{x},{:g},{:f},{:+010.4g}"sv), 0.0, NAMEARG("x")(392.65), 4.9014e6, -392.5f, 392.65);
         EXPECT_EQ(ret, ref);
         EXPECT_EQ(ret, "0,392.65,4.9014e+06,-392.500000,+0000392.6");
     }
     {
         const auto ptr = reinterpret_cast<const int*>(uintptr_t(1));
-        const auto ref = fmt::format(FMT_STRING("{},{}"), (void*)ptr, false);
+        const auto ref = fmt::format("{},{}", (void*)ptr, false);
         const auto ret = ToString(FmtString("{},{}"sv), ptr, false);
         EXPECT_EQ(ret, ref);
         EXPECT_EQ(ret, "0x1,false");
     }
     {
-        const auto ptr = reinterpret_cast<const int*>(uintptr_t(1));
-        const auto ref = fmt::format(FMT_STRING("{:d},{:d},{},{:#X}"), true, (uint16_t)u'a', false, 'c');
+        const auto ref = fmt::format("{:d},{:d},{},{:#X}", true, (uint16_t)u'a', false, 'c');
         const auto ret = ToString(FmtString("{:d},{:d},{},{:#X}"sv), true, u'a', false, 'c');
         EXPECT_EQ(ret, ref);
         EXPECT_EQ(ret, "1,97,false,0X63");
     }
     {
-        const auto ref = fmt::format(FMT_STRING(u"{},{},{},{},{x},{:g},{:f},{:+010.4g}"sv),
+        const auto ref = fmt::format(u"{},{},{},{},{x},{:g},{:f},{:+010.4g}"sv,
             u"hello", u"Hello", u"World"sv, 0.0, 4.9014e6, -392.5f, 392.65, fmt::arg(u"x", 392.65));
         const auto ret = ToString(FmtString(u"{},{},{},{},{x},{:g},{:f},{:+010.4g}"sv),
             "hello", u"Hello", U"World"sv, 0.0, NAMEARG("x")(392.65), 4.9014e6, -392.5f, 392.65);
@@ -736,8 +735,8 @@ TEST(Format, Formating)
     {
         const auto t1 = common::SimpleTimer::getCurLocalTime();
         const auto t2 = std::chrono::system_clock::now();
-        const auto ref = fmt::format(FMT_STRING(u"{0:%Y-%m-%dT%H:%M:%S}|{0:%Y-%m-%dT%H:%M:%S}|{1:%Y-%m-%d %H:%M:%S}"sv), t1, t2);
-        const auto ret = ToString(FmtString(u"{}|{0:T}|{1:T%Y-%m-%d %H:%M:%S}"sv), t1, t2);
+        const auto ref = fmt::format("{0:%Y-%m-%dT%H:%M:%S}|{0:%Y-%m-%dT%H:%M:%S}|{1:%Y-%m-%d %H:%M:%S}"sv, t1, t2);
+        const auto ret = ToString(FmtString("{}|{0:T}|{1:T%Y-%m-%d %H:%M:%S}"sv), t1, t2);
         EXPECT_EQ(ret, ref);
     }
 }

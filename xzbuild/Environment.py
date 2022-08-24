@@ -152,7 +152,7 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
         defs = dict([d.split(" ", 2)[1:3] for d in rawdefs.splitlines()])
         env["libDirs"] += splitPaths(os.environ.get("LD_LIBRARY_PATH"))
         env["compiler"] = "clang" if "__clang__" in defs else "gcc"
-        arlinker = "gcc-ar" if env["compiler"] == "gcc" else "ar"
+        arlinker = "gcc-ar" if env["compiler"] == "gcc" else "llvm-ar"
         if not _checkExists(arlinker): arlinker = "ar"
         env["arlinker"] = os.environ.get("STATICLINKER", arlinker)
 

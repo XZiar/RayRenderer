@@ -18,6 +18,12 @@
 #   include <sdkddkver.h>
 #   pragma message("Compiling SystemCommon with WinSDK[" STRINGIZE(NTDDI_VERSION) "]" )
 #endif
+#if COMMON_OS_ANDROID
+#   include <android/ndk-version.h>
+#   include <android/log.h>
+#   pragma message("Compiling SystemCommon with Android NDK[" STRINGIZE(__NDK_MAJOR__) "]" )
+#endif
+
 
 #include <mutex>
 #include <shared_mutex>

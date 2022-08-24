@@ -24,18 +24,27 @@
     <MASM Include="$(RealSourceDir)\asm\jump_x86_64_ms_pe_masm.asm">
       <Filter>asm</Filter>
     </MASM>
+    <MARMASM Include="$(RealSourceDir)\asm\jump_arm64_aapcs_pe_armasm.asm">
+      <Filter>asm</Filter>
+    </MARMASM>
     <MASM Include="$(RealSourceDir)\asm\make_i386_ms_pe_masm.asm">
       <Filter>asm</Filter>
     </MASM>
     <MASM Include="$(RealSourceDir)\asm\make_x86_64_ms_pe_masm.asm">
       <Filter>asm</Filter>
     </MASM>
+    <MARMASM Include="$(RealSourceDir)\asm\make_arm64_aapcs_pe_armasm.asm">
+      <Filter>asm</Filter>
+    </MARMASM>
     <MASM Include="$(RealSourceDir)\asm\ontop_i386_ms_pe_masm.asm">
       <Filter>asm</Filter>
     </MASM>
     <MASM Include="$(RealSourceDir)\asm\ontop_x86_64_ms_pe_masm.asm">
       <Filter>asm</Filter>
     </MASM>
+    <MARMASM Include="$(RealSourceDir)\asm\ontop_arm64_aapcs_pe_armasm.asm">
+      <Filter>asm</Filter>
+    </MARMASM>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(RealSourceDir)\windows\stack_traits.cpp">

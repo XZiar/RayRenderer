@@ -85,6 +85,7 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         self.optimize = ""
         self.version = ""
         self.visibility = "hidden"
+        self.lto = False
         super().__init__(targets, proj, env)
 
     def solveTarget(self, targets:dict, proj, env:dict):
@@ -99,8 +100,7 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
             self.flags += ["-Wno-newline-eof"]
         if env["target"] == "Release":
             self.defines += ["NDEBUG"]
-            if env["paras"].get("lto", "on") == "on":
-                self.flags += ["-flto"]
+            self.lto = env["paras"].get("lto", "on") == "on"
         if "iOS" in env:
             verstr = f"{int(env['iOSVer'] / 10000)}.{int((env['iOSVer'] / 100) % 100)}"
             self.flags += ["-miphoneos-version-min=" + verstr]
@@ -110,11 +110,10 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
             self.flags += ["-g" + env["dsym"]]
         cxx = targets.get("cxx")
         if cxx is not None:
-            self.visibility = cxx.get("visibility", self.visibility)
-            a,_ = PList.solveElementList(cxx, "dbgSymLevel", env)
-            self.dbgSymLevel = a[0] if len(a)>0 else self.dbgSymLevel
-            a,_ = PList.solveElementList(cxx, "optimize", env)
-            self.optimize = a[0] if len(a)>0 else self.optimize
+            self.visibility  = cxx.get("visibility", self.visibility)
+            self.lto         = PList.solveSingleElement(cxx, "lto",         env, self.lto)
+            self.dbgSymLevel = PList.solveSingleElement(cxx, "dbgSymLevel", env, self.dbgSymLevel)
+            self.optimize    = PList.solveSingleElement(cxx, "optimize",    env, self.optimize)
             a,d = PList.solveElementList(cxx, "flags", env)
             self.flags = PList.combineElements(self.flags, a, d)
             a,d = PList.solveElementList(cxx, "defines", env)
@@ -124,19 +123,20 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         super().solveTarget(targets, proj, env)
         self.version = env.get("ver_"+self.prefix(), self.langVersion())
         target = targets[self.prefix()]
-        self.pch = target.get("pch", "")
-        self.version = target.get("version", self.version)
+        self.pch        = target.get("pch", "")
+        self.version    = target.get("version", self.version)
         self.visibility = target.get("visibility", self.visibility)
-        a,_ = PList.solveElementList(target, "dbgSymLevel", env)
-        self.dbgSymLevel = a[0] if len(a)>0 else self.dbgSymLevel
-        a,_ = PList.solveElementList(target, "optimize", env)
-        self.optimize = a[0] if len(a)>0 else self.optimize
+        self.lto         = PList.solveSingleElement(target, "lto",         env, self.lto)
+        self.dbgSymLevel = PList.solveSingleElement(target, "dbgSymLevel", env, self.dbgSymLevel)
+        self.optimize    = PList.solveSingleElement(target, "optimize",    env, self.optimize)
         a,d = PList.solveElementList(target, "defines", env)
         self.defines = PList.combineElements(self.defines, a, d)
         a,d = PList.solveElementList(target, "incpath", env)
         self.incpath = PList.combineElements(self.incpath, a, d)
         self.dbgSymLevel = env.get("dslv", self.dbgSymLevel)
         self.flags += [f"-fvisibility={self.visibility}"]
+        if self.lto:
+            self.flags += ["-flto"]
 
     def write(self, file):
         super().write(file)
@@ -301,12 +301,9 @@ class CUDATarget(BuildTarget):
             self.defines += ["NDEBUG"]
         cuda = targets.get("cuda")
         if cuda is not None:
-            a,_ = PList.solveElementList(cuda, "hostDebug", env)
-            self.hostDebug = a[0] if len(a)>0 else self.hostDebug
-            a,_ = PList.solveElementList(cuda, "deviceDebug", env)
-            self.deviceDebug = a[0] if len(a)>0 else self.deviceDebug
-            a,_ = PList.solveElementList(cuda, "optimize", env)
-            self.optimize = a[0] if len(a)>0 else self.optimize
+            self.hostDebug   = PList.solveSingleElement(cuda, "hostDebug",   env, self.hostDebug)
+            self.deviceDebug = PList.solveSingleElement(cuda, "deviceDebug", env, self.deviceDebug)
+            self.optimize    = PList.solveSingleElement(cuda, "optimize",    env, self.optimize)
             a,d = PList.solveElementList(cuda, "flags", env)
             self.flags = PList.combineElements(self.flags, a, d)
             a,d = PList.solveElementList(cuda, "defines", env)
