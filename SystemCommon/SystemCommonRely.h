@@ -40,8 +40,11 @@ namespace common
 [[nodiscard]] inline uint32_t GetMacosVersion() noexcept { return GetDarwinOSVersion(); }
 #   endif
 #endif
+#if COMMON_OS_UNIX
+[[nodiscard]] SYSCOMMONAPI uint32_t GetUnixKernelVersion() noexcept;
+#endif
 #if COMMON_OS_LINUX
-[[nodiscard]] SYSCOMMONAPI uint32_t GetLinuxKernelVersion() noexcept;
+[[nodiscard]] inline uint32_t GetLinuxKernelVersion() noexcept { return GetUnixKernelVersion(); }
 #endif
 
 SYSCOMMONAPI void PrintSystemVersion() noexcept;

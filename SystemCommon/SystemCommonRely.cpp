@@ -27,8 +27,11 @@
 #endif
 #if COMMON_OS_DARWIN
 #   include "ObjCHelper.h"
+#   if COMMON_OS_IOS
+#       pragma message("Compiling SystemCommon with IOS SDK[" STRINGIZE(__IPHONE_OS_VERSION_MAX_ALLOWED) "]" )
+#   endif
 #endif
-#if COMMON_OS_LINUX
+#if COMMON_OS_UNIX
 #   include <sys/utsname.h>
 #endif
 
@@ -100,7 +103,7 @@ uint32_t GetDarwinOSVersion() noexcept
 #endif
 
 
-#if COMMON_OS_LINUX
+#if COMMON_OS_UNIX
 static const utsname& GetUTSName() noexcept
 {
     static const auto name = []() 
@@ -111,7 +114,7 @@ static const utsname& GetUTSName() noexcept
     }();
     return name;
 }
-uint32_t GetLinuxKernelVersion() noexcept
+uint32_t GetUnixKernelVersion() noexcept
 {
     static const auto ver = []() 
     {
@@ -152,15 +155,24 @@ void PrintSystemVersion() noexcept
 #elif COMMON_OS_ANDROID
     const auto kerVer = SplitVer3<100, 1000>(GetLinuxKernelVersion());
     printf("Running on Android API [%d], Linux [%u.%u.%u]\n", GetAndroidAPIVersion(), kerVer[0], kerVer[1], kerVer[2]);
-#elif COMMON_OS_IOS
-    const auto ver = SplitVer100(GetDarwinOSVersion());
-    printf("Running on iOS [%u.%u.%u]\n", ver[0], ver[1], ver[2]);
-#elif COMMON_OS_MACOS
-    const auto ver = SplitVer100(GetDarwinOSVersion());
-    printf("Running on macOS [%u.%u.%u]\n", ver[0], ver[1], ver[2]);
+#elif COMMON_OS_DARWIN
+    const auto ver = SplitVer3(GetDarwinOSVersion());
+    const auto kerVer = SplitVer3<100, 1000>(GetUnixKernelVersion());
+    printf("Running on %s [%u.%u.%u], Darwin [%u.%u.%u]\n",
+# if COMMON_OS_MACOS
+        "macOS",
+# elif COMMON_OS_IOS
+        "iOS",
+# else
+        "Unknown",
+# endif
+        ver[0], ver[1], ver[2], kerVer[0], kerVer[1], kerVer[2]);
 #elif COMMON_OS_LINUX
     const auto kerVer = SplitVer3<100, 1000>(GetLinuxKernelVersion());
     printf("Running on Linux [%u.%u.%u]\n", kerVer[0], kerVer[1], kerVer[2]);
+#elif COMMON_OS_UNIX
+    const auto kerVer = SplitVer3<100, 1000>(GetUnixKernelVersion());
+    printf("Running on Unix [%u.%u.%u]\n", kerVer[0], kerVer[1], kerVer[2]);
 #endif
 }
 
