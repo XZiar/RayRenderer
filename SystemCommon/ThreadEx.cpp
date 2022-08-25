@@ -3,6 +3,9 @@
 #if COMMON_OS_ANDROID
 #   include <sys/prctl.h>
 #endif
+#if COMMON_OS_DARWIN
+#   include <pthread/qos.h>
+#endif
 
 namespace common
 {
@@ -34,53 +37,53 @@ static void SetThreadNameImpl(const std::string& name, const DWORD tid)
 }
 #endif
 
-
 bool SetThreadName(const std::string_view threadName)
 {
 #if COMMON_OS_WIN
     if (GetWinBuildNumber() >= 14393) // supported since Win10 1607
     {
         const std::u16string u16ThrName(threadName.cbegin(), threadName.cend());
-        ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)u16ThrName.data());
+        return ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)u16ThrName.data()) == S_OK;
     }
     else
     {
         SetThreadNameImpl(std::string(threadName), ::GetCurrentThreadId());
+        return true;
     }
 #else
-    if (threadName.length() >= 16) // pthread limit name to 16 bytes(including null)
-        return SetThreadName(std::string(threadName.substr(0, 15)));
+    char buf[16] = {0}; // pthread limit name to 16 bytes(including null)
+    for (size_t i = 0; i < threadName.length() && i < 15; ++i)
+        buf[i] = threadName[i];
 # if COMMON_OS_DARWIN
-    pthread_setname_np(threadName.data());
-# else
-    pthread_setname_np(pthread_self(), threadName.data());
+    return pthread_setname_np(buf) == 0;
+# elif !COMMON_OS_ANDROID || (__ANDROID_API__ >= 9)
+    return pthread_setname_np(pthread_self(), buf) == 0;
+# elif COMMON_OS_ANDROID
+#   ifndef PR_SET_NAME
+#     define PR_SET_NAME 15
+#   endif
+    return prctl(PR_SET_NAME, reinterpret_cast<unsigned long>(buf), 0, 0, 0) == 0;
 # endif
 #endif
-    return true;
 }
-
 
 bool SetThreadName(const std::u16string_view threadName)
 {
 #if COMMON_OS_WIN
     if (GetWinBuildNumber() >= 14393) // supported since Win10 1607
-        ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)threadName.data()); 
+    {
+        return ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)threadName.data()) == S_OK;
+    }    
     else
     {
         const auto asciiThreadName = str::to_string(threadName, str::Encoding::ASCII, str::Encoding::UTF16LE);
         SetThreadNameImpl(asciiThreadName, ::GetCurrentThreadId());
+        return true;
     }
 #else
     const auto u8TName = str::to_string(threadName, str::Encoding::UTF8, str::Encoding::UTF16LE);
-    if (u8TName.length() >= 16) // pthread limit name to 16 bytes(including null)
-        return SetThreadName(u8TName.substr(0, 15));
-# if COMMON_OS_DARWIN
-    pthread_setname_np(u8TName.data());
-# else
-    pthread_setname_np(pthread_self(), u8TName.data());
-# endif
+    return SetThreadName(u8TName);
 #endif
-    return true;
 }
 
 std::u16string GetThreadName()
@@ -108,6 +111,80 @@ std::u16string GetThreadName()
 # endif
     return str::to_u16string(&tmp[0], str::Encoding::UTF8);
 #endif
+}
+
+
+std::optional<ThreadQoS> SetThreadQoS(ThreadQoS qos)
+{
+    std::optional<ThreadQoS> actualQos;
+#if COMMON_OS_WIN
+    THREAD_POWER_THROTTLING_STATE powerThrottling;
+    ZeroMemory(&powerThrottling, sizeof(powerThrottling));
+    powerThrottling.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
+    switch (qos)
+    {
+    case ThreadQoS::High:
+    case ThreadQoS::Burst:
+        powerThrottling.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
+        powerThrottling.StateMask   = 0;
+        actualQos = ThreadQoS::High;
+        break;
+    case ThreadQoS::Utility:
+    case ThreadQoS::Background:
+        powerThrottling.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
+        powerThrottling.StateMask   = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
+        actualQos = ThreadQoS::Background;
+        break;
+    default:
+    case ThreadQoS::Default:
+        powerThrottling.ControlMask = 0;
+        powerThrottling.StateMask   = 0;
+        actualQos = ThreadQoS::Default;
+        break;
+    }
+    if (0 == SetThreadInformation(GetCurrentThread(),
+        ThreadPowerThrottling, &powerThrottling, sizeof(powerThrottling)))
+        return {};
+#elif COMMON_OS_DARWIN
+    qos_class_t val = QOS_CLASS_DEFAULT;
+    switch (qos)
+    {
+    case ThreadQoS::High:       val = QOS_CLASS_USER_INTERACTIVE; break;
+    case ThreadQoS::Burst:      val = QOS_CLASS_USER_INITIATED;   break;
+    case ThreadQoS::Utility:    val = QOS_CLASS_UTILITY;          break;
+    case ThreadQoS::Background: val = QOS_CLASS_BACKGROUND;       break;
+    default:
+    case ThreadQoS::Default:    val = QOS_CLASS_DEFAULT;          break;
+    }
+    if (pthread_set_qos_class_self_np(val, 0) == 0)
+        return qos;
+#else
+#endif
+    return actualQos;
+}
+
+std::optional<ThreadQoS> GetThreadQoS()
+{
+    std::optional<ThreadQoS> actualQos;
+#if COMMON_OS_WIN
+    // no way to query
+#elif COMMON_OS_DARWIN
+    qos_class_t val = QOS_CLASS_DEFAULT;
+    if (pthread_get_qos_class_np(pthread_self(), &val, nullptr) == 0)
+    {
+        switch (val)
+        {
+        case QOS_CLASS_USER_INTERACTIVE: return ThreadQoS::High;
+        case QOS_CLASS_USER_INITIATED:   return ThreadQoS::Burst;
+        case QOS_CLASS_UTILITY:          return ThreadQoS::Utility;
+        case QOS_CLASS_BACKGROUND:       return ThreadQoS::Background;
+        case QOS_CLASS_DEFAULT:          return ThreadQoS::Default;
+        default: break;
+        }
+    }
+#else
+#endif
+    return actualQos;
 }
 
 

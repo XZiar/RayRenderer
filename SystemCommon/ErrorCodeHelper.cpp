@@ -84,11 +84,13 @@ const wchar_t* ErrnoText(int32_t err)
 std::string_view ErrnoText(int32_t err)
 {
     thread_local char tmp[128] = { 0 };
-    const auto errret = strerror_r(err, tmp, sizeof(tmp));
-    if constexpr (std::is_integral_v<decltype(errret)>)
-        return tmp;
-    else
+    [[maybe_unused]] const auto errret = strerror_r(err, tmp, sizeof(tmp));
+#   if !COMMON_OS_DARWIN
+    if constexpr (!std::is_integral_v<decltype(errret)>)
         return errret;
+    else
+#   endif
+        return tmp;
 }
 #endif
 void ErrnoHolder::FormatWith(str::FormatterExecutor& executor, str::FormatterExecutor::Context& context, const str::FormatSpec* spec) const

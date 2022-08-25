@@ -970,6 +970,7 @@ forceinline void WaitFramework(FL&& lock, FF&& fix)
             MiscIntrin.Pause(delays[1]);
             delays[1] <<= 1;
         }
+        std::this_thread::yield();
     }
 }
 

@@ -32,6 +32,19 @@ namespace common
 #if COMMON_OS_ANDROID
 [[nodiscard]] SYSCOMMONAPI int32_t GetAndroidAPIVersion() noexcept;
 #endif
+#if COMMON_OS_DARWIN
+[[nodiscard]] SYSCOMMONAPI uint32_t GetDarwinOSVersion() noexcept;
+#   if COMMON_OS_IOS
+[[nodiscard]] inline uint32_t GetIosVersion() noexcept { return GetDarwinOSVersion(); }
+#   elif COMMON_OS_MACOS
+[[nodiscard]] inline uint32_t GetMacosVersion() noexcept { return GetDarwinOSVersion(); }
+#   endif
+#endif
+#if COMMON_OS_LINUX
+[[nodiscard]] SYSCOMMONAPI uint32_t GetLinuxKernelVersion() noexcept;
+#endif
+
+SYSCOMMONAPI void PrintSystemVersion() noexcept;
 
 struct ExitCleaner
 {

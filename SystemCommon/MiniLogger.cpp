@@ -460,6 +460,7 @@ private:
     bool OnStart(std::any& cookie) noexcept final
     {
         common::SetThreadName(u"Console-MLogger-Backend");
+        common::SetThreadQoS(ThreadQoS::Background);
         return LoggerQBackend::OnStart(cookie);
     }
 public:

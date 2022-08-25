@@ -16,7 +16,14 @@ namespace common
 
 SYSCOMMONAPI bool SetThreadName(const std::string_view threadName);
 SYSCOMMONAPI bool SetThreadName(const std::u16string_view threadName);
-SYSCOMMONAPI std::u16string GetThreadName();
+SYSCOMMONAPI [[nodiscard]] std::u16string GetThreadName();
+
+enum class ThreadQoS
+{
+    Default, Background, Utility, Burst, High
+};
+SYSCOMMONAPI std::optional<ThreadQoS> SetThreadQoS(ThreadQoS qos);
+SYSCOMMONAPI [[nodiscard]] std::optional<ThreadQoS> GetThreadQoS();
 
 
 #if COMMON_COMPILER_MSVC

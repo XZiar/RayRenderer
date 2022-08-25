@@ -34,6 +34,7 @@ private:
     std::condition_variable WorkerCV;
     std::unordered_map<std::string, SharedString<char16_t>> FileCache;
     std::variant<std::monostate, FrameRequest, StackRequest> Request;
+    uintptr_t ExitCallback = 0;
     bool ShouldRun;
     SharedString<char16_t> CachedFileName(const boost::stacktrace::frame& frame)
     {
@@ -56,6 +57,7 @@ public:
             {
                 SetThreadName(u"StackExplainer");
                 std::unique_lock<std::mutex> lock(WorkerMutex);
+                ExitCallback = ExitCleaner::RegisterCleaner([&]() noexcept { this->Stop(); });
                 CallerCV.notify_one();
                 WorkerCV.wait(lock);
                 while (ShouldRun)
@@ -93,26 +95,28 @@ public:
     }
     ~StackExplainer()
     {
+        Stop();
+    }
+    void Stop()
+    {
         std::unique_lock<std::mutex> callerLock(CallerMutex);
         std::unique_lock<std::mutex> workerLock(WorkerMutex);
+        ShouldRun = false;
         if (WorkThread.joinable())
         {
-            ShouldRun = false;
             WorkerCV.notify_one();
-#if COMMON_OS_WIN // windows usually just exit all other thread
-            workerLock.unlock();
-#else
             CallerCV.wait(workerLock);
-#endif
             WorkThread.join();
         }
+        ExitCleaner::UnRegisterCleaner(ExitCallback);
     }
     std::vector<StackTraceItem> Explain(const boost::stacktrace::stacktrace& st) noexcept
     {
         std::vector<StackTraceItem> ret;
+        std::unique_lock<std::mutex> callerLock(CallerMutex);
+        std::unique_lock<std::mutex> workerLock(WorkerMutex);
+        if (ShouldRun)
         {
-            std::unique_lock<std::mutex> callerLock(CallerMutex);
-            std::unique_lock<std::mutex> workerLock(WorkerMutex);
             Request = StackRequest{ &st, &ret };
             WorkerCV.notify_one();
             CallerCV.wait(workerLock);
@@ -124,9 +128,12 @@ public:
         StackTraceItem ret;
         std::unique_lock<std::mutex> callerLock(CallerMutex);
         std::unique_lock<std::mutex> workerLock(WorkerMutex);
-        Request = FrameRequest{ &frame, &ret };
-        WorkerCV.notify_one();
-        CallerCV.wait(workerLock);
+        if (ShouldRun)
+        {
+            Request = FrameRequest{ &frame, &ret };
+            WorkerCV.notify_one();
+            CallerCV.wait(workerLock);
+        }
         return ret;
     }
     static StackExplainer& GetExplainer() noexcept

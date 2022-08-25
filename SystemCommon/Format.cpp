@@ -886,7 +886,7 @@ inline void PutDate_(std::basic_string<Char>& ret, std::basic_string_view<Char> 
 template<typename Char>
 void Formatter<Char>::PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date)
 {
-#if COMMON_OS_ANDROID // android's std::put_time is limited to char/wchar_t
+#if COMMON_OS_ANDROID || COMMON_OS_IOS // android's std::put_time is limited to char/wchar_t
     if constexpr (std::is_same_v<Char, char> || std::is_same_v<Char, wchar_t>)
     {
         PutDate_(ret, fmtStr, date);

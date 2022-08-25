@@ -43,11 +43,7 @@ public:
 int main(int argc, char **argv)                  
 {
     printf("Running main() from %s\n", __FILE__);
-#if COMMON_OS_WIN
-    printf("Running on Windows build [%u]\n", common::GetWinBuildNumber());
-#elif COMMON_OS_ANDROID
-    printf("Running on Android API [%d]\n", common::GetAndroidAPIVersion());
-#endif
+    common::PrintSystemVersion();
     testing::InitGoogleTest(&argc, argv);
     testing::AddGlobalTestEnvironment(new CPUEnvironment());
     return RUN_ALL_TESTS();

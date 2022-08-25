@@ -3,6 +3,7 @@
 #include "SpinLock.h"
 #include "common/FrozenDenseSet.hpp"
 #include "common/simd/SIMD.hpp"
+#include "common/StringLinq.hpp"
 #if COMMON_ARCH_X86
 #   include "3rdParty/libcpuid/libcpuid/libcpuid.h"
 #endif
@@ -23,6 +24,12 @@
 #   include <android/api-level.h>
 #   include <android/log.h>
 #   pragma message("Compiling SystemCommon with Android NDK[" STRINGIZE(__NDK_MAJOR__) "]" )
+#endif
+#if COMMON_OS_DARWIN
+#   include "ObjCHelper.h"
+#endif
+#if COMMON_OS_LINUX
+#   include <sys/utsname.h>
 #endif
 
 
@@ -67,6 +74,95 @@ int32_t GetAndroidAPIVersion() noexcept
     return verNum;
 }
 #endif
+
+
+#if COMMON_OS_DARWIN
+struct NSOperatingSystemVersion 
+{
+    NSInteger majorVersion;
+    NSInteger minorVersion;
+    NSInteger patchVersion;
+};
+static uint32_t GetDarwinOSVersion_()
+{
+    objc::Clz NSProcessInfo("NSProcessInfo");
+    objc::Instance procInfo = NSProcessInfo.Call<id>("processInfo");
+    const auto osVer = procInfo.Call<NSOperatingSystemVersion>("operatingSystemVersion");
+    const auto ret = static_cast<uint32_t>(osVer.majorVersion) * 10000 + static_cast<uint32_t>(osVer.minorVersion) * 100 + static_cast<uint32_t>(osVer.patchVersion);
+    procInfo.Call<id>("release");
+    return ret;
+}
+uint32_t GetDarwinOSVersion() noexcept
+{
+    static uint32_t verNum = GetDarwinOSVersion_();
+    return verNum;
+}
+#endif
+
+
+#if COMMON_OS_LINUX
+static const utsname& GetUTSName() noexcept
+{
+    static const auto name = []() 
+    {
+        struct utsname buffer = {};
+        uname(&buffer);
+        return buffer;
+    }();
+    return name;
+}
+uint32_t GetLinuxKernelVersion() noexcept
+{
+    static const auto ver = []() 
+    {
+        const auto& name = GetUTSName();
+        uint32_t ver = 0;
+        uint32_t partIdx = 0;
+        for (const std::string_view part : str::SplitStream(name.release, '.', false).Take(3))
+        {
+            uint32_t partver = 0;
+            for (const auto ch : part)
+            {
+                if (ch >= '0' && ch <= '9')
+                    partver = partver * 10 + (ch - '0');
+                else
+                    break;
+            }
+            if (partIdx++ < 2)
+                ver = ver * 100 + (partver % 100);
+            else
+                ver = ver * 1000 + (partver % 1000);
+        }
+        return ver;
+    }();
+    return ver;
+}
+#endif
+
+
+template<uint32_t Minor = 100, uint32_t Patch = 100>
+forceinline std::array<uint32_t, 3> SplitVer3(uint32_t ver) noexcept
+{
+    return { ver / (Minor * Patch), (ver % (Minor * Patch)) / Patch, ver % Patch };
+}
+void PrintSystemVersion() noexcept
+{
+#if COMMON_OS_WIN
+    printf("Running on Windows build [%u]\n", GetWinBuildNumber());
+#elif COMMON_OS_ANDROID
+    const auto kerVer = SplitVer3<100, 1000>(GetLinuxKernelVersion());
+    printf("Running on Android API [%d], Linux [%u.%u.%u]\n", GetAndroidAPIVersion(), kerVer[0], kerVer[1], kerVer[2]);
+#elif COMMON_OS_IOS
+    const auto ver = SplitVer100(GetDarwinOSVersion());
+    printf("Running on iOS [%u.%u.%u]\n", ver[0], ver[1], ver[2]);
+#elif COMMON_OS_MACOS
+    const auto ver = SplitVer100(GetDarwinOSVersion());
+    printf("Running on macOS [%u.%u.%u]\n", ver[0], ver[1], ver[2]);
+#elif COMMON_OS_LINUX
+    const auto kerVer = SplitVer3<100, 1000>(GetLinuxKernelVersion());
+    printf("Running on Linux [%u.%u.%u]\n", kerVer[0], kerVer[1], kerVer[2]);
+#endif
+}
 
 
 namespace detail
