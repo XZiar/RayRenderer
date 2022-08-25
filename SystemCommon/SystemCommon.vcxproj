@@ -245,6 +245,7 @@
     <ClInclude Include="FileMapperEx.h" />
     <ClInclude Include="Format.h" />
     <ClInclude Include="ErrorCodeHelper.h" />
+    <ClInclude Include="FormatExtra.h" />
     <ClInclude Include="FormatInclude.h" />
     <ClInclude Include="LoopBase.h" />
     <ClInclude Include="MiniLogger.h" />

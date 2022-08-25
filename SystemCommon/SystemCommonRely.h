@@ -29,6 +29,9 @@ namespace common
 #if COMMON_OS_WIN
 [[nodiscard]] SYSCOMMONAPI uint32_t GetWinBuildNumber() noexcept;
 #endif
+#if COMMON_OS_ANDROID
+[[nodiscard]] SYSCOMMONAPI int32_t GetAndroidAPIVersion() noexcept;
+#endif
 
 struct ExitCleaner
 {

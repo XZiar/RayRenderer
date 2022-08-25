@@ -1,7 +1,6 @@
 #pragma once
 
 #include "XCompRely.h"
-#include "SystemCommon/Format.h"
 #include "common/EasyIterator.hpp"
 #include "common/StringPool.hpp"
 #include "common/AlignedBuffer.hpp"
@@ -136,12 +135,15 @@ public:
 
 struct MessageBlock
 {
+    struct Cache;
     ArgsLayout Layout;
     std::u32string Name;
-    common::str::DynamicTrimedResultCh<char> FormatCache;
+    std::unique_ptr<Cache> FormatCache;
     uint8_t DebugId;
     XCOMPBASAPI MessageBlock(const uint8_t idx, const std::u32string_view name, const std::u32string_view formatter,
         common::span<const NamedVecPair> infos);
+    XCOMPBASAPI MessageBlock(MessageBlock&& other) noexcept;
+    XCOMPBASAPI ~MessageBlock();
     //template<typename... Args>
     XCOMPBASAPI common::str::u8string GetString(common::span<const std::byte> data) const;
 };

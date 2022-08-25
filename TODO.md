@@ -42,8 +42,9 @@
     - [x] Merge fmt with better format-context support
     - [ ] Add BOM detection
     - [x] Add custom opcode-based compile-time parsing&format support 
-    - [ ] Make arg spec decoding delayed so cached spec can be helpful
+    - [x] Make arg spec decoding delayed so cached spec can be helpful
     - [ ] Make parsing use template host, so runtime parsing can use fast-path, or directly store into dynamic storage
+    - [ ] Add support for custom type format spec check with allocated error code slot
     - [ ] Add encoding conversion with segement info
     - [ ] Make r-value arg packing use deep copy 
   * MiniLogger
@@ -64,7 +65,10 @@
   - [ ] Use TexFormat instead of ImageDataType
   - [ ] Add DataType-based support query
   - [ ] Throw proper exception when facing error
-  - [ ] Add external decoder/encoder (eg, intel media sdk)
+  - [ ] Return multiple image for image-sequence or planar image(e.g, YUV420)
+  - [ ] Add intel oneVPL(media sdk) decoder/encoder
+  - [ ] Add android AImageDecoder decoder
+  - [ ] Add windows WIC decoder/encoder
   - [ ] Move DataTypeConvertor to cpp, with runtime path selection
   - [ ] Add test for DataTypeConvertor
 

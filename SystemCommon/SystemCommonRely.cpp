@@ -20,6 +20,7 @@
 #endif
 #if COMMON_OS_ANDROID
 #   include <android/ndk-version.h>
+#   include <android/api-level.h>
 #   include <android/log.h>
 #   pragma message("Compiling SystemCommon with Android NDK[" STRINGIZE(__NDK_MAJOR__) "]" )
 #endif
@@ -51,10 +52,18 @@ static uint32_t GetWinBuildImpl()
     }
     return 0;
 }
-
 uint32_t GetWinBuildNumber() noexcept
 {
     static uint32_t verNum = GetWinBuildImpl();
+    return verNum;
+}
+#endif
+
+
+#if COMMON_OS_ANDROID
+int32_t GetAndroidAPIVersion() noexcept
+{
+    static int32_t verNum = android_get_device_api_level();
     return verNum;
 }
 #endif

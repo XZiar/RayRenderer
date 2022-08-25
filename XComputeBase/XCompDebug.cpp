@@ -1,4 +1,5 @@
 #include "XCompDebug.h"
+#include "SystemCommon/FormatExtra.h"
 #include "SystemCommon/StringFormat.h"
 #include "SystemCommon/StringConvert.h"
 #include <ctime>
@@ -68,15 +69,48 @@ ArgsLayout::ArgsLayout(common::span<const NamedVecPair> infos, const uint16_t al
 }
 
 
+struct MessageBlock::Cache
+{
+    common::str::DynamicTrimedResultCh<char> StrInfo;
+    common::str::FormatSpecCacher SpecCache;
+    Cache(const common::str::ParseResult& result, std::string_view fmtStr, const common::str::ArgInfo& argInfo) : StrInfo(result, fmtStr)
+    {
+        const auto strInfo = StrInfo.ToStrArgInfo();
+        SpecCache.Cache(strInfo, argInfo, {});
+        const auto count = SpecCache.CachedBitMap.Size();
+        for (size_t i = 0; i < count; ++i)
+            if (!SpecCache.CachedBitMap.Get(i))
+                COMMON_THROW(BaseException, u"Get an uncacheable arg of formatter, should not happen");
+    }
+    static std::unique_ptr<Cache> Generate(std::u32string_view formatter, common::span<const NamedVecPair> infos)
+    {
+        const auto fmtu8 = common::str::to_string(formatter, common::str::Encoding::UTF8);
+        const auto result = common::str::ParseResult::ParseString<char>(fmtu8);
+        common::str::ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
+        common::str::ArgInfo argInfo;
+        for (const auto& info : infos)
+        {
+            switch (info.second.Type)
+            {
+            case VecDataInfo::DataTypes::Float:     common::str::ArgInfo::ParseAnArg<float>(argInfo); break;
+            case VecDataInfo::DataTypes::Unsigned:  common::str::ArgInfo::ParseAnArg<uint32_t>(argInfo); break;
+            case VecDataInfo::DataTypes::Signed:    common::str::ArgInfo::ParseAnArg<int32_t>(argInfo); break;
+            default: Expects(false); break;
+            }
+        }
+        common::str::ArgChecker::CheckDD(result.ToInfo<char>(fmtu8), argInfo);
+        return std::make_unique<Cache>(result, fmtu8, argInfo);
+    }
+};
 MessageBlock::MessageBlock(const uint8_t idx, const std::u32string_view name, const std::u32string_view formatter,
     common::span<const NamedVecPair> infos) :
-    Layout(infos, 4), Name(name), FormatCache([](auto fmtstr)
-        {
-            const auto fmtu8 = common::str::to_string(fmtstr, common::str::Encoding::UTF8);
-            const auto result = common::str::ParseResult::ParseString<char>(fmtu8);
-            return common::str::DynamicTrimedResultCh<char>{ result, fmtu8 };
-        }(formatter)), DebugId(idx) 
+    Layout(infos, 4), Name(name), FormatCache(Cache::Generate(formatter, infos)), DebugId(idx)
 { }
+MessageBlock::MessageBlock(MessageBlock&& other) noexcept : 
+    Layout(std::move(other.Layout)), Name(std::move(other.Name)), FormatCache(std::move(other.FormatCache)), DebugId(other.DebugId)
+{ }
+MessageBlock::~MessageBlock() {}
+
 
 struct MessageFormatExecutor final : public common::str::CombinedExecutor<char, common::str::Formatter<char>>
 {
@@ -85,10 +119,12 @@ struct MessageFormatExecutor final : public common::str::CombinedExecutor<char, 
     using CTX   = common::str::FormatterExecutor::Context;
     struct Context : public Base::Context
     {
+        const common::str::FormatSpecCacher& SpecCache;
         const ArgsLayout& Layout;
         common::span<const std::byte> Data;
-        constexpr Context(std::basic_string<char>& dst, std::string_view fmtstr, const ArgsLayout& layout, common::span<const std::byte> data) noexcept :
-            Base::Context(dst, fmtstr), Layout(layout), Data(data) { }
+        constexpr Context(std::basic_string<char>& dst, std::string_view fmtstr, const common::str::FormatSpecCacher& specCache,
+            const ArgsLayout& layout, common::span<const std::byte> data) noexcept :
+            Base::Context(dst, fmtstr), SpecCache(specCache), Layout(layout), Data(data) { }
     };
 
     void OnColor(CTX& ctx, common::ScreenColor color) final
@@ -96,12 +132,14 @@ struct MessageFormatExecutor final : public common::str::CombinedExecutor<char, 
         auto& context = static_cast<Context&>(ctx);
         PutColor(context.Dst, color);
     }
-    void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, const common::str::FormatSpec* spec) final
+    void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, common::str::SpecReader&) final
     {
+        using F = common::str::CommonFormatter<char>;
         Expects(!isNamed);
         auto& context = static_cast<Context&>(ctx);
         const auto& item = context.Layout[argIdx];
         const auto data = &context.Data[item.Offset];
+        const auto& spec = context.SpecCache.IndexSpec[argIdx];
         Expects(item.Info.Dim0 > 0);
         if (item.Info.Dim0 > 1)
         {
@@ -116,29 +154,29 @@ struct MessageFormatExecutor final : public common::str::CombinedExecutor<char, 
             case VecDataInfo::DataTypes::Float:
                 switch (item.Info.Bit)
                 {
-                case 16: Fmter::PutFloat(context.Dst, static_cast<float>(reinterpret_cast<const half_float::half*>(data)[i]), spec); break;
-                case 32: Fmter::PutFloat(context.Dst, reinterpret_cast<const float *>(data)[i], spec); break;
-                case 64: Fmter::PutFloat(context.Dst, reinterpret_cast<const double*>(data)[i], spec); break;
+                case 16: F::PutFloat(context.Dst, static_cast<float>(reinterpret_cast<const half_float::half*>(data)[i]), spec); break;
+                case 32: F::PutFloat(context.Dst, reinterpret_cast<const float *>(data)[i], spec); break;
+                case 64: F::PutFloat(context.Dst, reinterpret_cast<const double*>(data)[i], spec); break;
                 default: break;
                 }
                 break;
             case VecDataInfo::DataTypes::Unsigned:
                 switch (item.Info.Bit)
                 {
-                case  8: Fmter::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const uint8_t *>(data)[i]), false, spec); break;
-                case 16: Fmter::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const uint16_t*>(data)[i]), false, spec); break;
-                case 32: Fmter::PutInteger(context.Dst, reinterpret_cast<const uint32_t*>(data)[i], false, spec); break;
-                case 64: Fmter::PutInteger(context.Dst, reinterpret_cast<const uint64_t*>(data)[i], false, spec); break;
+                case  8: F::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const uint8_t *>(data)[i]), false, spec); break;
+                case 16: F::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const uint16_t*>(data)[i]), false, spec); break;
+                case 32: F::PutInteger(context.Dst, reinterpret_cast<const uint32_t*>(data)[i], false, spec); break;
+                case 64: F::PutInteger(context.Dst, reinterpret_cast<const uint64_t*>(data)[i], false, spec); break;
                 default: break;
                 }
                 break;
             case VecDataInfo::DataTypes::Signed:
                 switch (item.Info.Bit)
                 {
-                case  8: Fmter::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int8_t *>(data)[i]), true, spec); break;
-                case 16: Fmter::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int16_t*>(data)[i]), true, spec); break;
-                case 32: Fmter::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int32_t*>(data)[i]), true, spec); break;
-                case 64: Fmter::PutInteger(context.Dst, static_cast<uint64_t>(reinterpret_cast<const int64_t*>(data)[i]), true, spec); break;
+                case  8: F::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int8_t *>(data)[i]), true, spec); break;
+                case 16: F::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int16_t*>(data)[i]), true, spec); break;
+                case 32: F::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int32_t*>(data)[i]), true, spec); break;
+                case 64: F::PutInteger(context.Dst, static_cast<uint64_t>(reinterpret_cast<const int64_t*>(data)[i]), true, spec); break;
                 default: break;
                 }
                 break;
@@ -158,9 +196,9 @@ static MessageFormatExecutor MsgFmtExecutor;
 
 common::str::u8string MessageBlock::GetString(common::span<const std::byte> data) const
 {
-    const auto strInfo = FormatCache.ToStrArgInfo();
+    const auto strInfo = FormatCache->StrInfo.ToStrArgInfo();
     common::str::u8string ret;
-    MessageFormatExecutor::Context ctx { *reinterpret_cast<std::string*>(&ret), strInfo.FormatString, Layout, data };
+    MessageFormatExecutor::Context ctx { *reinterpret_cast<std::string*>(&ret), strInfo.FormatString, FormatCache->SpecCache, Layout, data };
     auto opcodes = strInfo.Opcodes;
     MessageFormatExecutor::Execute<common::str::FormatterExecutor>(opcodes, MsgFmtExecutor, ctx);
     return ret;
@@ -514,15 +552,16 @@ void ExcelXmlPrinter::AddItem(SheetPackage& sheet, std::string_view info, common
     sheet.Contents.append(RowBegin);
     sheet.Contents.append(info);
     const auto& block = *MsgPacks[sheet.MsgPkgIdx].MsgBlock;
-    const auto strInfo = block.FormatCache.ToStrArgInfo();
-    MessageFormatExecutor::Context ctx{ sheet.Contents, strInfo.FormatString, block.Layout, dat };
+    const auto strInfo = block.FormatCache->StrInfo.ToStrArgInfo();
+    MessageFormatExecutor::Context ctx{ sheet.Contents, strInfo.FormatString, block.FormatCache->SpecCache, block.Layout, dat };
+    common::str::SpecReader reader;
     for (uint32_t i = 0; i < block.Layout.ArgCount; ++i)
     {
         const auto& arg = block.Layout[i];
         const auto& cellb = arg.Info.Dim0 > 1 ? StrCellBegin : NumCellBegin;
         const auto& celle = CellEnd;
         sheet.Contents.append(cellb);
-        MsgFmtExecutor.OnArg(ctx, static_cast<uint8_t>(i), false, nullptr);
+        MsgFmtExecutor.OnArg(ctx, static_cast<uint8_t>(i), false, reader);
         sheet.Contents.append(celle);
     }
     /*for (const auto& arg : block.Layout.ByIndex())

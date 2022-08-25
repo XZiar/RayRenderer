@@ -16,8 +16,10 @@ private:
 public:
     SmallBitset() noexcept { }
     SmallBitset(size_t count, bool initial) noexcept :
-        Real((count + 7) / 8, static_cast<char>(initial ? 0xffu : 0x0u))
-    { }
+        Real((count + 7) / 8 + 1, static_cast<char>(initial ? 0xffu : 0x0u))
+    {
+        Real.back() = static_cast<char>(8 - (count % 8));
+    }
     bool Get(size_t idx) const noexcept
     {
         const auto bit = static_cast<uint8_t>(0x1u << (idx % 8));
@@ -39,6 +41,19 @@ public:
         const bool ret = target & bit;
         target ^= bit;
         return ret;
+    }
+    size_t Size() const noexcept
+    {
+        const auto size = Real.size();
+        if (size > 0)
+        {
+            const auto base = (size - 1) * 8;
+            const auto dummy = static_cast<uint8_t>(Real.back());
+            Ensures(base >= dummy);
+            return base - dummy;
+        }
+        else
+            return 0;
     }
 };
 

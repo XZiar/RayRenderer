@@ -197,6 +197,8 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
         env["intrin"].add("avx32")
     if "__ANDROID__" in defs:
         env["android"] = True
+    if "__NDK_MAJOR__" in defs:
+        env["ndkVer"] = int(defs["__NDK_MAJOR__"]) * 100 + int(defs.get("__NDK_MINOR__", "0"))
     if env["arch"] == "arm":
         env["armArch"] = int(defs["__ARM_ARCH"])
         env["armArchProfile"] = defs["__ARM_ARCH_PROFILE"].strip("'")
@@ -222,10 +224,10 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
     termuxVer = os.environ.get("TERMUX_VERSION")
     if termuxVer is not None:
         env["termuxVer"] = strToVer(termuxVer, 3) 
-        pkgs = subprocess.check_output("pkg list-installed", shell=True)
-        libcxx = [x for x in pkgs.decode().splitlines() if x.startswith("libc++")][0]
-        libcxxVer = libcxx.split(",")[1].split(" ")[1].split("-")[0]
-        env["ndkVer"] = int(libcxxVer[:-1]) * 100 + (ord(libcxxVer[-1]) - ord("a"))
+        # pkgs = subprocess.check_output("pkg list-installed", shell=True)
+        # libcxx = [x for x in pkgs.decode().splitlines() if x.startswith("libc++")][0]
+        # libcxxVer = libcxx.split(",")[1].split(" ")[1].split("-")[0]
+        # env["ndkVer"] = int(libcxxVer[:-1]) * 100 + (ord(libcxxVer[-1]) - ord("a"))
     
     env["cpuCount"] = os.cpu_count()
     env["gprof"] = "gprof" in paras

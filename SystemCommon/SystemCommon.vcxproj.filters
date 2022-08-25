@@ -170,6 +170,9 @@
     <ClInclude Include="StrEncodingBase.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FormatExtra.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

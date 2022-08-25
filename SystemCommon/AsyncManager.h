@@ -24,7 +24,7 @@ struct StackSize
     constexpr static uint32_t Default = 0, Tiny = 4096, Small = 65536, Big = 512 * 1024, Large = 1024 * 1024, Huge = 4 * 1024 * 1024;
 };
 
-class AsyncTaskException : public BaseException
+class SYSCOMMONAPI AsyncTaskException : public BaseException
 {
 public:
     enum class Reasons : uint8_t { Terminated, Timeout, Cancelled };

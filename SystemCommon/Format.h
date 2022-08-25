@@ -1279,11 +1279,11 @@ struct CompactDate
         ret |= hour & 0x1fu;
         ret |= (day & 0x1fu) << 5;
         if (dst < 0)
-            ret |= 0x80u;
+            ret |= 0x8000u;
         else if (dst > 0)
-            ret |= 0x40u;
+            ret |= 0x4000u;
         else
-            ret |= 0x00u;
+            ret |= 0x0000u;
         return static_cast<uint16_t>(ret);
     }
     constexpr CompactDate() noexcept : Year(0), MWD(0), FDH(0), Minute(0), Second(0) {}
@@ -1755,6 +1755,73 @@ public:
     template<typename Char>
     SYSCOMMONAPI static void FormatTo(Formatter<Char>& formatter, std::basic_string<Char>& ret, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
 };
+
+struct SpecReader
+{
+    friend FormatterBase;
+private:
+    struct Checker;
+    const uint8_t* Ptr = nullptr;
+    FormatSpec Spec;
+    uint32_t SpecSize = 0;
+    forceinline constexpr uint32_t ReadLengthedVal(uint32_t lenval, uint32_t val) noexcept
+    {
+        switch (lenval & 0b11u)
+        {
+        case 1:  val = Ptr[SpecSize]; SpecSize += 1; break;
+        case 2:  val = Ptr[SpecSize + 0] | (Ptr[SpecSize + 1] << 8); SpecSize += 2; break;
+        case 3:  val = Ptr[SpecSize + 0] | (Ptr[SpecSize + 1] << 8) | (Ptr[SpecSize + 2] << 16) | (Ptr[SpecSize + 3] << 24); SpecSize += 4; break;
+        case 0:
+        default: break;
+        }
+        return val;
+    };
+    forceinline constexpr void Reset(const uint8_t* ptr) noexcept
+    {
+        Ptr = ptr;
+        SpecSize = 0;
+    }
+    [[nodiscard]] forceinline constexpr uint32_t EnsureSize() noexcept;
+public:
+    [[nodiscard]] forceinline constexpr const FormatSpec* ReadSpec() noexcept
+    {
+        if (!Ptr)
+            return nullptr;
+        if (!SpecSize)
+        {
+            const auto val0 = Ptr[SpecSize++];
+            const auto val1 = Ptr[SpecSize++];
+            const bool hasExtraFmt = val0 & 0b10000;
+            Spec.TypeExtra = static_cast<uint8_t>(val0 >> 5);
+            Spec.Alignment = static_cast<FormatSpec::Align>((val0 >> 2) & 0b11);
+            Spec.SignFlag  = static_cast<FormatSpec::Sign> ((val0 >> 0) & 0b11);
+            Spec.AlterForm = val1 & 0b10;
+            Spec.ZeroPad   = val1 & 0b01;
+            if (val1 & 0b11111100)
+            {
+                Spec.Fill       = ReadLengthedVal(val1 >> 6, ' ');
+                Spec.Precision  = ReadLengthedVal(val1 >> 4, UINT32_MAX);
+                Spec.Width      = static_cast<uint16_t>(ReadLengthedVal(val1 >> 2, 0));
+            }
+            else
+            {
+                Spec.Fill = ' ';
+                Spec.Precision = UINT32_MAX;
+                Spec.Width = 0;
+            }
+            if (hasExtraFmt)
+            {
+                Spec.TypeExtra &= static_cast<uint8_t>(0x1u);
+                Spec.FmtOffset  = static_cast<uint16_t>(ReadLengthedVal(val0 & 0x80 ? 2 : 1, 0));
+                Spec.FmtLen     = static_cast<uint16_t>(ReadLengthedVal(val0 & 0x40 ? 2 : 1, 0));
+            }
+            else
+                Spec.FmtOffset = Spec.FmtLen = 0;
+        }
+        return &Spec;
+    }
+};
+
 template<typename Char>
 struct CommonFormatter
 {
@@ -1994,7 +2061,7 @@ struct FormatterBase::StaticExecutor
     {
         Fmter.PutColor(context.Dst, color);
     }
-    SYSCOMMONAPI void OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec);
+    SYSCOMMONAPI void OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
 };
 
 

@@ -1,6 +1,6 @@
 #include "SystemCommonPch.h"
 #include "Format.h"
-#include "Exceptions.h"
+#include "FormatExtra.h"
 #include "StringFormat.h"
 #include "StringConvert.h"
 #include "StrEncodingBase.hpp"
@@ -16,6 +16,11 @@
 #   define SYSCOMMONTPL
 #endif
 
+#if defined(DEBUG) || defined(_DEBUG)
+#   define ABORT_CHECK(...) Expects(__VA_ARGS__)
+#else
+#   define ABORT_CHECK(...)
+#endif
 
 namespace common::str
 {
@@ -41,6 +46,27 @@ static_assert(sizeof(fmt::basic_format_specs<char16_t>) == sizeof(OpaqueFormatSp
 static_assert(sizeof(fmt::basic_format_specs<char32_t>) == sizeof(OpaqueFormatSpecCh<char32_t>), "OpaqueFormatSpec size mismatch, incompatible");
 static_assert(sizeof(fmt::basic_format_specs< wchar_t>) == sizeof(OpaqueFormatSpecCh< wchar_t>), "OpaqueFormatSpec size mismatch, incompatible");
 static_assert(sizeof(fmt::basic_format_specs< char8_t>) == sizeof(OpaqueFormatSpecCh< char8_t>), "OpaqueFormatSpec size mismatch, incompatible");
+
+
+ArgMismatchException::ExceptionInfo::ExceptionInfo(const std::u16string_view msg, Reasons reason,
+    std::pair<uint8_t, uint8_t> indexArgCount, std::pair<uint8_t, uint8_t> namedArgCount) noexcept
+    : TPInfo(TYPENAME, msg), Reason(reason), MismatchIndex(UINT8_MAX),
+    IndexArgCount(indexArgCount), NamedArgCount(namedArgCount), ArgType{ ArgDispType::Any, ArgRealType::Error }
+{ }
+ArgMismatchException::ExceptionInfo::ExceptionInfo(const std::u16string_view msg,
+    std::pair<uint8_t, uint8_t> indexArgCount, std::pair<uint8_t, uint8_t> namedArgCount,
+    uint8_t idx, std::pair<ArgDispType, ArgRealType> types) noexcept
+    : TPInfo(TYPENAME, msg), Reason(Reasons::IndexArgTypeMismatch), MismatchIndex(idx),
+    IndexArgCount(indexArgCount), NamedArgCount(namedArgCount), ArgType(types)
+{ }
+ArgMismatchException::ExceptionInfo::ExceptionInfo(const std::u16string_view msg, 
+    std::pair<uint8_t, uint8_t> indexArgCount, std::pair<uint8_t, uint8_t> namedArgCount,
+    std::string&& name, std::pair<ArgDispType, ArgRealType> types) noexcept
+    : TPInfo(TYPENAME, msg), Reason(Reasons::NamedArgTypeMismatch), MismatchIndex(UINT8_MAX),
+    IndexArgCount(indexArgCount), NamedArgCount(namedArgCount), ArgType(types),
+    MismatchName(std::move(name))
+{ }
+COMMON_EXCEPTION_IMPL(ArgMismatchException)
 
 
 void ParseResult::CheckErrorRuntime(uint16_t errorPos, uint16_t opCount)
@@ -87,20 +113,23 @@ void ArgChecker::CheckDDBasic(const StrArgInfo& strInfo, const ArgInfo& argInfo)
     const auto strNamedArgCount = static_cast<uint8_t>(strInfo.NamedTypes.size());
     if (argInfo.IdxArgCount < strIndexArgCount)
     {
-        COMMON_THROW(BaseException, FMTSTR(u"No enough indexed arg, expects [{}], has [{}]"sv, 
-            strIndexArgCount, argInfo.IdxArgCount));
+        COMMON_THROW(ArgMismatchException, fmt::format(u"No enough indexed arg, expects [{}], has [{}]"sv,
+            strIndexArgCount, argInfo.IdxArgCount), ArgMismatchException::Reasons::TooLessIndexArg,
+            std::pair{ argInfo.IdxArgCount, strIndexArgCount }, std::pair{ argInfo.NamedArgCount, strNamedArgCount });
     }
     if (argInfo.NamedArgCount < strNamedArgCount)
     {
-        COMMON_THROW(BaseException, FMTSTR(u"No enough named arg, expects [{}], has [{}]"sv,
-            strNamedArgCount, argInfo.NamedArgCount));
+        COMMON_THROW(ArgMismatchException, fmt::format(u"No enough named arg, expects [{}], has [{}]"sv,
+            strNamedArgCount, argInfo.NamedArgCount), ArgMismatchException::Reasons::TooLessNamedArg,
+            std::pair{ argInfo.IdxArgCount, strIndexArgCount }, std::pair{ argInfo.NamedArgCount, strNamedArgCount });
     }
     if (strIndexArgCount > 0)
     {
         const auto index = ArgChecker::GetIdxArgMismatch(strInfo.IndexTypes.data(), argInfo.IndexTypes, strIndexArgCount);
         if (index != ParseResult::IdxArgSlots)
-            COMMON_THROW(BaseException, FMTSTR(u"IndexArg[{}] type mismatch"sv, index)).Attach("arg", index)
-                .Attach("argType", std::pair{ strInfo.IndexTypes[index], argInfo.IndexTypes[index] & ArgRealType::BaseTypeMask });
+            COMMON_THROW(ArgMismatchException, fmt::format(u"IndexArg[{}] type mismatch"sv, index),
+                std::pair{ argInfo.IdxArgCount, strIndexArgCount }, std::pair{ argInfo.NamedArgCount, strNamedArgCount },
+                static_cast<uint8_t>(index), std::pair{ strInfo.IndexTypes[index], argInfo.IndexTypes[index] & ArgRealType::BaseTypeMask });
     }
 }
 
@@ -132,13 +161,16 @@ ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<Char>& strIn
             if (namedRet.GiveIndex) // type mismatch
             {
                 errMsg.append(u"] type mismatch"sv);
-                COMMON_THROW(BaseException, errMsg).Attach("arg", name)
-                    .Attach("argType", std::pair{ namedArg.Type, argInfo.NamedTypes[*namedRet.GiveIndex] & ArgRealType::BaseTypeMask });
+                COMMON_THROW(ArgMismatchException, errMsg,
+                    std::pair{ argInfo.IdxArgCount, static_cast<uint8_t>(strInfo.IndexTypes.size()) }, std::pair{ argInfo.NamedArgCount, strNamedArgCount },
+                    std::move(name), std::pair{namedArg.Type, argInfo.NamedTypes[*namedRet.GiveIndex] & ArgRealType::BaseTypeMask});
             }
             else // arg not found
             {
                 errMsg.append(u"] not found in args"sv);
-                COMMON_THROW(BaseException, errMsg).Attach("arg", name);
+                COMMON_THROW(ArgMismatchException, errMsg,
+                    std::pair{ argInfo.IdxArgCount, static_cast<uint8_t>(strInfo.IndexTypes.size()) }, std::pair{ argInfo.NamedArgCount, strNamedArgCount },
+                    std::move(name), std::pair{ namedArg.Type, ArgRealType::Error });
             }
         }
         Ensures(!namedRet.GiveIndex);
@@ -418,12 +450,24 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
     switch (const auto realType = real & ArgRealType::BaseTypeMask; realType)
     {
     case ArgRealType::String:
-        spec.type = fmt::presentation_type::string;
+        if (disp == ArgDispType::Pointer)
+            spec.type = fmt::presentation_type::pointer;
+        else
+            spec.type = fmt::presentation_type::string;
         break;
-    case ArgRealType::SInt:
-    case ArgRealType::UInt:
-        if (src)
-            spec.type = FormatterHelper::ConvertSpecIntPresent(*src);
+    case ArgRealType::Bool:
+        if (disp == ArgDispType::Char)
+            spec.type = fmt::presentation_type::string;
+        else if (disp == ArgDispType::Char)
+        {
+            if (src)
+                spec.type = FormatterHelper::ConvertSpecIntPresent(*src);
+        }
+        else
+            spec.type = fmt::presentation_type::string;
+        break;
+    case ArgRealType::Ptr:
+        spec.type = fmt::presentation_type::pointer;
         break;
     case ArgRealType::Float:
         if (src)
@@ -432,8 +476,18 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
             spec.sign = FormatterHelper::ConvertSpecSign(src->SignFlag);
         }
         break;
-    case ArgRealType::Ptr:
-        spec.type = fmt::presentation_type::pointer;
+    case ArgRealType::Char:
+        if (disp == ArgDispType::Char || disp == ArgDispType::Any)
+        {
+            spec.type = fmt::presentation_type::string;
+            break;
+        }
+        [[fallthrough]];
+    case ArgRealType::SInt:
+    case ArgRealType::UInt:
+        ABORT_CHECK(disp == ArgDispType::Integer || disp == ArgDispType::Any);
+        if (src)
+            spec.type = FormatterHelper::ConvertSpecIntPresent(*src);
         break;
     default:
         return false;
@@ -449,7 +503,8 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view s
     ParseResultCh<char32_t>::ParseFormatSpec(res, spec_, spectxt.data(), spectxt);
     if (res.ErrorPos != UINT16_MAX)
         return false;
-    if (!ArgChecker::CheckCompatible(spec_.Type.Type, real))
+    const auto disp = spec_.Type.Type;
+    if (!ArgChecker::CheckCompatible(disp, real))
         return false;
 
     FormatterHelper::ConvertSpecFill(dst, spec_.ZeroPad, static_cast<char32_t>(spec_.Fill));
@@ -459,18 +514,37 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view s
     switch (const auto realType = real & ArgRealType::BaseTypeMask; realType)
     {
     case ArgRealType::String:
-        spec.type = fmt::presentation_type::string;
+        if (disp == ArgDispType::Pointer)
+            spec.type = fmt::presentation_type::pointer;
+        else
+            spec.type = fmt::presentation_type::string;
         break;
-    case ArgRealType::SInt:
-    case ArgRealType::UInt:
-        spec.type = FormatterHelper::ConvertSpecIntPresent(spec_);
+    case ArgRealType::Bool:
+        if (disp == ArgDispType::Char)
+            spec.type = fmt::presentation_type::string;
+        else if (disp == ArgDispType::Char)
+            spec.type = FormatterHelper::ConvertSpecIntPresent(spec_);
+        else
+            spec.type = fmt::presentation_type::string;
+        break;
+    case ArgRealType::Ptr:
+        spec.type = fmt::presentation_type::pointer;
         break;
     case ArgRealType::Float:
         spec.type = FormatterHelper::ConvertSpecFloatPresent(spec_);
         spec.sign = FormatterHelper::ConvertSpecSign(spec_.SignFlag);
         break;
-    case ArgRealType::Ptr:
-        spec.type = fmt::presentation_type::pointer;
+    case ArgRealType::Char:
+        if (disp == ArgDispType::Char || disp == ArgDispType::Any)
+        {
+            spec.type = fmt::presentation_type::string;
+            break;
+        }
+        [[fallthrough]];
+    case ArgRealType::SInt:
+    case ArgRealType::UInt:
+        ABORT_CHECK(disp == ArgDispType::Integer || disp == ArgDispType::Any);
+        spec.type = FormatterHelper::ConvertSpecIntPresent(spec_);
         break;
     default:
         return false;
@@ -908,24 +982,77 @@ static constexpr std::basic_string_view<Char> GetStrTrueFalse(bool val) noexcept
 }
 
 
-forceinline constexpr uint32_t ValLenReader(const uint8_t* opPtr, uint32_t len, uint32_t defVal) noexcept
+constexpr auto ShortLenMap = []() 
 {
-    switch (len)
+    std::array<uint8_t, 64> ret = { 0 };
+    for (uint32_t fill = 0; fill <= 3; fill++)
     {
-    case 1:  return *opPtr;
-    case 2:  return opPtr[0] | (opPtr[1] << 8);
-    case 3:  return opPtr[0] | (opPtr[1] << 8) | (opPtr[1] << 16) | (opPtr[1] << 24);
-    case 0:
-    default: return defVal;
+        for (uint32_t prec = 0; prec <= 3; prec++)
+        {
+            for (uint32_t width = 0; width <= 3; width++)
+            {
+                ret[width + (prec << 2) + (fill << 4)] = static_cast<uint8_t>(
+                    (width == 3 ? 4 : width) + (prec == 3 ? 4 : prec) + (fill == 3 ? 4 : fill));
+            }
+        }
     }
+    return ret;
+}();
+[[nodiscard]] forceinline constexpr uint32_t SpecReader::EnsureSize() noexcept
+{
+    if (Ptr && !SpecSize)
+    {
+        const auto val0 = Ptr[0];
+        const auto val1 = Ptr[1];
+        SpecSize = 2;
+        if (val1 & 0b11111100)
+        {
+            SpecSize += ShortLenMap[val1 >> 2];
+        }
+        const bool hasExtraFmt = val0 & 0b10000;
+        if (hasExtraFmt)
+        {
+            SpecSize += val0 & 0x80 ? 2 : 1;
+            SpecSize += val0 & 0x40 ? 2 : 1;
+        }
+    }
+    return SpecSize;
+}
+struct SpecReader::Checker
+{
+#if defined(DEBUG) || defined(_DEBUG)
+    static constexpr uint32_t SpecReaderCheckResult = []() -> uint32_t
+    {
+        uint8_t Dummy[32] = { 0 };
+        SpecReader reader;
+        for (uint16_t i = 0; i < 0xff; i += 0b10000)
+        {
+            for (uint16_t j = 0; j < 0xff; j += 0b100)
+            {
+                Dummy[0] = static_cast<uint8_t>(i);
+                Dummy[1] = static_cast<uint8_t>(j);
+                reader.Reset(Dummy);
+                const auto quickSize = reader.EnsureSize();
+                reader.Reset(Dummy);
+                [[maybe_unused]] const auto dummy = reader.ReadSpec();
+                const auto readSize = reader.EnsureSize();
+                if (quickSize != readSize)
+                    return i * 256 + j;
+            }
+        }
+        return UINT32_MAX;
+    }();
+    static_assert(SpecReaderCheckResult == UINT32_MAX);
+#endif
 };
+
 
 template<typename T>
 forceinline uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, T& executor, typename T::Context& context, uint32_t instCount)
 {
     uint32_t icnt = 0; 
     uint32_t opOffset = 0;
-    FormatSpec spec; // reuse since all the field will be override
+    SpecReader reader; // outside of loop for reuse
     for (; icnt < instCount && opOffset < opcodes.size(); icnt++)
     {
         const auto op = opcodes[opOffset++];
@@ -985,50 +1112,12 @@ forceinline uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, T& exe
         case ParseResult::ArgOp::Op:
         {
             const auto argIdx = opcodes[opOffset++];
-            bool hasSpec = false;
-            if (opfield & ParseResult::ArgOp::FieldHasSpec)
-            {
-                hasSpec = true;
-                const auto val0 = opcodes[opOffset++];
-                const auto val1 = opcodes[opOffset++];
-                spec.TypeExtra = static_cast<uint8_t>(val0 >> 5);
-                spec.Alignment = static_cast<FormatSpec::Align>((val0 & 0b1100) >> 2);
-                spec.SignFlag = static_cast<FormatSpec::Sign> ((val0 & 0b0011) >> 0);
-                const bool hasExtraFmt = val0 & 0b10000;
-                spec.AlterForm = val1 & 0b10;
-                spec.ZeroPad = val1 & 0b01;
-                if (val1 & 0b11111100)
-                {
-                    const auto fillSize = (val1 >> 6) & 0b11u, precSize = (val1 >> 4) & 0b11u, widthSize = (val1 >> 2) & 0b11u;
-                    spec.Fill = ValLenReader(opcodes.data() + opOffset, fillSize, ' ');
-                    opOffset += fillSize;
-                    spec.Precision = ValLenReader(opcodes.data() + opOffset, precSize, UINT32_MAX);
-                    opOffset += precSize;
-                    spec.Width = static_cast<uint16_t>(ValLenReader(opcodes.data() + opOffset, widthSize, 0));
-                    opOffset += widthSize;
-                }
-                else
-                {
-                    spec.Fill = ' ';
-                    spec.Precision = UINT32_MAX;
-                    spec.Width = 0;
-                }
-                if (hasExtraFmt)
-                {
-                    spec.TypeExtra &= static_cast<uint8_t>(0x1u);
-                    const auto offsetSize = val0 & 0x80 ? 2 : 1;
-                    const auto    lenSize = val0 & 0x40 ? 2 : 1;
-                    spec.FmtOffset = static_cast<uint16_t>(ValLenReader(opcodes.data() + opOffset, offsetSize, 0));
-                    opOffset += offsetSize;
-                    spec.FmtLen = static_cast<uint16_t>(ValLenReader(opcodes.data() + opOffset, lenSize, 0));
-                    opOffset += lenSize;
-                }
-                else
-                    spec.FmtOffset = spec.FmtLen = 0;
-            }
-            const auto specPtr = hasSpec ? &spec : nullptr;
+            const bool hasSpec = opfield & ParseResult::ArgOp::FieldHasSpec;
+            reader.Reset(hasSpec ? opcodes.data() + opOffset : nullptr);
             const bool isNamed = opfield & ParseResult::ArgOp::FieldNamed;
-            executor.OnArg(context, argIdx, isNamed, specPtr);
+            executor.OnArg(context, argIdx, isNamed, reader);
+            if (hasSpec)
+                opOffset += reader.EnsureSize();
         } break;
         default:
             break;
@@ -1038,6 +1127,62 @@ forceinline uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, T& exe
     return icnt;
 }
 template SYSCOMMONTPL uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, FormatterExecutor& executor, FormatterExecutor::Context& context, uint32_t instCount);
+
+
+bool FormatSpecCacher::Cache(const StrArgInfo& strInfo, const ArgInfo& argInfo, const ArgPack::NamedMapper& mapper) noexcept
+{
+    struct RecordExecutor final : public FormatterExecutor, private FormatterBase
+    {
+        FormatSpecCacher& Cache;
+        const StrArgInfo& StrInfo;
+        const ArgInfo& RealArgInfo;
+        const ArgPack::NamedMapper& Mapper;
+
+        void PutString(Context&, ::std::   string_view, const OpaqueFormatSpec&) final {}
+        void PutString(Context&, ::std::u16string_view, const OpaqueFormatSpec&) final {}
+        void PutString(Context&, ::std::u32string_view, const OpaqueFormatSpec&) final {}
+        void PutInteger(Context&, uint32_t, bool, const OpaqueFormatSpec&) final {}
+        void PutInteger(Context&, uint64_t, bool, const OpaqueFormatSpec&) final {}
+        void PutFloat  (Context&, float , const OpaqueFormatSpec&) final {}
+        void PutFloat  (Context&, double, const OpaqueFormatSpec&) final {}
+        void PutPointer(Context&, uintptr_t, const OpaqueFormatSpec&) final {}
+
+        void PutString(Context&, ::std::   string_view, const FormatSpec*) final {}
+        void PutString(Context&, ::std::u16string_view, const FormatSpec*) final {}
+        void PutString(Context&, ::std::u32string_view, const FormatSpec*) final {}
+        void PutInteger(Context&, uint32_t, bool, const FormatSpec*) final {}
+        void PutInteger(Context&, uint64_t, bool, const FormatSpec*) final {}
+        void PutFloat  (Context&, float, const FormatSpec*) final {}
+        void PutFloat  (Context&, double, const FormatSpec*) final {}
+        void PutPointer(Context&, uintptr_t, const FormatSpec*) final {}
+        void PutDate   (Context&, ::std::string_view, const ::std::tm&) final {}
+
+        void OnFmtStr(Context&, uint32_t, uint32_t) final {}
+        void OnArg(Context&, uint8_t argIdx, bool isNamed, SpecReader& reader) final
+        {
+            const auto dispType = isNamed ? StrInfo.NamedTypes[argIdx].Type : StrInfo.IndexTypes[argIdx];
+            const auto realType = isNamed ? RealArgInfo.NamedTypes[Mapper[argIdx]] : RealArgInfo.IndexTypes[argIdx];
+            const auto bitIndex = (isNamed ? StrInfo.NamedTypes.size() : 0) + argIdx;
+            auto& target = isNamed ? Cache.NamedSpec : Cache.IndexSpec;
+            target.resize(std::max<size_t>(target.size(), argIdx + 1));
+            Cache.CachedBitMap.Set(bitIndex, ConvertSpec(target[argIdx], reader.ReadSpec(), realType, dispType));
+        }
+
+        constexpr RecordExecutor(FormatSpecCacher& cache, const StrArgInfo& strInfo, const ArgInfo& argInfo, const ArgPack::NamedMapper& mapper) noexcept :
+            Cache(cache), StrInfo(strInfo), RealArgInfo(argInfo), Mapper(mapper) {}
+        using FormatterBase::Execute;
+    };
+    IndexSpec.clear();
+    IndexSpec.reserve(strInfo.IndexTypes.size());
+    NamedSpec.clear();
+    NamedSpec.reserve(strInfo.NamedTypes.size());
+    CachedBitMap = SmallBitset(strInfo.IndexTypes.size() + strInfo.NamedTypes.size(), false);
+    RecordExecutor executor{ *this, strInfo, argInfo, mapper };
+    RecordExecutor::Context context;
+    auto opcodes = strInfo.Opcodes;
+    RecordExecutor::Execute(opcodes, executor, context);
+    return true;
+}
 
 
 template<typename Char>
@@ -1156,7 +1301,7 @@ private:
     {
         Expects(false);
     }
-    void OnArg(CTX&, uint8_t, bool, const FormatSpec*) final
+    void OnArg(CTX&, uint8_t, bool, SpecReader&) final
     {
         Expects(false);
     }
@@ -1179,13 +1324,8 @@ constexpr RealSizeInfo GetSizeInfo() noexcept
 }
 
 template<typename Char>
-forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec)
+forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader)
 {
-#if defined(DEBUG) || defined(_DEBUG)
-#   define ABORT_CHECK(...) Expects(__VA_ARGS__)
-#else
-#   define ABORT_CHECK(...)
-#endif
     ArgDispType fmtType = ArgDispType::Any;
     const uint16_t* argPtr = nullptr;
     ArgRealType argType = ArgRealType::Error;
@@ -1206,6 +1346,7 @@ forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, ui
     }
     const auto realType = argType & ArgRealType::BaseTypeMask;
     const auto intSize = static_cast<RealSizeInfo>(enum_cast(argType & ArgRealType::TypeSizeMask) >> 4);
+    const auto spec = reader.ReadSpec();
     switch (realType)
     {
     case ArgRealType::String:
@@ -1342,12 +1483,12 @@ forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, ui
         return;
     }
 }
-template SYSCOMMONTPL void FormatterBase::StaticExecutor<char>    ::OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec);
-template SYSCOMMONTPL void FormatterBase::StaticExecutor<wchar_t> ::OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec);
-template SYSCOMMONTPL void FormatterBase::StaticExecutor<char16_t>::OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec);
-template SYSCOMMONTPL void FormatterBase::StaticExecutor<char32_t>::OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec);
+template SYSCOMMONTPL void FormatterBase::StaticExecutor<char>    ::OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
+template SYSCOMMONTPL void FormatterBase::StaticExecutor<wchar_t> ::OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
+template SYSCOMMONTPL void FormatterBase::StaticExecutor<char16_t>::OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
+template SYSCOMMONTPL void FormatterBase::StaticExecutor<char32_t>::OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-template SYSCOMMONTPL void FormatterBase::StaticExecutor<char8_t> ::OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec);
+template SYSCOMMONTPL void FormatterBase::StaticExecutor<char8_t> ::OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
 #endif
 
 

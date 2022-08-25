@@ -74,6 +74,7 @@ struct OpaqueFormatSpec
 
 
 struct FormatterBase;
+struct SpecReader;
 struct SYSCOMMONAPI FormatterExecutor
 {
     friend FormatterBase;
@@ -126,7 +127,7 @@ public:
     static bool ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view spectxt, ArgRealType real) noexcept;
 protected:
     virtual void OnFmtStr(Context& context, uint32_t offset, uint32_t length) = 0;
-    virtual void OnArg(Context& context, uint8_t argIdx, bool isNamed, const FormatSpec* spec) = 0;
+    virtual void OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader) = 0;
 };
 
 

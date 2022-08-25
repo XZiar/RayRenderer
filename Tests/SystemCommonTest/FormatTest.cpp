@@ -1,7 +1,7 @@
 #include "rely.h"
 #include <algorithm>
 #include "SystemCommon/Format.h"
-#include "SystemCommon/Exceptions.h"
+#include "SystemCommon/FormatExtra.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/StringFormat.h"
 #include "common/TimeUtil.hpp"
@@ -59,12 +59,6 @@ using common::BaseException;
 #define CheckOp(op, ...) do { SCOPED_TRACE("Check" #op); Check##op##Op_(ret, idx, __VA_ARGS__); } while(0)
 #define CheckOpFinish() EXPECT_EQ(ret.OpCount, idx)
 
-#define EXPECT_EX_RES(ex, type, key, val) do    \
-{                                               \
-    const auto dat = ex.GetResource<type>(key); \
-    EXPECT_NE(dat, nullptr);                    \
-    if (dat) { EXPECT_EQ(*dat, val); }          \
-} while(0)
 
 static std::string OpToString(uint8_t op)
 {
@@ -606,9 +600,9 @@ TEST(Format, CheckArg)
             ArgChecker::CheckDS(FmtString("{3},{}"sv), 1234, "str");
             EXPECT_TRUE(false) << "should throw exception";
         }
-        catch (const BaseException& be)
+        catch (const ArgMismatchException& ame)
         {
-            EXPECT_TRUE(true) << common::str::to_string(be.Message());
+            EXPECT_TRUE(true) << common::str::to_string(ame.Message());
         }
     }
     {
@@ -617,11 +611,14 @@ TEST(Format, CheckArg)
         {
             ArgChecker::CheckDS(FmtString("{},{:f}"sv), 1234, "str");
         }
-        catch (const BaseException& be)
+        catch (const ArgMismatchException& ame)
         {
-            EXPECT_TRUE(true) << common::str::to_string(be.Message());
-            EXPECT_EX_RES(be, uint32_t, "arg"sv, 1u);
-            EXPECT_EX_RES(be, ArgTypePair, "argType"sv, (std::pair{ ArgDispType::Float, ArgRealType::String }));
+            EXPECT_TRUE(true) << common::str::to_string(ame.Message());
+            EXPECT_EQ(ame.GetReason(), ArgMismatchException::Reasons::IndexArgTypeMismatch);
+            EXPECT_EQ(ame.GetMismatchType(), (std::pair{ ArgDispType::Float, ArgRealType::String }));
+            const auto target = ame.GetMismatchTarget();
+            ASSERT_EQ(target.index(), 1u);
+            EXPECT_EQ(std::get<1>(target), 1u);
         }
     }
     {
@@ -630,9 +627,9 @@ TEST(Format, CheckArg)
         {
             ArgChecker::CheckDS(FmtString("{}{x}"sv), 1234, "str");
         }
-        catch (const BaseException& be)
+        catch (const ArgMismatchException& ame)
         {
-            EXPECT_TRUE(true) << common::str::to_string(be.Message());
+            EXPECT_TRUE(true) << common::str::to_string(ame.Message());
         }
     }
     {
@@ -641,11 +638,14 @@ TEST(Format, CheckArg)
         {
             ArgChecker::CheckDS(FmtString("{}{x:s}"sv), 1234, "str", NAMEARG("x")(13));
         }
-        catch (const BaseException& be)
+        catch (const ArgMismatchException& ame)
         {
-            EXPECT_TRUE(true) << common::str::to_string(be.Message());
-            EXPECT_EX_RES(be, std::string, "arg"sv, "x"sv);
-            EXPECT_EX_RES(be, ArgTypePair, "argType"sv, (std::pair{ ArgDispType::String, ArgRealType::SInt }));
+            EXPECT_TRUE(true) << common::str::to_string(ame.Message());
+            EXPECT_EQ(ame.GetReason(), ArgMismatchException::Reasons::NamedArgTypeMismatch);
+            EXPECT_EQ(ame.GetMismatchType(), (std::pair{ ArgDispType::String, ArgRealType::SInt }));
+            const auto target = ame.GetMismatchTarget();
+            ASSERT_EQ(target.index(), 2u);
+            EXPECT_EQ(std::get<2>(target), "x"sv);
         }
     }
     {
@@ -814,7 +814,7 @@ TEST(Format, Perf)
     }
 
 
-    std::string csf[2];
+    std::string csf[3];
     {
         uint64_t timens = 0;
         for (uint32_t i = 0; i < times; ++i)

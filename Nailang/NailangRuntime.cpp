@@ -552,9 +552,10 @@ struct NailangFormatExecutor final : public common::str::CombinedExecutor<char32
         auto& context = static_cast<Context&>(ctx);
         PutColor(context.Dst, color);
     }*/
-    void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, const common::str::FormatSpec* spec) final
+    void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, common::str::SpecReader& reader) final
     {
         Expects(!isNamed);
+        const auto spec = reader.ReadSpec();
         auto& context = static_cast<Context&>(ctx);
         const auto& arg = context.Args[argIdx];
         switch (arg.TypeData)
