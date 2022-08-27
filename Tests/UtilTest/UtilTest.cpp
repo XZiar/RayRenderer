@@ -146,6 +146,7 @@ int main(int argc, char *argv[])
 {
     common::ResourceHelper::Init(nullptr);
     GetConsole().Print(CommonColor::BrightGreen, u"UnitTest\n");
+    common::PrintSystemVersion();
 
     std::vector<std::string_view> args;
     {

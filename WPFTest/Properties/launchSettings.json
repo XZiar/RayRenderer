@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WPFTest": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

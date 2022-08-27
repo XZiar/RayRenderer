@@ -266,7 +266,7 @@
 * Global
   - [x] Port some utilities to Linux 
   - [x] Port core components to Linux 
-  - [ ] Move to .net core 6 with WPF/Winform
+  - [x] Move to .net 6 with WPF/Winform
   - [ ] Move to avalonia as GUI
   - [ ] Add Vulkan backend
   - [x] Add custom window host (for OGL/vulkan)

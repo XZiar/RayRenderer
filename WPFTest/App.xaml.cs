@@ -17,7 +17,7 @@ namespace WPFTest
     {
         static App()
         {
-            AppDomain.CurrentDomain.AssemblyResolve += ResolveDLL;
+            //AppDomain.CurrentDomain.AssemblyResolve += ResolveDLL;
             AppDomain.CurrentDomain.UnhandledException += HandleExceptions;
             Console.WriteLine(Environment.Is64BitProcess ? "current in x64" : "current in x86");
         }
@@ -48,7 +48,7 @@ namespace WPFTest
 
         private void AppStartup(object sender, StartupEventArgs e)
         {
-            
+            System.Windows.Forms.Application.SetHighDpiMode(System.Windows.Forms.HighDpiMode.PerMonitorV2);
             var idx = Array.FindIndex(e.Args, arg => arg.StartsWith("--renderdoc"));
             if (idx != -1)
             {

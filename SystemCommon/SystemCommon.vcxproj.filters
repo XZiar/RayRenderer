@@ -75,6 +75,9 @@
     <ClCompile Include="Format.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="UnInterface.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SystemCommonRely.h">
@@ -171,6 +174,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FormatExtra.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="UnInterface.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -11,7 +11,7 @@ namespace WinFormTest
     {
         static Program()
         {
-            AppDomain.CurrentDomain.AssemblyResolve += ResolveDLL;
+            //AppDomain.CurrentDomain.AssemblyResolve += ResolveDLL;
             //AppDomain.CurrentDomain.UnhandledException += HandleExceptions;
             Console.WriteLine(Environment.Is64BitProcess ? "current in x64" : "current in x86");
         }
@@ -28,8 +28,8 @@ namespace WinFormTest
 
             /* the actual assembly resolver */
             Console.WriteLine($"resolve Assembly {args.Name}");
-            var dllname = name + (Environment.Is64BitProcess ? ".x64.dll" : ".x86.dll");
-            return Assembly.LoadFrom(dllname);
+            //var dllname = name + (Environment.Is64BitProcess ? ".x64.dll" : ".x86.dll");
+            return Assembly.LoadFrom(name + ".dll") ?? Assembly.LoadFrom("../" + name + ".dll");
         }
 
         /// <summary>
@@ -39,6 +39,7 @@ namespace WinFormTest
         static void Main()
         {
             Application.EnableVisualStyles();
+            Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());
         }
