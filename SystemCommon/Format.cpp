@@ -134,9 +134,9 @@ void ArgChecker::CheckDDBasic(const StrArgInfo& strInfo, const ArgInfo& argInfo)
 }
 
 template<typename Char>
-ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo)
+NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo)
 {
-    ArgPack::NamedMapper mapper = { 0 };
+    NamedMapper mapper = { 0 };
     const auto strNamedArgCount = static_cast<uint8_t>(strInfo.NamedTypes.size());
     if (strNamedArgCount > 0)
     {
@@ -178,12 +178,12 @@ ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<Char>& strIn
     }
     return mapper;
 }
-template SYSCOMMONTPL ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<char>&     strInfo, const ArgInfo& argInfo);
-template SYSCOMMONTPL ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<wchar_t>&  strInfo, const ArgInfo& argInfo);
-template SYSCOMMONTPL ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<char16_t>& strInfo, const ArgInfo& argInfo);
-template SYSCOMMONTPL ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<char32_t>& strInfo, const ArgInfo& argInfo);
+template SYSCOMMONTPL NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<char>&     strInfo, const ArgInfo& argInfo);
+template SYSCOMMONTPL NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<wchar_t>&  strInfo, const ArgInfo& argInfo);
+template SYSCOMMONTPL NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<char16_t>& strInfo, const ArgInfo& argInfo);
+template SYSCOMMONTPL NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<char32_t>& strInfo, const ArgInfo& argInfo);
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-template SYSCOMMONTPL ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<char8_t> & strInfo, const ArgInfo& argInfo);
+template SYSCOMMONTPL NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<char8_t> & strInfo, const ArgInfo& argInfo);
 #endif
 
 
@@ -938,13 +938,13 @@ void Formatter<Char>::PutDateBase(StrType& ret, std::string_view fmtStr, const s
 }
 
 template<typename Char>
-void Formatter<Char>::FormatToDynamic_(std::basic_string<Char>& dst, std::basic_string_view<Char> format, const ArgInfo& argInfo, ArgPack& argPack)
+void Formatter<Char>::FormatToDynamic_(std::basic_string<Char>& dst, std::basic_string_view<Char> format, const ArgInfo& argInfo, span<const uint16_t> argStore)
 {
     const auto result = ParseResult::ParseString<Char>(format);
     ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
     const auto res = result.ToInfo(format);
-    argPack.Mapper = ArgChecker::CheckDD(res, argInfo);
-    FormatterBase::FormatTo<Char>(*this, dst, res, argInfo, argPack);
+    const auto mapping = ArgChecker::CheckDD(res, argInfo);
+    FormatterBase::FormatTo<Char>(*this, dst, res, argInfo, argStore, mapping);
 }
 
 
@@ -1129,14 +1129,14 @@ forceinline uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, T& exe
 template SYSCOMMONTPL uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, FormatterExecutor& executor, FormatterExecutor::Context& context, uint32_t instCount);
 
 
-bool FormatSpecCacher::Cache(const StrArgInfo& strInfo, const ArgInfo& argInfo, const ArgPack::NamedMapper& mapper) noexcept
+bool FormatSpecCacher::Cache(const StrArgInfo& strInfo, const ArgInfo& argInfo, const NamedMapper& mapper) noexcept
 {
     struct RecordExecutor final : public FormatterExecutor, private FormatterBase
     {
         FormatSpecCacher& Cache;
         const StrArgInfo& StrInfo;
         const ArgInfo& RealArgInfo;
-        const ArgPack::NamedMapper& Mapper;
+        const NamedMapper& Mapper;
 
         void PutString(Context&, ::std::   string_view, const OpaqueFormatSpec&) final {}
         void PutString(Context&, ::std::u16string_view, const OpaqueFormatSpec&) final {}
@@ -1168,7 +1168,7 @@ bool FormatSpecCacher::Cache(const StrArgInfo& strInfo, const ArgInfo& argInfo, 
             Cache.CachedBitMap.Set(bitIndex, ConvertSpec(target[argIdx], reader.ReadSpec(), realType, dispType));
         }
 
-        constexpr RecordExecutor(FormatSpecCacher& cache, const StrArgInfo& strInfo, const ArgInfo& argInfo, const ArgPack::NamedMapper& mapper) noexcept :
+        constexpr RecordExecutor(FormatSpecCacher& cache, const StrArgInfo& strInfo, const ArgInfo& argInfo, const NamedMapper& mapper) noexcept :
             Cache(cache), StrInfo(strInfo), RealArgInfo(argInfo), Mapper(mapper) {}
         using FormatterBase::Execute;
     };
@@ -1332,17 +1332,17 @@ forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, ui
     if (isNamed)
     {
         fmtType = context.StrInfo.NamedTypes[argIdx].Type;
-        const auto mapIdx = context.TheArgPack.Mapper[argIdx];
+        const auto mapIdx = context.Mapping[argIdx];
         argType = context.TheArgInfo.NamedTypes[mapIdx];
         const auto argSlot = mapIdx + context.TheArgInfo.IdxArgCount;
-        argPtr = context.TheArgPack.Args.data() + context.TheArgPack.Args[argSlot];
+        argPtr = context.ArgStore.data() + context.ArgStore[argSlot];
     }
     else
     {
         fmtType = context.StrInfo.IndexTypes[argIdx];
         argType = context.TheArgInfo.IndexTypes[argIdx];
         const auto argSlot = argIdx;
-        argPtr = context.TheArgPack.Args.data() + context.TheArgPack.Args[argSlot];
+        argPtr = context.ArgStore.data() + context.ArgStore[argSlot];
     }
     const auto realType = argType & ArgRealType::BaseTypeMask;
     const auto intSize = static_cast<RealSizeInfo>(enum_cast(argType & ArgRealType::TypeSizeMask) >> 4);
@@ -1493,19 +1493,19 @@ template SYSCOMMONTPL void FormatterBase::StaticExecutor<char8_t> ::OnArg(Contex
 
 
 template<typename Char>
-void FormatterBase::FormatTo(Formatter<Char>& formatter, std::basic_string<Char>& ret, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, const ArgPack& argPack)
+void FormatterBase::FormatTo(Formatter<Char>& formatter, std::basic_string<Char>& ret, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, span<const uint16_t> argStore, const NamedMapper& mapping)
 {
-    typename StaticExecutor<Char>::Context context{ ret, strInfo, argInfo, argPack };
+    typename StaticExecutor<Char>::Context context{ ret, strInfo, argInfo, argStore, mapping };
     StaticExecutor<Char> executor{ formatter };
     auto opcodes = strInfo.Opcodes;
     Execute(opcodes, executor, context);
 }
-template SYSCOMMONTPL void FormatterBase::FormatTo(Formatter<char>    & formatter, std::basic_string<char>    & ret, const StrArgInfoCh<char>    & strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
-template SYSCOMMONTPL void FormatterBase::FormatTo(Formatter<wchar_t> & formatter, std::basic_string<wchar_t> & ret, const StrArgInfoCh<wchar_t> & strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
-template SYSCOMMONTPL void FormatterBase::FormatTo(Formatter<char16_t>& formatter, std::basic_string<char16_t>& ret, const StrArgInfoCh<char16_t>& strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
-template SYSCOMMONTPL void FormatterBase::FormatTo(Formatter<char32_t>& formatter, std::basic_string<char32_t>& ret, const StrArgInfoCh<char32_t>& strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
+template SYSCOMMONTPL void FormatterBase::FormatTo(Formatter<char>    & formatter, std::basic_string<char>    & ret, const StrArgInfoCh<char>    & strInfo, const ArgInfo& argInfo, span<const uint16_t> argStore, const NamedMapper& mapping);
+template SYSCOMMONTPL void FormatterBase::FormatTo(Formatter<wchar_t> & formatter, std::basic_string<wchar_t> & ret, const StrArgInfoCh<wchar_t> & strInfo, const ArgInfo& argInfo, span<const uint16_t> argStore, const NamedMapper& mapping);
+template SYSCOMMONTPL void FormatterBase::FormatTo(Formatter<char16_t>& formatter, std::basic_string<char16_t>& ret, const StrArgInfoCh<char16_t>& strInfo, const ArgInfo& argInfo, span<const uint16_t> argStore, const NamedMapper& mapping);
+template SYSCOMMONTPL void FormatterBase::FormatTo(Formatter<char32_t>& formatter, std::basic_string<char32_t>& ret, const StrArgInfoCh<char32_t>& strInfo, const ArgInfo& argInfo, span<const uint16_t> argStore, const NamedMapper& mapping);
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-template SYSCOMMONTPL void FormatterBase::FormatTo(Formatter<char8_t> & formatter, std::basic_string<char8_t> & ret, const StrArgInfoCh<char8_t> & strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
+template SYSCOMMONTPL void FormatterBase::FormatTo(Formatter<char8_t> & formatter, std::basic_string<char8_t> & ret, const StrArgInfoCh<char8_t> & strInfo, const ArgInfo& argInfo, span<const uint16_t> argStore, const NamedMapper& mapping);
 #endif
 
 

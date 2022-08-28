@@ -338,10 +338,10 @@ template struct LoggerFormatter<char8_t>;
 
 
 //template<typename Char>
-LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::StrArgInfoCh<char16_t>& strInfo, const str::ArgInfo& argInfo, const str::ArgPack& argPack) const
+LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::StrArgInfoCh<char16_t>& strInfo, const str::ArgInfo& argInfo, span<const uint16_t> argStore, const str::NamedMapper& mapping) const
 {
     LoggerFormatter<char16_t> formatter;
-    str::FormatterBase::FormatTo(formatter, formatter.Str, strInfo, argInfo, argPack);
+    str::FormatterBase::FormatTo(formatter, formatter.Str, strInfo, argInfo, argStore, mapping);
     const auto segs = to_span(formatter.GetColorSegements());
     // if constexpr (!std::is_same_v<Char, char16_t>)
     // {
@@ -357,15 +357,14 @@ LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::Str
 // template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::StrArgInfoCh<wchar_t >& strInfo, const str::ArgInfo& argInfo, const str::ArgPack& argPack) const;
 // template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::StrArgInfoCh<char16_t>& strInfo, const str::ArgInfo& argInfo, const str::ArgPack& argPack) const;
 // template SYSCOMMONTPL LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::StrArgInfoCh<char32_t>& strInfo, const str::ArgInfo& argInfo, const str::ArgPack& argPack) const;
-LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, std::basic_string_view<char16_t> formatter, const str::ArgInfo& argInfo, str::ArgPack& argPack) const
+LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, std::basic_string_view<char16_t> formatter, const str::ArgInfo& argInfo, span<const uint16_t> argStore) const
 {
     using namespace str;
     const auto result = ParseResult::ParseString(formatter);
     ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
     const auto fmtInfo = result.ToInfo(formatter);
     const auto mapping = ArgChecker::CheckDD(fmtInfo, argInfo);
-    argPack.Mapper = mapping;
-    return GenerateMessage(level, fmtInfo, argInfo, argPack);
+    return GenerateMessage(level, fmtInfo, argInfo, argStore, mapping);
 }
 
 }

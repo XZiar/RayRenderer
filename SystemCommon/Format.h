@@ -9,7 +9,6 @@
 #include <variant>
 #include <chrono>
 #include <ctime>
-#include <boost/container/small_vector.hpp>
 
 namespace common::str
 {
@@ -1048,87 +1047,6 @@ forceinline constexpr StrArgInfoCh<Char> ParseResult::ToInfo(const std::basic_st
 }
 
 
-class COMMON_EMPTY_BASES DynamicTrimedResult : public FixedLenRefHolder<DynamicTrimedResult, uint32_t>
-{
-    friend RefHolder<DynamicTrimedResult>;
-    friend FixedLenRefHolder<DynamicTrimedResult, uint32_t>;
-private:
-    static constexpr size_t NASize = sizeof(ParseResult::NamedArgType);
-    static constexpr size_t IASize = sizeof(ArgDispType);
-    [[nodiscard]] forceinline uintptr_t GetDataPtr() const noexcept
-    {
-        return Pointer;
-    }
-    forceinline void Destruct() noexcept { }
-protected:
-    uintptr_t Pointer = 0;
-    uint32_t StrSize = 0;
-    uint16_t OpCount = 0;
-    uint8_t NamedArgCount = 0;
-    uint8_t IdxArgCount = 0;
-    SYSCOMMONAPI DynamicTrimedResult(const ParseResult& result, size_t strLength, size_t charSize);
-    DynamicTrimedResult(const DynamicTrimedResult& other) noexcept :
-        Pointer(other.Pointer), StrSize(other.StrSize), OpCount(other.OpCount), NamedArgCount(other.NamedArgCount), IdxArgCount(other.IdxArgCount)
-    {
-        this->Increase();
-    }
-    DynamicTrimedResult(DynamicTrimedResult&& other) noexcept :
-        Pointer(other.Pointer), StrSize(other.StrSize), OpCount(other.OpCount), NamedArgCount(other.NamedArgCount), IdxArgCount(other.IdxArgCount)
-    {
-        other.Pointer = 0;
-    }
-    common::span<const uint8_t> GetOpcodes() const noexcept
-    {
-        return { reinterpret_cast<const uint8_t*>(GetStrPtr() + StrSize + IASize * IdxArgCount), OpCount };
-    }
-    common::span<const ArgDispType> GetIndexTypes() const noexcept
-    {
-        if (IdxArgCount > 0)
-            return { reinterpret_cast<const ArgDispType*>(GetStrPtr() + StrSize), IdxArgCount };
-        return {};
-    }
-    uintptr_t GetStrPtr() const noexcept
-    {
-        return Pointer + NASize * NamedArgCount;
-    }
-    common::span<const ParseResult::NamedArgType> GetNamedTypes() const noexcept
-    {
-        if (NamedArgCount > 0)
-            return { reinterpret_cast<const ParseResult::NamedArgType*>(Pointer), NamedArgCount };
-        return {};
-    }
-public:
-    ~DynamicTrimedResult()
-    {
-        this->Decrease();
-    }
-};
-
-template<typename Char>
-class DynamicTrimedResultCh : public DynamicTrimedResult
-{
-public:
-    DynamicTrimedResultCh(const ParseResult& result, std::basic_string_view<Char> str) :
-        DynamicTrimedResult(result, str.size(), sizeof(Char))
-    {
-        const auto strptr = reinterpret_cast<Char*>(GetStrPtr());
-        memcpy_s(strptr, StrSize, str.data(), sizeof(Char) * str.size());
-        strptr[str.size()] = static_cast<Char>('\0');
-    }
-    DynamicTrimedResultCh(const DynamicTrimedResultCh& other) noexcept : DynamicTrimedResult(other) {}
-    DynamicTrimedResultCh(DynamicTrimedResultCh&& other) noexcept : DynamicTrimedResult(other) {}
-    constexpr operator StrArgInfoCh<Char>() const noexcept
-    {
-        return { { GetOpcodes(), GetIndexTypes(), GetNamedTypes() },
-            { reinterpret_cast<Char*>(GetStrPtr()), StrSize / sizeof(Char) - 1 } };
-    }
-    constexpr StrArgInfoCh<Char> ToStrArgInfo() const noexcept
-    {
-        return *this;
-    }
-};
-
-
 template<uint8_t IdxArgCount>
 struct IdxArgLimiter
 {
@@ -1240,20 +1158,23 @@ inline constexpr auto WithName(std::string_view name, T&& arg) noexcept -> Named
     return NamedArg{std::forward<T>(arg)};          \
 }
 
-struct ArgPack
+
+using NamedMapper = std::array<uint8_t, ParseResult::NamedArgSlots>;
+
+template<uint16_t N>
+struct StaticArgPack
 {
-    using NamedMapper = std::array<uint8_t, ParseResult::NamedArgSlots>;
-    boost::container::small_vector<uint16_t, 44> Args;
-    NamedMapper Mapper;
+    std::array<uint16_t, N> ArgStore = { 0 };
+    uint16_t CurrentSlot = 0;
     template<typename T>
     forceinline void Put(T arg, uint16_t idx) noexcept
     {
         constexpr auto NeedSize = sizeof(T);
         constexpr auto NeedSlot = (NeedSize + 1) / 2;
-        const auto offset = Args.size();
-        Args.resize(offset + NeedSlot);
-        *reinterpret_cast<T*>(&Args[offset]) = arg;
-        Args[idx] = static_cast<uint16_t>(offset);
+        Expects(CurrentSlot + NeedSlot <= N);
+        *reinterpret_cast<T*>(&ArgStore[CurrentSlot]) = arg;
+        ArgStore[idx] = CurrentSlot;
+        CurrentSlot += NeedSlot;
     }
 };
 
@@ -1308,28 +1229,12 @@ struct CompactDate
 };
 
 
-template<typename T>
-inline auto FormatAs(const T& arg);
-
-template<typename Char>
-inline auto FormatAs(const StrVariant<Char>& arg)
-{
-    return arg.View;
-}
-template<typename Char>
-inline auto FormatAs(const HashedStrView<Char>& arg)
-{
-    return arg.View;
-}
 template<typename Char>
 inline auto FormatAs(const SharedString<Char>& arg)
 {
     return static_cast<std::basic_string_view<Char>>(arg);
 }
 
-
-template<typename T>
-inline auto FormatWith(const T& arg, FormatterExecutor& executor, FormatterExecutor::Context& context, const FormatSpec* spec);
 
 namespace detail
 {
@@ -1491,7 +1396,7 @@ struct ArgInfo
     }
 
     template<typename T>
-    forceinline static void PackAnArg([[maybe_unused]] ArgPack& pack, [[maybe_unused]] T&& arg, [[maybe_unused]] uint16_t& idx) noexcept
+    forceinline static auto BoxAnArg([[maybe_unused]] T&& arg) noexcept
     {
         if constexpr (!std::is_base_of_v<NamedArgTag, T>)
         {
@@ -1499,54 +1404,52 @@ struct ArgInfo
             if constexpr (common::is_specialization<U, std::basic_string_view>::value ||
                 common::is_specialization<U, std::basic_string>::value)
             {
-                pack.Put(std::pair{ reinterpret_cast<uintptr_t>(arg.data()), arg.size() }, idx);
+                return std::pair{ reinterpret_cast<uintptr_t>(arg.data()), arg.size() };
             }
             else if constexpr (CheckCharType<U>())
             {
-                pack.Put(arg, idx);
+                return arg;
             }
             else if constexpr (std::is_pointer_v<U>)
             {
-                pack.Put(reinterpret_cast<uintptr_t>(arg), idx);
+                return reinterpret_cast<uintptr_t>(arg);
             }
             else if constexpr (std::is_floating_point_v<U>)
             {
-                pack.Put(arg, idx);
+                return arg;
             }
             else if constexpr (std::is_same_v<U, bool>)
             {
-                pack.Put(static_cast<uint16_t>(arg ? 1 : 0), idx);
+                return static_cast<uint16_t>(arg ? 1 : 0);
             }
             else if constexpr (std::is_integral_v<U>)
             {
-                pack.Put(arg, idx);
+                return arg;
             }
             else if constexpr (std::is_same_v<U, CompactDate>)
             {
-                pack.Put(arg, idx);
+                return arg;
             }
             else if constexpr (std::is_same_v<U, std::tm>)
             {
-                pack.Put(CompactDate(arg), idx);
+                return CompactDate(arg);
             }
             else if constexpr (is_specialization<U, std::chrono::time_point>::value)
             {
                 const auto deltaMs = std::chrono::duration_cast<std::chrono::duration<int64_t, std::milli>>(arg.time_since_epoch()).count();
-                pack.Put(deltaMs, idx);
+                return deltaMs;
             }
             else if constexpr (CheckColorType<U>())
             {
-                pack.Put(arg, idx);
+                return arg;
             }
             else if constexpr (is_detected_v<detail::HasFormatAsMemFn, U>)
             {
-                PackAnArg(pack, arg.FormatAs(), idx);
-                return; // index already increased
+                return BoxAnArg(arg.FormatAs());
             }
             else if constexpr (is_detected_v<detail::HasFormatAsSpeFn, U>)
             {
-                PackAnArg(pack, FormatAs(arg), idx);
-                return; // index already increased
+                return BoxAnArg(FormatAs(arg));
             }
             else if constexpr (is_detected_v<detail::HasFormatWithMemFn, U>)
             {
@@ -1554,7 +1457,7 @@ struct ArgInfo
                     {
                         reinterpret_cast<const U*>(data)->FormatWith(executor, context, spec);
                     } };
-                pack.Put(data, idx);
+                return data;
             }
             else if constexpr (is_detected_v<detail::HasFormatWithSpeFn, U>)
             {
@@ -1562,27 +1465,37 @@ struct ArgInfo
                     {
                         FormatWith(*reinterpret_cast<const U*>(data), executor, context, spec);
                     } };
-                pack.Put(data, idx);
+                return data;
             }
             else
             {
                 static_assert(!AlwaysTrue<T>, "unsupported type");
             }
-            idx++;
+        }
+        else
+            return BoxAnArg(arg.Data);
+    }
+    template<typename P, typename T>
+    forceinline static void PackAnArg([[maybe_unused]] P& pack, [[maybe_unused]] T&& arg, [[maybe_unused]] uint16_t& idx) noexcept
+    {
+        if constexpr (!std::is_base_of_v<NamedArgTag, T>)
+        {
+            pack.Put(BoxAnArg(std::forward<T>(arg)), idx++);
         }
     }
-    template<typename T>
-    forceinline static void PackAnNamedArg([[maybe_unused]] ArgPack& pack, [[maybe_unused]] T&& arg, [[maybe_unused]] uint16_t& idx) noexcept
+    template<typename P, typename T>
+    forceinline static void PackAnNamedArg([[maybe_unused]] P& pack, [[maybe_unused]] T&& arg, [[maybe_unused]] uint16_t& idx) noexcept
     {
         if constexpr (std::is_base_of_v<NamedArgTag, T>)
             PackAnArg(pack, arg.Data, idx);
     }
     template<typename... Ts>
-    forceinline static ArgPack PackArgs(Ts&&... args) noexcept
+    forceinline static auto PackArgsStatic(Ts&&... args) noexcept
     {
         constexpr auto ArgCount = sizeof...(Ts);
-        ArgPack pack;
-        pack.Args.resize(ArgCount);
+        constexpr auto ArgSize = (((sizeof(decltype(BoxAnArg(std::forward<Ts>(args)))) + 1) / 2) + ... + size_t(0));
+        StaticArgPack<ArgCount + ArgSize> pack;
+        pack.CurrentSlot = ArgCount;
         uint16_t argIdx = 0;
         (..., PackAnArg     (pack, std::forward<Ts>(args), argIdx));
         (..., PackAnNamedArg(pack, std::forward<Ts>(args), argIdx));
@@ -1595,7 +1508,7 @@ struct ArgChecker
 {
     struct NamedCheckResult
     {
-        ArgPack::NamedMapper Mapper{ 0 };
+        NamedMapper Mapper{ 0 };
         std::optional<uint8_t> AskIndex;
         std::optional<uint8_t> GiveIndex;
     };
@@ -1693,30 +1606,30 @@ struct ArgChecker
     }
     SYSCOMMONAPI static void CheckDDBasic(const StrArgInfo& strInfo, const ArgInfo& argInfo);
     template<typename Char>
-    SYSCOMMONAPI static ArgPack::NamedMapper CheckDDNamedArg(const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo);
+    SYSCOMMONAPI static NamedMapper CheckDDNamedArg(const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo);
     template<typename Char>
-    static ArgPack::NamedMapper CheckDD(const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo)
+    static NamedMapper CheckDD(const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo)
     {
         CheckDDBasic(strInfo, argInfo);
         return CheckDDNamedArg(strInfo, argInfo);
     }
     template<typename Char, uint16_t Op, uint8_t Na, uint8_t Ia>
-    static ArgPack::NamedMapper CheckDD(const TrimedResult<Char, Op, Na, Ia>& res, const ArgInfo& argInfo)
+    static NamedMapper CheckDD(const TrimedResult<Char, Op, Na, Ia>& res, const ArgInfo& argInfo)
     {
         return CheckDD(res.ToStrArgInfo(), argInfo);
     }
     template<typename T, typename... Args>
-    static ArgPack::NamedMapper CheckDS(const T& strInfo, Args&&...)
+    static NamedMapper CheckDS(const T& strInfo, Args&&...)
     {
         return CheckDD(strInfo, ArgInfo::ParseArgs<Args...>());
     }
     template<typename StrType>
-    static ArgPack::NamedMapper CheckSD(StrType&& strInfo, const ArgInfo& argInfo)
+    static NamedMapper CheckSD(StrType&& strInfo, const ArgInfo& argInfo)
     {
         return CheckDD(strInfo, argInfo);
     }
     template<typename StrType, typename... Args>
-    static constexpr ArgPack::NamedMapper CheckSS(const StrType&, Args&&...)
+    static constexpr NamedMapper CheckSS(const StrType&, Args&&...)
     {
         constexpr StrType StrInfo;
         //const TrimedResult<OpCount, NamedArgCount, IdxArgCount>& cookie
@@ -1728,7 +1641,7 @@ struct ArgChecker
             constexpr auto Index = GetIdxArgMismatch(StrInfo.IndexTypes, ArgsInfo.IndexTypes, StrInfo.IdxArgCount);
             CheckIdxArgMismatch<Index>();
         }
-        ArgPack::NamedMapper mapper = { 0 };
+        NamedMapper mapper = { 0 };
         if constexpr (StrInfo.NamedArgCount > 0)
         {
             constexpr auto NamedRet = GetNamedArgMismatch(StrInfo.NamedTypes, StrInfo.FormatString, StrInfo.NamedArgCount,
@@ -1753,7 +1666,7 @@ protected:
     struct StaticExecutor;
 public:
     template<typename Char>
-    SYSCOMMONAPI static void FormatTo(Formatter<Char>& formatter, std::basic_string<Char>& ret, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
+    SYSCOMMONAPI static void FormatTo(Formatter<Char>& formatter, std::basic_string<Char>& ret, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, span<const uint16_t> argStore, const NamedMapper& mapping);
 };
 
 struct SpecReader
@@ -1876,16 +1789,15 @@ public:
         // const auto strInfo = res.ToStrArgInfo();
         const auto mapping = ArgChecker::CheckSS(StrInfo, std::forward<Args>(args)...);
         static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
-        auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
-        argPack.Mapper = mapping;
-        FormatterBase::FormatTo<Char>(*this, dst, StrInfo, ArgsInfo, argPack);
+        const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
+        FormatterBase::FormatTo<Char>(*this, dst, StrInfo, ArgsInfo, argStore.ArgStore, mapping);
     }
     template<typename... Args>
     forceinline void FormatToDynamic(std::basic_string<Char>& dst, std::basic_string_view<Char> format, Args&&... args)
     {
         static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
-        auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
-        FormatToDynamic_(dst, format, ArgsInfo, argPack);
+        const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
+        FormatToDynamic_(dst, format, ArgsInfo, argStore.ArgStore);
     }
     template<typename T, typename... Args>
     forceinline std::basic_string<Char> FormatStatic(T&& res, Args&&... args)
@@ -1902,166 +1814,7 @@ public:
         return ret;
     }
 private:
-    SYSCOMMONAPI void FormatToDynamic_(std::basic_string<Char>& dst, std::basic_string_view<Char> format, const ArgInfo& argInfo, ArgPack& argPack);
-};
-
-template<typename Char, typename Fmter>
-struct CombinedExecutor : public FormatterExecutor, protected Fmter
-{
-    static_assert(std::is_base_of_v<Formatter<Char>, Fmter>, "Fmter need to derive from Formatter<Char>");
-    using CFmter = CommonFormatter<Char>;
-    using CTX = FormatterExecutor::Context;
-    struct Context : public CTX
-    {
-        std::basic_string<Char>& Dst;
-        std::basic_string_view<Char> FmtStr;
-        constexpr Context(std::basic_string<Char>& dst, std::basic_string_view<Char> fmtstr) noexcept : 
-            Dst(dst), FmtStr(fmtstr) { }
-    };
-
-    void OnBrace(CTX& ctx, bool isLeft) final
-    {
-        auto& context = static_cast<Context&>(ctx);
-        context.Dst.push_back(ParseLiterals<Char>::BracePair[isLeft ? 0 : 1]);
-    }
-    void OnColor(CTX& ctx, ScreenColor color) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter::PutColor(context.Dst, color);
-    }
-    
-    void PutString(CTX& ctx, ::std::   string_view str, const OpaqueFormatSpec& spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        CFmter::PutString(context.Dst, str, &spec);
-    }
-    void PutString(CTX& ctx, ::std::u16string_view str, const OpaqueFormatSpec& spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        CFmter::PutString(context.Dst, str, &spec);
-    }
-    void PutString(CTX& ctx, ::std::u32string_view str, const OpaqueFormatSpec& spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        CFmter::PutString(context.Dst, str, &spec);
-    }
-    void PutInteger(CTX& ctx, uint32_t val, bool isSigned, const OpaqueFormatSpec& spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        CFmter::PutInteger(context.Dst, val, isSigned, spec);
-    }
-    void PutInteger(CTX& ctx, uint64_t val, bool isSigned, const OpaqueFormatSpec& spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        CFmter::PutInteger(context.Dst, val, isSigned, spec);
-    }
-    void PutFloat  (CTX& ctx, float  val, const OpaqueFormatSpec& spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        CFmter::PutFloat(context.Dst, val, spec);
-    }
-    void PutFloat  (CTX& ctx, double val, const OpaqueFormatSpec& spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        CFmter::PutFloat(context.Dst, val, spec);
-    }
-    void PutPointer(CTX& ctx, uintptr_t val, const OpaqueFormatSpec& spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        CFmter::PutPointer(context.Dst, val, spec);
-    }
-
-    void PutString(CTX& ctx, std::   string_view str, const FormatSpec* spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter::PutString(context.Dst, str, spec);
-    }
-    void PutString(CTX& ctx, std::u16string_view str, const FormatSpec* spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter::PutString(context.Dst, str, spec);
-    }
-    void PutString(CTX& ctx, std::u32string_view str, const FormatSpec* spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter::PutString(context.Dst, str, spec);
-    }
-    void PutInteger(CTX& ctx, uint32_t val, bool isSigned, const FormatSpec* spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter::PutInteger(context.Dst, val, isSigned, spec);
-    }
-    void PutInteger(CTX& ctx, uint64_t val, bool isSigned, const FormatSpec* spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter::PutInteger(context.Dst, val, isSigned, spec);
-    }
-    void PutFloat  (CTX& ctx, float  val, const FormatSpec* spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter::PutFloat(context.Dst, val, spec);
-    }
-    void PutFloat  (CTX& ctx, double val, const FormatSpec* spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter::PutFloat(context.Dst, val, spec);
-    }
-    void PutPointer(CTX& ctx, uintptr_t val, const FormatSpec* spec) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter::PutPointer(context.Dst, val, spec);
-    }
-    void PutDate   (CTX& ctx, std::string_view fmtStr, const std::tm& date) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter::PutDateBase(context.Dst, fmtStr, date);
-    }
-protected:
-    using Fmter::PutString;
-    using Fmter::PutInteger;
-    using Fmter::PutFloat;
-    using Fmter::PutPointer;
-    using Fmter::PutDate;
-private:
-    void OnFmtStr(CTX& ctx, uint32_t offset, uint32_t length) final
-    {
-        auto& context = static_cast<Context&>(ctx);
-        context.Dst.append(context.FmtStr.data() + offset, length);
-    }
-};
-
-template<typename Char>
-struct FormatterBase::StaticExecutor
-{
-    struct Context 
-    {
-        std::basic_string<Char>& Dst;
-        const StrArgInfoCh<Char>& StrInfo;
-        const ArgInfo& TheArgInfo;
-        const ArgPack& TheArgPack;
-    };
-    Formatter<Char>& Fmter;
-    template<typename T>
-    forceinline static std::basic_string_view<T> BuildStr(uintptr_t ptr, size_t len) noexcept
-    {
-        const auto arg = reinterpret_cast<const T*>(ptr);
-        if (len == SIZE_MAX)
-            len = std::char_traits<T>::length(arg);
-        return { arg, len };
-    }
-    forceinline void OnFmtStr(Context& context, uint32_t offset, uint32_t length)
-    {
-        context.Dst.append(context.StrInfo.FormatString.data() + offset, length);
-    }
-    forceinline void OnBrace(Context& context, bool isLeft)
-    {
-        context.Dst.push_back(ParseLiterals<Char>::BracePair[isLeft ? 0 : 1]);
-    }
-    forceinline void OnColor(Context& context, ScreenColor color)
-    {
-        Fmter.PutColor(context.Dst, color);
-    }
-    SYSCOMMONAPI void OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
+    SYSCOMMONAPI void FormatToDynamic_(std::basic_string<Char>& dst, std::basic_string_view<Char> format, const ArgInfo& argInfo, span<const uint16_t> argStore);
 };
 
 

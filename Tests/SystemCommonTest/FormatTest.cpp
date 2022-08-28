@@ -655,10 +655,10 @@ TEST(Format, CheckArg)
 }
 
 template<typename T>
-void CheckPackedArg(const ArgPack& pack, uint16_t idx, const T& val)
+void CheckPackedArg(common::span<const uint16_t> argStore, uint16_t idx, const T& val)
 {
-    const auto offset = pack.Args[idx];
-    const auto ptr = reinterpret_cast<const T*>(&pack.Args[offset]);
+    const auto offset = argStore[idx];
+    const auto ptr = reinterpret_cast<const T*>(&argStore[offset]);
     EXPECT_EQ(*ptr, val);
 }
 
@@ -669,13 +669,13 @@ TEST(Format, PackArg)
     int16_t var2 = -8;
     const auto var3 = U"y";
     {
-        const auto pack = ArgInfo::PackArgs(var0, var1, var2, var3);
-        ASSERT_GT(pack.Args.size(), 4u);
+        const auto store = ArgInfo::PackArgsStatic(var0, var1, var2, var3);
+        ASSERT_GT(store.ArgStore.size(), 4u);
         const auto var0_ = std::pair{var0.data(), var0.size()};
-        CheckPackedArg(pack, 0, var0_);
-        CheckPackedArg(pack, 1, var1);
-        CheckPackedArg(pack, 2, var2);
-        CheckPackedArg(pack, 3, var3);
+        CheckPackedArg(store.ArgStore, 0, var0_);
+        CheckPackedArg(store.ArgStore, 1, var1);
+        CheckPackedArg(store.ArgStore, 2, var2);
+        CheckPackedArg(store.ArgStore, 3, var3);
     }
 }
 

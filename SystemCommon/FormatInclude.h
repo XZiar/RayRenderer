@@ -131,4 +131,22 @@ protected:
 };
 
 
+template<typename T>
+inline auto FormatAs(const T& arg);
+
+template<typename T>
+inline auto FormatWith(const T& arg, FormatterExecutor& executor, FormatterExecutor::Context& context, const FormatSpec* spec);
+
+template<typename Char>
+inline auto FormatAs(const StrVariant<Char>& arg)
+{
+    return arg.View;
+}
+template<typename Char>
+inline auto FormatAs(const HashedStrView<Char>& arg)
+{
+    return arg.View;
+}
+
+
 }

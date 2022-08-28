@@ -167,8 +167,8 @@ protected:
     LoggerName Prefix;
     std::set<std::shared_ptr<LoggerBackend>> Outputer;
 
-    SYSCOMMONAPI LogMessage* GenerateMessage(const LogLevel level, const str::StrArgInfoCh<char16_t>& strInfo, const str::ArgInfo& argInfo, const str::ArgPack& argPack) const;
-    SYSCOMMONAPI LogMessage* GenerateMessage(const LogLevel level, std::basic_string_view<char16_t> formatter, const str::ArgInfo& argInfo,       str::ArgPack& argPack) const;
+    SYSCOMMONAPI LogMessage* GenerateMessage(const LogLevel level, const str::StrArgInfoCh<char16_t>& strInfo, const str::ArgInfo& argInfo, span<const uint16_t> argStore, const str::NamedMapper& mapping) const;
+    SYSCOMMONAPI LogMessage* GenerateMessage(const LogLevel level, std::basic_string_view<char16_t> formatter, const str::ArgInfo& argInfo, span<const uint16_t> argStore) const;
     template<typename Char>
     forceinline  LogMessage* GenerateMessage(const LogLevel level, const std::basic_string_view<Char> str) const
     {
@@ -259,10 +259,9 @@ public:
 
             constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
             const auto mapping = ArgChecker::CheckDD(formatter, ArgsInfo);
-            auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
-            argPack.Mapper = mapping;
+            const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
 
-            msg = GenerateMessage(level, formatter, ArgsInfo, argPack);
+            msg = GenerateMessage(level, formatter, ArgsInfo, argStore, mapping);
         }
         else if constexpr (std::is_base_of_v<CompileTimeFormatter, U>)
         {
@@ -271,10 +270,9 @@ public:
 
             constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
             const auto mapping = ArgChecker::CheckSS(formatter, std::forward<Args>(args)...);
-            auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
-            argPack.Mapper = mapping;
+            const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
 
-            msg = GenerateMessage(level, formatter.ToStrArgInfo(), ArgsInfo, argPack);
+            msg = GenerateMessage(level, formatter.ToStrArgInfo(), ArgsInfo, argStore.ArgStore, mapping);
         }
         else
         {
@@ -289,8 +287,8 @@ public:
                 static_assert(std::is_same_v<Char, char16_t>, "Log formatter need to be char16_t");
 
                 constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
-                auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
-                msg = GenerateMessage(level, fmtSv, ArgsInfo, argPack);
+                const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
+                msg = GenerateMessage(level, fmtSv, ArgsInfo, argStore.ArgStore);
             }
         }
 

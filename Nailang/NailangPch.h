@@ -5,6 +5,7 @@
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/MiscIntrins.h"
 #include "SystemCommon/Format.h"
+#include "SystemCommon/FormatExtra.h"
 #include "SystemCommon/StringConvert.h"
 
 #include "common/parser/ParserBase.hpp"
