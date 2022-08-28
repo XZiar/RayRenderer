@@ -2,6 +2,7 @@
 #include "AsyncAgent.h"
 #include "AsyncManager.h"
 #include "StringFormat.h"
+#include "3rdParty/fmt/include/fmt/compile.h"
 #define BOOST_CONTEXT_STATIC_LINK 1
 #define BOOST_CONTEXT_NO_LIB 1
 #include "3rdParty/boost.context/include/boost/context/continuation.hpp"
@@ -151,7 +152,7 @@ uint32_t AsyncManager::PreCheckTask(std::u16string& taskName)
 {
     const auto tuid = TaskUid.fetch_add(1, std::memory_order_relaxed);
     if (taskName == u"")
-        taskName = fmt::format(u"task {}", tuid);
+        taskName = fmt::format(FMT_COMPILE(u"task {}"), tuid);
     if (!AllowStopAdd && !IsRunning()) //has stopped
     {
         Logger.Warning(u"New task cancelled due to termination [{}] [{}]\n"sv, tuid, taskName);

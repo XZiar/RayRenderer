@@ -1164,7 +1164,7 @@ using NamedMapper = std::array<uint8_t, ParseResult::NamedArgSlots>;
 template<uint16_t N>
 struct StaticArgPack
 {
-    std::array<uint16_t, N> ArgStore = { 0 };
+    std::array<uint16_t, N == 0 ? uint16_t(1) : N> ArgStore = { 0 };
     uint16_t CurrentSlot = 0;
     template<typename T>
     forceinline void Put(T arg, uint16_t idx) noexcept

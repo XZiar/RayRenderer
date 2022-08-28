@@ -756,7 +756,7 @@ forceinline static void VECCALL Sha256Block256(Calc& calc, U32x8 msg01, U32x8 ms
     /* Save current state */
     const auto abef_save = calc.State0;
     const auto cdgh_save = calc.State1;
-    U32x4 msg0 = msg01.GetLoLane(), msg1 = msg01.GetHiLane(), msg2 = msg23.GetLoLane(), msg3 = msg23.GetHiLane(), msgLo;
+    U32x4 msg0 = msg01.GetLoLane(), msg1 = msg01.GetHiLane(), msg2 = msg23.GetLoLane(), msg3 = msg23.GetHiLane();
     ///* Rounds 0-3 */ calc.template Calc< 0>(msg3, msg0, msg1);
     ///* Rounds 4-7 */ calc.template Calc< 1>(msg0, msg1, msg2);
     /* Rounds 0-7 */

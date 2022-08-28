@@ -232,7 +232,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCL(const ImageView src, c
 PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCPU(const ImageView src, const bool isSRGB, const uint8_t levels)
 {
     auto infos = GenerateInfo(src.GetWidth(), src.GetHeight(), levels);
-    return Worker->AddTask([this, isSRGB, src, infos = std::move(infos)](const common::asyexe::AsyncAgent& agent) mutable
+    return Worker->AddTask([isSRGB, src, infos = std::move(infos)](const common::asyexe::AsyncAgent& agent) mutable
     {
         vector<Image> images;
         auto img = src;

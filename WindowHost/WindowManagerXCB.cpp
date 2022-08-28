@@ -104,8 +104,8 @@ private:
     uint8_t XKBErrorID = 0;
     bool IsCapsLock = false;
 
-    std::string_view Name() const noexcept { return BackendName; }
-    bool CheckFeature(std::string_view feat) const noexcept
+    std::string_view Name() const noexcept final { return BackendName; }
+    bool CheckFeature(std::string_view feat) const noexcept final
     {
         constexpr std::string_view Features[] =
         {

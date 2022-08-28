@@ -263,6 +263,7 @@ public:
         [[nodiscard]] virtual void* GetHDC() const noexcept = 0;
         [[nodiscard]] virtual void* GetHWND() const noexcept = 0;
     };
+    using WindowBackend::Create;
     [[nodiscard]] virtual std::shared_ptr<Win32WdHost> Create(const Win32CreateInfo& info = {}) = 0;
 };
 using Win32WdHost = std::shared_ptr<Win32Backend::Win32WdHost>;
@@ -292,6 +293,7 @@ public:
         CheckIfInited();
         OnInitialize(&info);
     }
+    using WindowBackend::Create;
     [[nodiscard]] virtual std::shared_ptr<XCBWdHost> Create(const XCBCreateInfo& info = {}) = 0;
     [[nodiscard]] virtual void* GetDisplay() const noexcept = 0;
     [[nodiscard]] virtual void* GetConnection() const noexcept = 0;
@@ -315,6 +317,7 @@ public:
     public:
         [[nodiscard]] virtual void* GetWindow() const noexcept = 0;
     };
+    using WindowBackend::Create;
     [[nodiscard]] virtual std::shared_ptr<CocoaWdHost> Create(const CocoaCreateInfo& info = {}) = 0;
 };
 using XCBWdHost = std::shared_ptr<XCBBackend::XCBWdHost>;
