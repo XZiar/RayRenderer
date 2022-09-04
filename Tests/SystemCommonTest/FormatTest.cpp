@@ -746,7 +746,7 @@ TEST(Format, Perf)
 {
     constexpr uint32_t times = 100000;
     common::SimpleTimer timer;
-    /*std::string ref[4];
+    std::string ref[4];
     {
         uint64_t timens = 0;
         for (uint32_t i = 0; i < times; ++i)
@@ -811,7 +811,7 @@ TEST(Format, Perf)
         }
         TestCout() << "[fmt-dyn] u8 use avg[" << (timens / times) << "]ns to finish\n";
         EXPECT_TRUE(ref[3] == ref[0]);
-    }*/
+    }
 
 
     std::string csf[3];
@@ -828,9 +828,9 @@ TEST(Format, Perf)
             timens += timer.ElapseNs();
         }
         TestCout() << "[csf-dyn] u8 use avg[" << (timens / times) << "]ns to finish\n";
-        //EXPECT_TRUE(csf[0] == ref[0]);
+        EXPECT_TRUE(csf[0] == ref[0]);
     }
-    /*{
+    {
         uint64_t timens = 0;
         for (uint32_t i = 0; i < times; ++i)
         {
@@ -844,6 +844,6 @@ TEST(Format, Perf)
         }
         TestCout() << "[csf-sta] u8 use avg[" << (timens / times) << "]ns to finish\n";
         EXPECT_TRUE(csf[1] == csf[0]);
-    }*/
+    }
 
 }

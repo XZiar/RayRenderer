@@ -111,13 +111,13 @@ void ArgChecker::CheckDDBasic(const StrArgInfo& strInfo, const ArgInfo& argInfo)
 {
     const auto strIndexArgCount = static_cast<uint8_t>(strInfo.IndexTypes.size());
     const auto strNamedArgCount = static_cast<uint8_t>(strInfo.NamedTypes.size());
-    if (argInfo.IdxArgCount < strIndexArgCount)
+    IF_UNLIKELY(argInfo.IdxArgCount < strIndexArgCount)
     {
         COMMON_THROW(ArgMismatchException, fmt::format(u"No enough indexed arg, expects [{}], has [{}]"sv,
             strIndexArgCount, argInfo.IdxArgCount), ArgMismatchException::Reasons::TooLessIndexArg,
             std::pair{ argInfo.IdxArgCount, strIndexArgCount }, std::pair{ argInfo.NamedArgCount, strNamedArgCount });
     }
-    if (argInfo.NamedArgCount < strNamedArgCount)
+    IF_UNLIKELY(argInfo.NamedArgCount < strNamedArgCount)
     {
         COMMON_THROW(ArgMismatchException, fmt::format(u"No enough named arg, expects [{}], has [{}]"sv,
             strNamedArgCount, argInfo.NamedArgCount), ArgMismatchException::Reasons::TooLessNamedArg,
@@ -126,7 +126,7 @@ void ArgChecker::CheckDDBasic(const StrArgInfo& strInfo, const ArgInfo& argInfo)
     if (strIndexArgCount > 0)
     {
         const auto index = ArgChecker::GetIdxArgMismatch(strInfo.IndexTypes.data(), argInfo.IndexTypes, strIndexArgCount);
-        if (index != ParseResultCommon::IdxArgSlots)
+        IF_UNLIKELY(index != ParseResultCommon::IdxArgSlots)
             COMMON_THROW(ArgMismatchException, fmt::format(u"IndexArg[{}] type mismatch"sv, index),
                 std::pair{ argInfo.IdxArgCount, strIndexArgCount }, std::pair{ argInfo.NamedArgCount, strNamedArgCount },
                 static_cast<uint8_t>(index), std::pair{ strInfo.IndexTypes[index], argInfo.IndexTypes[index] & ArgRealType::BaseTypeMask });
@@ -210,7 +210,7 @@ struct FormatterHelper : public FormatterBase
             spec.align = fmt::align::numeric;
         else
         {
-            switch (in.Alignment)
+            SWITCH_LIKELY(in.Alignment, FormatSpec::Align::None)
             {
             default:
             case FormatSpec::Align::None:   spec.align = fmt::align::none;   break;
@@ -264,7 +264,7 @@ struct FormatterHelper : public FormatterBase
             spec.Fill8 [0] =  '0';
             spec.Count32 = spec.Count16 = spec.Count8;
         }
-        else if (fill == ' ') // fast pass
+        else IF_LIKELY(fill == ' ') // fast pass
         {
             spec.Fill32[0] = U' ';
             spec.Fill16[0] = u' ';
@@ -300,7 +300,7 @@ struct FormatterHelper : public FormatterBase
     }
     static forceinline constexpr fmt::sign_t ConvertSpecSign(const FormatSpec::Sign sign) noexcept
     {
-        switch (sign)
+        SWITCH_LIKELY(sign, FormatSpec::Sign::None)
         {
         default:
         case FormatSpec::Sign::None:  return fmt::sign::none;
@@ -437,7 +437,7 @@ struct FormatterHelper : public FormatterBase
 
 bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src, ArgRealType real, ArgDispType disp) noexcept
 {
-    if (!ArgChecker::CheckCompatible(disp, real))
+    IF_UNLIKELY(!ArgChecker::CheckCompatible(disp, real))
         return false;
     if (src)
         FormatterHelper::ConvertSpecFill(dst, src->ZeroPad, static_cast<char32_t>(src->Fill));
@@ -456,9 +456,7 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
             spec.type = fmt::presentation_type::string;
         break;
     case ArgRealType::Bool:
-        if (disp == ArgDispType::Char)
-            spec.type = fmt::presentation_type::string;
-        else if (disp == ArgDispType::Char)
+        IF_UNLIKELY(disp == ArgDispType::Integer || disp == ArgDispType::Numeric)
         {
             if (src)
                 spec.type = FormatterHelper::ConvertSpecIntPresent(*src);
@@ -477,7 +475,7 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
         }
         break;
     case ArgRealType::Char:
-        if (disp == ArgDispType::Char || disp == ArgDispType::Any)
+        IF_LIKELY(disp == ArgDispType::Char || disp == ArgDispType::Any)
         {
             spec.type = fmt::presentation_type::string;
             break;
@@ -485,7 +483,7 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
         [[fallthrough]];
     case ArgRealType::SInt:
     case ArgRealType::UInt:
-        ABORT_CHECK(disp == ArgDispType::Integer || disp == ArgDispType::Any);
+        ABORT_CHECK(disp == ArgDispType::Integer || disp == ArgDispType::Numeric || disp == ArgDispType::Any);
         if (src)
             spec.type = FormatterHelper::ConvertSpecIntPresent(*src);
         break;
@@ -501,10 +499,10 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view s
     ParseResultBase res;
     FormatterParser::FormatSpec spec_;
     FormatterParserCh<char32_t>::ParseFormatSpec(res, spec_, 0, spectxt);
-    if (res.ErrorPos != UINT16_MAX)
+    IF_UNLIKELY(res.ErrorPos != UINT16_MAX)
         return false;
     const auto disp = spec_.Type.Type;
-    if (!ArgChecker::CheckCompatible(disp, real))
+    IF_UNLIKELY(!ArgChecker::CheckCompatible(disp, real))
         return false;
 
     FormatterHelper::ConvertSpecFill(dst, spec_.ZeroPad, static_cast<char32_t>(spec_.Fill));
@@ -520,9 +518,7 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view s
             spec.type = fmt::presentation_type::string;
         break;
     case ArgRealType::Bool:
-        if (disp == ArgDispType::Char)
-            spec.type = fmt::presentation_type::string;
-        else if (disp == ArgDispType::Char)
+        IF_UNLIKELY(disp == ArgDispType::Integer || disp == ArgDispType::Numeric)
             spec.type = FormatterHelper::ConvertSpecIntPresent(spec_);
         else
             spec.type = fmt::presentation_type::string;
@@ -535,7 +531,7 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view s
         spec.sign = FormatterHelper::ConvertSpecSign(spec_.SignFlag);
         break;
     case ArgRealType::Char:
-        if (disp == ArgDispType::Char || disp == ArgDispType::Any)
+        IF_LIKELY(disp == ArgDispType::Char || disp == ArgDispType::Any)
         {
             spec.type = fmt::presentation_type::string;
             break;
@@ -543,7 +539,7 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view s
         [[fallthrough]];
     case ArgRealType::SInt:
     case ArgRealType::UInt:
-        ABORT_CHECK(disp == ArgDispType::Integer || disp == ArgDispType::Any);
+        ABORT_CHECK(disp == ArgDispType::Integer || disp == ArgDispType::Numeric || disp == ArgDispType::Any);
         spec.type = FormatterHelper::ConvertSpecIntPresent(spec_);
         break;
     default:
@@ -694,9 +690,9 @@ inline void Formatter<Char>::PutColorArg(StrType& ret, ScreenColor color, const 
     const bool shouldPrint = !spec || (spec->Alignment != FormatSpec::Align::Right);
     if (shouldPrint)
     {
-        switch (color.Type)
+        SWITCH_LIKELY(color.Type, ScreenColor::ColorType::Common)
         {
-        case ScreenColor::ColorType::Common:
+        CASE_LIKELY(ScreenColor::ColorType::Common):
             PutString(ret, GetColorName(static_cast<CommonColor>(color.Value[0])), nullptr);
             break;
         case ScreenColor::ColorType::Bit8:
@@ -1010,7 +1006,7 @@ constexpr auto ShortLenMap = []()
             SpecSize += ShortLenMap[val1 >> 2];
         }
         const bool hasExtraFmt = val0 & 0b10000;
-        if (hasExtraFmt)
+        IF_UNLIKELY(hasExtraFmt)
         {
             SpecSize += val0 & 0x80 ? 2 : 1;
             SpecSize += val0 & 0x40 ? 2 : 1;
@@ -1086,7 +1082,7 @@ forceinline uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, T& exe
         case FormatterParser::ColorOp::Op:
         {
             const bool isBG = opfield & FormatterParser::ColorOp::FieldBackground;
-            if (opfield & FormatterParser::ColorOp::FieldSpecial)
+            IF_UNLIKELY(opfield & FormatterParser::ColorOp::FieldSpecial)
             {
                 switch (opdata)
                 {
@@ -1104,7 +1100,7 @@ forceinline uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, T& exe
                     break;
                 }
             }
-            else
+            ELSE_LIKELY
             {
                 executor.OnColor(context, { isBG, static_cast<CommonColor>(opdata) });
             }
@@ -1357,7 +1353,7 @@ forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, ui
             ptr = *reinterpret_cast<const uintptr_t*>(argPtr);
         else
             std::tie(ptr, len) = *reinterpret_cast<const std::pair<uintptr_t, size_t>*>(argPtr);
-        if (fmtType == ArgDispType::Pointer)
+        IF_UNLIKELY(fmtType == ArgDispType::Pointer)
         {
             Fmter.PutPointer(context.Dst, ptr, spec);
         }
@@ -1387,11 +1383,11 @@ forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, ui
             else
                 static_assert(!AlwaysTrue<Char>, "unsupported char size");
         }
-        else if (fmtType == ArgDispType::Integer || fmtType == ArgDispType::Numeric)
+        else IF_UNLIKELY(fmtType == ArgDispType::Integer || fmtType == ArgDispType::Numeric)
         {
             Fmter.PutInteger(context.Dst, val ? 1u : 0u, false, spec);
         }
-        else
+        ELSE_LIKELY
         {
             ABORT_CHECK(fmtType == ArgDispType::String || fmtType == ArgDispType::Any);
             Fmter.PutString(context.Dst, GetStrTrueFalse<SimChar<Char>>(val), nullptr);
@@ -1441,7 +1437,6 @@ forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, ui
     } return;
     case ArgRealType::Float:
     {
-        ABORT_CHECK(fmtType == ArgDispType::Float || fmtType == ArgDispType::Numeric || fmtType == ArgDispType::Any);
         switch (intSize)
         {
         case RealSizeInfo::Byte2: Fmter.PutFloat(context.Dst, static_cast<float>(*reinterpret_cast<const half_float::half*>(argPtr)), spec); break;
@@ -1453,7 +1448,7 @@ forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, ui
     // Below are integer
     case ArgRealType::Char:
     {
-        if (fmtType == ArgDispType::Char || fmtType == ArgDispType::Any)
+        IF_LIKELY(fmtType == ArgDispType::Char || fmtType == ArgDispType::Any)
         {
             switch (intSize)
             {

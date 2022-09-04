@@ -45,6 +45,7 @@
     - [x] Make arg spec decoding delayed so cached spec can be helpful
     - [ ] Make parsing use template host, so runtime parsing can use fast-path, or directly store into dynamic storage
     - [ ] Add support for custom type format spec check with allocated error code slot
+    - [ ] Add support to use arg to specify spec width/precision
     - [ ] Add encoding conversion with segement info
     - [ ] Make r-value arg packing use deep copy 
   * MiniLogger

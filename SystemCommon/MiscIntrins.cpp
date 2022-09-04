@@ -952,7 +952,7 @@ forceinline void WaitFramework(FL&& lock, FF&& fix)
 {
     for (uint32_t i = 0; i < 16; ++i)
     {
-        if (lock()) return;
+        IF_LIKELY(lock()) return;
         fix();
         COMMON_PAUSE();
     }
@@ -961,11 +961,11 @@ forceinline void WaitFramework(FL&& lock, FF&& fix)
         uint32_t delays[2] = { 512, 256 };
         for (uint32_t i = 0; i < 8; ++i)
         {
-            if (lock()) return;
+            IF_LIKELY(lock()) return;
             fix();
             MiscIntrin.Pause(delays[0]);
             delays[0] <<= 1;
-            if (lock()) return;
+            IF_LIKELY(lock()) return;
             fix();
             MiscIntrin.Pause(delays[1]);
             delays[1] <<= 1;

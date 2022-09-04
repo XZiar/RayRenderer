@@ -176,6 +176,16 @@
 
 
 
+/* builtin check */
+
+#if defined(__has_builtin)
+#   define CM_HAS_BUILTIN(x) __has_builtin(x)
+#else
+#   define CM_HAS_BUILTIN(x) 0
+#endif
+
+
+
 /* over-aligned support */
 
 #if COMMON_CPP_17 && defined(__cpp_aligned_new) && __cpp_aligned_new >= 201606L
@@ -217,6 +227,57 @@ using u8ch_t = char;
 
 /* c++ version compatible defines */
 
+
+
+
+/* likely-unlikely */
+
+#if defined(__has_cpp_attribute) && __has_cpp_attribute(likely)
+#   define IF_LIKELY(x)         if (x) [[likely]]
+#   define IF_UNLIKELY(x)       if (x) [[unlikely]]
+#   define ELSE_LIKELY          else [[likely]]
+#   define ELSE_UNLIKELY        else [[unlikely]]
+#   define SWITCH_LIKELY(x, y)  switch (x)
+#   define CASE_LIKELY(x)       [[likely]] case x
+#elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
+#   define IF_LIKELY(x)         if (__builtin_expect(!!(x), 1))
+#   define IF_UNLIKELY(x)       if (__builtin_expect(!!(x), 0))
+#   define ELSE_LIKELY          else
+#   define ELSE_UNLIKELY        else
+#   define SWITCH_LIKELY(x, y)  switch (static_cast<decltype(x)>(__builtin_expect(static_cast<long>(x), static_cast<long>(y))))
+#   define CASE_LIKELY(x)       case x
+#else
+#   define IF_LIKELY(x)         if (x)
+#   define IF_UNLIKELY(x)       if (x)
+#   define ELSE_LIKELY          else
+#   define ELSE_UNLIKELY        else
+#   define SWITCH_LIKELY(x, y)  switch (x)
+#   define CASE_LIKELY(x)       case x
+#endif
+#if COMMON_COMPILER_MSVC || COMMON_COMPILER_ICC
+#   define CM_ASSUME(x) __assume(!!(x))
+#elif CM_HAS_BUILTIN(__builtin_assume)
+#   define CM_ASSUME(x) __builtin_assume(!!(x))
+#elif COMMON_COMPILER_GCC || CM_HAS_BUILTIN(__builtin_unreachable)
+#   define CM_ASSUME(x) ((x) ? void(0) : __builtin_unreachable())
+#else
+#   define CM_ASSUME(x) void(0)
+#endif
+#if CM_HAS_BUILTIN(__builtin_unpredictable)
+#   define CM_UNPREDICT(x)      static_cast<decltype(x)>(__builtin_unpredictable(static_cast<long>(x)))
+#   define CM_UNPREDICT_BOOL(x) static_cast<bool>       (__builtin_unpredictable(!!(x)))
+#elif CM_HAS_BUILTIN(__builtin_expect_with_probability)
+#   define CM_UNPREDICT(x)      x
+#   define CM_UNPREDICT_BOOL(x) static_cast<bool>       (__builtin_expect_with_probability(!!(x), 1, 0.5))
+#else
+#   define CM_UNPREDICT(x)      x
+#   define CM_UNPREDICT_BOOL(x) static_cast<bool>(x)
+#endif
+#if COMMON_COMPILER_GCC || CM_HAS_BUILTIN(__builtin_unreachable)
+#   define CM_UNREACHABLE() __builtin_unreachable()
+#else
+#   define CM_UNREACHABLE() CM_ASSUME(0)
+#endif
 
 
 
