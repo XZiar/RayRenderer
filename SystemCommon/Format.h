@@ -9,6 +9,10 @@
 #include <chrono>
 #include <ctime>
 
+#if COMMON_COMPILER_CLANG
+#   pragma clang diagnostic push
+#   pragma clang diagnostic ignored "-Wassume"
+#endif
 namespace common::str
 {
 
@@ -430,6 +434,7 @@ struct FormatterParser
             {
                 uint8_t output[SpecLength[1]] = { 0 };
                 const auto tailopcnt = EncodeSpec(*spec, output);
+                CM_ASSUME(tailopcnt <= SpecLength[1]);
                 auto space = result->ReserveSpace(offset, tailopcnt);
                 IF_UNLIKELY(!space) return false;
                 for (uint32_t i = 0; i < tailopcnt; ++i)
@@ -639,7 +644,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         // [[fill]align]
         // fill        ::=  <a character other than '{' or '}'>
         // align       ::=  "<" | ">" | "^"
-        switch (CM_UNPREDICT(str[0]))
+        switch (str[0])
         {
         case Char_LT: fmtSpec.Alignment = FormatSpec::Align::Left;   return 1;
         case Char_GT: fmtSpec.Alignment = FormatSpec::Align::Right;  return 1;
@@ -648,7 +653,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         }
         if (str.size() >= 2)
         {
-            switch (CM_UNPREDICT(str[1]))
+            switch (str[1])
             {
             case Char_LT: fmtSpec.Alignment = FormatSpec::Align::Left;   fmtSpec.Fill = str[0]; return 2;
             case Char_GT: fmtSpec.Alignment = FormatSpec::Align::Right;  fmtSpec.Fill = str[0]; return 2;
@@ -1885,3 +1890,6 @@ private:
 
 }
 
+#if COMMON_COMPILER_CLANG
+#   pragma clang diagnostic pop
+#endif
