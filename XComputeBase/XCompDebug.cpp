@@ -73,7 +73,7 @@ struct MessageBlock::Cache
 {
     common::str::DynamicTrimedResultCh<char> StrInfo;
     common::str::FormatSpecCacher SpecCache;
-    Cache(const common::str::ParseResult& result, std::string_view fmtStr, const common::str::ArgInfo& argInfo) : StrInfo(result, fmtStr)
+    Cache(const common::str::ParseResult<>& result, std::string_view fmtStr, const common::str::ArgInfo& argInfo) : StrInfo(result, fmtStr)
     {
         const auto strInfo = StrInfo.ToStrArgInfo();
         SpecCache.Cache(strInfo, argInfo, {});
@@ -85,8 +85,8 @@ struct MessageBlock::Cache
     static std::unique_ptr<Cache> Generate(std::u32string_view formatter, common::span<const NamedVecPair> infos)
     {
         const auto fmtu8 = common::str::to_string(formatter, common::str::Encoding::UTF8);
-        const auto result = common::str::ParseResult::ParseString<char>(fmtu8);
-        common::str::ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
+        const auto result = common::str::FormatterParser::ParseString<char>(fmtu8);
+        common::str::ParseResultBase::CheckErrorRuntime(result.ErrorPos, result.OpCount);
         common::str::ArgInfo argInfo;
         for (const auto& info : infos)
         {

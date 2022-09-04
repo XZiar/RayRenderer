@@ -576,10 +576,10 @@ static NailangFormatExecutor NLFmtExecutor;
 std::u32string NailangBase::FormatString(const std::u32string_view formatter, common::span<const Arg> args)
 {
     using namespace common::str;
-    const auto result = ParseResult::ParseString<char32_t>(formatter);
+    const auto result = FormatterParser::ParseString<char32_t>(formatter);
     try
     {
-        ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
+        ParseResultBase::CheckErrorRuntime(result.ErrorPos, result.OpCount);
         const auto strInfo = result.ToInfo(formatter);
         ArgInfo argsInfo;
         for (const auto& arg : args)

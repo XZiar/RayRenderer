@@ -58,7 +58,7 @@ class COMMON_EMPTY_BASES DynamicTrimedResult : public FixedLenRefHolder<DynamicT
     friend RefHolder<DynamicTrimedResult>;
     friend FixedLenRefHolder<DynamicTrimedResult, uint32_t>;
 private:
-    static constexpr size_t NASize = sizeof(ParseResult::NamedArgType);
+    static constexpr size_t NASize = sizeof(ParseResultCommon::NamedArgType);
     static constexpr size_t IASize = sizeof(ArgDispType);
     [[nodiscard]] forceinline uintptr_t GetDataPtr() const noexcept
     {
@@ -71,7 +71,7 @@ protected:
     uint16_t OpCount = 0;
     uint8_t NamedArgCount = 0;
     uint8_t IdxArgCount = 0;
-    SYSCOMMONAPI DynamicTrimedResult(const ParseResult& result, size_t strLength, size_t charSize);
+    SYSCOMMONAPI DynamicTrimedResult(const ParseResultCommon& result, span<const uint8_t> opcodes, size_t strLength, size_t charSize);
     DynamicTrimedResult(const DynamicTrimedResult& other) noexcept :
         Pointer(other.Pointer), StrSize(other.StrSize), OpCount(other.OpCount), NamedArgCount(other.NamedArgCount), IdxArgCount(other.IdxArgCount)
     {
@@ -82,11 +82,11 @@ protected:
     {
         other.Pointer = 0;
     }
-    common::span<const uint8_t> GetOpcodes() const noexcept
+    span<const uint8_t> GetOpcodes() const noexcept
     {
         return { reinterpret_cast<const uint8_t*>(GetStrPtr() + StrSize + IASize * IdxArgCount), OpCount };
     }
-    common::span<const ArgDispType> GetIndexTypes() const noexcept
+    span<const ArgDispType> GetIndexTypes() const noexcept
     {
         if (IdxArgCount > 0)
             return { reinterpret_cast<const ArgDispType*>(GetStrPtr() + StrSize), IdxArgCount };
@@ -96,10 +96,10 @@ protected:
     {
         return Pointer + NASize * NamedArgCount;
     }
-    common::span<const ParseResult::NamedArgType> GetNamedTypes() const noexcept
+    span<const ParseResultCommon::NamedArgType> GetNamedTypes() const noexcept
     {
         if (NamedArgCount > 0)
-            return { reinterpret_cast<const ParseResult::NamedArgType*>(Pointer), NamedArgCount };
+            return { reinterpret_cast<const ParseResultCommon::NamedArgType*>(Pointer), NamedArgCount };
         return {};
     }
 public:
@@ -113,8 +113,9 @@ template<typename Char>
 class DynamicTrimedResultCh : public DynamicTrimedResult
 {
 public:
-    DynamicTrimedResultCh(const ParseResult& result, std::basic_string_view<Char> str) :
-        DynamicTrimedResult(result, str.size(), sizeof(Char))
+    template<uint16_t Size>
+    DynamicTrimedResultCh(const ParseResult<Size>& result, std::basic_string_view<Char> str) :
+        DynamicTrimedResult(result, { result.Opcodes, result.OpCount }, str.size(), sizeof(Char))
     {
         const auto strptr = reinterpret_cast<Char*>(GetStrPtr());
         memcpy_s(strptr, StrSize, str.data(), sizeof(Char) * str.size());

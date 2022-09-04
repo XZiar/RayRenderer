@@ -21,8 +21,8 @@ using common::BaseException;
 
 #define CheckFail(pos, err) do                                                      \
 {                                                                                   \
-    EXPECT_EQ(ret.ErrorPos,  static_cast<uint16_t>(pos));                           \
-    EXPECT_EQ(ret.OpCount,   static_cast<uint16_t>(ParseResult::ErrorCode::err));   \
+    EXPECT_EQ(ret.ErrorPos, static_cast<uint16_t>(pos));                            \
+    EXPECT_EQ(ret.ErrorNum, static_cast<uint16_t>(ParseResultBase::ErrorCode::err));\
 } while(0)
 
 #define CheckEachIdxArgType(r, ret, type) EXPECT_EQ(ret.IndexTypes[theArgIdx++], ArgDispType::type);
@@ -62,23 +62,23 @@ using common::BaseException;
 
 static std::string OpToString(uint8_t op)
 {
-    const auto opid     = op & ParseResult::OpIdMask;
-    const auto opfield  = op & ParseResult::OpFieldMask;
-    const auto opdata   = op & ParseResult::OpDataMask;
+    const auto opid     = op & FormatterParser::OpIdMask;
+    const auto opfield  = op & FormatterParser::OpFieldMask;
+    const auto opdata   = op & FormatterParser::OpDataMask;
     switch (opid)
     {
-    case ParseResult::BuiltinOp::Op:
+    case FormatterParser::BuiltinOp::Op:
     {
         switch (opfield)
         {
-        case ParseResult::BuiltinOp::FieldFmtStr:
+        case FormatterParser::BuiltinOp::FieldFmtStr:
         {
             auto ret = "[FmtStr]"s;
-            ret.append(opdata & ParseResult::BuiltinOp::DataOffset16 ? "(off16)" : "(off8)");
-            ret.append(opdata & ParseResult::BuiltinOp::DataLength16 ? "(len16)" : "(len8)");
+            ret.append(opdata & FormatterParser::BuiltinOp::DataOffset16 ? "(off16)" : "(off8)");
+            ret.append(opdata & FormatterParser::BuiltinOp::DataLength16 ? "(len16)" : "(len8)");
             return ret;
         }
-        case ParseResult::BuiltinOp::FieldBrace:
+        case FormatterParser::BuiltinOp::FieldBrace:
         {
             auto ret = "[Brace]"s;
             switch (opdata)
@@ -92,17 +92,17 @@ static std::string OpToString(uint8_t op)
             return "[Builtin Error]"s;
         }
     }
-    case ParseResult::ColorOp::Op:
+    case FormatterParser::ColorOp::Op:
     {
         auto ret = "[Color]"s;
-        ret.append((opfield & ParseResult::ColorOp::FieldBackground) ? "(BG)" : "(FG)");
-        if (opfield & ParseResult::ColorOp::FieldSpecial)
+        ret.append((opfield & FormatterParser::ColorOp::FieldBackground) ? "(BG)" : "(FG)");
+        if (opfield & FormatterParser::ColorOp::FieldSpecial)
         {
             switch (opdata)
             {
-            case ParseResult::ColorOp::DataDefault: return ret.append("(default)");
-            case ParseResult::ColorOp::DataBit8:    return ret.append("(8bit)");
-            case ParseResult::ColorOp::DataBit24:   return ret.append("(24bit)");
+            case FormatterParser::ColorOp::DataDefault: return ret.append("(default)");
+            case FormatterParser::ColorOp::DataBit8:    return ret.append("(8bit)");
+            case FormatterParser::ColorOp::DataBit24:   return ret.append("(24bit)");
             default:                                return ret.append("(Error)");
             }
         }
@@ -111,11 +111,11 @@ static std::string OpToString(uint8_t op)
             return ret.append(common::GetColorName(static_cast<common::CommonColor>(opdata)));
         }
     }
-    case ParseResult::ArgOp::Op:
+    case FormatterParser::ArgOp::Op:
     {
         auto ret = "[Arg]"s;
-        ret.append((opfield & ParseResult::ArgOp::FieldNamed) ? "(Idx)" : "(Named)");
-        if (opfield & ParseResult::ArgOp::FieldHasSpec) ret.append("(spec)");
+        ret.append((opfield & FormatterParser::ArgOp::FieldNamed) ? "(Idx)" : "(Named)");
+        if (opfield & FormatterParser::ArgOp::FieldHasSpec) ret.append("(spec)");
         return ret;
     }
     default:
@@ -129,12 +129,12 @@ static void CheckOpCode(uint8_t opcode, uint8_t ref)
 }
 
 template<typename Char>
-static void CheckFmtStrOp_(const ParseResult& ret, uint16_t& idx, std::basic_string_view<Char> fmtStr, uint16_t offset, uint16_t length, std::basic_string_view<Char> str)
+static void CheckFmtStrOp_(const ParseResult<>& ret, uint16_t& idx, std::basic_string_view<Char> fmtStr, uint16_t offset, uint16_t length, std::basic_string_view<Char> str)
 {
     ASSERT_EQ(fmtStr.substr(offset, length), str);
-    uint8_t op = ParseResult::BuiltinOp::Op | ParseResult::BuiltinOp::FieldFmtStr;
-    if (offset > UINT8_MAX) op |= ParseResult::BuiltinOp::DataOffset16;
-    if (length > UINT8_MAX) op |= ParseResult::BuiltinOp::DataLength16;
+    uint8_t op = FormatterParser::BuiltinOp::Op | FormatterParser::BuiltinOp::FieldFmtStr;
+    if (offset > UINT8_MAX) op |= FormatterParser::BuiltinOp::DataOffset16;
+    if (length > UINT8_MAX) op |= FormatterParser::BuiltinOp::DataLength16;
     CheckOpCode(ret.Opcodes[idx++], op);
     EXPECT_EQ(ret.Opcodes[idx++], static_cast<uint8_t>(offset));
     if (offset > UINT8_MAX)
@@ -148,22 +148,22 @@ static void CheckFmtStrOp_(const ParseResult& ret, uint16_t& idx, std::basic_str
     }
 }
 
-static void CheckBraceOp_(const ParseResult& ret, uint16_t& idx, const char ch)
+static void CheckBraceOp_(const ParseResult<>& ret, uint16_t& idx, const char ch)
 {
-    CheckOpCode(ret.Opcodes[idx++], ParseResult::BuiltinOp::Op | ParseResult::BuiltinOp::FieldBrace | (ch == '{' ? 0x0 : 0x1));
+    CheckOpCode(ret.Opcodes[idx++], FormatterParser::BuiltinOp::Op | FormatterParser::BuiltinOp::FieldBrace | (ch == '{' ? 0x0 : 0x1));
 }
 
 using ColorArgData = std::variant<std::monostate, common::CommonColor, uint8_t, std::array<uint8_t, 3>>;
-static void CheckColorArgOp_(const ParseResult& ret, uint16_t& idx, bool isFG, ColorArgData data)
+static void CheckColorArgOp_(const ParseResult<>& ret, uint16_t& idx, bool isFG, ColorArgData data)
 {
-    uint8_t op = ParseResult::ColorOp::Op | 
-        (isFG ? ParseResult::ColorOp::FieldForeground : ParseResult::ColorOp::FieldBackground);
+    uint8_t op = FormatterParser::ColorOp::Op |
+        (isFG ? FormatterParser::ColorOp::FieldForeground : FormatterParser::ColorOp::FieldBackground);
     switch (data.index())
     {
-    case 0: op |= ParseResult::ColorOp::FieldSpecial | ParseResult::ColorOp::DataDefault; break;
-    case 1: op |= ParseResult::ColorOp::FieldCommon  | common::enum_cast(std::get<1>(data)); break;
-    case 2: op |= ParseResult::ColorOp::FieldSpecial | ParseResult::ColorOp::DataBit8; break;
-    case 3: op |= ParseResult::ColorOp::FieldSpecial | ParseResult::ColorOp::DataBit24; break;
+    case 0: op |= FormatterParser::ColorOp::FieldSpecial | FormatterParser::ColorOp::DataDefault; break;
+    case 1: op |= FormatterParser::ColorOp::FieldCommon  | common::enum_cast(std::get<1>(data)); break;
+    case 2: op |= FormatterParser::ColorOp::FieldSpecial | FormatterParser::ColorOp::DataBit8; break;
+    case 3: op |= FormatterParser::ColorOp::FieldSpecial | FormatterParser::ColorOp::DataBit24; break;
     default: ASSERT_FALSE(data.index());
     }
     CheckOpCode(ret.Opcodes[idx++], op);
@@ -178,33 +178,33 @@ static void CheckColorArgOp_(const ParseResult& ret, uint16_t& idx, bool isFG, C
     }
 }
 
-static void CheckIdxArgOp_(const ParseResult& ret, uint16_t& idx, uint8_t argidx, const ParseResult::FormatSpec* spec)
+static void CheckIdxArgOp_(const ParseResult<>& ret, uint16_t& idx, uint8_t argidx, const FormatterParser::FormatSpec* spec)
 {
-    const uint8_t field = ParseResult::ArgOp::FieldIndexed | (spec ? ParseResult::ArgOp::FieldHasSpec : 0);
-    CheckOpCode(ret.Opcodes[idx++], ParseResult::ArgOp::Op | field);
+    const uint8_t field = FormatterParser::ArgOp::FieldIndexed | (spec ? FormatterParser::ArgOp::FieldHasSpec : 0);
+    CheckOpCode(ret.Opcodes[idx++], FormatterParser::ArgOp::Op | field);
     EXPECT_EQ(ret.Opcodes[idx++], argidx);
     if (spec)
     {
-        uint8_t data[ParseResult::ArgOp::SpecLength[1]] = { 0 };
-        const auto opcnt = ParseResult::ArgOp::EncodeSpec(*spec, data);
+        uint8_t data[FormatterParser::ArgOp::SpecLength[1]] = { 0 };
+        const auto opcnt = FormatterParser::ArgOp::EncodeSpec(*spec, data);
         common::span<const uint8_t> ref{ data, opcnt }, src{ ret.Opcodes + idx, opcnt };
         EXPECT_THAT(src, testing::ElementsAreArray(ref));
-        idx += opcnt;
+        idx += static_cast<uint16_t>(opcnt);
     }
 }
 
-static void CheckNamedArgOp_(const ParseResult& ret, uint16_t& idx, uint8_t argidx, const ParseResult::FormatSpec* spec)
+static void CheckNamedArgOp_(const ParseResult<>& ret, uint16_t& idx, uint8_t argidx, const FormatterParser::FormatSpec* spec)
 {
-    const uint8_t field = ParseResult::ArgOp::FieldNamed | (spec ? ParseResult::ArgOp::FieldHasSpec : 0);
-    CheckOpCode(ret.Opcodes[idx++], ParseResult::ArgOp::Op | field);
+    const uint8_t field = FormatterParser::ArgOp::FieldNamed | (spec ? FormatterParser::ArgOp::FieldHasSpec : 0);
+    CheckOpCode(ret.Opcodes[idx++], FormatterParser::ArgOp::Op | field);
     EXPECT_EQ(ret.Opcodes[idx++], argidx);
     if (spec)
     {
-        uint8_t data[ParseResult::ArgOp::SpecLength[1]] = { 0 };
-        const auto opcnt = ParseResult::ArgOp::EncodeSpec(*spec, data);
+        uint8_t data[FormatterParser::ArgOp::SpecLength[1]] = { 0 };
+        const auto opcnt = FormatterParser::ArgOp::EncodeSpec(*spec, data);
         common::span<const uint8_t> ref{ data, opcnt }, src{ ret.Opcodes + idx, opcnt };
         EXPECT_THAT(src, testing::ElementsAreArray(ref));
-        idx += opcnt;
+        idx += static_cast<uint16_t>(opcnt);
     }
 }
 
@@ -212,14 +212,14 @@ static void CheckNamedArgOp_(const ParseResult& ret, uint16_t& idx, uint8_t argi
 TEST(Format, ParseString)
 {
     {
-        constexpr auto ret = ParseResult::ParseString(""sv);
+        constexpr auto ret = FormatterParser::ParseString(""sv);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
         uint16_t idx = 0;
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{}"sv);
+        constexpr auto ret = FormatterParser::ParseString("{}"sv);
         CheckSuc();
         CheckIdxArgType(ret, 1, Any);
         uint16_t idx = 0;
@@ -227,22 +227,22 @@ TEST(Format, ParseString)
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("}"sv);
+        constexpr auto ret = FormatterParser::ParseString("}"sv);
         CheckFail(0, MissingLeftBrace);
         CheckIdxArgCount(ret, 0, 0);
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{"sv);
+        constexpr auto ret = FormatterParser::ParseString("{"sv);
         CheckFail(0, MissingRightBrace);
         CheckIdxArgCount(ret, 0, 0);
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{:0s}"sv);
+        constexpr auto ret = FormatterParser::ParseString("{:0s}"sv);
         CheckFail(4, IncompNumSpec);
-        CheckIdxArgCount(ret, 0, 0);
+        CheckIdxArgCount(ret, 1, 1); // an arg_id already assigned
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{{"sv);
+        constexpr auto ret = FormatterParser::ParseString("{{"sv);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
         uint16_t idx = 0;
@@ -250,7 +250,7 @@ TEST(Format, ParseString)
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("}}"sv);
+        constexpr auto ret = FormatterParser::ParseString("}}"sv);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
         uint16_t idx = 0;
@@ -258,7 +258,7 @@ TEST(Format, ParseString)
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{{{{{{"sv);
+        constexpr auto ret = FormatterParser::ParseString("{{{{{{"sv);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
         uint16_t idx = 0;
@@ -268,13 +268,13 @@ TEST(Format, ParseString)
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{{}"sv);
+        constexpr auto ret = FormatterParser::ParseString("{{}"sv);
         CheckFail(2, MissingLeftBrace);
         CheckIdxArgCount(ret, 0, 0);
     }
     {
         constexpr auto fmtStr = "Hello"sv;
-        constexpr auto ret = ParseResult::ParseString(fmtStr);
+        constexpr auto ret = FormatterParser::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
         uint16_t idx = 0;
@@ -283,7 +283,7 @@ TEST(Format, ParseString)
     }
     {
         constexpr auto fmtStr = "Hello{{"sv;
-        constexpr auto ret = ParseResult::ParseString(fmtStr);
+        constexpr auto ret = FormatterParser::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
         uint16_t idx = 0;
@@ -292,7 +292,7 @@ TEST(Format, ParseString)
     }
     {
         constexpr auto fmtStr = "Hello{}"sv;
-        constexpr auto ret = ParseResult::ParseString(fmtStr);
+        constexpr auto ret = FormatterParser::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgType(ret, 1, Any);
         uint16_t idx = 0;
@@ -302,7 +302,7 @@ TEST(Format, ParseString)
     }
     {
         constexpr auto fmtStr = "Hello{}{}"sv;
-        constexpr auto ret = ParseResult::ParseString(fmtStr);
+        constexpr auto ret = FormatterParser::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgType(ret, 2, Any, Any);
         uint16_t idx = 0;
@@ -313,7 +313,7 @@ TEST(Format, ParseString)
     }
     {
         constexpr auto fmtStr = "Hello{}{3}{}{x}"sv;
-        constexpr auto ret = ParseResult::ParseString(fmtStr);
+        constexpr auto ret = FormatterParser::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgType(ret, 2, Any, Any, Any, Any);
         CheckNamedArgs(ret, fmtStr, (Any, "x"));
@@ -326,7 +326,7 @@ TEST(Format, ParseString)
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{@< }{@>k}{@<B}{@>xff}{@<x06}{@>xbadbad}"sv);
+        constexpr auto ret = FormatterParser::ParseString("{@< }{@>k}{@<B}{@>xff}{@<x06}{@>xbadbad}"sv);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
         uint16_t idx = 0;
@@ -340,27 +340,27 @@ TEST(Format, ParseString)
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{@}"sv);
+        constexpr auto ret = FormatterParser::ParseString("{@}"sv);
         CheckFail(1, InvalidColor);
         CheckIdxArgCount(ret, 0, 0);
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{@<kred}"sv);
+        constexpr auto ret = FormatterParser::ParseString("{@<kred}"sv);
         CheckFail(1, InvalidColor);
         CheckIdxArgCount(ret, 0, 0);
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{@#e}"sv);
+        constexpr auto ret = FormatterParser::ParseString("{@#e}"sv);
         CheckFail(1, MissingColorFGBG);
         CheckIdxArgCount(ret, 0, 0);
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{@<x0h}"sv);
+        constexpr auto ret = FormatterParser::ParseString("{@<x0h}"sv);
         CheckFail(1, Invalid8BitColor);
         CheckIdxArgCount(ret, 0, 0);
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{@<x0f0f7x}"sv);
+        constexpr auto ret = FormatterParser::ParseString("{@<x0f0f7x}"sv);
         CheckFail(1, Invalid24BitColor);
         CheckIdxArgCount(ret, 0, 0);
     }
@@ -378,26 +378,26 @@ TEST(Format, ParseString)
 #   endif
 #endif
     {
-        constexpr auto ret = ParseResult::ParseString("{:d}{:6.3f}{:<#0x}"sv);
+        constexpr auto ret = FormatterParser::ParseString("{:d}{:6.3f}{:<#0x}"sv);
         CheckSuc();
         CheckIdxArgType(ret, 3, Integer, Float, Integer);
         uint16_t idx = 0;
-        ParseResult::FormatSpec spec0
+        FormatterParser::FormatSpec spec0
         {
             .Type = 'd'
         };
         CheckOp(IdxArg, 0, &spec0);
-        ParseResult::FormatSpec spec1
+        FormatterParser::FormatSpec spec1
         {
             .Precision = 3,
             .Width = 6,
             .Type = 'f'
         };
         CheckOp(IdxArg, 1, &spec1);
-        ParseResult::FormatSpec spec2
+        FormatterParser::FormatSpec spec2
         {
             .Type = 'x',
-            .Alignment = ParseResult::FormatSpec::Align::Left,
+            .Alignment = FormatterParser::FormatSpec::Align::Left,
             .AlterForm = true,
             .ZeroPad = true
         };
@@ -406,11 +406,11 @@ TEST(Format, ParseString)
     }
     {
         constexpr auto fmtStr = "{3:p}xyz{@<K}"sv;
-        constexpr auto ret = ParseResult::ParseString(fmtStr);
+        constexpr auto ret = FormatterParser::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgType(ret, 0, Any, Any, Any, Pointer);
         uint16_t idx = 0;
-        ParseResult::FormatSpec spec0
+        FormatterParser::FormatSpec spec0
         {
             .Type = 'p',
         };
@@ -746,7 +746,7 @@ TEST(Format, Perf)
 {
     constexpr uint32_t times = 100000;
     common::SimpleTimer timer;
-    std::string ref[4];
+    /*std::string ref[4];
     {
         uint64_t timens = 0;
         for (uint32_t i = 0; i < times; ++i)
@@ -811,7 +811,7 @@ TEST(Format, Perf)
         }
         TestCout() << "[fmt-dyn] u8 use avg[" << (timens / times) << "]ns to finish\n";
         EXPECT_TRUE(ref[3] == ref[0]);
-    }
+    }*/
 
 
     std::string csf[3];
@@ -828,9 +828,9 @@ TEST(Format, Perf)
             timens += timer.ElapseNs();
         }
         TestCout() << "[csf-dyn] u8 use avg[" << (timens / times) << "]ns to finish\n";
-        EXPECT_TRUE(csf[0] == ref[0]);
+        //EXPECT_TRUE(csf[0] == ref[0]);
     }
-    {
+    /*{
         uint64_t timens = 0;
         for (uint32_t i = 0; i < times; ++i)
         {
@@ -844,6 +844,6 @@ TEST(Format, Perf)
         }
         TestCout() << "[csf-sta] u8 use avg[" << (timens / times) << "]ns to finish\n";
         EXPECT_TRUE(csf[1] == csf[0]);
-    }
+    }*/
 
 }

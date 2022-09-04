@@ -69,12 +69,12 @@ ArgMismatchException::ExceptionInfo::ExceptionInfo(const std::u16string_view msg
 COMMON_EXCEPTION_IMPL(ArgMismatchException)
 
 
-void ParseResult::CheckErrorRuntime(uint16_t errorPos, uint16_t opCount)
+void ParseResultBase::CheckErrorRuntime(uint16_t errorPos, uint16_t errorNum)
 {
     std::u16string_view errMsg;
     if (errorPos != UINT16_MAX)
     {
-        switch (static_cast<ErrorCode>(opCount))
+        switch (static_cast<ErrorCode>(errorNum))
         {
 #define CHECK_ERROR_MSG(e, msg) case ErrorCode::e: errMsg = u ## msg; break;
             SCSTR_HANDLE_PARSE_ERROR(CHECK_ERROR_MSG)
@@ -86,14 +86,14 @@ void ParseResult::CheckErrorRuntime(uint16_t errorPos, uint16_t opCount)
 }
 
 
-DynamicTrimedResult::DynamicTrimedResult(const ParseResult& result, size_t strLength, size_t charSize) :
-    StrSize(static_cast<uint32_t>((strLength + 1) * charSize)), OpCount(result.OpCount), NamedArgCount(result.NamedArgCount), IdxArgCount(result.IdxArgCount)
+DynamicTrimedResult::DynamicTrimedResult(const ParseResultCommon& result, span<const uint8_t> opcodes, size_t strLength, size_t charSize) :
+    StrSize(static_cast<uint32_t>((strLength + 1) * charSize)), OpCount(gsl::narrow_cast<uint16_t>(opcodes.size())), NamedArgCount(result.NamedArgCount), IdxArgCount(result.IdxArgCount)
 {
     static_assert(NASize == sizeof(uint32_t));
     static_assert(IASize == sizeof(uint8_t));
     Expects(OpCount > 0);
     Expects(StrSize > 0);
-    ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
+    ParseResultBase::CheckErrorRuntime(result.ErrorPos, result.ErrorNum);
     const auto naSize = NASize * NamedArgCount;
     const auto iaSize = IASize * IdxArgCount;
     const auto needLength = (naSize + StrSize + IdxArgCount + OpCount + sizeof(uint32_t) - 1) / sizeof(uint32_t);
@@ -103,7 +103,7 @@ DynamicTrimedResult::DynamicTrimedResult(const ParseResult& result, size_t strLe
         memcpy_s(reinterpret_cast<void*>(Pointer), naSize, result.NamedTypes, naSize);
     if (IdxArgCount)
         memcpy_s(reinterpret_cast<void*>(Pointer + naSize + StrSize), iaSize, result.IndexTypes, iaSize);
-    memcpy_s(reinterpret_cast<void*>(Pointer + naSize + StrSize + iaSize), OpCount, result.Opcodes, OpCount);
+    memcpy_s(reinterpret_cast<void*>(Pointer + naSize + StrSize + iaSize), OpCount, opcodes.data(), OpCount);
 }
 
 
@@ -126,7 +126,7 @@ void ArgChecker::CheckDDBasic(const StrArgInfo& strInfo, const ArgInfo& argInfo)
     if (strIndexArgCount > 0)
     {
         const auto index = ArgChecker::GetIdxArgMismatch(strInfo.IndexTypes.data(), argInfo.IndexTypes, strIndexArgCount);
-        if (index != ParseResult::IdxArgSlots)
+        if (index != ParseResultCommon::IdxArgSlots)
             COMMON_THROW(ArgMismatchException, fmt::format(u"IndexArg[{}] type mismatch"sv, index),
                 std::pair{ argInfo.IdxArgCount, strIndexArgCount }, std::pair{ argInfo.NamedArgCount, strNamedArgCount },
                 static_cast<uint8_t>(index), std::pair{ strInfo.IndexTypes[index], argInfo.IndexTypes[index] & ArgRealType::BaseTypeMask });
@@ -339,7 +339,7 @@ struct FormatterHelper : public FormatterBase
     {
         return IntTypes[spec.TypeExtra];
     }
-    static forceinline constexpr fmt::presentation_type ConvertSpecIntPresent(const ParseResult::FormatSpec& spec) noexcept
+    static forceinline constexpr fmt::presentation_type ConvertSpecIntPresent(const FormatterParser::FormatSpec& spec) noexcept
     {
         return IntTypes[spec.Type.Extra];
     }
@@ -359,7 +359,7 @@ struct FormatterHelper : public FormatterBase
     {
         return FloatTypes[spec.TypeExtra];
     }
-    static forceinline constexpr fmt::presentation_type ConvertSpecFloatPresent(const ParseResult::FormatSpec& spec) noexcept
+    static forceinline constexpr fmt::presentation_type ConvertSpecFloatPresent(const FormatterParser::FormatSpec& spec) noexcept
     {
         return FloatTypes[spec.Type.Extra];
     }
@@ -498,9 +498,9 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
 
 bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view spectxt, ArgRealType real) noexcept
 {
-    ParseResult res;
-    ParseResult::FormatSpec spec_;
-    ParseResultCh<char32_t>::ParseFormatSpec(res, spec_, spectxt.data(), spectxt);
+    ParseResultBase res;
+    FormatterParser::FormatSpec spec_;
+    FormatterParserCh<char32_t>::ParseFormatSpec(res, spec_, 0, spectxt);
     if (res.ErrorPos != UINT16_MAX)
         return false;
     const auto disp = spec_.Type.Type;
@@ -940,8 +940,8 @@ void Formatter<Char>::PutDateBase(StrType& ret, std::string_view fmtStr, const s
 template<typename Char>
 void Formatter<Char>::FormatToDynamic_(std::basic_string<Char>& dst, std::basic_string_view<Char> format, const ArgInfo& argInfo, span<const uint16_t> argStore)
 {
-    const auto result = ParseResult::ParseString<Char>(format);
-    ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
+    const auto result = FormatterParser::ParseString<Char>(format);
+    ParseResultBase::CheckErrorRuntime(result.ErrorPos, result.ErrorNum);
     const auto res = result.ToInfo(format);
     const auto mapping = ArgChecker::CheckDD(res, argInfo);
     FormatterBase::FormatTo<Char>(*this, dst, res, argInfo, argStore, mapping);
@@ -1056,26 +1056,26 @@ forceinline uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, T& exe
     for (; icnt < instCount && opOffset < opcodes.size(); icnt++)
     {
         const auto op = opcodes[opOffset++];
-        const auto opid = op & ParseResult::OpIdMask;
-        const auto opfield = op & ParseResult::OpFieldMask;
-        const auto opdata = op & ParseResult::OpDataMask;
+        const auto opid    = op & FormatterParser::OpIdMask;
+        const auto opfield = op & FormatterParser::OpFieldMask;
+        const auto opdata  = op & FormatterParser::OpDataMask;
         switch (opid)
         {
-        case ParseResult::BuiltinOp::Op:
+        case FormatterParser::BuiltinOp::Op:
         {
             switch (opfield)
             {
-            case ParseResult::BuiltinOp::FieldFmtStr:
+            case FormatterParser::BuiltinOp::FieldFmtStr:
             {
                 uint32_t offset = opcodes[opOffset++];
-                if (opdata & ParseResult::BuiltinOp::DataOffset16)
+                if (opdata & FormatterParser::BuiltinOp::DataOffset16)
                     offset = (offset << 8) + opcodes[opOffset++];
                 uint32_t length = opcodes[opOffset++];
-                if (opdata & ParseResult::BuiltinOp::DataLength16)
+                if (opdata & FormatterParser::BuiltinOp::DataLength16)
                     length = (length << 8) + opcodes[opOffset++];
                 executor.OnFmtStr(context, offset, length);
             } break;
-            case ParseResult::BuiltinOp::FieldBrace:
+            case FormatterParser::BuiltinOp::FieldBrace:
             {
                 executor.OnBrace(context, opdata == 0);
             } break;
@@ -1083,20 +1083,20 @@ forceinline uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, T& exe
                 break;
             }
         } break;
-        case ParseResult::ColorOp::Op:
+        case FormatterParser::ColorOp::Op:
         {
-            const bool isBG = opfield & ParseResult::ColorOp::FieldBackground;
-            if (opfield & ParseResult::ColorOp::FieldSpecial)
+            const bool isBG = opfield & FormatterParser::ColorOp::FieldBackground;
+            if (opfield & FormatterParser::ColorOp::FieldSpecial)
             {
                 switch (opdata)
                 {
-                case ParseResult::ColorOp::DataDefault:
+                case FormatterParser::ColorOp::DataDefault:
                     executor.OnColor(context, { isBG });
                     break;
-                case ParseResult::ColorOp::DataBit8:
+                case FormatterParser::ColorOp::DataBit8:
                     executor.OnColor(context, { isBG, opcodes[opOffset++] });
                     break;
-                case ParseResult::ColorOp::DataBit24:
+                case FormatterParser::ColorOp::DataBit24:
                     executor.OnColor(context, { isBG, *reinterpret_cast<const std::array<uint8_t, 3>*>(&opcodes[opOffset]) });
                     opOffset += 3;
                     break;
@@ -1109,12 +1109,12 @@ forceinline uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, T& exe
                 executor.OnColor(context, { isBG, static_cast<CommonColor>(opdata) });
             }
         } break;
-        case ParseResult::ArgOp::Op:
+        case FormatterParser::ArgOp::Op:
         {
             const auto argIdx = opcodes[opOffset++];
-            const bool hasSpec = opfield & ParseResult::ArgOp::FieldHasSpec;
+            const bool hasSpec = opfield & FormatterParser::ArgOp::FieldHasSpec;
             reader.Reset(hasSpec ? opcodes.data() + opOffset : nullptr);
-            const bool isNamed = opfield & ParseResult::ArgOp::FieldNamed;
+            const bool isNamed = opfield & FormatterParser::ArgOp::FieldNamed;
             executor.OnArg(context, argIdx, isNamed, reader);
             if (hasSpec)
                 opOffset += reader.EnsureSize();
@@ -1387,7 +1387,7 @@ forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, ui
             else
                 static_assert(!AlwaysTrue<Char>, "unsupported char size");
         }
-        else if (fmtType == ArgDispType::Integer)
+        else if (fmtType == ArgDispType::Integer || fmtType == ArgDispType::Numeric)
         {
             Fmter.PutInteger(context.Dst, val ? 1u : 0u, false, spec);
         }
@@ -1441,6 +1441,7 @@ forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, ui
     } return;
     case ArgRealType::Float:
     {
+        ABORT_CHECK(fmtType == ArgDispType::Float || fmtType == ArgDispType::Numeric || fmtType == ArgDispType::Any);
         switch (intSize)
         {
         case RealSizeInfo::Byte2: Fmter.PutFloat(context.Dst, static_cast<float>(*reinterpret_cast<const half_float::half*>(argPtr)), spec); break;
@@ -1468,7 +1469,7 @@ forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, ui
     case ArgRealType::SInt:
     case ArgRealType::UInt:
     {
-        ABORT_CHECK(fmtType == ArgDispType::Integer || fmtType == ArgDispType::Any);
+        ABORT_CHECK(fmtType == ArgDispType::Integer || fmtType == ArgDispType::Numeric || fmtType == ArgDispType::Any);
         const auto isSigned = realType == ArgRealType::SInt;
         switch (intSize)
         {

@@ -360,8 +360,8 @@ LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::Str
 LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, std::basic_string_view<char16_t> formatter, const str::ArgInfo& argInfo, span<const uint16_t> argStore) const
 {
     using namespace str;
-    const auto result = ParseResult::ParseString(formatter);
-    ParseResult::CheckErrorRuntime(result.ErrorPos, result.OpCount);
+    const auto result = FormatterParser::ParseString(formatter);
+    ParseResultBase::CheckErrorRuntime(result.ErrorPos, result.OpCount);
     const auto fmtInfo = result.ToInfo(formatter);
     const auto mapping = ArgChecker::CheckDD(fmtInfo, argInfo);
     return GenerateMessage(level, fmtInfo, argInfo, argStore, mapping);

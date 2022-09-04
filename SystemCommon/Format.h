@@ -6,7 +6,6 @@
 #include "common/RefHolder.hpp"
 #include "common/SharedString.hpp"
 #include <optional>
-#include <variant>
 #include <chrono>
 #include <ctime>
 
@@ -17,18 +16,13 @@ namespace common::str
 template<typename Char>
 struct StrArgInfoCh;
 
-struct ParseResult
+struct ParseResultBase
 {
-    static constexpr uint8_t OpIdMask    = 0b11000000;
-    static constexpr uint8_t OpFieldMask = 0b00110000;
-    static constexpr uint8_t OpDataMask  = 0b00001111;
-    static constexpr uint32_t OpSlots = 1024;
-    static constexpr uint32_t IdxArgSlots = 64;
-    static constexpr uint32_t NamedArgSlots = 16;
+    uint16_t ErrorPos = UINT16_MAX, ErrorNum = 0;
     enum class ErrorCode : uint16_t
     {
-        Error = 0xff00, FmtTooLong, TooManyIdxArg, TooManyNamedArg, TooManyOp, 
-        MissingLeftBrace, MissingRightBrace, 
+        Error = 0xff00, FmtTooLong, TooManyIdxArg, TooManyNamedArg, TooManyOp,
+        MissingLeftBrace, MissingRightBrace, MissingFmtSpec,
         InvalidColor, MissingColorFGBG, InvalidCommonColor, Invalid8BitColor, Invalid24BitColor,
         InvalidArgIdx, ArgIdxTooLarge, InvalidArgName, ArgNameTooLong,
         WidthTooLarge, InvalidPrecision, PrecisionTooLarge,
@@ -41,6 +35,7 @@ struct ParseResult
     handler(TooManyOp,          "Format string too complex with too many generated OP"); \
     handler(MissingLeftBrace,   "Missing left brace"); \
     handler(MissingRightBrace,  "Missing right brace"); \
+    handler(MissingFmtSpec,     "Missing format spec"); \
     handler(InvalidColor,       "Invalid color format"); \
     handler(MissingColorFGBG,   "Missing color foreground/background identifier"); \
     handler(InvalidCommonColor, "Invalid common color"); \
@@ -62,47 +57,32 @@ struct ParseResult
     handler(IncompType,         "In-compatible type being specified for the arg"); \
     handler(InvalidFmt,         "Invalid format string");
 
-    template<uint16_t ErrorPos, uint16_t OpCount>
+    template<uint16_t ErrorPos, uint16_t ErrorNum>
     static constexpr bool CheckErrorCompile() noexcept
     {
         if constexpr (ErrorPos != UINT16_MAX)
         {
-            constexpr auto err = static_cast<ErrorCode>(OpCount);
+            constexpr auto err = static_cast<ErrorCode>(ErrorNum);
 #define CHECK_ERROR_MSG(e, msg) static_assert(err != ErrorCode::e, msg)
             SCSTR_HANDLE_PARSE_ERROR(CHECK_ERROR_MSG)
 #undef CHECK_ERROR_MSG
-            static_assert(!AlwaysTrue2<OpCount>, "Unknown internal error");
+                static_assert(!AlwaysTrue2<ErrorNum>, "Unknown internal error");
             return false;
         }
         return true;
     }
-    SYSCOMMONAPI static void CheckErrorRuntime(uint16_t errorPos, uint16_t opCount);
+    SYSCOMMONAPI static void CheckErrorRuntime(uint16_t errorPos, uint16_t errorNum);
 
-
-    struct NamedArgType
-    {
-        uint16_t Offset = 0;
-        uint8_t Length = 0;
-        ArgDispType Type = ArgDispType::Any;
-    };
-    //std::string_view FormatString;
-    uint16_t ErrorPos = UINT16_MAX;
-    uint8_t Opcodes[OpSlots] = { 0 };
-    uint16_t OpCount = 0;
-    NamedArgType NamedTypes[NamedArgSlots] = {};
-    ArgDispType IndexTypes[IdxArgSlots] = { ArgDispType::Any };
-    uint8_t NamedArgCount = 0, IdxArgCount = 0, NextArgIdx = 0;
-    constexpr ParseResult& SetError(size_t pos, ErrorCode err) noexcept
+    constexpr void SetError(size_t pos, ErrorCode err) noexcept
     {
         ErrorPos = static_cast<uint16_t>(pos);
-        OpCount = enum_cast(err);
-        return *this;
+        ErrorNum = enum_cast(err);
     }
-    
+
     static constexpr std::optional<ArgDispType> CheckCompatible(ArgDispType prev, ArgDispType cur) noexcept
     {
         if (prev == cur) return prev;
-        if (cur  == ArgDispType::Any) return prev;
+        if (cur == ArgDispType::Any) return prev;
         if (prev == ArgDispType::Any) return cur;
         if (prev == ArgDispType::Integer) // can cast to detail type
         {
@@ -114,6 +94,52 @@ struct ParseResult
         }
         return {}; // incompatible
     }
+};
+
+struct ParseResultCommon : public ParseResultBase
+{
+    static constexpr uint32_t IdxArgSlots = 64;
+    static constexpr uint32_t NamedArgSlots = 16;
+    struct NamedArgType
+    {
+        uint16_t Offset = 0;
+        uint8_t Length = 0;
+        ArgDispType Type = ArgDispType::Any;
+    };
+    NamedArgType NamedTypes[NamedArgSlots] = {};
+    ArgDispType IndexTypes[IdxArgSlots] = { ArgDispType::Any };
+    uint8_t NamedArgCount = 0, IdxArgCount = 0, NextArgIdx = 0;
+
+};
+
+template<uint16_t Size = 1024>
+struct ParseResult : public ParseResultCommon
+{
+    static constexpr uint32_t OpSlots = Size;
+    uint8_t Opcodes[OpSlots] = { 0 };
+    uint16_t OpCount = 0;
+    forceinline constexpr uint8_t* ReserveSpace(size_t offset, uint32_t count) noexcept
+    {
+        if (OpCount + count > OpSlots)
+        {
+            SetError(offset, ParseResultBase::ErrorCode::TooManyOp);
+            return nullptr;
+        }
+        auto ptr = Opcodes + OpCount;
+        OpCount = static_cast<uint16_t>(OpCount + count);
+        return ptr;
+    }
+
+    template<typename Char>
+    constexpr StrArgInfoCh<Char> ToInfo(const std::basic_string_view<Char> str) const noexcept;
+};
+
+
+struct FormatterParser
+{
+    static constexpr uint8_t OpIdMask = 0b11000000;
+    static constexpr uint8_t OpFieldMask = 0b00110000;
+    static constexpr uint8_t OpDataMask = 0b00001111;
 
     struct FormatSpec
     {
@@ -124,11 +150,12 @@ struct ParseResult
             ArgDispType Type  = ArgDispType::Any;
             uint8_t Extra = 0;
             constexpr TypeIdentifier() noexcept {}
-            constexpr TypeIdentifier(char ch) noexcept
+            forceinline constexpr TypeIdentifier(char ch) noexcept
             {
+                static_assert(std::string_view::npos == SIZE_MAX);
                 // type        ::=  "a" | "A" | "b" | "B" | "c" | "d" | "e" | "E" | "f" | "F" | "g" | "G" | "o" | "p" | "s" | "x" | "X" | "T" | "@"
                 constexpr std::string_view types{ "gGaAeEfFdbBoxXcpsT@" };
-                const auto typeidx = types.find_first_of(ch);
+                const auto typeidx = static_cast<uint32_t>(types.find_first_of(ch)); // hack on x86 to avoid using r64
                 if (typeidx <= 7) // gGaAeEfF
                 {
                     Type = ArgDispType::Float;
@@ -166,8 +193,7 @@ struct ParseResult
                 }
                 else
                 {
-                    if (ch != '\0')
-                        Extra = 0xff;
+                    Extra = 0xff;
                 }
             }
         };
@@ -191,33 +217,29 @@ struct ParseResult
         static constexpr uint8_t FieldBrace  = 0x10;
         static constexpr uint8_t DataOffset16 = 0x01;
         static constexpr uint8_t DataLength16 = 0x02;
-        static constexpr bool EmitFmtStr(ParseResult& result, size_t offset, size_t length) noexcept
+        template<typename T>
+        static forceinline constexpr bool EmitFmtStr(T& result, size_t offset, size_t length) noexcept
         {
             const auto isOffset16 = offset >= UINT8_MAX;
             const auto isLength16 = length >= UINT8_MAX;
-            const auto opcnt = 1 + (isOffset16 ? 2 : 1) + (isLength16 ? 2 : 1);
-            if (result.OpCount > ParseResult::OpSlots - opcnt)
-            {
-                result.SetError(offset + length, ParseResult::ErrorCode::TooManyOp);
-                return false;
-            }
-            result.Opcodes[result.OpCount++] = Op | FieldFmtStr;
-            result.Opcodes[result.OpCount++] = static_cast<uint8_t>(offset);
+            const auto opcnt = 1 + 1 + 1 + (isOffset16 ? 1 : 0) + (isLength16 ? 1 : 0);
+            auto space = result.ReserveSpace(offset, opcnt);
+            if (!space) return false;
+            *space++ = Op | FieldFmtStr;
+            *space++ = static_cast<uint8_t>(offset);
             if (isOffset16)
-                result.Opcodes[result.OpCount++] = static_cast<uint8_t>(offset >> 8);
-            result.Opcodes[result.OpCount++] = static_cast<uint8_t>(length);
+                *space++ = static_cast<uint8_t>(offset >> 8);
+            *space++ = static_cast<uint8_t>(length);
             if (isLength16)
-                result.Opcodes[result.OpCount++] = static_cast<uint8_t>(length >> 8);
+                *space++ = static_cast<uint8_t>(length >> 8);
             return true;
         }
-        static constexpr bool EmitBrace(ParseResult& result, size_t offset, bool isLeft) noexcept
+        template<typename T>
+        static forceinline constexpr bool EmitBrace(T& result, size_t offset, bool isLeft) noexcept
         {
-            if (result.OpCount > ParseResult::OpSlots - 1)
-            {
-                result.SetError(offset, ParseResult::ErrorCode::TooManyOp);
-                return false;
-            }
-            result.Opcodes[result.OpCount++] = Op | FieldBrace | uint8_t(isLeft ? 0x0 : 0x1);
+            const auto space = result.ReserveSpace(offset, 1);
+            if (!space) return false;
+            *space = Op | FieldBrace | uint8_t(isLeft ? 0x0 : 0x1);
             return true;
         }
     };
@@ -232,50 +254,42 @@ struct ParseResult
         static constexpr uint8_t DataDefault     = 0x0;
         static constexpr uint8_t DataBit8        = 0x1;
         static constexpr uint8_t DataBit24       = 0x2;
-        static constexpr bool Emit(ParseResult& result, size_t offset, CommonColor color, bool isForeground) noexcept
+        template<typename T>
+        static forceinline constexpr bool Emit(T& result, size_t offset, CommonColor color, bool isForeground) noexcept
         {
-            if (result.OpCount > ParseResult::OpSlots - 1)
-            {
-                result.SetError(offset, ParseResult::ErrorCode::TooManyOp);
-                return false;
-            }
-            result.Opcodes[result.OpCount++] = Op | FieldCommon | (isForeground ? FieldForeground : FieldBackground) | enum_cast(color);
+            const auto space = result.ReserveSpace(offset, 1);
+            if (!space) return false;
+            *space = Op | FieldCommon | (isForeground ? FieldForeground : FieldBackground) | enum_cast(color);
             return true;
         }
-        static constexpr bool EmitDefault(ParseResult& result, size_t offset, bool isForeground) noexcept
+        template<typename T>
+        static forceinline constexpr bool EmitDefault(T& result, size_t offset, bool isForeground) noexcept
         {
-            if (result.OpCount > ParseResult::OpSlots - 1)
-            {
-                result.SetError(offset, ParseResult::ErrorCode::TooManyOp);
-                return false;
-            }
-            result.Opcodes[result.OpCount++] = Op | FieldSpecial | (isForeground ? FieldForeground : FieldBackground) | DataDefault;
+            const auto space = result.ReserveSpace(offset, 1);
+            if (!space) return false;
+            *space = Op | FieldSpecial | (isForeground ? FieldForeground : FieldBackground) | DataDefault;
             return true;
         }
-        static constexpr bool Emit(ParseResult& result, size_t offset, uint8_t color, bool isForeground) noexcept
+        template<typename T>
+        static forceinline constexpr bool Emit(T& result, size_t offset, uint8_t color, bool isForeground) noexcept
         {
             if (color < 16) // use common color
                 return Emit(result, offset, static_cast<CommonColor>(color), isForeground);
-            if (result.OpCount > ParseResult::OpSlots - 2)
-            {
-                result.SetError(offset, ParseResult::ErrorCode::TooManyOp);
-                return false;
-            }
-            result.Opcodes[result.OpCount++] = Op | FieldSpecial | (isForeground ? FieldForeground : FieldBackground) | DataBit8;
-            result.Opcodes[result.OpCount++] = color;
+            auto space = result.ReserveSpace(offset, 2);
+            if (!space) return false;
+            *space++ = Op | FieldSpecial | (isForeground ? FieldForeground : FieldBackground) | DataBit8;
+            *space++ = color;
             return true;
         }
-        static constexpr bool Emit(ParseResult& result, size_t offset, uint8_t red, uint8_t green, uint8_t blue, bool isForeground) noexcept
+        template<typename T>
+        static forceinline constexpr bool Emit(T& result, size_t offset, uint8_t red, uint8_t green, uint8_t blue, bool isForeground) noexcept
         {
-            if (result.OpCount > ParseResult::OpSlots - 4)
-            {
-                result.SetError(offset, ParseResult::ErrorCode::TooManyOp);
-                return false;
-            }
-            result.Opcodes[result.OpCount++] = Op | FieldSpecial | (isForeground ? FieldForeground : FieldBackground) | DataBit24;
-            result.Opcodes[result.OpCount++] = red;
-            result.Opcodes[result.OpCount++] = green;
-            result.Opcodes[result.OpCount++] = blue;
+            auto space = result.ReserveSpace(offset, 4);
+            if (!space) return false;
+            *space++ = Op | FieldSpecial | (isForeground ? FieldForeground : FieldBackground) | DataBit24;
+            *space++ = red;
+            *space++ = green;
+            *space++ = blue;
             return true;
         }
     };
@@ -287,14 +301,15 @@ struct ParseResult
         static constexpr uint8_t FieldIndexed = 0x00;
         static constexpr uint8_t FieldNamed   = 0x20;
         static constexpr uint8_t FieldHasSpec = 0x10;
-        static constexpr std::pair<uint8_t, uint8_t> EncodeValLen(uint32_t val) noexcept
+        static forceinline constexpr uint8_t EncodeValLen(uint32_t val) noexcept
         {
-            if (val <= UINT8_MAX)  return { (uint8_t)1, (uint8_t)1 };
-            if (val <= UINT16_MAX) return { (uint8_t)2, (uint8_t)2 };
-            return { (uint8_t)3, (uint8_t)4 };
+            if (val <= UINT8_MAX)  return (uint8_t)1;
+            if (val <= UINT16_MAX) return (uint8_t)2;
+            return (uint8_t)3;
         }
-        static constexpr uint8_t EncodeSpec(const FormatSpec& spec, uint8_t(&output)[SpecLength[1]]) noexcept
+        static forceinline constexpr uint32_t EncodeSpec(const FormatSpec& spec, uint8_t(&output)[SpecLength[1]]) noexcept
         {
+            uint8_t spec0 = 0, spec1 = 0;
             /*struct FormatSpec
             {
                 uint32_t Fill;//2
@@ -309,210 +324,169 @@ struct ParseResult
                 bool AlterForm = false;//1
                 bool ZeroPad = false;//1
             };*/
-            output[0] |= static_cast<uint8_t>(spec.Type.Extra << 5);
-            output[0] |= static_cast<uint8_t>((enum_cast(spec.Alignment) & 0x3) << 2);
-            output[0] |= static_cast<uint8_t>((enum_cast(spec.SignFlag)  & 0x3) << 0);
-            uint8_t idx = 2;
+            spec0 |= static_cast<uint8_t>(spec.Type.Extra << 5);
+            spec0 |= static_cast<uint8_t>((enum_cast(spec.Alignment) & 0x3) << 2);
+            spec0 |= static_cast<uint8_t>((enum_cast(spec.SignFlag)  & 0x3) << 0);
+            uint32_t idx = 2;
             if (spec.Fill != ' ') // + 0~4
             {
-                const auto [val, ele] = EncodeValLen(spec.Fill);
-                if (ele == 1)
-                    output[idx++] = static_cast<uint8_t>(spec.Fill);
-                else if (ele == 2)
+                const auto val = EncodeValLen(spec.Fill);
+                output[idx++] = static_cast<uint8_t>(spec.Fill);
+                if (val > 1)
                 {
-                    output[idx++] = static_cast<uint8_t>(spec.Fill);
                     output[idx++] = static_cast<uint8_t>(spec.Fill >> 8);
                 }
-                else if (ele == 4)
+                if (val > 2)
                 {
-                    output[idx++] = static_cast<uint8_t>(spec.Fill);
-                    output[idx++] = static_cast<uint8_t>(spec.Fill >> 8);
                     output[idx++] = static_cast<uint8_t>(spec.Fill >> 16);
                     output[idx++] = static_cast<uint8_t>(spec.Fill >> 24);
                 }
-                output[1] |= static_cast<uint8_t>(val << 6);
+                spec1 |= static_cast<uint8_t>(val << 6);
             }
             if (spec.Precision != 0) // + 0~4
             {
-                const auto [val, ele] = EncodeValLen(spec.Precision);
-                if (ele == 1)
-                    output[idx++] = static_cast<uint8_t>(spec.Precision);
-                else if (ele == 2)
+                const auto val = EncodeValLen(spec.Precision);
+                output[idx++] = static_cast<uint8_t>(spec.Precision);
+                if (val > 1)
                 {
-                    output[idx++] = static_cast<uint8_t>(spec.Precision);
                     output[idx++] = static_cast<uint8_t>(spec.Precision >> 8);
                 }
-                else if (ele == 4)
+                if (val > 2)
                 {
-                    output[idx++] = static_cast<uint8_t>(spec.Precision);
-                    output[idx++] = static_cast<uint8_t>(spec.Precision >> 8);
                     output[idx++] = static_cast<uint8_t>(spec.Precision >> 16);
                     output[idx++] = static_cast<uint8_t>(spec.Precision >> 24);
                 }
-                output[1] |= static_cast<uint8_t>(val << 4);
+                spec1 |= static_cast<uint8_t>(val << 4);
             }
             if (spec.Width != 0) // + 0~2
             {
-                const auto [val, ele] = EncodeValLen(spec.Width);
-                if (ele == 1)
-                    output[idx++] = static_cast<uint8_t>(spec.Width);
-                else if (ele == 2)
+                const auto val = EncodeValLen(spec.Width);
+                output[idx++] = static_cast<uint8_t>(spec.Width);
+                if (val > 1)
                 {
-                    output[idx++] = static_cast<uint8_t>(spec.Width);
                     output[idx++] = static_cast<uint8_t>(spec.Width >> 8);
                 }
-                output[1] |= static_cast<uint8_t>(val << 2);
+                spec1 |= static_cast<uint8_t>(val << 2);
             }
             if (spec.FmtLen > 0) // + 0~4
             {
-                output[0] |= static_cast<uint8_t>(0x10u);
-                if (spec.FmtOffset <= UINT8_MAX)
+                spec0 |= static_cast<uint8_t>(0x10u);
+                output[idx++] = static_cast<uint8_t>(spec.FmtOffset);
+                if (spec.FmtOffset > UINT8_MAX)
                 {
-                    output[idx++] = static_cast<uint8_t>(spec.FmtOffset);
-                }
-                else
-                {
-                    output[idx++] = static_cast<uint8_t>(spec.FmtOffset);
                     output[idx++] = static_cast<uint8_t>(spec.FmtOffset >> 8);
-                    output[0] |= static_cast<uint8_t>(0x80u);
+                    spec0 |= static_cast<uint8_t>(0x80u);
                 }
-                if (spec.FmtLen <= UINT8_MAX)
+                output[idx++] = static_cast<uint8_t>(spec.FmtLen);
+                if (spec.FmtLen > UINT8_MAX)
                 {
-                    output[idx++] = static_cast<uint8_t>(spec.FmtLen);
-                }
-                else
-                {
-                    output[idx++] = static_cast<uint8_t>(spec.FmtLen);
                     output[idx++] = static_cast<uint8_t>(spec.FmtLen >> 8);
-                    output[0] |= static_cast<uint8_t>(0x40u);
+                    spec0 |= static_cast<uint8_t>(0x40u);
                 }
             }
             if (spec.AlterForm) 
-                output[1] |= 0b10;
+                spec1 |= 0b10;
             if (spec.ZeroPad)
-                output[1] |= 0b01;
+                spec1 |= 0b01;
+            output[0] = spec0;
+            output[1] = spec1;
             return idx;
         }
-        static constexpr bool EmitDefault(ParseResult& result, size_t offset) noexcept
+        template<typename T>
+        static forceinline constexpr bool EmitDefault(T& result, size_t offset, const uint8_t argIdx) noexcept
         {
-            if (result.OpCount > ParseResult::OpSlots - 2)
-            {
-                result.SetError(offset, ParseResult::ErrorCode::TooManyOp);
-                return false;
-            }
-            if (result.NextArgIdx >= ParseResult::IdxArgSlots)
-            {
-                result.SetError(offset, ParseResult::ErrorCode::TooManyIdxArg);
-                return false;
-            }
-            // don't modify argType
+            auto space = result.ReserveSpace(offset, 2);
+            if (!space) return false;
+            // no spec, no need to modify argType
             // auto& argType = result.Types[result.ArgIdx];
-            result.Opcodes[result.OpCount++] = Op | FieldIndexed;
-            result.Opcodes[result.OpCount++] = result.NextArgIdx;
-            result.IdxArgCount = std::max(++result.NextArgIdx, result.IdxArgCount);
+            *space++ = Op | FieldIndexed;
+            *space++ = argIdx;
             return true;
         }
-        template<typename Char>
-        using ArgIdType = std::variant<std::monostate, uint8_t, std::basic_string_view<Char>>;
-        template<typename Char>
-        static constexpr bool Emit(ParseResult& result, std::basic_string_view<Char> str, size_t offset, const ArgIdType<Char>& id,
-            const FormatSpec* spec) noexcept
+        template<typename T>
+        static forceinline constexpr bool Emit(T* __restrict result, size_t offset, const FormatSpec* __restrict spec, ArgDispType* __restrict dstType, const uint8_t argIdx, bool isNamed) noexcept
         {
-            uint16_t opcnt = 2;
-            uint8_t opcode = Op;
-            uint8_t argIdx = 0;
-            ArgDispType* dstType = nullptr;
-            if (id.index() == 2)
+            uint8_t opcode = Op | (isNamed ? FieldNamed : FieldIndexed);
+            
+            if (spec) // need to check type
             {
-                const auto name = std::get<2>(id);
-                for (uint8_t i = 0; i < result.NamedArgCount; ++i)
+                const auto compType = ParseResultBase::CheckCompatible(*dstType, spec->Type.Type);
+                if (!compType)
                 {
-                    auto& target = result.NamedTypes[i];
-                    const auto targetName = str.substr(target.Offset, target.Length);
-                    if (targetName == name)
-                    {
-                        argIdx = i;
-                        dstType = &target.Type;
-                        break;
-                    }
-                }
-                if (!dstType)
-                {
-                    if (result.NamedArgCount >= ParseResult::NamedArgSlots)
-                    {
-                        result.SetError(offset, ParseResult::ErrorCode::TooManyNamedArg);
-                        return false;
-                    }
-                    argIdx = result.NamedArgCount;
-                    auto& target = result.NamedTypes[argIdx];
-                    target.Offset = static_cast<uint16_t>(name.data() - str.data());
-                    target.Length = static_cast<uint8_t>(name.size());
-                    dstType = &target.Type;
-                }
-                opcode |= FieldNamed;
-            }
-            else
-            {
-                argIdx = id.index() == 0 ? result.NextArgIdx : std::get<1>(id);
-                if (argIdx >= ParseResult::IdxArgSlots)
-                {
-                    result.SetError(offset, ParseResult::ErrorCode::TooManyIdxArg);
+                    result->SetError(offset, ParseResultBase::ErrorCode::IncompType);
                     return false;
                 }
-                dstType = &result.IndexTypes[argIdx];
-                opcode |= FieldIndexed;
+                *dstType = *compType; // update argType
+                opcode |= FieldHasSpec;
             }
-            uint8_t output[SpecLength[1]] = { 0 }, tailopcnt = 0;
-            auto type = ArgDispType::Any;
+            // emit op
+            {
+                auto space = result->ReserveSpace(offset, 2);
+                if (!space) return false;
+                *space++ = opcode;
+                *space++ = argIdx;
+            }
             if (spec)
             {
-                opcode |= FieldHasSpec;
-                tailopcnt = EncodeSpec(*spec, output);
-                type = spec->Type.Type;
-            }
-            opcnt += tailopcnt;
-            if (result.OpCount > ParseResult::OpSlots - opcnt)
-            {
-                result.SetError(offset, ParseResult::ErrorCode::TooManyOp);
-                return false;
-            }
-            const auto compType = CheckCompatible(*dstType, type);
-            if (!compType)
-            {
-                result.SetError(offset, ParseResult::ErrorCode::IncompType);
-                return false;
-            }
-            // update argType
-            *dstType = *compType;
-            // emit op
-            result.Opcodes[result.OpCount++] = opcode;
-            result.Opcodes[result.OpCount++] = argIdx;
-            for (uint8_t i = 0; i < tailopcnt; ++i)
-                result.Opcodes[result.OpCount++] = output[i];
-            // update argIdx
-            if (id.index() == 2)
-                result.NamedArgCount = std::max(static_cast<uint8_t>(argIdx + 1), result.NamedArgCount);
-            else
-            {
-                if (id.index() == 0) // need update next idx
-                    ++result.NextArgIdx;
-                result.IdxArgCount = std::max(static_cast<uint8_t>(argIdx + 1), std::max(result.NextArgIdx, result.IdxArgCount));
+                uint8_t output[SpecLength[1]] = { 0 };
+                const auto tailopcnt = EncodeSpec(*spec, output);
+                auto space = result->ReserveSpace(offset, tailopcnt);
+                if (!space) return false;
+                for (uint32_t i = 0; i < tailopcnt; ++i)
+                    space[i] = output[i];
             }
             return true;
         }
     };
-    
-    template<typename Char>
-    static constexpr auto ParseString(const std::basic_string_view<Char> str) noexcept;
-    template<typename Char>
-    static constexpr auto ParseString(const Char* str) noexcept
+
+    static forceinline constexpr std::optional<uint8_t> ParseHex8bit(uint32_t hex0, uint32_t hex1) noexcept
     {
-        return ParseString(std::basic_string_view<Char>(str));
+        uint32_t hex[2] = { hex0, hex1 };
+        uint32_t ret = 0;
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+                 if (hex[i] >= '0' && hex[i] <= '9') ret = ret * 16 + (hex[i] - '0');
+            else if (hex[i] >= 'a' && hex[i] <= 'f') ret = ret * 16 + (hex[i] - 'a' + 10);
+            else if (hex[i] >= 'A' && hex[i] <= 'F') ret = ret * 16 + (hex[i] - 'A' + 10);
+            else return {};
+        }
+        return static_cast<uint8_t>(ret);
     }
 
-    template<typename Char>
-    constexpr StrArgInfoCh<Char> ToInfo(const std::basic_string_view<Char> str) const noexcept;
+    static forceinline constexpr bool ParseSign(FormatSpec& fmtSpec, uint32_t ch) noexcept
+    {
+        // sign        ::=  "+" | "-" | " "
+             if (ch == '+') fmtSpec.SignFlag = FormatSpec::Sign::Pos;
+        else if (ch == '-') fmtSpec.SignFlag = FormatSpec::Sign::Neg;
+        else if (ch == ' ') fmtSpec.SignFlag = FormatSpec::Sign::Space;
+        else return false;
+        return true;
+    }
+
+    static constexpr auto CommonColorMap26 = []()
+    { // rgbcmykw, bcgkmrwy
+        std::array<uint8_t, 26> ret = { 0 };
+        ret['b' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Blue));
+        ret['c' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Cyan));
+        ret['g' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Green));
+        ret['k' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Black));
+        ret['m' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Magenta));
+        ret['r' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Red));
+        ret['w' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::White));
+        ret['y' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Yellow));
+        return ret;
+    }();
+    
+    template<typename Char, uint16_t Size = 1024>
+    static constexpr ParseResult<Size> ParseString(const std::basic_string_view<Char> str) noexcept;
+    template<typename Char, uint16_t Size = 1024>
+    static constexpr ParseResult<Size> ParseString(const Char* str) noexcept
+    {
+        return ParseString<Char, Size>(std::basic_string_view<Char>(str));
+    }
 };
+
+
 
 template<typename Char>
 struct ParseLiterals;
@@ -545,7 +519,7 @@ struct ParseLiterals<char8_t>
 #endif
 
 template<typename Char>
-struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
+struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
 {
     using CharType = Char;
     using LCH = ParseLiterals<Char>;
@@ -561,76 +535,60 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
         Char_Space = static_cast<Char>(' '), Char_Under = static_cast<Char>('_'), 
         Char_Dot = static_cast<Char>('.'), Char_Colon = static_cast<Char>(':'),
         Char_At = static_cast<Char>('@'), Char_NumSign = static_cast<Char>('#');
-    //std::basic_string_view<Char> FormatString;
-    static constexpr std::optional<uint8_t> ParseHex8bit(Char hex0, Char hex1) noexcept
+
+    template<uint32_t Limit>
+    static forceinline constexpr std::pair<uint32_t, bool> ParseDecTail(uint32_t& val, const Char* __restrict dec, uint32_t len) noexcept
     {
-        Char hex[2] = { hex0, hex1 };
-        uint32_t ret = 0;
-        for (uint32_t i = 0; i < 2; ++i)
+        constexpr auto limit1 = Limit / 10;
+        constexpr auto limitLast = Limit % 10;
+        // limit make sure [i] will not overflow, also expects str len <= UINT32_MAX
+        for (uint32_t i = 1; i < len; ++i)
         {
-                 if (hex[i] >= Char_0 && hex[i] <= Char_9) ret = ret * 16 + (hex[i] - Char_0);
-            else if (hex[i] >= Char_a && hex[i] <= Char_f) ret = ret * 16 + (hex[i] - Char_a + 10);
-            else if (hex[i] >= Char_A && hex[i] <= Char_F) ret = ret * 16 + (hex[i] - Char_A + 10);
-            else return {};
-        }
-        return static_cast<uint8_t>(ret);
-    }
-    template<typename T>
-    static constexpr std::pair<size_t, bool> ParseDecTail(std::basic_string_view<Char> dec, T& val, T limit) noexcept
-    {
-        for (size_t i = 1; i < dec.size(); ++i)
-        {
-            const auto ch = dec[i];
-            if (ch >= Char_0 && ch <= Char_9)
-                val = val * 10 + (ch - Char_0);
+            const uint32_t ch = dec[i];
+            if (ch >= '0' && ch <= '9')
+            {
+                const auto num = ch - '0';
+                if (val > limit1 || (val == limit1 && num > limitLast))
+                {
+                    return { i - 1, false };
+                }
+                val = val * 10 + num;
+            }
             else
                 return { i, true };
-            if (val >= limit)
-                return { i, false };
         }
-        return { SIZE_MAX, true };
+        return { UINT32_MAX, true };
     }
-    static constexpr bool ParseColor(ParseResult& result, size_t pos, std::basic_string_view<Char> str) noexcept
+    template<typename T>
+    static constexpr bool ParseColor(T& result, size_t pos, const std::basic_string_view<Char>& str) noexcept
     {
         using namespace std::string_view_literals;
-        constexpr auto CommonColorMap = []() 
-        { // rgbcmykw, bcgkmrwy
-            std::array<uint8_t, 26> ret = { 0 };
-            ret['b' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Blue));
-            ret['c' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Cyan));
-            ret['g' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Green));
-            ret['k' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Black));
-            ret['m' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Magenta));
-            ret['r' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Red));
-            ret['w' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::White));
-            ret['y' - 'a'] = static_cast<uint8_t>(0x80u | enum_cast(CommonColor::Yellow));
-            return ret;
-        }();
         if (str.size() < 2) // at least 2 char needed
         {
-            result.SetError(pos, ParseResult::ErrorCode::InvalidColor);
+            result.SetError(pos, ParseResultBase::ErrorCode::InvalidColor);
             return false;
         }
-        const auto fgbg = str[0];
-        if (fgbg != Char_LT && fgbg != Char_GT)
+        const uint32_t fgbg = str[0];
+        if (fgbg != '<' && fgbg != '>')
         {
-            result.SetError(pos, ParseResult::ErrorCode::MissingColorFGBG);
+            result.SetError(pos, ParseResultBase::ErrorCode::MissingColorFGBG);
             return false;
         }
-        const bool isFG = fgbg == Char_LT;
-        if (str[1] == Char_Space)
+        const bool isFG = fgbg == '<';
+        const uint32_t ch1 = str[1];
+        if (str[1] == ' ')
         {
             if (str.size() == 2)
                 return ColorOp::EmitDefault(result, pos, isFG);
         }
-        else if (str[1] == Char_x)
+        else if (str[1] == 'x') // hex color
         {
             if (str.size() == 4) // <xff
             {
                 const auto num = ParseHex8bit(str[2], str[3]);
                 if (!num)
                 {
-                    result.SetError(pos, ParseResult::ErrorCode::Invalid8BitColor);
+                    result.SetError(pos, ParseResultBase::ErrorCode::Invalid8BitColor);
                     return false;
                 }
                 return ColorOp::Emit(result, pos, *num, isFG);
@@ -643,7 +601,7 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
                     const auto num = ParseHex8bit(str[j], str[j + 1]);
                     if (!num)
                     {
-                        result.SetError(pos, ParseResult::ErrorCode::Invalid24BitColor);
+                        result.SetError(pos, ParseResultBase::ErrorCode::Invalid24BitColor);
                         return false;
                     }
                     rgb[i] = *num;
@@ -655,13 +613,13 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
         {
             uint8_t tmp = 0;
             bool isBright = false;
-            if (str[1] >= Char_a && str[1] <= Char_z)
+            if (ch1 >= 'a' && ch1 <= 'z')
             {
-                tmp = CommonColorMap[str[1] - Char_a];
+                tmp = CommonColorMap26[ch1 - 'a'];
             }
-            else if (str[1] >= Char_A && str[1] <= Char_Z)
+            else if (ch1 >= 'A' && ch1 <= 'Z')
             {
-                tmp = CommonColorMap[str[1] - Char_A];
+                tmp = CommonColorMap26[ch1 - 'A'];
                 isBright = true;
             }
             if (tmp)
@@ -672,203 +630,200 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
                 return ColorOp::Emit(result, pos, color, isFG);
             }
         }
-        result.SetError(pos, ParseResult::ErrorCode::InvalidColor);
+        result.SetError(pos, ParseResultBase::ErrorCode::InvalidColor);
         return false;
     }
-    static constexpr void ParseFillAlign(FormatSpec& fmtSpec, std::basic_string_view<Char>& str) noexcept
+    static forceinline constexpr uint32_t ParseFillAlign(FormatSpec& fmtSpec, const std::basic_string_view<Char>& str) noexcept
     {
         // [[fill]align]
         // fill        ::=  <a character other than '{' or '}'>
         // align       ::=  "<" | ">" | "^"
-        Char fillalign[2] = { str[0], 0 };
-        if (str.size() >= 2)
-            fillalign[1] = str[1];
-        for (uint8_t i = 0; i < 2; ++i)
+        switch (str[0])
         {
-            if (fillalign[i] == Char_LT || fillalign[i] == Char_GT || fillalign[i] == Char_UP) // align
+        case Char_LT: fmtSpec.Alignment = FormatSpec::Align::Left;   return 1;
+        case Char_GT: fmtSpec.Alignment = FormatSpec::Align::Right;  return 1;
+        case Char_UP: fmtSpec.Alignment = FormatSpec::Align::Middle; return 1;
+        default: break;
+        }
+        if (str.size() >= 2)
+        {
+            switch (str[1])
             {
-                fmtSpec.Alignment = fillalign[i] == Char_LT ? FormatSpec::Align::Left :
-                    (fillalign[i] == Char_GT ? FormatSpec::Align::Right : FormatSpec::Align::Middle);
-                if (i == 1) // with fill
-                    fmtSpec.Fill = fillalign[0];
-                str.remove_prefix(i + 1);
-                return;
+            case Char_LT: fmtSpec.Alignment = FormatSpec::Align::Left;   fmtSpec.Fill = str[0]; return 2;
+            case Char_GT: fmtSpec.Alignment = FormatSpec::Align::Right;  fmtSpec.Fill = str[0]; return 2;
+            case Char_UP: fmtSpec.Alignment = FormatSpec::Align::Middle; fmtSpec.Fill = str[0]; return 2;
+            default: break;
             }
         }
-        return;
+        return 0;
     }
-    static constexpr void ParseSign(FormatSpec& fmtSpec, std::basic_string_view<Char>& str) noexcept
-    {
-        // sign        ::=  "+" | "-" | " "
-             if (str[0] == Char_Plus)  fmtSpec.SignFlag = FormatSpec::Sign::Pos;
-        else if (str[0] == Char_Minus) fmtSpec.SignFlag = FormatSpec::Sign::Neg;
-        else if (str[0] == Char_Space) fmtSpec.SignFlag = FormatSpec::Sign::Space;
-        else return;
-        str.remove_prefix(1);
-        return;
-    }
-    static constexpr bool ParseWidth(ParseResult& result, FormatSpec& fmtSpec, size_t pos, std::basic_string_view<Char>& str) noexcept
+    static forceinline constexpr bool ParseWidth(ParseResultBase& result, FormatSpec& fmtSpec, uint32_t offset, uint32_t& idx, const std::basic_string_view<Char>& str) noexcept
     {
         // width       ::=  integer // | "{" [arg_id] "}"
-        const auto firstCh = str[0];
-        if (firstCh > Char_0 && firstCh <= Char_9) // find width
+        const uint32_t firstCh = str[idx];
+        if (firstCh > '0' && firstCh <= '9') // find width
         {
-            uint32_t width = firstCh - Char_0;
-            const auto [errIdx, inRange] = ParseDecTail<uint32_t>(str, width, UINT16_MAX);
+            uint32_t width = firstCh - '0';
+            const auto len = static_cast<uint32_t>(str.size());
+            const auto [errIdx, inRange] = ParseDecTail<UINT16_MAX>(width, &str[idx], len - idx);
             if (inRange)
             {
                 fmtSpec.Width = static_cast<uint16_t>(width);
-                if (errIdx == SIZE_MAX) // full finish
-                    str.remove_prefix(str.size());
+                if (errIdx == UINT32_MAX) // full finish
+                    idx = len;
                 else // assume successfully get a width
-                    str.remove_prefix(errIdx);
+                    idx += errIdx;
             }
             else // out of range
             {
-                result.SetError(pos + errIdx, ErrorCode::WidthTooLarge);
+                result.SetError(offset + idx + errIdx, ParseResultBase::ErrorCode::WidthTooLarge);
                 return false;
             }
         }
         return true;
     }
-    static constexpr bool ParsePrecision(ParseResult& result, FormatSpec& fmtSpec, size_t pos, std::basic_string_view<Char>& str) noexcept
+    static forceinline constexpr bool ParsePrecision(ParseResultBase& result, FormatSpec& fmtSpec, uint32_t offset, uint32_t& idx, const std::basic_string_view<Char>& str) noexcept
     {
         // ["." precision]
         // precision   ::=  integer // | "{" [arg_id] "}"
-        if (str[0] == Char_Dot)
+        if (str[idx] == Char_Dot)
         {
-            if (str.size() > 1)
+            const auto len = static_cast<uint32_t>(str.size());
+            if (++idx < len)
             {
-                str.remove_prefix(1);
-                const auto firstCh = str[0];
-                if (firstCh > Char_0 && firstCh <= Char_9) // find precision
+                const uint32_t firstCh = str[idx];
+                if (firstCh > '0' && firstCh <= '9') // find precision
                 {
-                    uint32_t precision = firstCh - Char_0;
-                    const auto [errIdx, inRange] = ParseDecTail<uint32_t>(str, precision, UINT32_MAX);
+                    uint32_t precision = firstCh - '0';
+                    const auto [errIdx, inRange] = ParseDecTail<UINT32_MAX>(precision, &str[idx], len - idx);
                     if (inRange)
                     {
                         fmtSpec.Precision = precision;
-                        if (errIdx == SIZE_MAX) // full finish
-                            str.remove_prefix(str.size());
+                        if (errIdx == UINT32_MAX) // full finish
+                            idx = len;
                         else // assume successfully get a width
-                            str.remove_prefix(errIdx);
+                            idx += errIdx;
                         return true;
                     }
                     else // out of range
                     {
-                        result.SetError(pos + errIdx, ErrorCode::WidthTooLarge);
+                        result.SetError(offset + idx + errIdx, ParseResultBase::ErrorCode::WidthTooLarge);
                         return false;
                     }
                 }
             }
-            result.SetError(pos + 1, ErrorCode::InvalidPrecision);
+            result.SetError(offset + idx, ParseResultBase::ErrorCode::InvalidPrecision);
             return false;
         }
         return true;
     }
-    static constexpr bool ParseFormatSpec(ParseResult& result, FormatSpec& fmtSpec, const Char* start, std::basic_string_view<Char> str) noexcept
+    static forceinline constexpr bool ParseFormatSpec(ParseResultBase& result, FormatSpec& fmtSpec, const uint32_t offset, const std::basic_string_view<Char>& str) noexcept
     {
         // format_spec ::=  [[fill]align][sign]["#"]["0"][width]["." precision][type]
-
-        ParseFillAlign(fmtSpec, str);
-        if (str.empty()) return true;
-        ParseSign(fmtSpec, str);
-        if (str.empty()) return true;
-        if (str[0] == Char_NumSign)
+        fmtSpec = {}; // clean up
+        const auto len = static_cast<uint32_t>(str.size()); // hack on x86 to avoid using r64
+        uint32_t idx = ParseFillAlign(fmtSpec, str);
+        if (idx == len) return true;
+        if (ParseSign(fmtSpec, str[idx]))
+        {
+            if (fmtSpec.SignFlag != FormatSpec::Sign::None)
+                fmtSpec.Type.Type = ArgDispType::Numeric;
+            if (++idx == len) return true;
+        }
+        if (str[idx] == Char_NumSign)
         {
             fmtSpec.AlterForm = true;
-            str.remove_prefix(1);
+            if (++idx == len) return true;
         }
-        if (str.empty()) return true;
-        if (str[0] == Char_0)
+        if (str[idx] == Char_0)
         {
             fmtSpec.ZeroPad = true;
-            str.remove_prefix(1);
+            fmtSpec.Type.Type = ArgDispType::Numeric;
+            if (++idx == len) return true;
         }
-        if (str.empty()) return true;
-        if (!ParseWidth(result, fmtSpec, str.data() - start, str))
+        if (!ParseWidth(result, fmtSpec, offset, idx, str))
             return false;
-        if (str.empty()) return true;
-        if (!ParsePrecision(result, fmtSpec, str.data() - start, str))
+        if (idx == len) return true;
+        if (!ParsePrecision(result, fmtSpec, offset, idx, str))
             return false;
-        if (!str.empty())
+        if (idx != len)
         {
-            const auto typestr = str[0];
-            if (typestr <= static_cast<Char>(127))
+            if (const uint32_t typestr = str[idx]; typestr <= 127)
             {
-                fmtSpec.Type = { static_cast<char>(str[0]) };
-                if (fmtSpec.Type.Extra != 0xff)
-                    str.remove_prefix(1);
+                const FormatSpec::TypeIdentifier type{ static_cast<char>(typestr) };
+                if (type.Extra != 0xff)
+                {
+                    idx++;
+                    // numeric type check
+                    if (fmtSpec.Type.Type == ArgDispType::Numeric && type.Type != ArgDispType::Custom)
+                    {
+                        if (const auto newType = ParseResultBase::CheckCompatible(ArgDispType::Numeric, type.Type); !newType)
+                        // don't replace fmtSpec.Type.Type because if it pass, it will be [type.Type]
+                        {
+                            result.SetError(offset + idx, ParseResultBase::ErrorCode::IncompNumSpec);
+                            return false;
+                        }
+                    }
+                    // time type check
+                    if (type.Type == ArgDispType::Date)
+                    {
+                        // zeropad & signflag already checked
+                        if (fmtSpec.AlterForm || fmtSpec.Precision != 0 || fmtSpec.Width != 0 || fmtSpec.Fill != ' ' ||
+                            fmtSpec.Alignment != FormatSpec::Align::None)
+                        {
+                            result.SetError(offset + idx, ParseResultBase::ErrorCode::IncompDateSpec);
+                            return false;
+                        }
+                    }
+                    else if (type.Type == ArgDispType::Color)
+                    {
+                        // zeropad & signflag already checked
+                        if (fmtSpec.Precision != 0 || fmtSpec.Width != 0 || fmtSpec.Fill != ' ')
+                        {
+                            result.SetError(offset + idx, ParseResultBase::ErrorCode::IncompColorSpec);
+                            return false;
+                        }
+                    }
+                    // extra field handling
+                    if (idx != len)
+                    {
+                        if (type.Type == ArgDispType::Date || type.Type == ArgDispType::Custom)
+                        {
+                            fmtSpec.FmtOffset = static_cast<uint16_t>(offset + idx);
+                            fmtSpec.FmtLen = static_cast<uint16_t>(len - idx);
+                        }
+                        else
+                        {
+                            result.SetError(offset + idx, ParseResultBase::ErrorCode::ExtraFmtSpec);
+                            return false;
+                        }
+                    }
+                    fmtSpec.Type = type;
+                    return true;
+                }
             }
-        }
-        if (fmtSpec.Type.Extra == 0xff)
-        {
-            result.SetError(str.data() - start, ErrorCode::InvalidType);
+            result.SetError(offset + idx, ParseResultBase::ErrorCode::InvalidType);
             return false;
         }
-        // time type check
-        if (fmtSpec.Type.Type == ArgDispType::Date)
-        {
-            if (fmtSpec.ZeroPad || fmtSpec.AlterForm || fmtSpec.Precision != 0 || fmtSpec.Width != 0 || fmtSpec.Fill != ' ' ||
-                fmtSpec.SignFlag != FormatSpec::Sign::None || fmtSpec.Alignment != FormatSpec::Align::None)
-            {
-                result.SetError(str.data() - start, ErrorCode::IncompDateSpec);
-                return false;
-            }
-        }
-        else if (fmtSpec.Type.Type == ArgDispType::Color)
-        {
-            if (fmtSpec.ZeroPad || fmtSpec.Precision != 0 || fmtSpec.Width != 0 || fmtSpec.Fill != ' ' ||
-                fmtSpec.SignFlag != FormatSpec::Sign::None)
-            {
-                result.SetError(str.data() - start, ErrorCode::IncompColorSpec);
-                return false;
-            }
-        }
-        // enhanced type check
-        ArgDispType gneralType = ArgDispType::Any;
-        if (fmtSpec.ZeroPad || fmtSpec.SignFlag != FormatSpec::Sign::None)
-            gneralType = ArgDispType::Numeric;
-        const auto newType = CheckCompatible(gneralType, fmtSpec.Type.Type);
-        if (!newType)
-        {
-            if (gneralType == ArgDispType::Numeric)
-                result.SetError(str.data() - start, ErrorCode::IncompNumSpec);
-            else
-                result.SetError(str.data() - start, ErrorCode::IncompType);
-            return false;
-        }
-        // extra field handling
-        if (fmtSpec.Type.Type == ArgDispType::Date || fmtSpec.Type.Type == ArgDispType::Custom)
-        {
-            if (!str.empty())
-            {
-                fmtSpec.FmtOffset = static_cast<uint16_t>(str.data() - start);
-                fmtSpec.FmtLen = static_cast<uint16_t>(str.size());
-            }
-        }
-        else if (!str.empty())
-        {
-            result.SetError(str.data() - start, ErrorCode::ExtraFmtSpec);
-            return false;
-        }
-        fmtSpec.Type.Type = *newType;
         return true;
     }
-    static constexpr ParseResult ParseString(const std::basic_string_view<Char> str) noexcept
+    template<uint16_t Size>
+    static constexpr void ParseString(ParseResult<Size>& result, const std::basic_string_view<Char> str) noexcept
     {
         using namespace std::string_view_literals;
         constexpr auto End = std::basic_string_view<Char>::npos;
-        ParseResult result;
+        static_assert(End == SIZE_MAX);
         size_t offset = 0;
         const auto size = str.size();
         if (size >= UINT16_MAX)
         {
-            return result.SetError(0, ParseResult::ErrorCode::FmtTooLong);
+            return result.SetError(0, ParseResultBase::ErrorCode::FmtTooLong);
         }
+        FormatSpec fmtSpec; // resued outside of loop
         while (offset < size)
         {
-            const auto occur = str.find_first_of(LCH::BracePair, offset);
+            const auto occurL = str.find_first_of(Char_LB, offset), occurR = str.find_first_of(Char_RB, offset);
+            const auto occur = std::min(occurL, occurR);
             bool isBrace = false;
             if (occur != End)
             {
@@ -876,16 +831,18 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
                 {
                     isBrace = str[occur + 1] == str[occur]; // "{{" or "}}", emit single '{' or '}'
                 }
-                if (!isBrace && Char_RB == str[occur])
-                    return result.SetError(occur, ParseResult::ErrorCode::MissingLeftBrace);
+                if (!isBrace && occurR < occurL) // find '}' first and it's not brace
+                {
+                    return result.SetError(occur, ParseResultBase::ErrorCode::MissingLeftBrace);
+                }
             }
             if (occur != offset) // need emit FmtStr
             {
                 const auto strLen = (occur == End ? size : occur) - offset + (isBrace ? 1 : 0);
                 if (!BuiltinOp::EmitFmtStr(result, offset, strLen))
-                    return result;
+                    return;
                 if (occur == End) // finish
-                    return result;
+                    return;
                 offset += strLen; // eat string
                 if (isBrace)
                 {
@@ -898,29 +855,47 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
                 if (isBrace) // need emit Brace
                 {
                     if (!BuiltinOp::EmitBrace(result, occur, Char_LB == str[occur]))
-                        return result;
+                        return;
                     offset += 2; // eat brace "{{" or "}}"
                     continue;
                 }
             }
-            const auto argEnd = str.find_first_of(Char_RB, offset);
-            if (argEnd == End)
-                return result.SetError(occur, ParseResult::ErrorCode::MissingRightBrace);
 
-            // begin arg parsing
-            const auto argfmt = str.substr(offset + 1, argEnd - offset - 1);
-            if (argfmt.empty()) // "{}"
+            // not brace and already find '{' and '}' must be after it
+            if (occurR == End) // '}' not found
             {
-                if (!ArgOp::EmitDefault(result, offset))
-                    return result;
+                return result.SetError(occur, ParseResultBase::ErrorCode::MissingRightBrace);
+            }
+            // occurL and occurR both exist, and should within UINT32
+            const auto argfmtOffset = static_cast<uint32_t>(occurL + 1);
+            const auto argfmtLen = static_cast<uint32_t>(occurR) - argfmtOffset;
+            if (argfmtLen == 0) // "{}"
+            {
+                if (result.NextArgIdx >= ParseResultCommon::IdxArgSlots)
+                {
+                    return result.SetError(offset, ParseResultBase::ErrorCode::TooManyIdxArg);
+                }
+                const auto argIdx = result.NextArgIdx++;
+                result.IdxArgCount = std::max(result.NextArgIdx, result.IdxArgCount);
+                if (!ArgOp::EmitDefault(result, offset, argIdx))
+                    return;
                 offset += 2; // eat "{}"
                 continue;
             }
-            const auto specSplit = argfmt.find_first_of(Char_Colon);
-            const auto argPart1 = specSplit == End ? argfmt : argfmt.substr(0, specSplit);
-            const auto argPart2 = specSplit == End ? argfmt.substr(0, 0) : argfmt.substr(specSplit + 1);
-            ArgOp::ArgIdType<Char> argId;
-            if (!argPart1.empty())
+
+            // begin arg parsing
+            const auto argfmt = str.substr(argfmtOffset, argfmtLen);
+            const auto specSplit_ = argfmt.find_first_of(Char_Colon);
+            const auto hasSpecSplit = specSplit_ != End;
+            const auto specSplit = static_cast<uint32_t>(specSplit_); // hack for x86 to avoid using r64
+            uint8_t argIdx = 0;
+            bool isNamed = false;
+            ArgDispType* dstType = nullptr;
+            if (specSplit == argfmtLen - 1)
+            { // find it at the end of argfmt, specSplit == End casted to UINT32 still works
+                return result.SetError(offset, ParseResultBase::ErrorCode::MissingFmtSpec);
+            }
+            if (specSplit > 0) // specSplit == End || specSplit > 0, has arg_id
             {
                 // see https://fmt.dev/latest/syntax.html#formatspec
                 // replacement_field ::=  "{" field_detail "}"
@@ -933,97 +908,133 @@ struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
                 // identifier        ::=  id_start id_continue*
                 // id_start          ::=  "a"..."z" | "A"..."Z" | "_"
                 // id_continue       ::=  id_start | digit
-                const auto firstCh = argPart1[0];
-                if (Char_0 == firstCh)
+                const uint32_t firstCh = argfmt[0]; // idPart[0]
+                // specSplit == End casted to UINT32 still pick argfmtLen
+                const auto idPartLen = std::min(specSplit, argfmtLen);
+                // const auto idPart = argfmt.substr(0, idPartLen); // specSplit == End is acceptable
+                if (firstCh == '0')
                 {
-                    if (argPart1.size() != 1)
-                        return result.SetError(offset, ParseResult::ErrorCode::InvalidArgIdx);
-                    argId = { static_cast<uint8_t>(0) };
-                }
-                else if (firstCh > Char_0 && firstCh <= Char_9)
-                {
-                    uint32_t id = firstCh - Char_0;
-                    const auto [errIdx, inRange] = ParseDecTail(argPart1, id, ParseResult::IdxArgSlots);
-                    if (errIdx != SIZE_MAX)
-                        return result.SetError(offset + errIdx, inRange ? ErrorCode::InvalidArgIdx : ErrorCode::ArgIdxTooLarge);
-                    argId = { static_cast<uint8_t>(id) };
-                }
-                else if ((firstCh >= Char_a && firstCh <= Char_z) ||
-                    (firstCh >= Char_A && firstCh <= Char_Z) || firstCh == Char_Under)
-                {
-                    for (size_t i = 1; i < argPart1.size(); ++i)
+                    if (idPartLen != 1)
                     {
-                        const auto ch = argPart1[i];
-                        if ((ch >= Char_a && ch <= Char_z) || (ch >= Char_A && ch <= Char_Z) ||
-                            (ch >= Char_0 && ch <= Char_9) || ch == Char_Under)
+                        return result.SetError(offset, ParseResultBase::ErrorCode::InvalidArgIdx);
+                    }
+                    argIdx = 0;
+                }
+                else if (firstCh > '0' && firstCh <= '9')
+                {
+                    uint32_t id = firstCh - '0';
+                    const auto [errIdx, inRange] = ParseDecTail<ParseResultCommon::IdxArgSlots>(id, &argfmt[0], idPartLen);
+                    if (errIdx != UINT32_MAX) // not full finish
+                    {
+                        return result.SetError(offset + errIdx, inRange ? ParseResultBase::ErrorCode::InvalidArgIdx : ParseResultBase::ErrorCode::ArgIdxTooLarge);
+                    }
+                    // already checked by inRange
+                    // if (id >= ParseResultCommon::IdxArgSlots)
+                    // {
+                    //     return result.SetError(offset, ParseResultBase::ErrorCode::TooManyIdxArg);
+                    // }
+                    argIdx = static_cast<uint8_t>(id);
+                }
+                else if ((firstCh >= 'a' && firstCh <= 'z') ||
+                    (firstCh >= 'A' && firstCh <= 'Z') || firstCh == '_')
+                {
+                    for (uint32_t i = 1; i < idPartLen; ++i)
+                    {
+                        const auto ch = argfmt[i];
+                        if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+                            (ch >= '0' && ch <= '9') || ch == '_')
                             continue;
                         else
-                            return result.SetError(offset + i, ParseResult::ErrorCode::InvalidArgName);
+                        {
+                            return result.SetError(offset + i, ParseResultBase::ErrorCode::InvalidArgName);
+                        }
                     }
-                    if (argPart1.size() > UINT8_MAX)
-                        return result.SetError(offset, ParseResult::ErrorCode::ArgNameTooLong);
-                    argId = { argPart1 };
+                    if (idPartLen > UINT8_MAX)
+                    {
+                        return result.SetError(offset, ParseResultBase::ErrorCode::ArgNameTooLong);
+                    }
+                    isNamed = true;
+                    const auto idPart = argfmt.substr(0, idPartLen);
+                    for (uint8_t i = 0; i < result.NamedArgCount; ++i)
+                    {
+                        auto& target = result.NamedTypes[i];
+                        const auto targetName = str.substr(target.Offset, target.Length);
+                        if (targetName == idPart)
+                        {
+                            argIdx = i;
+                            dstType = &target.Type;
+                            break;
+                        }
+                    }
+                    if (!dstType)
+                    {
+                        if (result.NamedArgCount >= ParseResultCommon::NamedArgSlots)
+                        {
+                            return result.SetError(offset, ParseResultBase::ErrorCode::TooManyNamedArg);
+                        }
+                        argIdx = result.NamedArgCount++;
+                        auto& target = result.NamedTypes[argIdx];
+                        target.Offset = static_cast<uint16_t>(argfmtOffset);
+                        target.Length = static_cast<uint8_t>(idPartLen);
+                        dstType = &target.Type;
+                    }
                 }
-                else if (static_cast<Char>(Char_At) == firstCh) // Color
+                else if (firstCh == '@') // Color
                 {
-                    if (!argPart2.empty())
-                        return result.SetError(offset + 1, ParseResult::ErrorCode::InvalidColor);
-                    if (!ParseColor(result, offset + 1, argPart1.substr(1)))
-                        return result;
-                    offset += 2 + argfmt.size(); // eat "{xxx}"
+                    if (hasSpecSplit) // has split
+                    {
+                        return result.SetError(offset + 1, ParseResultBase::ErrorCode::InvalidColor);
+                    }
+                    if (!ParseColor(result, offset + 1, argfmt.substr(1)))
+                        return;
+                    offset += 2 + argfmtLen; // eat "{xxx}"
                     continue;
                 }
                 else
-                    return result.SetError(offset, ParseResult::ErrorCode::InvalidArgName);
+                {
+                    return result.SetError(offset, ParseResultBase::ErrorCode::InvalidArgName);
+                }
             }
-            FormatSpec fmtSpec;
-            if (!argPart2.empty())
+            else
             {
-                if (!ParseFormatSpec(result, fmtSpec, str.data(), argPart2))
-                    return result;
+                if (result.NextArgIdx >= ParseResultCommon::IdxArgSlots)
+                {
+                    return result.SetError(offset, ParseResultBase::ErrorCode::TooManyIdxArg);
+                }
+                argIdx = result.NextArgIdx++;
             }
-            if (!ArgOp::Emit<Char>(result, str, offset, argId, !argPart2.empty() ? &fmtSpec : nullptr)) // error
-                return result;
-            offset += 2 + argfmt.size(); // eat "{xxx}"
+            if (!isNamed) // index arg, update argcount
+            {
+                dstType = &result.IndexTypes[argIdx];
+                result.IdxArgCount = std::max(static_cast<uint8_t>(argIdx + 1), result.IdxArgCount);
+            }
+            if (hasSpecSplit)
+            {
+                if (!ParseFormatSpec(result, fmtSpec, argfmtOffset + specSplit + 1, argfmt.substr(specSplit + 1)))
+                    return;
+            }
+
+            if (!ArgOp::Emit(&result, offset, hasSpecSplit ? &fmtSpec : nullptr, dstType, argIdx, isNamed))
+                return;
+            offset += 2 + argfmtLen; // eat "{xxx}"
         }
-        return result;
     }
 };
 
-template<>
-forceinline constexpr auto ParseResult::ParseString<char>(const std::basic_string_view<char> str) noexcept
+template<typename Char, uint16_t Size>
+forceinline constexpr ParseResult<Size> FormatterParser::ParseString(const std::basic_string_view<Char> str) noexcept
 {
-    return ParseResultCh<char>::ParseString(str);
+    ParseResult<Size> result;
+    FormatterParserCh<Char>::ParseString(result, str);
+    return result;
 }
-template<>
-forceinline constexpr auto ParseResult::ParseString<char16_t>(const std::basic_string_view<char16_t> str) noexcept
-{
-    return ParseResultCh<char16_t>::ParseString(str);
-}
-template<>
-forceinline constexpr auto ParseResult::ParseString<char32_t>(const std::basic_string_view<char32_t> str) noexcept
-{
-    return ParseResultCh<char32_t>::ParseString(str);
-}
-template<>
-forceinline constexpr auto ParseResult::ParseString<wchar_t>(const std::basic_string_view<wchar_t> str) noexcept
-{
-    return ParseResultCh<wchar_t>::ParseString(str);
-}
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-template<>
-forceinline constexpr auto ParseResult::ParseString<char8_t>(const std::basic_string_view<char8_t> str) noexcept
-{
-    return ParseResultCh<char8_t>::ParseString(str);
-}
-#endif
 
 
 struct StrArgInfo
 {
     common::span<const uint8_t> Opcodes;
     common::span<const ArgDispType> IndexTypes;
-    common::span<const ParseResult::NamedArgType> NamedTypes;
+    common::span<const ParseResultCommon::NamedArgType> NamedTypes;
 };
 template<typename Char>
 struct StrArgInfoCh : public StrArgInfo
@@ -1033,13 +1044,14 @@ struct StrArgInfoCh : public StrArgInfo
 };
 
 
+template<uint16_t Size>
 template<typename Char>
-forceinline constexpr StrArgInfoCh<Char> ParseResult::ToInfo(const std::basic_string_view<Char> str) const noexcept
+forceinline constexpr StrArgInfoCh<Char> ParseResult<Size>::ToInfo(const std::basic_string_view<Char> str) const noexcept
 {
     common::span<const ArgDispType> idxTypes;
     if (IdxArgCount > 0)
         idxTypes = { IndexTypes, IdxArgCount };
-    common::span<const ParseResult::NamedArgType> namedTypes;
+    common::span<const ParseResultCommon::NamedArgType> namedTypes;
     if (NamedArgCount > 0)
         namedTypes = { NamedTypes, NamedArgCount };
     common::span<const uint8_t> opCodes = { Opcodes, OpCount };
@@ -1065,8 +1077,8 @@ struct IdxArgLimiter<0>
 template<uint8_t NamedArgCount>
 struct NamedArgLimiter
 {
-    ParseResult::NamedArgType NamedTypes[NamedArgCount] = {};
-    constexpr NamedArgLimiter(const ParseResult::NamedArgType* type) noexcept
+    ParseResultCommon::NamedArgType NamedTypes[NamedArgCount] = {};
+    constexpr NamedArgLimiter(const ParseResultCommon::NamedArgType* type) noexcept
     {
         for (uint8_t i = 0; i < NamedArgCount; ++i)
             NamedTypes[i] = type[i];
@@ -1075,7 +1087,7 @@ struct NamedArgLimiter
 template<>
 struct NamedArgLimiter<0>
 { 
-    constexpr NamedArgLimiter(const ParseResult::NamedArgType*) noexcept {}
+    constexpr NamedArgLimiter(const ParseResultCommon::NamedArgType*) noexcept {}
 };
 template<typename Char, uint16_t OpCount>
 struct OpHolder
@@ -1105,7 +1117,8 @@ struct COMMON_EMPTY_BASES TrimedResult : public CompileTimeFormatter, public OpH
     static constexpr uint16_t OpCount = OpCount_;
     static constexpr uint8_t NamedArgCount = NamedArgCount_;
     static constexpr uint8_t IdxArgCount = IdxArgCount_;
-    constexpr TrimedResult(const ParseResult& result, std::basic_string_view<Char> fmtStr) noexcept :
+    template<uint16_t Size>
+    constexpr TrimedResult(const ParseResult<Size>& result, std::basic_string_view<Char> fmtStr) noexcept :
         OpHolder<Char, OpCount>(fmtStr, result.Opcodes),
         NamedArgLimiter<NamedArgCount>(result.NamedTypes),
         IdxArgLimiter<IdxArgCount>(result.IndexTypes)
@@ -1115,7 +1128,7 @@ struct COMMON_EMPTY_BASES TrimedResult : public CompileTimeFormatter, public OpH
         common::span<const ArgDispType> idxTypes;
         if constexpr (IdxArgCount > 0)
             idxTypes = this->IndexTypes;
-        common::span<const ParseResult::NamedArgType> namedTypes;
+        common::span<const ParseResultCommon::NamedArgType> namedTypes;
         if constexpr (NamedArgCount > 0)
             namedTypes = this->NamedTypes;
         return { { this->Opcodes, idxTypes, namedTypes }, this->FormatString };
@@ -1159,7 +1172,7 @@ inline constexpr auto WithName(std::string_view name, T&& arg) noexcept -> Named
 }
 
 
-using NamedMapper = std::array<uint8_t, ParseResult::NamedArgSlots>;
+using NamedMapper = std::array<uint8_t, ParseResultCommon::NamedArgSlots>;
 
 template<uint16_t N>
 struct StaticArgPack
@@ -1257,9 +1270,9 @@ struct FmtWithPair
 
 struct ArgInfo
 {
-    std::string_view Names[ParseResult::NamedArgSlots] = {};
-    ArgRealType NamedTypes[ParseResult::NamedArgSlots] = { ArgRealType::Error };
-    ArgRealType IndexTypes[ParseResult::IdxArgSlots] = { ArgRealType::Error };
+    std::string_view Names[ParseResultCommon::NamedArgSlots] = {};
+    ArgRealType NamedTypes[ParseResultCommon::NamedArgSlots] = { ArgRealType::Error };
+    ArgRealType IndexTypes[ParseResultCommon::IdxArgSlots] = { ArgRealType::Error };
     uint8_t NamedArgCount = 0, IdxArgCount = 0;
     template<typename T>
     forceinline static constexpr ArgRealType EncodeTypeSizeData() noexcept
@@ -1512,7 +1525,7 @@ struct ArgChecker
         std::optional<uint8_t> AskIndex;
         std::optional<uint8_t> GiveIndex;
     };
-    static constexpr bool CheckCompatible(ArgDispType ask, ArgRealType give_) noexcept
+    static forceinline constexpr bool CheckCompatible(ArgDispType ask, ArgRealType give_) noexcept
     {
         const auto give = give_ & ArgRealType::BaseTypeMask; // ArgInfo::CleanRealType(give_);
         if (give == ArgRealType::Error) return false;
@@ -1524,8 +1537,8 @@ struct ArgChecker
             return isInteger || give == ArgRealType::Bool;
         case ArgDispType::Float:
             return give == ArgRealType::Float;
-        /*case ArgDispType::Numeric:
-            return isInteger || give == ArgRealType::Bool || give == ArgRealType::Float;*/
+        case ArgDispType::Numeric:
+            return isInteger || give == ArgRealType::Bool || give == ArgRealType::Float;
         case ArgDispType::Char:
             return give == ArgRealType::Char || give == ArgRealType::Bool;
         case ArgDispType::String:
@@ -1542,20 +1555,20 @@ struct ArgChecker
             return false;
         }
     }
-    static constexpr uint32_t GetIdxArgMismatch(const ArgDispType* ask, const ArgRealType* give, uint8_t count) noexcept
+    static forceinline constexpr uint32_t GetIdxArgMismatch(const ArgDispType* ask, const ArgRealType* give, uint8_t count) noexcept
     {
         for (uint8_t i = 0; i < count; ++i)
             if (!CheckCompatible(ask[i], give[i]))
                 return i;
-        return ParseResult::IdxArgSlots;
+        return ParseResultCommon::IdxArgSlots;
     }
     template<uint32_t Index>
     static constexpr void CheckIdxArgMismatch() noexcept
     {
-        static_assert(Index == ParseResult::IdxArgSlots, "Type mismatch");
+        static_assert(Index == ParseResultCommon::IdxArgSlots, "Type mismatch");
     }
     template<typename Char>
-    static constexpr NamedCheckResult GetNamedArgMismatch(const ParseResult::NamedArgType* ask, const std::basic_string_view<Char> fmtStr, uint8_t askCount,
+    static constexpr NamedCheckResult GetNamedArgMismatch(const ParseResultCommon::NamedArgType* ask, const std::basic_string_view<Char> fmtStr, uint8_t askCount,
         const ArgRealType* give, const std::string_view* giveNames, uint8_t giveCount) noexcept
     {
         NamedCheckResult ret;
@@ -1601,8 +1614,8 @@ struct ArgChecker
     template<uint32_t AskIdx, uint32_t GiveIdx>
     static constexpr void CheckNamedArgMismatch() noexcept
     {
-        static_assert(GiveIdx == ParseResult::NamedArgSlots, "Named arg type mismatch at [AskIdx, GiveIdx]");
-        static_assert(AskIdx  == ParseResult::NamedArgSlots, "Missing named arg at [AskIdx]");
+        static_assert(GiveIdx == ParseResultCommon::NamedArgSlots, "Named arg type mismatch at [AskIdx, GiveIdx]");
+        static_assert(AskIdx  == ParseResultCommon::NamedArgSlots, "Missing named arg at [AskIdx]");
     }
     SYSCOMMONAPI static void CheckDDBasic(const StrArgInfo& strInfo, const ArgInfo& argInfo);
     template<typename Char>
@@ -1646,8 +1659,8 @@ struct ArgChecker
         {
             constexpr auto NamedRet = GetNamedArgMismatch(StrInfo.NamedTypes, StrInfo.FormatString, StrInfo.NamedArgCount,
                 ArgsInfo.NamedTypes, ArgsInfo.Names, ArgsInfo.NamedArgCount);
-            CheckNamedArgMismatch<NamedRet.AskIndex ? *NamedRet.AskIndex : ParseResult::NamedArgSlots,
-                NamedRet.GiveIndex ? *NamedRet.GiveIndex : ParseResult::NamedArgSlots>();
+            CheckNamedArgMismatch<NamedRet.AskIndex ? *NamedRet.AskIndex : ParseResultCommon::NamedArgSlots,
+                NamedRet.GiveIndex ? *NamedRet.GiveIndex : ParseResultCommon::NamedArgSlots>();
             mapper = NamedRet.Mapper;
         }
         return mapper;
@@ -1820,14 +1833,14 @@ private:
 
 #define FmtString2(str_) []()                                                   \
 {                                                                               \
-    using FMT_P = common::str::ParseResult;                                     \
+    using FMT_P = common::str::FormatterParser;                                 \
     using FMT_C = std::decay_t<decltype(str_[0])>;                              \
     constexpr auto Data    = FMT_P::ParseString(str_);                          \
     constexpr auto OpCount = Data.OpCount;                                      \
     constexpr auto NACount = Data.NamedArgCount;                                \
     constexpr auto IACount = Data.IdxArgCount;                                  \
     [[maybe_unused]] constexpr auto Check =                                     \
-        FMT_P::CheckErrorCompile<Data.ErrorPos, OpCount>();                     \
+        FMT_P::CheckErrorCompile<Data.ErrorPos, Data.ErrorNum>();               \
     using FMT_T = common::str::TrimedResult<FMT_C, OpCount, NACount, IACount>;  \
     struct FMT_Type : public FMT_T                                              \
     {                                                                           \
@@ -1838,24 +1851,23 @@ private:
     return Dummy;                                                               \
 }()
 
-#define FmtString(str_) *[]()                                                   \
-{                                                                               \
-    using FMT_P = common::str::ParseResult;                                     \
-    using FMT_C = std::decay_t<decltype(str_[0])>;                              \
-    static constexpr auto Data = FMT_P::ParseString(str_);                      \
-    constexpr auto OpCount = Data.OpCount;                                      \
-    constexpr auto NACount = Data.NamedArgCount;                                \
-    constexpr auto IACount = Data.IdxArgCount;                                  \
-    [[maybe_unused]] constexpr auto Check =                                     \
-        FMT_P::CheckErrorCompile<Data.ErrorPos, OpCount>();                     \
-    using FMT_T = common::str::TrimedResult<FMT_C, OpCount, NACount, IACount>;  \
-    struct FMT_Type : public FMT_T                                              \
-    {                                                                           \
-        using CharType = FMT_C;                                                 \
-        constexpr FMT_Type() noexcept : FMT_T(Data, str_) {}                    \
-    };                                                                          \
-    static constexpr FMT_Type Dummy;                                            \
-    return &Dummy;                                                              \
+#define FmtString(str_) *[]()                                       \
+{                                                                   \
+    using FMT_P = common::str::FormatterParser;                     \
+    using FMT_R = common::str::ParseResultBase;                     \
+    using FMT_C = std::decay_t<decltype(str_[0])>;                  \
+    static constexpr auto Data = FMT_P::ParseString(str_);          \
+    [[maybe_unused]] constexpr auto Check =                         \
+        FMT_R::CheckErrorCompile<Data.ErrorPos, Data.ErrorNum>();   \
+    using FMT_T = common::str::TrimedResult<FMT_C,                  \
+        Data.OpCount, Data.NamedArgCount, Data.IdxArgCount>;        \
+    struct FMT_Type : public FMT_T                                  \
+    {                                                               \
+        using CharType = FMT_C;                                     \
+        constexpr FMT_Type() noexcept : FMT_T(Data, str_) {}        \
+    };                                                              \
+    static constexpr FMT_Type Dummy;                                \
+    return &Dummy;                                                  \
 }()
 
 }
