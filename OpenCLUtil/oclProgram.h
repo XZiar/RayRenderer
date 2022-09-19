@@ -38,7 +38,7 @@ struct WorkGroupInfo
     size_t WorkGroupSize;
     size_t CompiledWorkGroupSize[3];
     size_t PreferredWorkGroupSizeMultiple;
-    constexpr bool HasCompiledWGSize() const noexcept
+    [[nodiscard]] constexpr bool HasCompiledWGSize() const noexcept
     {
         return CompiledWorkGroupSize[0] || CompiledWorkGroupSize[1] || CompiledWorkGroupSize[2];
     }
@@ -81,7 +81,7 @@ struct KernelArgInfo : public ArgFlags
     std::string_view Type;
 };
 
-class OCLUAPI KernelArgStore
+class KernelArgStore
 {
     friend oclKernel_;
     friend NLCLRawExecutor;
@@ -99,18 +99,18 @@ protected:
     uint32_t DebugBuffer;
     bool HasInfo, HasDebug;
     KernelArgStore(const detail::PlatFuncs* funcs, CLHandle<detail::CLKernel> kernel, const KernelArgStore& reference);
-    const ArgInfo* GetArg(const size_t idx, const bool check = true) const;
+    [[nodiscard]] const ArgInfo* GetArg(const size_t idx, const bool check = true) const;
     void AddArg(const KerArgType argType, const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier,
         const std::string_view name, const std::string_view type);
-    KernelArgInfo GetArgInfo(const size_t idx) const noexcept;
+    OCLUAPI [[nodiscard]] KernelArgInfo GetArgInfo(const size_t idx) const noexcept;
     using ItType = common::container::IndirectIterator<const KernelArgStore, KernelArgInfo, &KernelArgStore::GetArgInfo>;
     friend ItType;
 public:
     KernelArgStore() : DebugBuffer(0), HasInfo(false), HasDebug(false) {}
-    KernelArgInfo operator[](size_t idx) const noexcept { return GetArgInfo(idx); }
-    size_t GetSize() const noexcept { return ArgsInfo.size(); }
-    ItType begin() const noexcept { return { this, 0 }; }
-    ItType end()   const noexcept { return { this, ArgsInfo.size() }; }
+    [[nodiscard]] KernelArgInfo operator[](size_t idx) const noexcept { return GetArgInfo(idx); }
+    [[nodiscard]] size_t GetSize() const noexcept { return ArgsInfo.size(); }
+    [[nodiscard]] ItType begin() const noexcept { return { this, 0 }; }
+    [[nodiscard]] ItType end()   const noexcept { return { this, ArgsInfo.size() }; }
 };
 
 
@@ -166,7 +166,7 @@ public:
 };
 
 
-struct OCLUAPI CallResult
+struct CallResult
 {
     std::shared_ptr<xcomp::debug::DebugManager> DebugMan;
     std::shared_ptr<xcomp::debug::InfoProvider> InfoProv;
@@ -175,7 +175,7 @@ struct OCLUAPI CallResult
     oclBuffer InfoBuf;
     oclBuffer DebugBuf;
 
-    std::unique_ptr<xcomp::debug::DebugPackage> GetDebugData(const bool releaseRuntime = false) const;
+    OCLUAPI [[nodiscard]] std::unique_ptr<xcomp::debug::DebugPackage> GetDebugData(const bool releaseRuntime = false) const;
 };
 
 
@@ -202,7 +202,7 @@ struct SizeN
         for (const auto dat : data)
             Data[i++] = dat;
     }
-    constexpr const size_t* GetData(const bool zeroToNull = false) const noexcept
+    [[nodiscard]] constexpr const size_t* GetData(const bool zeroToNull = false) const noexcept
     {
         if (zeroToNull)
         {
@@ -217,7 +217,7 @@ struct SizeN
 };
 
 
-class OCLUAPI oclKernel_ : public detail::oclCommon
+class oclKernel_ : public detail::oclCommon
 {
     friend class oclProgram_;
 private:
@@ -331,9 +331,9 @@ private:
 public:
     COMMON_NO_COPY(oclKernel_)
     COMMON_NO_MOVE(oclKernel_)
-    ~oclKernel_();
+    OCLUAPI ~oclKernel_();
 
-    [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const uint8_t dim, const size_t* localsize) const;
+    OCLUAPI [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const uint8_t dim, const size_t* localsize) const;
     [[nodiscard]] bool HasOCLUDebug() const noexcept { return ArgStore.HasDebug; }
     template<uint8_t N>
     [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const std::array<size_t, N>& localsize) const
@@ -374,7 +374,7 @@ struct CLProgConfig
 };
 
 
-class OCLUAPI [[nodiscard]] oclProgStub : public common::NonCopyable
+class [[nodiscard]] oclProgStub : public common::NonCopyable
 {
     friend class oclProgram_;
     friend class NLCLProcessor;
@@ -388,10 +388,10 @@ private:
     std::shared_ptr<xcomp::debug::DebugManager> DebugMan;
     oclProgStub(const oclContext& ctx, const oclDevice& dev, std::string&& str);
 public:
-    ~oclProgStub();
-    void Build(const CLProgConfig& config);
-    [[nodiscard]] std::u16string GetBuildLog() const;
-    [[nodiscard]] oclProgram Finish();
+    OCLUAPI ~oclProgStub();
+    OCLUAPI void Build(const CLProgConfig& config);
+    OCLUAPI [[nodiscard]] std::u16string GetBuildLog() const;
+    OCLUAPI [[nodiscard]] oclProgram Finish();
 };
 
 class OCLUAPI oclProgram_ : public detail::oclCommon, public std::enable_shared_from_this<oclProgram_>

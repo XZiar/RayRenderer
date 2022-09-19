@@ -166,7 +166,15 @@ struct CommonDeviceInfo
     std::array<std::byte, 16> Guid = { std::byte(0) };
     std::array<std::byte, 8>  Luid = { std::byte(0) };
     uint32_t VendorId = 0, DeviceId = 0;
+    uint32_t DisplayId = UINT32_MAX;
+    uint32_t DedicatedVRAM = 0, DedicatedSysRAM = 0, SharedSysRAM = 0;
     PCI_BDF PCIEAddress;
+    bool IsSoftware : 1;
+    bool SupportCompute : 1;
+    bool SupportRender : 1;
+    bool SupportDisplay : 1;
+    bool SupportPV : 1;
+    CommonDeviceInfo() noexcept;
 };
 XCOMPBASAPI common::span<const CommonDeviceInfo> ProbeDevice();
 XCOMPBASAPI const CommonDeviceInfo* LocateDevice(const std::array<std::byte, 8>* luid, 

@@ -49,7 +49,7 @@ using Microsoft::WRL::ComPtr;
 struct CommonInfoHelper
 {
     common::DynLib Gdi32;
-    decltype(&D3DKMTOpenAdapterFromLuid) OpenAdapterFromLuid = nullptr;
+    decltype(&D3DKMTOpenAdapterFromLuid) OpenAdapterFromLuid = nullptr; // start from win8
     struct PathInfo
     {
         std::u16string Path;
@@ -58,7 +58,23 @@ struct CommonInfoHelper
         PathInfo(std::u16string&& path, std::optional<std::pair<LUID, D3DKMT_HANDLE>> kmtInfo, PCI_BDF addr) noexcept :
             Path(std::move(path)), KMTInfo(kmtInfo), Address(addr) {}
     };
+    struct DisplayInfo
+    {
+        uint32_t DisplayId;
+        D3DKMT_HANDLE Handle;
+        LUID Luid;
+        uint32_t Flag;
+        DisplayInfo(uint32_t id, const LUID& luid, D3DKMT_HANDLE handle, uint32_t flag) noexcept :
+            DisplayId(id), Handle(handle), Luid(luid), Flag(flag) {}
+    };
     std::vector<PathInfo> DevicePaths;
+    std::vector<DisplayInfo> Displays;
+    static forceinline void CloseKMTHandle(D3DKMT_HANDLE handle) noexcept
+    {
+        D3DKMT_CLOSEADAPTER closeApadter = {};
+        closeApadter.hAdapter = handle;
+        [[maybe_unused]] const auto dummy = D3DKMTCloseAdapter(&closeApadter);
+    }
     template<typename T>
     static forceinline bool GetDevProp(const DEVINST& devinst, const DEVPROPKEY& prop, T& dst)
     {
@@ -108,7 +124,7 @@ struct CommonInfoHelper
                     std::wstring newname = L"\\\\?\\";
                     for (const auto ch : devId)
                         newname.push_back(ch == L'\\' ? L'#' : ch);
-                    newname.append(L"#{1CA05180-A699-450A-9A0C-DE4FBE3DDD89}");
+                      newname.append(L"#{1CA05180-A699-450A-9A0C-DE4FBE3DDD89}");
                     D3DKMT_OPENADAPTERFROMDEVICENAME openFromDevName = {};
                     openFromDevName.pDeviceName = newname.data();
                     if (D3DKMTOpenAdapterFromDeviceName(&openFromDevName) == STATUS_SUCCESS)
@@ -131,6 +147,55 @@ struct CommonInfoHelper
                 DevicePaths.emplace_back(common::str::to_u16string(devId), kmtInfo, address);
             }
         }
+        {
+            DISPLAY_DEVICEW dd;
+            dd.cb = sizeof(DISPLAY_DEVICEW);
+            std::u16string infoTxt = u"DisplayDevices:\n";
+            DWORD deviceNum = 0;
+            while (EnumDisplayDevicesW(nullptr, deviceNum, &dd, 0))
+            {
+                D3DKMT_OPENADAPTERFROMGDIDISPLAYNAME openFromDName{};
+                memcpy_s(openFromDName.DeviceName, sizeof(openFromDName.DeviceName), dd.DeviceName, sizeof(dd.DeviceName));
+                if (const auto status = D3DKMTOpenAdapterFromGdiDisplayName(&openFromDName); status == STATUS_SUCCESS)
+                {
+                    std::wstring_view dName(dd.DeviceName);
+                    Expects(dName.size() >= 12 && common::str::IsBeginWith(dName, L"\\\\.\\DISPLAY"sv));
+                    uint32_t idx = 0;
+                    bool correct = true;
+                    for (uint32_t i = 11; i < dName.size(); ++i)
+                    {
+                        if (dd.DeviceName[i] >= L'0' && dd.DeviceName[i] <= L'9')
+                            idx = idx * 10 + (dd.DeviceName[i] - L'0');
+                        else
+                        {
+                            correct = false;
+                            break;
+                        }
+                    }
+                    if (correct)
+                    {
+                        Displays.emplace_back(idx, openFromDName.AdapterLuid, openFromDName.hAdapter, dd.StateFlags);
+                    }
+                    else
+                    {
+                        CloseKMTHandle(openFromDName.hAdapter);
+                    }
+                }
+                common::str::Formatter<char16_t>{}.FormatToStatic(infoTxt,
+                    FmtString(u"[{}]{}\t[{:7}|{:3}]\n"sv), deviceNum, dd.DeviceName,
+                    (dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) ? u"Primary"sv : u""sv,
+                    (dd.StateFlags & DISPLAY_DEVICE_VGA_COMPATIBLE) ? u"VGA"sv : u""sv);
+                deviceNum++;
+            }
+            console.Print(common::CommonColor::Magenta, infoTxt);
+            // make primary first, or use lowest display id
+            std::sort(Displays.begin(), Displays.end(), [](const DisplayInfo& l, const DisplayInfo& r)
+                {
+                    const bool isLPrimary = l.Flag & DISPLAY_DEVICE_PRIMARY_DEVICE;
+                    const bool isRPrimary = r.Flag & DISPLAY_DEVICE_PRIMARY_DEVICE;
+                    return isLPrimary == isRPrimary ? l.DisplayId < r.DisplayId : isLPrimary;
+                });
+        }
     }
     ~CommonInfoHelper()
     { 
@@ -138,10 +203,12 @@ struct CommonInfoHelper
         {
             if (path.KMTInfo)
             {
-                D3DKMT_CLOSEADAPTER closeApadter = {};
-                closeApadter.hAdapter = path.KMTInfo->second;
-                [[maybe_unused]] const auto dummy = D3DKMTCloseAdapter(&closeApadter);
+                CloseKMTHandle(path.KMTInfo->second);
             }
+        }
+        for (auto& disp : Displays)
+        {
+            CloseKMTHandle(disp.Handle);
         }
     }
     std::optional<std::u16string> QueryReg(UINT adpater, std::wstring_view path) const noexcept
@@ -187,21 +254,42 @@ struct CommonInfoHelper
         }
         return {};
     }
+    template<typename T>
+    static bool QueryAdapterInfo(D3DKMT_HANDLE handle, KMTQUERYADAPTERINFOTYPE type, T& data) noexcept
+    {
+        D3DKMT_QUERYADAPTERINFO queryAdapterInfo = {};
+        queryAdapterInfo.hAdapter = handle;
+        queryAdapterInfo.Type = type;
+        queryAdapterInfo.pPrivateDriverData = &data;
+        queryAdapterInfo.PrivateDriverDataSize = sizeof(data);
+        const auto ret = D3DKMTQueryAdapterInfo(&queryAdapterInfo);
+        return ret == STATUS_SUCCESS;
+    }
     void FillDeviceInfo(CommonDeviceInfo& info) const noexcept
     {
         enum class HandleType { None, Persist, Temp };
         HandleType handleType = HandleType::None;
         D3DKMT_HANDLE handle = 0;
-        const auto it = std::find_if(DevicePaths.cbegin(), DevicePaths.cend(), [&](const auto& path)
-            { return path.KMTInfo && std::memcmp(&path.KMTInfo->first, &info.Luid, sizeof(info.Luid)) == 0; });
-        if (it != DevicePaths.cend())
+        if (const auto it = std::find_if(DevicePaths.cbegin(), DevicePaths.cend(), [&](const auto& path)
+            { return path.KMTInfo && std::memcmp(&path.KMTInfo->first, &info.Luid, sizeof(LUID)) == 0; });
+            it != DevicePaths.cend())
         {
             info.DevicePath = it->Path;
             handle = it->KMTInfo->second, handleType = HandleType::Persist;
         }
-        else if (OpenAdapterFromLuid)
+        if (const auto it = std::find_if(Displays.cbegin(), Displays.cend(), [&](const auto& disp)
+            { return std::memcmp(&disp.Luid, &info.Luid, sizeof(LUID)) == 0; });
+            it != Displays.cend())
         {
-            D3DKMT_OPENADAPTERFROMLUID openFromLuid = {};
+            info.DisplayId = it->DisplayId;
+            if (handleType == HandleType::None)
+            {
+                handle = it->Handle, handleType = HandleType::Persist;
+            }
+        }
+        if (handleType == HandleType::None && OpenAdapterFromLuid)
+        {
+            D3DKMT_OPENADAPTERFROMLUID openFromLuid{};
             memcpy_s(&openFromLuid.AdapterLuid, sizeof(openFromLuid.AdapterLuid), info.Luid.data(), sizeof(info.Luid));
             openFromLuid.hAdapter = 0;
             if (const auto status = OpenAdapterFromLuid(&openFromLuid); status == STATUS_SUCCESS)
@@ -211,60 +299,81 @@ struct CommonInfoHelper
         }
         if (handleType != HandleType::None)
         {
+            // WDDM Version
+            uint32_t WDDMVer = 1000;
+            if (D3DKMT_DRIVERVERSION driverVer = KMT_DRIVERVERSION_WDDM_1_0; QueryAdapterInfo(handle, KMTQAITYPE_DRIVERVERSION, driverVer))
             {
-                D3DKMT_ADAPTERADDRESS queryArgs = {};
-                D3DKMT_QUERYADAPTERINFO queryAdapterInfo = {};
-                queryAdapterInfo.hAdapter = handle;
-                queryAdapterInfo.Type = KMTQAITYPE_ADAPTERADDRESS;
-                queryAdapterInfo.pPrivateDriverData = &queryArgs;
-                queryAdapterInfo.PrivateDriverDataSize = sizeof(queryArgs);
-                if (const auto ret = D3DKMTQueryAdapterInfo(&queryAdapterInfo); ret == STATUS_SUCCESS)
+                WDDMVer = static_cast<uint32_t>(driverVer);
+            }
+            // PCI_BDF
+            if (D3DKMT_ADAPTERADDRESS address{}; QueryAdapterInfo(handle, KMTQAITYPE_ADAPTERADDRESS, address))
+            {
+                info.PCIEAddress = { address.BusNumber, address.DeviceNumber, address.FunctionNumber };
+                if (info.DevicePath.empty())
                 {
-                    info.PCIEAddress = { queryArgs.BusNumber, queryArgs.DeviceNumber, queryArgs.FunctionNumber };
-                    if (info.DevicePath.empty())
+                    for (const auto& path : DevicePaths)
                     {
-                        for (const auto& path : DevicePaths)
-                        {
-                            if (path.Address == info.PCIEAddress)
-                                info.DevicePath = path.Path;
-                        }
+                        if (path.Address == info.PCIEAddress)
+                            info.DevicePath = path.Path;
                     }
                 }
             }
+            // GUID
+            if (GUID guid{}; QueryAdapterInfo(handle, KMTQAITYPE_ADAPTERGUID, guid))
             {
-                GUID guid = {};
-                D3DKMT_QUERYADAPTERINFO queryAdapterInfo = {};
-                queryAdapterInfo.hAdapter = handle;
-                queryAdapterInfo.Type = KMTQAITYPE_ADAPTERGUID;
-                queryAdapterInfo.pPrivateDriverData = &guid;
-                queryAdapterInfo.PrivateDriverDataSize = sizeof(guid);
-                if (const auto ret = D3DKMTQueryAdapterInfo(&queryAdapterInfo); ret == STATUS_SUCCESS)
-                    memcpy_s(info.Guid.data(), sizeof(info.Guid), &guid, sizeof(guid));
+                memcpy_s(info.Guid.data(), sizeof(info.Guid), &guid, sizeof(guid));
             }
+            // Segment/RAM size
+            if (D3DKMT_SEGMENTSIZEINFO segSize{}; QueryAdapterInfo(handle, KMTQAITYPE_GETSEGMENTSIZE, segSize))
+            {
+                info.DedicatedVRAM   = static_cast<uint32_t>(segSize.DedicatedVideoMemorySize  / 1048576u);
+                info.DedicatedSysRAM = static_cast<uint32_t>(segSize.DedicatedSystemMemorySize / 1048576u);
+                info.SharedSysRAM    = static_cast<uint32_t>(segSize.SharedSystemMemorySize    / 1048576u);
+            }
+            if (WDDMVer >= 1200)
+            {
+                // Adapter Type
+                if (D3DKMT_ADAPTERTYPE type{}; QueryAdapterInfo(handle, KMTQAITYPE_ADAPTERTYPE, type))
+                {
+                    info.IsSoftware     = type.SoftwareDevice;
+                    info.SupportRender  = type.RenderSupported;
+                    info.SupportDisplay = type.DisplaySupported;
+                    if (WDDMVer >= 2300)
+                        info.SupportPV = type.Paravirtualized;
+                    info.SupportCompute = info.SupportRender || (WDDMVer >= 2600 ? type.ComputeOnly : false);
+                }
+            }
+            // ICD Path
+            if (WDDMVer >= 2400) // Since Windows 10, version 1803
+            {
 #if COMMON_OSBIT == 64
-            constexpr std::wstring_view OpenGLPath = L"OpenGLDriverName";
-            constexpr std::wstring_view OpenCLPath = L"OpenCLDriverName";
-            constexpr std::wstring_view VulkanPath = L"VulkanDriverName";
-            constexpr std::wstring_view LvZeroPath = L"LevelZeroDriverPath";
+                constexpr std::wstring_view OpenGLPath = L"OpenGLDriverName";
+                constexpr std::wstring_view OpenCLPath = L"OpenCLDriverName";
+                constexpr std::wstring_view VulkanPath = L"VulkanDriverName";
+                constexpr std::wstring_view LvZeroPath = L"LevelZeroDriverPath";
 #else
-            constexpr std::wstring_view OpenGLPath = L"OpenGLDriverNameWow";
-            constexpr std::wstring_view OpenCLPath = L"OpenCLDriverNameWow";
-            constexpr std::wstring_view VulkanPath = L"VulkanDriverNameWow";
-            constexpr std::wstring_view LvZeroPath = L"";
+                constexpr std::wstring_view OpenGLPath = L"OpenGLDriverNameWow";
+                constexpr std::wstring_view OpenCLPath = L"OpenCLDriverNameWow";
+                constexpr std::wstring_view VulkanPath = L"VulkanDriverNameWow";
+                constexpr std::wstring_view LvZeroPath = L"";
 #endif
-            if (auto ret = QueryReg(handle, OpenGLPath); ret)
-                info.OpenGLICDPath = std::move(*ret);
-            if (auto ret = QueryReg(handle, OpenCLPath); ret)
-                info.OpenCLICDPath = std::move(*ret);
-            if (auto ret = QueryReg(handle, VulkanPath); ret)
-                info.VulkanICDPath = std::move(*ret);
-            if (auto ret = QueryReg(handle, LvZeroPath); ret)
-                info.LvZeroICDPath = std::move(*ret);
+                if (auto ret = QueryReg(handle, OpenGLPath); ret)
+                    info.OpenGLICDPath = std::move(*ret);
+                if (auto ret = QueryReg(handle, OpenCLPath); ret)
+                    info.OpenCLICDPath = std::move(*ret);
+                if (auto ret = QueryReg(handle, VulkanPath); ret)
+                    info.VulkanICDPath = std::move(*ret);
+                if (auto ret = QueryReg(handle, LvZeroPath); ret)
+                    info.LvZeroICDPath = std::move(*ret);
+            }
+            else
+            {
+                if (D3DKMT_OPENGLINFO glinfo{}; QueryAdapterInfo(handle, KMTQAITYPE_UMOPENGLINFO, glinfo))
+                    info.OpenGLICDPath.assign(reinterpret_cast<const char16_t*>(glinfo.UmdOpenGlIcdFileName));
+            }
             if (handleType == HandleType::Temp)
             {
-                D3DKMT_CLOSEADAPTER closeApadter = {};
-                closeApadter.hAdapter = handle;
-                [[maybe_unused]] const auto dummy = D3DKMTCloseAdapter(&closeApadter);
+                CloseKMTHandle(handle);
             }
         }
     }

@@ -203,20 +203,6 @@ public:
         LOAD_FUNC(OGL, GetCurrentDC);
         LOAD_FUNC(OGL, GetCurrentContext);
         LOAD_FUNC(OGL, GetProcAddress);
-        {
-            DISPLAY_DEVICEW dd;
-            dd.cb = sizeof(DISPLAY_DEVICEW);
-            std::u16string infoTxt = u"DisplayDevices:\n";
-            DWORD deviceNum = 0;
-            while (EnumDisplayDevicesW(nullptr, deviceNum, &dd, 0)) 
-            {
-                APPEND_FMT(infoTxt, u"[{}]{}\t[{:7}|{:3}]\n"sv, deviceNum, dd.DeviceName, 
-                    (dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) ? u"Primary"sv : u""sv,
-                    (dd.StateFlags & DISPLAY_DEVICE_VGA_COMPATIBLE) ? u"VGA"sv : u""sv);
-                deviceNum++;
-            }
-            oglLog().Verbose(infoTxt);
-        }
     }
     ~WGLLoader_() final {}
 private:

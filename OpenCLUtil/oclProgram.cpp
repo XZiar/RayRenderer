@@ -411,7 +411,6 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, c
 {
     if (const auto info = KernelHost->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Simple))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"simple is set to an non-simple kernel argument slot");
-    KernelHost->ArgStore.GetArg(idx);
     auto ret = KernelHost->Funcs->clSetKernelArg(*Kernel, idx, size, dat);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");

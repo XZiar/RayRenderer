@@ -113,6 +113,10 @@ std::u32string_view StringifyVDataType(const VTypeInfo vtype) noexcept
 }
 
 
+CommonDeviceInfo::CommonDeviceInfo() noexcept :
+    IsSoftware(false), SupportCompute(true), SupportRender(false), SupportDisplay(false), SupportPV(false)
+{}
+
 #if !COMMON_OS_WIN && !COMMON_OS_LINUX
 common::span<const CommonDeviceInfo> ProbeDevice()
 {
