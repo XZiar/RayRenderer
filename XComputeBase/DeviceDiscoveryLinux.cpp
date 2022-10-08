@@ -102,7 +102,7 @@ struct DrmAmd final : public DrmHelper
 
 struct DrmI915 final : public DrmHelper
 {
-    DrmI915(std::string_view name_, const common::DynLib& Lib) : DrmHelper(name_)
+    DrmI915(std::string_view name_) : DrmHelper(name_)
     {
     }
     ~DrmI915() final {}
@@ -157,6 +157,17 @@ struct DrmI915 final : public DrmHelper
         }
 #endif
         info.Name = common::str::to_u16string(version.desc, version.desc_len);
+    }
+};
+
+struct DrmPanfrost final : public DrmHelper
+{
+    DrmPanfrost(std::string_view name_) : DrmHelper(name_)
+    {
+    }
+    void FillInfo(CommonDeviceInfo& info, int fd, const drmVersion& version) const noexcept final
+    {
+        info.Name = u"Mali GPU";
     }
 };
 
@@ -227,8 +238,10 @@ common::span<const CommonDeviceInfo> ProbeDevice()
             if (auto drmAmd = TryLoadLib<DrmAmd>("amdgpu"sv); drmAmd)
                 drmLibs.emplace_back(std::move(drmAmd));
 #endif
-            if (auto drmI915 = TryLoadLib<DrmI915>("i915"sv, *libdrm); drmI915)
+            if (auto drmI915 = TryLoadLib<DrmI915>("i915"sv); drmI915)
                 drmLibs.emplace_back(std::move(drmI915));
+            if (auto drmPanfrost = TryLoadLib<DrmPanfrost>("panfrost"sv); drmPanfrost)
+                drmLibs.emplace_back(std::move(drmPanfrost));
 
             for (const auto& dev : drmDevs)
             {
@@ -247,41 +260,37 @@ common::span<const CommonDeviceInfo> ProbeDevice()
                 default:
                     break;
                 }
+                info.DevicePath = common::str::to_u16string(dev->nodes[DRM_NODE_PRIMARY]);
                 info.SupportRender  = dev->available_nodes & (1 << DRM_NODE_RENDER);
-                info.SupportDisplay = dev->available_nodes & (1 << DRM_NODE_PRIMARY);
+                //info.SupportDisplay = dev->available_nodes & (1 << DRM_NODE_PRIMARY);
                 // Use render node which requires no permission: https://dri.freedesktop.org/docs/drm/gpu/drm-uapi.html#render-nodes
-                if (info.SupportRender)
+                const auto fdNode = dev->nodes[info.SupportRender ? DRM_NODE_RENDER : DRM_NODE_PRIMARY];
+                if (const auto fd = open(fdNode, O_RDONLY | O_CLOEXEC, 0); fd < 0)
                 {
-                    const auto node = dev->nodes[DRM_NODE_RENDER];
-                    info.DevicePath = common::str::to_u16string(node);
-                    const auto fd = open(node, O_RDONLY | O_CLOEXEC, 0);
-                    if (fd < 0)
+                    const auto err = common::ErrnoHolder::GetCurError();
+                    console.Print(common::CommonColor::BrightYellow, FMTSTR2(u"Failed when open device node [{}]: [{:#}]\n"sv, fdNode, err));
+                }
+                else
+                {
+                    const auto driVer  = GetVersion(fd);
+                    const auto driVer2 = GetLibVersion(fd);
+                    const auto busid   = GetBusid(fd);
+                    std::string_view name(driVer->name, driVer->name_len);
+                    std::string_view date(driVer->date, driVer->date_len);
+                    std::string_view desc(driVer->desc, driVer->desc_len);
+                    for (const auto& drmLib : drmLibs)
                     {
-                        const auto err = common::ErrnoHolder::GetCurError();
-                        console.Print(common::CommonColor::BrightYellow, FMTSTR2(u"Failed when open device node [{}]: [{:#}]\n"sv, node, err));
-                    }
-                    else
-                    {
-                        const auto driVer  = GetVersion(fd);
-                        const auto driVer2 = GetLibVersion(fd);
-                        const auto busid   = GetBusid(fd);
-                        std::string_view name(driVer->name, driVer->name_len);
-                        std::string_view date(driVer->date, driVer->date_len);
-                        std::string_view desc(driVer->desc, driVer->desc_len);
-                        for (const auto& drmLib : drmLibs)
+                        if (drmLib->DriverName == name)
                         {
-                            if (drmLib->DriverName == name)
-                            {
-                                drmLib->FillInfo(info, fd, *driVer);
-                                break;
-                            }
+                            drmLib->FillInfo(info, fd, *driVer);
+                            break;
                         }
-
-                        //info.Name = common::str::to_u16string(name);
-                        FreeVersion(driVer);
-                        FreeVersion(driVer2);
-                        close(fd);
                     }
+
+                    //info.Name = common::str::to_u16string(name);
+                    FreeVersion(driVer);
+                    FreeVersion(driVer2);
+                    close(fd);
                 }
             }
             FreeDevices(drmDevs.data(), count);

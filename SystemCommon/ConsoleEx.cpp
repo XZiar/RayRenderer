@@ -680,7 +680,7 @@ const ConsoleEx& ConsoleEx::Get() noexcept
         const auto isAtty = isatty(fd);
         if (isAtty)
         {
-            const std::string str = getenv("TERM");
+            const auto str = GetEnvVar("TERM");
             constexpr std::string_view ColorTerms[] =
             {
                 "xterm", "xterm-color", "xterm-256color", "screen", "screen-256color", "tmux", "tmux-256color", "rxvt-unicode", "rxvt-unicode-256color", "linux", "cygwin"

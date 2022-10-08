@@ -129,9 +129,9 @@ const CommonDeviceInfo* LocateDevice(const std::array<std::byte, 8>* luid,
 {
     const auto devs = ProbeDevice();
     const auto& console = common::console::ConsoleEx::Get();
-    const CommonDeviceInfo* ret = nullptr;
     if (luid || guid || pcie)
     {
+        const CommonDeviceInfo* ret = nullptr;
         for (const auto& dev : devs)
         {
             if (pcie && *pcie == dev.PCIEAddress)
@@ -169,6 +169,7 @@ const CommonDeviceInfo* LocateDevice(const std::array<std::byte, 8>* luid,
     }
     if (vid || did)
     {
+        const CommonDeviceInfo* ret = nullptr;
         for (const auto& dev : devs)
         {
             if ((!vid || *vid == dev.VendorId) && (!did || *did == dev.DeviceId))
@@ -187,6 +188,7 @@ const CommonDeviceInfo* LocateDevice(const std::array<std::byte, 8>* luid,
     }
     if (!name.empty())
     {
+        const CommonDeviceInfo* ret = nullptr;
         for (const auto& dev : devs)
         {
             if (name == dev.Name)
@@ -200,8 +202,10 @@ const CommonDeviceInfo* LocateDevice(const std::array<std::byte, 8>* luid,
                 }
             }
         }
+        if (ret)
+            return ret;
     }
-    return ret;
+    return nullptr;
 }
 
 

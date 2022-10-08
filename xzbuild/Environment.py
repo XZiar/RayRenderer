@@ -54,6 +54,21 @@ def _checkExists(prog:str) -> bool:
             return False
     return True
 
+def _fallbackCheck(paras:dict, paraName:str, envName:str, defProvider, defVal:str, checkExists:bool) -> str:
+    check = (lambda x: x is not None and _checkExists(x)) if checkExists else (lambda x: x is not None)
+
+    target = paras.get(paraName, None)
+    if check(target): return target
+
+    target = os.environ.get(envName, None)
+    if check(target): return target
+
+    if defProvider is not None:
+        target = defProvider if isinstance(defProvider, str) else defProvider()
+        if check(target): return target
+
+    return defVal
+
 def splitPaths(path:str):
     if path == None:
         return []
@@ -97,8 +112,8 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
     env["defines"] = []
     env["incDirs"] += [x+"/include" for x in [os.environ.get("CPP_DEPENDENCY_PATH")] if x is not None]
     
-    cppcompiler = os.environ.get("CPPCOMPILER", "c++")
-    ccompiler = os.environ.get("CCOMPILER", "cc")
+    cppcompiler = _fallbackCheck(paras, "cppcompiler", "CPPCOMPILER", None, "c++", True)
+    ccompiler   = _fallbackCheck(paras, "ccompiler",   "CCOMPILER",   None, "cc",  True)
     env["cppcompiler"] = cppcompiler
     env["ccompiler"] = ccompiler
     env["osname"] = platform.system()
@@ -151,12 +166,11 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
         rawdefs = subprocess.check_output(f"{cppcompiler} {env['archparam']} {env['stdlibarg']} -xc++ -dM -E -", shell=True, input=_checkCpp.encode()).decode()
         defs = dict([d.split(" ", 2)[1:3] for d in rawdefs.splitlines()])
         env["libDirs"] += splitPaths(os.environ.get("LD_LIBRARY_PATH"))
-        env["compiler"] = "clang" if "__clang__" in defs else "gcc"
-        arlinker = "gcc-ar" if env["compiler"] == "gcc" else "llvm-ar"
-        if not _checkExists(arlinker): arlinker = "ar"
-        env["arlinker"] = os.environ.get("STATICLINKER", arlinker)
+        compilerType = "clang" if "__clang__" in defs else "gcc"
+        env["compiler"] = compilerType
+        env["arlinker"] = _fallbackCheck(paras, "arlinker", "STATICLINKER", "gcc-ar" if compilerType == "gcc" else "llvm-ar", "ar", True)
 
-        if env["compiler"] == "clang":
+        if compilerType == "clang":
             env["clangVer"] = int(defs["__clang_major__"]) * 10000 + int(defs["__clang_minor__"]) * 100 + int(defs["__clang_patchlevel__"])
         else:
             env["gccVer"] = int(defs["__GNUC__"]) * 10000 + int(defs["__GNUC_MINOR__"]) * 100 + int(defs["__GNUC_PATCHLEVEL__"])
@@ -169,7 +183,7 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
             env["stdlib"] = "libstdc++"
             if "_GLIBCXX_RELEASE" in defs: # introduced in 7.1
                 env["libstdc++Ver"] = int(defs["_GLIBCXX_RELEASE"]) * 10000
-            elif env["compiler"] == "gcc":
+            elif compilerType == "gcc":
                 env["libstdc++Ver"] = env["gccVer"]
             else:
                 env["libstdc++Ver"] = 60000 # assume 6.0.0

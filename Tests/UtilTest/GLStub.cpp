@@ -141,8 +141,8 @@ static void OGLStub()
 #elif COMMON_OS_DARWIN
     void* display = nullptr;
 #else
-    const char* const disp = getenv("DISPLAY");
-    Display* display = XOpenDisplay(disp ? disp : ":0.0");
+    const auto dispName = common::GetEnvVar("DISPLAY");
+    Display* display = XOpenDisplay(dispName.empty() ? ":0.0" : dispName.data());
     if (!display)
     {
         log().Error(u"Failed to open display\n");

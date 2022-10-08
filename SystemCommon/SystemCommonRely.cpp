@@ -198,6 +198,49 @@ void DebugErrorOutput(std::string_view str) noexcept
 }
 
 
+#if COMMON_OS_WIN || defined(__STDC_LIB_EXT1__)
+
+std::string GetEnvVar(const char* name) noexcept
+{
+    std::string ret;
+    // use local var to try approach thread-safe by avoiding 2-step query
+    constexpr size_t TmpLen = 128;
+    char tmp[TmpLen] = { 0 };
+    size_t len = 0;
+    const auto err = getenv_s(&len, tmp, TmpLen, name);
+    switch (err)
+    {
+    case 0:
+        if (len > 1) // only copy when key exists and has content
+            ret.assign(tmp, len - 1);
+        break;
+    case ERANGE:
+        ret.resize(len);
+        if (getenv_s(&len, ret.data(), ret.size(), name) == 0 && len == 0)
+            ret.resize(len - 1); // remove trailing zero
+        else
+            ret.clear();
+        break;
+    default:
+        break;
+    }
+    return ret;
+}
+
+#else
+
+std::string GetEnvVar(const char* name) noexcept
+{
+    std::string ret;
+    const auto str = getenv(name);
+    if (str != nullptr)
+        ret.assign(str);
+    return ret;
+}
+
+#endif
+
+
 struct CleanerData
 {
     std::shared_mutex UseLock;
