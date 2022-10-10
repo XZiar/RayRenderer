@@ -50,9 +50,20 @@ static std::shared_ptr<GLHost> GetHostGLX(oglLoader& loader, Display* display, i
 }
 #endif
 template<typename... Args>
-static std::shared_ptr<GLHost> GetHostEGL(oglLoader& loader, [[maybe_unused]] void* dc, Args&&...)
+static std::shared_ptr<EGLLoader::EGLHost> GetHostEGL(oglLoader& loader, [[maybe_unused]] void* dc, Args&&...)
 {
     auto& eglLdr = static_cast<EGLLoader&>(loader);
+    if (const auto devs = eglLdr.GetDeviceList(); !devs.empty())
+    {
+        const auto commondevs = xcomp::ProbeDevice();
+        auto& fmter = GetLogFmt();
+        uint32_t idx = 0;
+        for (const auto& dev : devs)
+            fmter.FormatToStatic(fmter.Str, FmtString(u"dev[{}][@{:1}]{}\n"sv), 
+                idx++, dev.XCompDevice ? GetIdx36(dev.XCompDevice - commondevs.data()) : u'_',
+                dev.Name);
+        PrintToConsole(fmter); 
+    }
     if (eglLdr.GetType() == EGLLoader::EGLType::ANDROID)
     {
         return eglLdr.CreateHostFromAndroid(true);
@@ -107,8 +118,23 @@ static std::shared_ptr<GLHost> GetHost(oglLoader& loader, const Args&... args)
 #if COMMON_OS_UNIX && !COMMON_OS_DARWIN
     if (loader.Name() == "GLX") return GetHostGLX(loader, args...);
 #endif
-    if (loader.Name() == "EGL") return GetHostEGL(loader, args...);
-    
+    if (loader.Name() == "EGL")
+    {
+        auto host = GetHostEGL(loader, args...);
+        if (const auto dev = host->GetDeviceInfo(); dev)
+        {
+            const auto commondevs = xcomp::ProbeDevice();
+            auto& fmter = GetLogFmt();
+            fmter.FormatToStatic(fmter.Str, FmtString(u"Device[@{:1}]{}\n"sv),
+                dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : u'_', dev->Name);
+            for (const auto ext : dev->Extensions)
+            {
+                fmter.FormatToStatic(fmter.Str, FmtString(u"--{}\n"sv), ext);
+            }
+            PrintToConsole(fmter);
+        }
+        return host;
+    }
     log().Error(u"Unknown loader\n");
     return {};
 }

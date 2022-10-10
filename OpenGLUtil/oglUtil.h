@@ -43,7 +43,6 @@ private:
 protected:
     oglLoader& Loader;
     common::container::FrozenDenseSet<std::string_view> Extensions;
-    const xcomp::CommonDeviceInfo* CommonDev = nullptr;
     uint32_t VendorId = 0, DeviceId = 0;
     std::atomic_uint16_t VersionDesktop = 0, VersionES = 0;
     bool SupportDesktop : 1;
@@ -59,6 +58,7 @@ protected:
     }
 public:
     virtual ~GLHost() = 0;
+    [[nodiscard]] virtual const xcomp::CommonDeviceInfo* GetCommonDevice() const noexcept;
     [[nodiscard]] virtual void* GetDeviceContext() const noexcept = 0;
     [[nodiscard]] virtual uint32_t GetVersion() const noexcept = 0;
     [[nodiscard]] constexpr const common::container::FrozenDenseSet<std::string_view>& GetExtensions() const noexcept { return Extensions; }
@@ -70,10 +70,6 @@ public:
         case GLType::ES:      return SupportES;
         default:              return false;
         }
-    }
-    [[nodiscard]] constexpr const xcomp::CommonDeviceInfo* GetCommonDevice() const noexcept
-    {
-        return CommonDev;
     }
     [[nodiscard]] std::shared_ptr<oglContext_> CreateContext(const CreateInfo& cinfo)
     {
@@ -154,6 +150,13 @@ public:
     enum class EGLType : uint8_t { Unknown, ANDROID, MESA, ANGLE };
     enum class AngleBackend : uint8_t { Any, D3D9, D3D11, D3D11on12, GL, GLES, Vulkan, SwiftShader, Metal };
     [[nodiscard]] OGLUAPI static std::u16string_view GetAngleBackendName(AngleBackend backend) noexcept;
+    struct DeviceHolder
+    {
+        void* Cookie = nullptr;
+        const xcomp::CommonDeviceInfo* XCompDevice = nullptr;
+        std::u16string Name;
+        common::container::FrozenDenseSet<std::string_view> Extensions;
+    };
     struct EGLHost : public GLHost
     {
     protected:
@@ -161,14 +164,17 @@ public:
     public:
         virtual void InitSurface(uintptr_t surface) = 0;
         virtual const int& GetVisualId() const noexcept = 0;
+        virtual const DeviceHolder* GetDeviceInfo() const noexcept = 0;
     };
 #if COMMON_OS_DARWIN
     using NativeDisplay = int;
 #else
     using NativeDisplay = void*;
 #endif
+    [[nodiscard]] common::span<const DeviceHolder> GetDeviceList() const noexcept { return { Devices.get(), DeviceCount }; }
     [[nodiscard]] virtual EGLType GetType() const noexcept = 0;
     [[nodiscard]] virtual bool CheckSupport(AngleBackend backend) const noexcept = 0;
+
     [[nodiscard]] std::shared_ptr<EGLHost> CreateHost(bool useOffscreen = false)
     {
         return CreateHost(static_cast<NativeDisplay>(0), useOffscreen);
@@ -178,6 +184,10 @@ public:
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromX11(void* display, std::optional<int32_t> screen, bool useOffscreen) = 0;
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromAngle(void* display, AngleBackend backend, bool useOffscreen) = 0;
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromAndroid(bool useOffscreen) = 0;
+protected:
+    std::unique_ptr<DeviceHolder[]> Devices;
+    uint32_t DeviceCount = 0;
+    ~EGLLoader() override;
 };
 
 class EAGLLoader : public oglLoader

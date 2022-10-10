@@ -18,10 +18,8 @@ using namespace std::string_view_literals;
 #define DEFINE_FUNC2(type, func, name) using T_P##name = type; static constexpr auto N_##name = #func ""sv
 
 DEFINE_FUNC(eglGetError,               GetError);
-DEFINE_FUNC2(PFNEGLQUERYDEVICESEXTPROC, eglQueryDevicesEXT,        QueryDevicesEXT);
 DEFINE_FUNC(eglGetDisplay,             GetDisplay);
 DEFINE_FUNC(eglGetPlatformDisplay,     GetPlatformDisplay);
-DEFINE_FUNC2(PFNEGLGETPLATFORMDISPLAYEXTPROC, eglGetPlatformDisplayEXT,  GetPlatformDisplayEXT);
 DEFINE_FUNC(eglInitialize,             Initialize);
 DEFINE_FUNC(eglQueryString,            QueryString);
 DEFINE_FUNC(eglGetProcAddress,         GetProcAddress);
@@ -42,7 +40,11 @@ DEFINE_FUNC(eglDestroyContext,         DestroyContext);
 DEFINE_FUNC(eglDestroySurface,         DestroySurface);
 DEFINE_FUNC(eglTerminate,              Terminate);
 DEFINE_FUNC(eglSwapBuffers,            SwapBuffers);
-
+DEFINE_FUNC2(PFNEGLQUERYDEVICESEXTPROC,         eglQueryDevicesEXT,         QueryDevicesEXT);
+DEFINE_FUNC2(PFNEGLQUERYDEVICESTRINGEXTPROC,    eglQueryDeviceStringEXT,    QueryDeviceStringEXT);
+DEFINE_FUNC2(PFNEGLGETPLATFORMDISPLAYEXTPROC,   eglGetPlatformDisplayEXT,   GetPlatformDisplayEXT);
+DEFINE_FUNC2(PFNEGLQUERYDISPLAYATTRIBEXTPROC,   eglQueryDisplayAttribEXT,   QueryDisplayAttribEXT);
+DEFINE_FUNC2(PFNEGLQUERYDEVICEBINARYEXTPROC,    eglQueryDeviceBinaryEXT,    QueryDeviceBinaryEXT);
 
 
 template<typename T, typename E>
@@ -92,6 +94,8 @@ private:
     {
         friend EGLLoader_;
         EGLDisplay DeviceContext;
+        const EGLLoader::DeviceHolder* RefDevice = nullptr;
+        EGLLoader::DeviceHolder SelfDevice;
         std::u16string Vendor;
         std::u16string VersionString;
         EGLConfig Config = nullptr;
@@ -124,6 +128,28 @@ private:
             Extensions = common::str::Split(exts, ' ', false);
             SupportSRGBFrameBuffer = Extensions.Has("EGL_KHR_gl_colorspace");
             SupportFlushControl = Extensions.Has("EGL_KHR_context_flush_control");
+
+            if (loader.QueryDisplayAttribEXT)
+            {
+                EGLAttrib result = 0;
+                if (EGL_TRUE == loader.QueryDisplayAttribEXT(DeviceContext, EGL_DEVICE_EXT, &result))
+                {
+                    SelfDevice.Cookie = reinterpret_cast<EGLDeviceEXT>(result);
+                    for (const auto& dev : loader.GetDeviceList())
+                    {
+                        if (dev.Cookie == SelfDevice.Cookie)
+                        {
+                            RefDevice = &dev;
+                            break;
+                        }
+                    }
+                    if (RefDevice == nullptr)
+                    {
+                        loader.InitDevice(SelfDevice);
+                    }
+                }
+            }
+
         }
         ~EGLHost() final
         {
@@ -204,7 +230,18 @@ private:
         }
         const int& GetVisualId() const noexcept final { return VisualId; }
         uint32_t GetVersion() const noexcept final { return Version; }
+        const xcomp::CommonDeviceInfo* GetCommonDevice() const noexcept final 
+        { 
+            const auto dev = GetDeviceInfo();
+            return dev ? dev->XCompDevice : nullptr;
+        }
         void* GetDeviceContext() const noexcept final { return DeviceContext; }
+        const DeviceHolder* GetDeviceInfo() const noexcept final
+        {
+            if (RefDevice) return RefDevice;
+            if (SelfDevice.Cookie) return &SelfDevice;
+            return nullptr;
+        }
         void* LoadFunction(std::string_view name) const noexcept final
         {
             return reinterpret_cast<void*>(static_cast<EGLLoader_&>(Loader).GetProcAddress(name.data()));
@@ -216,10 +253,8 @@ private:
     };
     common::DynLib LibEGL;
     DECLARE_FUNC(GetError);
-    DECLARE_FUNC(QueryDevicesEXT);
     DECLARE_FUNC(GetDisplay);
     DECLARE_FUNC(GetPlatformDisplay);
-    DECLARE_FUNC(GetPlatformDisplayEXT);
     DECLARE_FUNC(Initialize);
     DECLARE_FUNC(QueryString);
     DECLARE_FUNC(GetProcAddress);
@@ -240,6 +275,11 @@ private:
     DECLARE_FUNC(DestroySurface);
     DECLARE_FUNC(Terminate);
     DECLARE_FUNC(SwapBuffers); 
+    DECLARE_FUNC(QueryDevicesEXT);
+    DECLARE_FUNC(QueryDeviceStringEXT);
+    DECLARE_FUNC(GetPlatformDisplayEXT);
+    DECLARE_FUNC(QueryDisplayAttribEXT);
+    DECLARE_FUNC(QueryDeviceBinaryEXT);
     common::container::FrozenDenseSet<std::string_view> Extensions;
     EnumBitfield<uint16_t, AngleBackend> BackendMask;
     EGLType Type = EGLType::Unknown;
@@ -255,10 +295,8 @@ public:
 #endif
     {
         LOAD_FUNC(EGL, GetError);
-        TrLd_FUNC(EGL, QueryDevicesEXT);
         LOAD_FUNC(EGL, GetDisplay);
         TrLd_FUNC(EGL, GetPlatformDisplay);
-        TrLd_FUNC(EGL, GetPlatformDisplayEXT);
         LOAD_FUNC(EGL, Initialize);
         LOAD_FUNC(EGL, QueryString);
         LOAD_FUNC(EGL, GetProcAddress);
@@ -279,8 +317,15 @@ public:
         LOAD_FUNC(EGL, DestroySurface);
         LOAD_FUNC(EGL, Terminate);
         LOAD_FUNC(EGL, SwapBuffers);
-        const auto exts = QueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
-        if (exts)
+
+#define LdEGLFUNC(lib, name) name = reinterpret_cast<T_P##name>(GetProcAddress(N_##name.data())); if (!name) TrLd_FUNC(lib, name)
+        LdEGLFUNC(EGL, QueryDevicesEXT);
+        LdEGLFUNC(EGL, QueryDeviceStringEXT);
+        LdEGLFUNC(EGL, GetPlatformDisplayEXT);
+        LdEGLFUNC(EGL, QueryDisplayAttribEXT);
+        LdEGLFUNC(EGL, QueryDeviceBinaryEXT);
+#undef LdEGLFUNC
+        if (const auto exts = QueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS); exts)
         {
             Extensions = common::str::Split(exts, ' ', false);
             std::string extNames;
@@ -304,15 +349,74 @@ public:
                 BackendMask.Add(AngleBackend::Vulkan);
             if (Extensions.Has("EGL_ANGLE_platform_angle_metal"sv))
                 BackendMask.Add(AngleBackend::Metal);
-            /*if (Extensions.Has("EGL_EXT_device_base"sv) || (Extensions.Has("EGL_EXT_device_enumeration"sv) && Extensions.Has("EGL_EXT_device_query"sv)))
-            {
-                std::array<EGLDeviceEXT, 16> devices = { nullptr };
-                EGLint count = 0;
-                if (EGL_TRUE == QueryDevicesEXT(devices.size(), devices.data(), &count))
-                {
-                }
-            }*/
         }
+        if (QueryDevicesEXT)
+        {
+            std::vector<EGLDeviceEXT> devices;
+            if (EGLint devCount = 0; EGL_TRUE == QueryDevicesEXT(0, nullptr, &devCount))
+            {
+                devices.resize(devCount);
+                if (EGL_TRUE == QueryDevicesEXT(devCount, devices.data(), &devCount))
+                {
+                    Devices = std::unique_ptr<DeviceHolder[]>(new DeviceHolder[devCount]);
+                    DeviceCount = devCount;
+
+                    for (uint32_t i = 0; i < DeviceCount; ++i)
+                    {
+                        Devices[i].Cookie = devices[i];
+                        InitDevice(Devices[i]);
+                    }
+                }
+            }
+        }
+    }
+    void InitDevice(DeviceHolder& device) const noexcept
+    {
+        const auto cmDevs = xcomp::ProbeDevice();
+        std::optional<std::array<std::byte, 16>> uuid;
+        if (QueryDeviceStringEXT)
+        {
+            if (const auto renderer = QueryDeviceStringEXT(device.Cookie, EGL_RENDERER_EXT); renderer)
+            {
+                device.Name = common::str::to_u16string(renderer);
+            }
+            if (const auto exts = QueryDeviceStringEXT(device.Cookie, EGL_EXTENSIONS); exts)
+            {
+                device.Extensions = common::str::Split(exts, ' ', false);
+            }
+            // device.Extension.Has("EGL_EXT_device_drm"sv)
+            if (const auto devPath = QueryDeviceStringEXT(device.Cookie, EGL_DRM_DEVICE_FILE_EXT); devPath)
+            {
+                const auto devPath16 = common::str::to_u16string(devPath);
+                for (const auto& cmDev : cmDevs)
+                {
+                    if (cmDev.DevicePath == devPath16)
+                    {
+                        device.XCompDevice = &cmDev;
+                        break;
+                    }
+                }
+            }
+        }
+        if (QueryDeviceBinaryEXT)
+        {
+            if (EGLint nameSize = 0; EGL_TRUE == QueryDeviceBinaryEXT(device.Cookie, EGL_DRIVER_NAME_EXT, 0, nullptr, &nameSize))
+            {
+                std::string tmp(nameSize, '\0');
+                if (EGL_TRUE == QueryDeviceBinaryEXT(device.Cookie, EGL_DRIVER_NAME_EXT, nameSize, tmp.data(), &nameSize))
+                {
+                    device.Name = common::str::to_u16string(tmp.data());
+                }
+            }
+            std::array<std::byte, 16> uuid_ = {};
+            EGLint uuidSize = 0;
+            if (EGL_TRUE == QueryDeviceBinaryEXT(device.Cookie, EGL_DEVICE_UUID_EXT, 16, uuid_.data(), &uuidSize) && uuidSize == 16)
+                uuid.emplace(uuid_);
+        }
+        if (!device.XCompDevice)
+            device.XCompDevice = xcomp::LocateDevice(nullptr, uuid ? &*uuid : nullptr, nullptr, nullptr, nullptr, device.Name);
+        if (device.XCompDevice && device.Name.empty())
+            device.Name = device.XCompDevice->Name;
     }
     ~EGLLoader_() final {}
 private:
@@ -395,14 +499,6 @@ private:
         return host;
     }
 
-    std::shared_ptr<EGLLoader::EGLHost> CreateHost(NativeDisplay display, bool useOffscreen) final
-    {
-        EGLDisplay disp = GetDisplay((EGLNativeDisplayType)(display));
-        if (!disp && useOffscreen && display)
-            disp = GetDisplay(EGL_DEFAULT_DISPLAY);
-        return CreateFromDisplay(disp, useOffscreen);
-    }
-
     bool CheckSupportPlatformDisplay()
     {
         if (GetPlatformDisplay || GetPlatformDisplayEXT)
@@ -425,6 +521,16 @@ private:
             fillAttrib(dpyAttrib);
             return GetPlatformDisplayEXT(platform, display, dpyAttrib.Data());
         }
+    }
+
+    std::shared_ptr<EGLLoader::EGLHost> CreateHost(NativeDisplay display, bool useOffscreen) final
+    {
+        EGLDisplay disp = GetDisplay((EGLNativeDisplayType)(display));
+        if (!disp && useOffscreen)
+            disp = GetDisplay(EGL_DEFAULT_DISPLAY);
+        if (!disp && useOffscreen && CheckSupportPlatformDisplay() && Extensions.Has("EGL_MESA_platform_surfaceless"sv))
+            disp = GetPlatformDisplayCombine(EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY, [&](auto&) { }); 
+        return CreateFromDisplay(disp, useOffscreen);
     }
     std::shared_ptr<EGLLoader::EGLHost> CreateHostFromXcb(void* connection, std::optional<int32_t> screen, bool useOffscreen) final
     {

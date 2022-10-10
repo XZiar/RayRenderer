@@ -20,6 +20,8 @@ MAKE_ENABLER_IMPL(oglContext_)
 
 
 GLHost::~GLHost() {}
+const xcomp::CommonDeviceInfo* GLHost::GetCommonDevice() const noexcept { return nullptr; }
+EGLLoader::~EGLLoader() {}
 
 struct oglLoader::Pimpl
 {
@@ -103,7 +105,7 @@ oglContext GLHost::CreateContext(CreateInfo cinfo, const oglContext_* sharedCtx)
                     break;
                 }
             }
-            ReportFailure(fmt::format(u"test version [{}.{}] context"sv, ver / 10, ver % 10));
+            ReportFailure(FMTSTR2(u"test version [{}.{}] context"sv, ver / 10, ver % 10));
         }
     }
     if (cinfo.Version == 0)

@@ -99,6 +99,7 @@ private:
     {
         friend GLXLoader_;
         //using GLHost::GetFunction;
+        const xcomp::CommonDeviceInfo* XCompDevice = nullptr;
         Display* DeviceContext;
         GLXFBConfig* FBConfigs = nullptr;
         PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = nullptr;
@@ -130,7 +131,7 @@ private:
                 glXQueryRendererIntegerMESA(DeviceContext, screen, 0, GLX_RENDERER_DEVICE_ID_MESA, &DeviceId);
                 oglLog().Verbose(u"Create host on MESA[{}.{}.{}], device VID[{:#010x}] DID[{:#010x}].\n", 
                     mesaVer[0], mesaVer[1], mesaVer[2], VendorId, DeviceId);
-                CommonDev = xcomp::LocateDevice(nullptr, nullptr, nullptr, &VendorId, &DeviceId, {});
+                XCompDevice = xcomp::LocateDevice(nullptr, nullptr, nullptr, &VendorId, &DeviceId, {});
             }
         }
         ~GLXHost() final
@@ -217,6 +218,7 @@ private:
         }
         const int& GetVisualId() const noexcept final { return VisualId; }
         uint32_t GetVersion() const noexcept final { return Version; }
+        const xcomp::CommonDeviceInfo* GetCommonDevice() const noexcept final { return XCompDevice; }
         void* GetDeviceContext() const noexcept final { return DeviceContext; }
         GLXContext CreateContextAttribs(GLXContext share_context, const int32_t* attrib_list)
         {

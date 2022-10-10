@@ -84,6 +84,7 @@ private:
     struct WGLHost final : public WGLLoader::WGLHost
     {
         friend WGLLoader_;
+        const xcomp::CommonDeviceInfo* XCompDevice = nullptr;
         HDC DeviceContext;
         PFNWGLCREATECONTEXTATTRIBSARBPROC CreateContextAttribsARB = nullptr;
         WGLHost(WGLLoader_& loader, HDC dc) noexcept : WGLLoader::WGLHost(loader), DeviceContext(dc)
@@ -97,7 +98,7 @@ private:
                 {
                     std::array<std::byte, 8> luid = { std::byte(0) };
                     memcpy_s(luid.data(), luid.size(), &openFromHdc.AdapterLuid, sizeof(openFromHdc.AdapterLuid));
-                    CommonDev = xcomp::LocateDevice(&luid, nullptr, nullptr, nullptr, nullptr, {});
+                    XCompDevice = xcomp::LocateDevice(&luid, nullptr, nullptr, nullptr, nullptr, {});
                     //oglLog().Verbose(u"KMTAdapter-LUID[{}] for HDC[{}].\n", common::MiscIntrin.HexToStr(luid), hdc_);
                 }
             }
@@ -167,6 +168,7 @@ private:
             }
         }
         uint32_t GetVersion() const noexcept final { return 0; }
+        const xcomp::CommonDeviceInfo* GetCommonDevice() const noexcept final { return XCompDevice; }
         void* GetDeviceContext() const noexcept final { return DeviceContext; }
         void* LoadFunction(std::string_view name) const noexcept final
         {

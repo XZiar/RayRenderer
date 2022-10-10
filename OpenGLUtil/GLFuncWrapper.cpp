@@ -700,7 +700,7 @@ CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shoul
         SupportVSMultiLayer     = Extensions.Has("GL_ARB_shader_viewport_layer_array") || Extensions.Has("GL_AMD_vertex_shader_layer");
     }
     
-    XCompDevice = host.CommonDev;
+    XCompDevice = host.GetCommonDevice();
     if (!XCompDevice)
     {
         const auto luid = GetLUID();
