@@ -131,7 +131,7 @@ private:
                 glXQueryRendererIntegerMESA(DeviceContext, screen, 0, GLX_RENDERER_DEVICE_ID_MESA, &DeviceId);
                 oglLog().Verbose(u"Create host on MESA[{}.{}.{}], device VID[{:#010x}] DID[{:#010x}].\n", 
                     mesaVer[0], mesaVer[1], mesaVer[2], VendorId, DeviceId);
-                XCompDevice = xcomp::LocateDevice(nullptr, nullptr, nullptr, &VendorId, &DeviceId, {});
+                XCompDevice = xcomp::ProbeDevice().TryLocateDevice(&VendorId, &DeviceId, {});
             }
         }
         ~GLXHost() final

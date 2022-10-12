@@ -366,7 +366,7 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
 static void OCLStub()
 {
     PrintCommonDevice();
-    const auto commondevs = xcomp::ProbeDevice();
+    const auto& xcdevs = xcomp::ProbeDevice();
     const auto plats = oclPlatform_::GetPlatforms();
     if (plats.size() == 0)
     {
@@ -395,7 +395,7 @@ static void OCLStub()
             {
                 const auto& [dev, idx] = devpair;
                 return FMTSTR2(u"[{}][@{:1}][plat{:2}]{}  {{{} | {}}}\t[{} CU]", 
-                    dev->PCIEAddress, dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : u'_',
+                    dev->PCIEAddress, GetIdx36(xcdevs.GetDeviceIndex(dev->XCompDevice)),
                     idx, dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits);
             });
         const auto dev = allDevs[devidx].first;

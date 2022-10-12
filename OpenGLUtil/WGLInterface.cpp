@@ -98,7 +98,7 @@ private:
                 {
                     std::array<std::byte, 8> luid = { std::byte(0) };
                     memcpy_s(luid.data(), luid.size(), &openFromHdc.AdapterLuid, sizeof(openFromHdc.AdapterLuid));
-                    XCompDevice = xcomp::LocateDevice(&luid, nullptr, nullptr, nullptr, nullptr, {});
+                    XCompDevice = xcomp::ProbeDevice().LocateExactDevice(&luid, nullptr, nullptr, {});
                     //oglLog().Verbose(u"KMTAdapter-LUID[{}] for HDC[{}].\n", common::MiscIntrin.HexToStr(luid), hdc_);
                 }
             }

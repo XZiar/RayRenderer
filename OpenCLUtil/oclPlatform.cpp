@@ -210,12 +210,18 @@ void oclPlatform_::InitDevice()
     Funcs->clGetDeviceIDs(*PlatformID, CL_DEVICE_TYPE_DEFAULT, 1, &defDevID, nullptr);
 
     Devices.reserve(numDevices);
+    const auto& xcdevs = xcomp::ProbeDevice();
     for (const auto id : DeviceIDs)
     {
         oclDevice_ dev(this, id);
         try
         {
-            dev.Init();
+            const auto luid = dev.GetLUID();
+            const auto guid = dev.GetUUID();
+            dev.XCompDevice = xcdevs.LocateExactDevice(luid ? &*luid : nullptr, guid ? &*guid : nullptr, 
+                dev.PCIEAddress ? &dev.PCIEAddress : nullptr, {});
+            if (!dev.XCompDevice)
+                dev.XCompDevice = xcdevs.TryLocateDevice(dev.VendorId ? &dev.VendorId : nullptr, nullptr, dev.Name);
             Devices.push_back(std::move(dev));
         }
         catch (const std::exception& ex)

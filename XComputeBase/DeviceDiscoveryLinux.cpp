@@ -5,9 +5,20 @@
 
 namespace xcomp
 {
-common::span<const CommonDeviceInfo> ProbeDevice()
+struct CommonDeviceContainerImpl final : public CommonDeviceContainer
 {
-    return {};
+    const CommonDeviceInfo* LocateByDevicePath(std::u16string_view devPath) const noexcept final { return nullptr; }
+    const CommonDeviceInfo& Get(size_t index) const noexcept final 
+    { 
+        std::abort();
+        CM_UNREACHABLE();
+    }
+    size_t GetSize() const noexcept final { return 0; }
+};
+const CommonDeviceContainer& ProbeDevice()
+{
+    static CommonDeviceContainerImpl container;
+    return container;
 }
 }
 
@@ -19,6 +30,7 @@ common::span<const CommonDeviceInfo> ProbeDevice()
 #include "SystemCommon/Exceptions.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/ConsoleEx.h"
+#include "common/StringPool.hpp"
 
 #include <libdrm/drm.h>
 #if __has_include(<libdrm/amdgpu.h>) && __has_include(<libdrm/amdgpu_drm.h>) 
@@ -31,9 +43,6 @@ common::span<const CommonDeviceInfo> ProbeDevice()
 #if __has_include(<drm/i915_drm.h>) 
 #   include <sys/ioctl.h>
 #   include <drm/i915_drm.h>
-#   define XC_USE_I915 1
-#else
-#   define XC_USE_I915 0
 #endif
 //#include <libdrm/i915_drm.h>
 #include <xf86drm.h>
@@ -47,6 +56,47 @@ namespace xcomp
 {
 using namespace std::string_view_literals;
 #define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
+
+
+struct DRMDeviceInfo final : public CommonDeviceInfo
+{
+    common::StringPool<char16_t> Texts;
+    common::StringPiece<char16_t> PrimaryNode;
+    common::StringPiece<char16_t> ControlNode;
+    common::StringPiece<char16_t> RenderNode;
+    // common::StringPiece<char16_t> OpenGLICDPath;
+    // common::StringPiece<char16_t> OpenCLICDPath;
+    // common::StringPiece<char16_t> VulkanICDPath;
+    // common::StringPiece<char16_t> LvZeroICDPath;
+    std::vector<uint32_t> Displays;
+    std::u16string_view GetICDPath(ICDTypes type) const noexcept final
+    {
+        return {};
+    }
+    std::u16string_view GetDevicePath() const noexcept final { return Texts.GetStringView(PrimaryNode); }
+    uint32_t GetDisplay() const noexcept final { return Displays.empty() ? UINT32_MAX : Displays[0]; }
+    bool CheckDisplay(uint32_t id) const noexcept final
+    {
+        return std::find(Displays.begin(), Displays.end(), id) != Displays.end();
+    }
+
+    void SetDevicePath(const drmDevicePtr dev) noexcept
+    {
+        if (dev->available_nodes & (1 << DRM_NODE_PRIMARY))
+        {
+            PrimaryNode = Texts.AllocateString(common::str::to_u16string(dev->nodes[DRM_NODE_PRIMARY]));
+        }
+        if (dev->available_nodes & (1 << DRM_NODE_CONTROL))
+        {
+            ControlNode = Texts.AllocateString(common::str::to_u16string(dev->nodes[DRM_NODE_CONTROL]));
+        }
+        if (dev->available_nodes & (1 << DRM_NODE_RENDER))
+        {
+            RenderNode  = Texts.AllocateString(common::str::to_u16string(dev->nodes[DRM_NODE_RENDER]));
+        }
+    }
+};
+
 
 struct DrmHelper
 {
@@ -108,7 +158,7 @@ struct DrmI915 final : public DrmHelper
     ~DrmI915() final {}
     void FillInfo(CommonDeviceInfo& info, int fd, const drmVersion& version) const noexcept final
     {
-#if XC_USE_I915
+#ifdef DRM_I915_QUERY_MEMORY_REGIONS
         drm_i915_query_item item = 
         {
         	.query_id = DRM_I915_QUERY_MEMORY_REGIONS
@@ -190,13 +240,12 @@ std::unique_ptr<T> TryLoadLib(std::string_view name, Args&&... args)
 }
 
 
-common::span<const CommonDeviceInfo> ProbeDevice()
+struct DRMDeviceInfoContainer final : public CommonDeviceContainer
 {
-    static const auto devs = []() 
+    const common::console::ConsoleEx& Console;
+    std::vector<DRMDeviceInfo> Infos;
+    DRMDeviceInfoContainer() : Console(common::console::ConsoleEx::Get())
     {
-        std::vector<CommonDeviceInfo> infos;
-        const auto& console = common::console::ConsoleEx::Get();
-
         std::unique_ptr<common::DynLib> libdrm;
         constexpr std::string_view paths[] = { "libdrm.so"sv, "/vendor/lib64/libdrm.so", "/system/lib64/libdrm.so" };
         for (const auto& path : paths)
@@ -208,13 +257,12 @@ common::span<const CommonDeviceInfo> ProbeDevice()
             }
             catch (const common::BaseException& be)
             {
-                console.Print(common::CommonColor::BrightRed, 
+                Console.Print(common::CommonColor::BrightRed, 
                     FMTSTR2(u"Failed when load libdrm[{}]: [{}]\n{}\n"sv, path, be.Message(), be.GetDetailMessage()));
             }
         }
         if (!libdrm)
-            return infos;
-
+            return;
         try
         {
 #define GET_FUNC(name) const auto name = libdrm->GetFunction<decltype(&drm##name)>("drm" #name)
@@ -227,11 +275,15 @@ common::span<const CommonDeviceInfo> ProbeDevice()
 #undef GET_FUNC
             auto count = GetDevices(nullptr, 0);
             if (count <= 0)
-                COMMON_THROW(common::BaseException, u"cannot list drm devices"sv).Attach("detail", common::ErrnoHolder::GetCurError().ToStr());
+            {
+                Console.Print(common::CommonColor::BrightRed, FMTSTR2(u"Failed to list drm devices: [{}]\n"sv, common::ErrnoHolder::GetCurError()));
+                return;
+            }
             std::vector<drmDevicePtr> drmDevs(count, nullptr);
             count = GetDevices(drmDevs.data(), count);
-            if (count <= 0) return infos;
+            if (count <= 0) return;
             drmDevs.resize(count);
+            Infos.reserve(count);
 
             std::vector<std::unique_ptr<DrmHelper>> drmLibs;
 #if XC_USE_AMDGPU
@@ -245,7 +297,7 @@ common::span<const CommonDeviceInfo> ProbeDevice()
 
             for (const auto& dev : drmDevs)
             {
-                auto& info = infos.emplace_back();
+                auto& info = Infos.emplace_back();
                 switch (dev->bustype)
                 {
                 case DRM_BUS_PCI:
@@ -260,7 +312,7 @@ common::span<const CommonDeviceInfo> ProbeDevice()
                 default:
                     break;
                 }
-                info.DevicePath = common::str::to_u16string(dev->nodes[DRM_NODE_PRIMARY]);
+                info.SetDevicePath(dev);
                 info.SupportRender  = dev->available_nodes & (1 << DRM_NODE_RENDER);
                 //info.SupportDisplay = dev->available_nodes & (1 << DRM_NODE_PRIMARY);
                 // Use render node which requires no permission: https://dri.freedesktop.org/docs/drm/gpu/drm-uapi.html#render-nodes
@@ -268,7 +320,7 @@ common::span<const CommonDeviceInfo> ProbeDevice()
                 if (const auto fd = open(fdNode, O_RDONLY | O_CLOEXEC, 0); fd < 0)
                 {
                     const auto err = common::ErrnoHolder::GetCurError();
-                    console.Print(common::CommonColor::BrightYellow, FMTSTR2(u"Failed when open device node [{}]: [{:#}]\n"sv, fdNode, err));
+                    Console.Print(common::CommonColor::BrightYellow, FMTSTR2(u"Failed when open device node [{}]: [{:#}]\n"sv, fdNode, err));
                 }
                 else
                 {
@@ -297,11 +349,29 @@ common::span<const CommonDeviceInfo> ProbeDevice()
         }
         catch (const common::BaseException& be)
         {
-            console.Print(common::CommonColor::BrightRed, FMTSTR2(u"Failed when load libdrm: [{}]\n{}\n"sv, be.Message(), be.GetDetailMessage()));
+            Console.Print(common::CommonColor::BrightRed, FMTSTR2(u"Failed when load libdrm: [{}]\n{}\n"sv, be.Message(), be.GetDetailMessage()));
         }
-        return infos;
-    }();
-    return devs;
+    }
+
+    const CommonDeviceInfo* LocateByDevicePath(std::u16string_view devPath) const noexcept final
+    {
+        for (const auto& dev : Infos)
+        {
+            if (dev.Texts.GetStringView(dev.PrimaryNode) == devPath || 
+                dev.Texts.GetStringView(dev.ControlNode) == devPath ||
+                dev.Texts.GetStringView(dev.RenderNode)  == devPath)
+                return &dev;
+        }
+        return nullptr;
+    }
+    const CommonDeviceInfo& Get(size_t index) const noexcept final { return Infos[index]; }
+    size_t GetSize() const noexcept final { return Infos.size(); }
+};
+
+const CommonDeviceContainer& ProbeDevice()
+{
+    static DRMDeviceInfoContainer container;
+    return container;
 }
 
 

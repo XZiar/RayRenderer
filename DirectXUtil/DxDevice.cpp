@@ -41,15 +41,9 @@ DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device>
 {
     {
         const auto luid = GetLUID();
-        for (const auto& dev : xcomp::ProbeDevice())
-        {
-            if (dev.Luid == luid)
-            {
-                XCompDevice = &dev;
-                PCIEAddress = dev.PCIEAddress;
-                break;
-            }
-        }
+        XCompDevice = xcomp::ProbeDevice().LocateExactDevice(&luid, nullptr, nullptr, {});
+        if (XCompDevice)
+            PCIEAddress = XCompDevice->PCIEAddress;
     }
 
 #define CheckFeat(dev, feat) CheckFeat_<D3D12_FEATURE_DATA_##feat>(D3D12_FEATURE_##feat, dev)

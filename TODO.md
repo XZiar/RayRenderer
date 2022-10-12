@@ -137,7 +137,7 @@
   - [ ] Add common interface for texture/buffer, SRV/UAV
   - [ ] Add design to seperate program and parameter for VK/DX. Add abstraction of PSO for GL, use delay bind for CL.
   - [ ] Make better design with prefix dependency, prefix generator should be able to register multiple dependencies
-  - [ ] Add common layer for device discovery
+  - [x] Add common layer for device discovery
   - [ ] Include pci_ids from mesa3d to provide name searching
   - [ ] Add support of device enumeration for property driver despite of libdrm
 

@@ -55,12 +55,12 @@ static std::shared_ptr<EGLLoader::EGLHost> GetHostEGL(oglLoader& loader, [[maybe
     auto& eglLdr = static_cast<EGLLoader&>(loader);
     if (const auto devs = eglLdr.GetDeviceList(); !devs.empty())
     {
-        const auto commondevs = xcomp::ProbeDevice();
+        const auto& xcdevs = xcomp::ProbeDevice();
         auto& fmter = GetLogFmt();
         uint32_t idx = 0;
         for (const auto& dev : devs)
             fmter.FormatToStatic(fmter.Str, FmtString(u"dev[{}][@{:1}]{}\n"sv), 
-                idx++, dev.XCompDevice ? GetIdx36(dev.XCompDevice - commondevs.data()) : u'_',
+                idx++, GetIdx36(xcdevs.GetDeviceIndex(dev.XCompDevice)),
                 dev.Name);
         PrintToConsole(fmter); 
     }
@@ -123,10 +123,10 @@ static std::shared_ptr<GLHost> GetHost(oglLoader& loader, const Args&... args)
         auto host = GetHostEGL(loader, args...);
         if (const auto dev = host->GetDeviceInfo(); dev)
         {
-            const auto commondevs = xcomp::ProbeDevice();
+            const auto& xcdevs = xcomp::ProbeDevice();
             auto& fmter = GetLogFmt();
             fmter.FormatToStatic(fmter.Str, FmtString(u"Device[@{:1}]{}\n"sv),
-                dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : u'_', dev->Name);
+                GetIdx36(xcdevs.GetDeviceIndex(dev->XCompDevice)), dev->Name);
             for (const auto ext : dev->Extensions)
             {
                 fmter.FormatToStatic(fmter.Str, FmtString(u"--{}\n"sv), ext);
@@ -141,8 +141,7 @@ static std::shared_ptr<GLHost> GetHost(oglLoader& loader, const Args&... args)
 
 std::u16string CommonDevInfoStr(const xcomp::CommonDeviceInfo& dev)
 {
-    return fmt::format(FMT_STRING(u"[{}] VID[{:#010x}] DID[{:#010x}]"sv),
-        dev.Name, dev.VendorId, dev.DeviceId);
+    return FMTSTR2(u"[{}] VID[{:#010x}] DID[{:#010x}]"sv, dev.Name, dev.VendorId, dev.DeviceId);
 }
 
 static void OGLStub()

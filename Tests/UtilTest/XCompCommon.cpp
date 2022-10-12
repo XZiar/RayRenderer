@@ -23,7 +23,7 @@ void PrintCommonDevice()
         for (const auto& dev : xcomp::ProbeDevice())
         {
             fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}[{}][VID {:#010x} DID {:#010x}][Disp{:>4}]{@<G}{} {@<w}[{}][{}]\n"sv),
-                dev.PCIEAddress, dev.VendorId, dev.DeviceId, dev.DisplayId == UINT32_MAX ? 9999u : dev.DisplayId, dev.Name,
+                dev.PCIEAddress, dev.VendorId, dev.DeviceId, std::min(dev.GetDisplay(), 9999u), dev.Name,
                 common::MiscIntrin.HexToStr(dev.Guid), common::MiscIntrin.HexToStr(dev.Luid));
         }
         PrintToConsole(fmter);

@@ -7,7 +7,6 @@
 #include "EGL/eglext.h"
 #include "angle-Headers/eglext_angle.h"
 #pragma message("Compiling OpenGLUtil with egl-ext[" STRINGIZE(EGL_EGLEXT_VERSION) "]")
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
 namespace oglu
@@ -45,6 +44,7 @@ DEFINE_FUNC2(PFNEGLQUERYDEVICESTRINGEXTPROC,    eglQueryDeviceStringEXT,    Quer
 DEFINE_FUNC2(PFNEGLGETPLATFORMDISPLAYEXTPROC,   eglGetPlatformDisplayEXT,   GetPlatformDisplayEXT);
 DEFINE_FUNC2(PFNEGLQUERYDISPLAYATTRIBEXTPROC,   eglQueryDisplayAttribEXT,   QueryDisplayAttribEXT);
 DEFINE_FUNC2(PFNEGLQUERYDEVICEBINARYEXTPROC,    eglQueryDeviceBinaryEXT,    QueryDeviceBinaryEXT);
+DEFINE_FUNC2(PFNEGLQUERYDEVICEATTRIBEXTPROC,    eglQueryDeviceAttribEXT,    QueryDeviceAttribEXT);
 
 
 template<typename T, typename E>
@@ -252,6 +252,7 @@ private:
         }
     };
     common::DynLib LibEGL;
+    const xcomp::CommonDeviceContainer& XCompDevs;
     DECLARE_FUNC(GetError);
     DECLARE_FUNC(GetDisplay);
     DECLARE_FUNC(GetPlatformDisplay);
@@ -280,6 +281,7 @@ private:
     DECLARE_FUNC(GetPlatformDisplayEXT);
     DECLARE_FUNC(QueryDisplayAttribEXT);
     DECLARE_FUNC(QueryDeviceBinaryEXT);
+    DECLARE_FUNC(QueryDeviceAttribEXT);
     common::container::FrozenDenseSet<std::string_view> Extensions;
     EnumBitfield<uint16_t, AngleBackend> BackendMask;
     EGLType Type = EGLType::Unknown;
@@ -287,12 +289,13 @@ public:
     static constexpr std::string_view LoaderName = "EGL"sv;
     EGLLoader_() :
 #if COMMON_OS_WIN
-        LibEGL("libEGL.dll")
+        LibEGL("libEGL.dll"),
 #elif COMMON_OS_DARWIN
-        LibEGL("libEGL.dylib")
+        LibEGL("libEGL.dylib"),
 #else
-        LibEGL("libEGL.so")
+        LibEGL("libEGL.so"),
 #endif
+        XCompDevs(xcomp::ProbeDevice())
     {
         LOAD_FUNC(EGL, GetError);
         LOAD_FUNC(EGL, GetDisplay);
@@ -324,6 +327,7 @@ public:
         LdEGLFUNC(EGL, GetPlatformDisplayEXT);
         LdEGLFUNC(EGL, QueryDisplayAttribEXT);
         LdEGLFUNC(EGL, QueryDeviceBinaryEXT);
+        LdEGLFUNC(EGL, QueryDeviceAttribEXT);
 #undef LdEGLFUNC
         if (const auto exts = QueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS); exts)
         {
@@ -372,8 +376,8 @@ public:
     }
     void InitDevice(DeviceHolder& device) const noexcept
     {
-        const auto cmDevs = xcomp::ProbeDevice();
         std::optional<std::array<std::byte, 16>> uuid;
+        std::u16string devPath16;
         if (QueryDeviceStringEXT)
         {
             if (const auto renderer = QueryDeviceStringEXT(device.Cookie, EGL_RENDERER_EXT); renderer)
@@ -387,15 +391,7 @@ public:
             // device.Extension.Has("EGL_EXT_device_drm"sv)
             if (const auto devPath = QueryDeviceStringEXT(device.Cookie, EGL_DRM_DEVICE_FILE_EXT); devPath)
             {
-                const auto devPath16 = common::str::to_u16string(devPath);
-                for (const auto& cmDev : cmDevs)
-                {
-                    if (cmDev.DevicePath == devPath16)
-                    {
-                        device.XCompDevice = &cmDev;
-                        break;
-                    }
-                }
+                devPath16 = common::str::to_u16string(devPath);
             }
         }
         if (QueryDeviceBinaryEXT)
@@ -413,9 +409,27 @@ public:
             if (EGL_TRUE == QueryDeviceBinaryEXT(device.Cookie, EGL_DEVICE_UUID_EXT, 16, uuid_.data(), &uuidSize) && uuidSize == 16)
                 uuid.emplace(uuid_);
         }
+        if (QueryDeviceAttribEXT)
+        {
+#if COMMON_OS_WIN
+            if (!device.XCompDevice && device.Extensions.Has("EGL_ANGLE_device_d3d"sv))
+            {
+                if (const auto d3dLocator = dynamic_cast<const xcomp::D3DDeviceLocator*>(&XCompDevs); d3dLocator)
+                {
+                    EGLAttrib d3dHandle = 0;
+                    if (EGL_TRUE != QueryDeviceAttribEXT(device.Cookie, EGL_D3D11_DEVICE_ANGLE, &d3dHandle))
+                        QueryDeviceAttribEXT(device.Cookie, EGL_D3D9_DEVICE_ANGLE, &d3dHandle);
+                    if (d3dHandle)
+                        device.XCompDevice = d3dLocator->LocateExactDevice(reinterpret_cast<void*>(d3dHandle));
+                }
+            }
+#endif
+        }
         if (!device.XCompDevice)
-            device.XCompDevice = xcomp::LocateDevice(nullptr, uuid ? &*uuid : nullptr, nullptr, nullptr, nullptr, device.Name);
-        if (device.XCompDevice && device.Name.empty())
+            device.XCompDevice = XCompDevs.LocateExactDevice(nullptr, uuid ? &*uuid : nullptr, nullptr, devPath16);
+        if (!device.XCompDevice && !device.Name.empty())
+            device.XCompDevice = XCompDevs.TryLocateDevice(nullptr, nullptr, device.Name);
+        else if (device.XCompDevice && device.Name.empty())
             device.Name = device.XCompDevice->Name;
     }
     ~EGLLoader_() final {}
@@ -447,8 +461,9 @@ private:
     { }*/
     std::shared_ptr<EGLLoader::EGLHost> CreateFromDisplay(EGLDisplay display, bool useOffscreen)
     {
+        common::str::Formatter<char16_t> fmt16{};
         if (!display)
-            COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to get EGL Display: [{}]"sv, GetCurErrStr()));
+            COMMON_THROWEX(common::BaseException, fmt16.FormatStatic(FmtString(u"Unable to get EGL Display: [{}]"sv), GetCurErrStr()));
         auto host = std::make_shared<EGLHost>(*this, display, useOffscreen);
         detail::AttribList cfgAttrib(EGL_NONE);
         cfgAttrib.Set(EGL_SURFACE_TYPE, useOffscreen ? EGL_PBUFFER_BIT : EGL_WINDOW_BIT);
@@ -465,12 +480,12 @@ private:
         cfgAttrib.Set(EGL_RENDERABLE_TYPE, rdBit);
         int cfgCount = 0;
         if (EGL_TRUE != ChooseConfig(display, cfgAttrib.Data(), &host->Config, 1, &cfgCount))
-            COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to choose EGL Config: [{}]"sv, GetCurErrStr()));
+            COMMON_THROWEX(common::BaseException, fmt16.FormatStatic(FmtString(u"Unable to choose EGL Config: [{}]"sv), GetCurErrStr()));
         if (cfgCount == 0)
         {
             EGLint cfgTotal = 0;
             if (EGL_TRUE != GetConfigs(display, nullptr, 0, &cfgTotal))
-                COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to get EGL Configs: [{}]"sv, GetCurErrStr()));
+                COMMON_THROWEX(common::BaseException, fmt16.FormatStatic(FmtString(u"Unable to get EGL Configs: [{}]"sv), GetCurErrStr()));
             std::u16string result;
             std::vector<EGLConfig> configs; 
             configs.resize(cfgTotal);
@@ -478,7 +493,7 @@ private:
             for (EGLint i = 0; i < cfgTotal; ++i)
             {
                 const auto& cfg = configs[i];
-                APPEND_FMT(result, u"cfg[{}]: "sv, i);
+                fmt16.FormatToStatic(result, FmtString(u"cfg[{}]: "sv), i);
                 for (const auto& [k, v] : cfgAttrib)
                 {
                     EGLint v2 = 0;
@@ -486,7 +501,7 @@ private:
                     {
                         const auto match = (k == EGL_RENDERABLE_TYPE || k == EGL_SURFACE_TYPE) ? (v & v2) == v : v == v2;
                         if (!match)
-                            APPEND_FMT(result, u"[{:04X}]:[{:04X}]vs[{:04X}], "sv, k, v, v2);
+                            fmt16.FormatToStatic(result, FmtString(u"[{:04X}]:[{:04X}]vs[{:04X}], "sv), k, v, v2);
                     }
                 }
                 result.append(u"\n");
@@ -495,7 +510,7 @@ private:
             COMMON_THROWEX(common::BaseException, u"Unable to choose EGL Config"sv);
         }
         if (EGL_TRUE != GetConfigAttrib(display, host->Config, EGL_NATIVE_VISUAL_ID, &host->VisualId))
-            COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to get EGL VisualId: [{}]"sv, GetCurErrStr()));
+            COMMON_THROWEX(common::BaseException, fmt16.FormatStatic(FmtString(u"Unable to get EGL VisualId: [{}]"sv), GetCurErrStr()));
         return host;
     }
 

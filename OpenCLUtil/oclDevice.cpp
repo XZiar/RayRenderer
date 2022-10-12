@@ -129,12 +129,6 @@ void oclDevice_::Init()
             PCIEAddress = { pciinfo.pci_bus, pciinfo.pci_device, pciinfo.pci_function };
         }
     }
-    {
-        const auto luid = GetLUID();
-        const auto guid = GetUUID();
-        XCompDevice = xcomp::LocateDevice(luid ? &*luid : nullptr, guid ? &*guid : nullptr, PCIEAddress ? &PCIEAddress : nullptr,
-            VendorId ? &VendorId : nullptr, nullptr, Name);
-    }
 
     const auto props        = GetNum<cl_command_queue_properties>(Funcs, *DeviceID, CL_DEVICE_QUEUE_PROPERTIES);
     SupportProfiling        = (props & CL_QUEUE_PROFILING_ENABLE) != 0;

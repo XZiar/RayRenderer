@@ -16,6 +16,7 @@
 
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"
+#include "common/EasyIterator.hpp"
 #include "common/simd/SIMD.hpp"
 
 #include <cstdio>
@@ -157,16 +158,11 @@ struct VecDimSupport
 
 struct CommonDeviceInfo
 {
+    enum class ICDTypes : uint32_t { OpenGL, OpenCL, Vulkan, LevelZero };
     std::u16string Name;
-    std::u16string DevicePath;
-    std::u16string OpenGLICDPath;
-    std::u16string OpenCLICDPath;
-    std::u16string VulkanICDPath;
-    std::u16string LvZeroICDPath;
     std::array<std::byte, 16> Guid = { std::byte(0) };
     std::array<std::byte, 8>  Luid = { std::byte(0) };
     uint32_t VendorId = 0, DeviceId = 0;
-    uint32_t DisplayId = UINT32_MAX;
     uint32_t DedicatedVRAM = 0, DedicatedSysRAM = 0, SharedSysRAM = 0;
     PCI_BDF PCIEAddress;
     bool IsSoftware : 1;
@@ -175,11 +171,52 @@ struct CommonDeviceInfo
     bool SupportDisplay : 1;
     bool SupportPV : 1;
     CommonDeviceInfo() noexcept;
+    virtual std::u16string_view GetICDPath(ICDTypes type) const noexcept;
+    virtual std::u16string_view GetDevicePath() const noexcept;
+    virtual uint32_t GetDisplay() const noexcept;
+    virtual bool CheckDisplay(uint32_t id) const noexcept;
 };
-XCOMPBASAPI common::span<const CommonDeviceInfo> ProbeDevice();
-XCOMPBASAPI const CommonDeviceInfo* LocateDevice(const std::array<std::byte, 8>* luid, 
-    const std::array<std::byte, 16>* guid, const PCI_BDF* pcie, const uint32_t* vid, const uint32_t* did,
-    std::u16string_view name);
+struct CommonDeviceContainer
+{
+private:
+    [[nodiscard]] virtual const CommonDeviceInfo* LocateByDevicePath(std::u16string_view devPath) const noexcept = 0;
+protected:
+    [[nodiscard]] virtual const CommonDeviceInfo& Get(size_t index) const noexcept = 0;
+    [[nodiscard]] virtual size_t GetSize() const noexcept = 0;
+    using ItType = common::container::IndirectIterator<const CommonDeviceContainer, const CommonDeviceInfo&, &CommonDeviceContainer::Get>;
+    friend ItType;
+public:
+    [[nodiscard]] constexpr ItType begin() const noexcept
+    {
+        return { this, 0 };
+    }
+    [[nodiscard]] constexpr ItType end() const noexcept
+    {
+        return { this, GetSize() };
+    }
+    [[nodiscard]] size_t GetDeviceIndex(const CommonDeviceInfo* dev) const noexcept
+    {
+        if (!dev) return SIZE_MAX;
+        const auto size = GetSize();
+        for (size_t i = 0; i < size; ++i)
+        {
+            if (dev == &Get(i))
+                return i;
+        }
+        return SIZE_MAX;
+    }
+    XCOMPBASAPI [[nodiscard]] const CommonDeviceInfo* LocateExactDevice(const std::array<std::byte, 8>* luid,
+        const std::array<std::byte, 16>* guid, const PCI_BDF* pcie, std::u16string_view devPath) const noexcept;
+    XCOMPBASAPI [[nodiscard]] const CommonDeviceInfo* TryLocateDevice(const uint32_t* vid, const uint32_t* did, std::u16string_view name) const noexcept;
+};
+#if COMMON_OS_WIN
+struct XCOMPBASAPI D3DDeviceLocator
+{
+    [[nodiscard]] virtual const CommonDeviceInfo* LocateExactDevice(void* d3dHandle) const noexcept = 0;
+};
+#endif
+
+XCOMPBASAPI const CommonDeviceContainer& ProbeDevice();
 
 
 struct XCOMPBASAPI RangeHolder

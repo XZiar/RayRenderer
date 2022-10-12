@@ -705,8 +705,10 @@ CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shoul
     {
         const auto luid = GetLUID();
         const auto uuid = GetUUID();
-        XCompDevice = xcomp::LocateDevice(luid ? &*luid : nullptr, uuid ? &*uuid : nullptr, 
-            nullptr, nullptr, nullptr, RendererString);
+        const auto& devs = xcomp::ProbeDevice();
+        XCompDevice = devs.LocateExactDevice(luid ? &*luid : nullptr, uuid ? &*uuid : nullptr, nullptr, {});
+        if (!XCompDevice)
+            XCompDevice = devs.TryLocateDevice(nullptr, nullptr, RendererString);
     }
 
     GetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS,         &MaxUBOUnits);

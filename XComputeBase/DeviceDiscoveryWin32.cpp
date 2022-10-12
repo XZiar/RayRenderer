@@ -8,6 +8,7 @@
 #include "common/AlignedBuffer.hpp"
 #include "common/StringEx.hpp"
 #include "common/StringLinq.hpp"
+#include "common/StringPool.hpp"
 
 #define WIN32_LEAN_AND_MEAN 1
 #define NOMINMAX 1
@@ -45,6 +46,54 @@ typedef _Check_return_ HRESULT(APIENTRY* PFN_DXCoreCreateAdapterFactory)(REFIID 
 namespace xcomp
 {
 using Microsoft::WRL::ComPtr;
+using namespace std::string_view_literals;
+
+
+struct Win32DeviceInfo final : public CommonDeviceInfo
+{
+    common::StringPool<char16_t> Texts;
+    common::StringPiece<char16_t> DevicePath;
+    common::StringPiece<char16_t> DevicePathUpper;
+    common::StringPiece<char16_t> OpenGLICDPath;
+    common::StringPiece<char16_t> OpenCLICDPath;
+    common::StringPiece<char16_t> VulkanICDPath;
+    common::StringPiece<char16_t> LvZeroICDPath;
+    std::vector<uint32_t> Displays;
+    std::u16string_view GetICDPath(ICDTypes type) const noexcept final
+    {
+        switch (type)
+        {
+        case ICDTypes::OpenGL:    return Texts.GetStringView(OpenGLICDPath);
+        case ICDTypes::OpenCL:    return Texts.GetStringView(OpenCLICDPath);
+        case ICDTypes::Vulkan:    return Texts.GetStringView(VulkanICDPath);
+        case ICDTypes::LevelZero: return Texts.GetStringView(LvZeroICDPath);
+        default: CM_UNREACHABLE();
+        }
+    }
+    std::u16string_view GetDevicePath() const noexcept final { return Texts.GetStringView(DevicePath); }
+    uint32_t GetDisplay() const noexcept final { return Displays.empty() ? UINT32_MAX : Displays[0]; }
+    bool CheckDisplay(uint32_t id) const noexcept final
+    {
+        return std::find(Displays.begin(), Displays.end(), id) != Displays.end();
+    }
+
+    void SetDevicePath(std::u16string_view devPath) noexcept
+    {
+        DevicePath = Texts.AllocateString(devPath);
+        DevicePathUpper = Texts.AllocateString(common::str::ToUpperEng(devPath));
+    }
+    void SetICDPath(ICDTypes type, std::u16string_view devPath) noexcept
+    {
+        switch (type)
+        {
+        case ICDTypes::OpenGL:    OpenGLICDPath = Texts.AllocateString(devPath); return;
+        case ICDTypes::OpenCL:    OpenCLICDPath = Texts.AllocateString(devPath); return;
+        case ICDTypes::Vulkan:    VulkanICDPath = Texts.AllocateString(devPath); return;
+        case ICDTypes::LevelZero: LvZeroICDPath = Texts.AllocateString(devPath); return;
+        default: CM_UNREACHABLE();
+        }
+    }
+};
 
 struct CommonInfoHelper
 {
@@ -69,6 +118,7 @@ struct CommonInfoHelper
     };
     std::vector<PathInfo> DevicePaths;
     std::vector<DisplayInfo> Displays;
+    uint32_t PrimaryDispIndex = UINT32_MAX;
     static forceinline void CloseKMTHandle(D3DKMT_HANDLE handle) noexcept
     {
         D3DKMT_CLOSEADAPTER closeApadter = {};
@@ -175,6 +225,8 @@ struct CommonInfoHelper
                     if (correct)
                     {
                         Displays.emplace_back(idx, openFromDName.AdapterLuid, openFromDName.hAdapter, dd.StateFlags);
+                        if (dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE)
+                            PrimaryDispIndex = gsl::narrow_cast<uint32_t>(Displays.size() - 1);
                     }
                     else
                     {
@@ -265,26 +317,33 @@ struct CommonInfoHelper
         const auto ret = D3DKMTQueryAdapterInfo(&queryAdapterInfo);
         return ret == STATUS_SUCCESS;
     }
-    void FillDeviceInfo(CommonDeviceInfo& info) const noexcept
+    void FillDeviceInfo(Win32DeviceInfo& info) const noexcept
     {
         enum class HandleType { None, Persist, Temp };
         HandleType handleType = HandleType::None;
         D3DKMT_HANDLE handle = 0;
-        if (const auto it = std::find_if(DevicePaths.cbegin(), DevicePaths.cend(), [&](const auto& path)
-            { return path.KMTInfo && std::memcmp(&path.KMTInfo->first, &info.Luid, sizeof(LUID)) == 0; });
-            it != DevicePaths.cend())
+        for (const auto& dp : DevicePaths)
         {
-            info.DevicePath = it->Path;
-            handle = it->KMTInfo->second, handleType = HandleType::Persist;
-        }
-        if (const auto it = std::find_if(Displays.cbegin(), Displays.cend(), [&](const auto& disp)
-            { return std::memcmp(&disp.Luid, &info.Luid, sizeof(LUID)) == 0; });
-            it != Displays.cend())
-        {
-            info.DisplayId = it->DisplayId;
-            if (handleType == HandleType::None)
+            if (dp.KMTInfo && std::memcmp(&dp.KMTInfo->first, &info.Luid, sizeof(LUID)) == 0)
             {
-                handle = it->Handle, handleType = HandleType::Persist;
+                info.SetDevicePath(dp.Path);
+                handle = dp.KMTInfo->second, handleType = HandleType::Persist;
+                break;
+            }
+        }
+        for (const auto& disp : Displays)
+        {
+            if (std::memcmp(&disp.Luid, &info.Luid, sizeof(LUID)) == 0)
+            {
+                if (disp.Flag & DISPLAY_DEVICE_PRIMARY_DEVICE)
+                    info.Displays.insert(info.Displays.begin(), disp.DisplayId);
+                else
+                    info.Displays.push_back(disp.DisplayId);
+                if (handleType == HandleType::None)
+                {
+                    handle = disp.Handle, handleType = HandleType::Persist;
+                }
+                break;
             }
         }
         if (handleType == HandleType::None && OpenAdapterFromLuid)
@@ -309,12 +368,12 @@ struct CommonInfoHelper
             if (D3DKMT_ADAPTERADDRESS address{}; QueryAdapterInfo(handle, KMTQAITYPE_ADAPTERADDRESS, address))
             {
                 info.PCIEAddress = { address.BusNumber, address.DeviceNumber, address.FunctionNumber };
-                if (info.DevicePath.empty())
+                if (info.DevicePath.GetLength() == 0)
                 {
                     for (const auto& path : DevicePaths)
                     {
                         if (path.Address == info.PCIEAddress)
-                            info.DevicePath = path.Path;
+                            info.SetDevicePath(path.Path);
                     }
                 }
             }
@@ -358,18 +417,18 @@ struct CommonInfoHelper
                 constexpr std::wstring_view LvZeroPath = L"";
 #endif
                 if (auto ret = QueryReg(handle, OpenGLPath); ret)
-                    info.OpenGLICDPath = std::move(*ret);
+                    info.SetICDPath(CommonDeviceInfo::ICDTypes::OpenGL, *ret);
                 if (auto ret = QueryReg(handle, OpenCLPath); ret)
-                    info.OpenCLICDPath = std::move(*ret);
+                    info.SetICDPath(CommonDeviceInfo::ICDTypes::OpenCL, *ret);
                 if (auto ret = QueryReg(handle, VulkanPath); ret)
-                    info.VulkanICDPath = std::move(*ret);
+                    info.SetICDPath(CommonDeviceInfo::ICDTypes::Vulkan, *ret);
                 if (auto ret = QueryReg(handle, LvZeroPath); ret)
-                    info.LvZeroICDPath = std::move(*ret);
+                    info.SetICDPath(CommonDeviceInfo::ICDTypes::LevelZero, *ret);
             }
             else
             {
                 if (D3DKMT_OPENGLINFO glinfo{}; QueryAdapterInfo(handle, KMTQAITYPE_UMOPENGLINFO, glinfo))
-                    info.OpenGLICDPath.assign(reinterpret_cast<const char16_t*>(glinfo.UmdOpenGlIcdFileName));
+                    info.SetICDPath(CommonDeviceInfo::ICDTypes::OpenGL, reinterpret_cast<const char16_t*>(glinfo.UmdOpenGlIcdFileName));
             }
             if (handleType == HandleType::Temp)
             {
@@ -379,10 +438,10 @@ struct CommonInfoHelper
     }
 };
 
-#define FAILED_CONTINUE(eval, ...) if (const common::HResultHolder hr___ = eval; !hr___)    \
-{                                                                                           \
-    console.Print(common::CommonColor::BrightRed, common::str::Formatter<char16_t>{}.FormatDynamic(__VA_ARGS__, hr___.ToStr())); \
-    continue;                                                                               \
+#define FAILED_THEN(eval, exec, ...) if (const common::HResultHolder hr___ = eval; !hr___)                                  \
+{                                                                                                                           \
+    Console.Print(common::CommonColor::BrightRed, common::str::Formatter<char16_t>{}.FormatDynamic(__VA_ARGS__, hr___));    \
+    exec;                                                                                                                   \
 }
 
 #define GET_FUNCTION(var, dll, name) const auto var = (PFN_##name)GetProcAddress(dll, #name);                                           \
@@ -395,111 +454,134 @@ do                                                                              
     }                                                                                                                                   \
 } while (0)
 
-#ifdef HAS_DXCORE
-static void GatherDeviceInfoByDxCore(const CommonInfoHelper& helper, std::vector<CommonDeviceInfo>& infos)
+struct Win32DeviceInfoContainer final : public CommonDeviceContainer, public D3DDeviceLocator
 {
-    const auto& console = common::console::ConsoleEx::Get();
-    common::DynLib dxcore(L"dxcore.dll");
-    const auto CreateAdapterFactory = dxcore.GetFunction<PFN_DXCoreCreateAdapterFactory>("DXCoreCreateAdapterFactory");
-
-    ComPtr<IDXCoreAdapterFactory> coreFactory;
-    THROW_HR(CreateAdapterFactory(IID_PPV_ARGS(&coreFactory)), u"Cannot create DXCoreFactory");
-    ComPtr<IDXCoreAdapterList> coreAdapters;
-    const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
-    THROW_HR(coreFactory->CreateAdapterList(1, dxGUIDs, IID_PPV_ARGS(&coreAdapters)), u"Cannot create DXCoreAdapterList");
-
-    for (uint32_t i = 0; i < coreAdapters->GetAdapterCount(); i++)
+    const common::console::ConsoleEx& Console;
+    std::vector<Win32DeviceInfo> Infos;
+    Win32DeviceInfoContainer() : Console(common::console::ConsoleEx::Get())
     {
-        ComPtr<IDXCoreAdapter> adapter;
-        coreAdapters->GetAdapter(i, adapter.GetAddressOf());
-        if (adapter)
-        {
-            size_t nameSize = 0;
-            FAILED_CONTINUE(adapter->GetPropertySize(DXCoreAdapterProperty::DriverDescription, &nameSize), u"Cannot get adapter name size: {}\n");
-            std::string name_(nameSize, '\0');
-            FAILED_CONTINUE(adapter->GetProperty(DXCoreAdapterProperty::DriverDescription, nameSize, name_.data()), u"Cannot get adapter name: {}\n");
-            const auto name = common::str::TrimStringView<char>(name_);
-
-            LUID luid;
-            FAILED_CONTINUE(adapter->GetProperty(DXCoreAdapterProperty::InstanceLuid, &luid), u"Cannot get adapter LUID for [{}]: {}\n", name);
-
-            DXCoreHardwareID hwId;
-            FAILED_CONTINUE(adapter->GetProperty(DXCoreAdapterProperty::HardwareID, &hwId), u"Cannot get adapter ID for [{}]: {}\n", name);
-
-            auto& info = infos.emplace_back();
-            info.Name.assign(name.begin(), name.end());
-            memcpy_s(info.Luid.data(), sizeof(info.Luid), &luid, sizeof(luid));
-            info.VendorId = hwId.vendorID, info.DeviceId = hwId.deviceID;
-            helper.FillDeviceInfo(info);
-        }
-    }
-}
-#endif
-
-static void GatherDeviceInfoByDxgi(const CommonInfoHelper& helper, std::vector<CommonDeviceInfo>& infos)
-{
-    const auto& console = common::console::ConsoleEx::Get();
-    common::DynLib dxgi(L"dxgi.dll");
-    const auto CreateFactory = dxgi.GetFunction<decltype(&CreateDXGIFactory)>("CreateDXGIFactory");
-
-    ComPtr<IDXGIFactory> factory;
-    THROW_HR(CreateFactory(IID_PPV_ARGS(&factory)), u"Cannot create DXGIFactory");
-
-    for (uint32_t idx = 0; ; ++idx)
-    {
-        ComPtr<IDXGIAdapter> adapter;
-        if (factory->EnumAdapters(idx, &adapter) == DXGI_ERROR_NOT_FOUND)
-            break;
-        DXGI_ADAPTER_DESC desc = {};
-        FAILED_CONTINUE(adapter->GetDesc(&desc), u"Cannot get adapter desc: {}\n");
-
-        auto& info = infos.emplace_back();
-        info.Name = reinterpret_cast<const char16_t*>(desc.Description);
-        memcpy_s(info.Luid.data(), sizeof(info.Luid), &desc.AdapterLuid, sizeof(desc.AdapterLuid));
-        info.VendorId = desc.VendorId, info.DeviceId = desc.DeviceId;
-        helper.FillDeviceInfo(info);
-    }
-}
-
-common::span<const CommonDeviceInfo> ProbeDevice()
-{
-    static const auto devs = []() 
-    {
-        std::vector<CommonDeviceInfo> infos;
-        const auto& console = common::console::ConsoleEx::Get();
         try
         {
             const CommonInfoHelper helper;
 #ifdef HAS_DXCORE
             try
             {
-                GatherDeviceInfoByDxCore(helper, infos);
-                if (!infos.empty())
-                    return infos;
+                common::DynLib dxcore(L"dxcore.dll");
+                const auto CreateAdapterFactory = dxcore.GetFunction<PFN_DXCoreCreateAdapterFactory>("DXCoreCreateAdapterFactory");
+
+                ComPtr<IDXCoreAdapterFactory> coreFactory;
+                THROW_HR(CreateAdapterFactory(IID_PPV_ARGS(&coreFactory)), u"Cannot create DXCoreFactory");
+                ComPtr<IDXCoreAdapterList> coreAdapters;
+                const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
+                THROW_HR(coreFactory->CreateAdapterList(1, dxGUIDs, IID_PPV_ARGS(&coreAdapters)), u"Cannot create DXCoreAdapterList");
+
+                for (uint32_t i = 0; i < coreAdapters->GetAdapterCount(); i++)
+                {
+                    ComPtr<IDXCoreAdapter> adapter;
+                    coreAdapters->GetAdapter(i, adapter.GetAddressOf());
+                    if (adapter)
+                    {
+                        size_t nameSize = 0;
+                        FAILED_THEN(adapter->GetPropertySize(DXCoreAdapterProperty::DriverDescription, &nameSize), continue, u"Cannot get adapter name size: {}\n"sv);
+                        std::string name_(nameSize, '\0');
+                        FAILED_THEN(adapter->GetProperty(DXCoreAdapterProperty::DriverDescription, nameSize, name_.data()), continue, u"Cannot get adapter name: {}\n"sv);
+                        const auto name = common::str::TrimStringView<char>(name_);
+
+                        LUID luid;
+                        FAILED_THEN(adapter->GetProperty(DXCoreAdapterProperty::InstanceLuid, &luid), continue, u"Cannot get adapter LUID for [{}]: {}\n"sv, name);
+
+                        DXCoreHardwareID hwId;
+                        FAILED_THEN(adapter->GetProperty(DXCoreAdapterProperty::HardwareID, &hwId), continue, u"Cannot get adapter ID for [{}]: {}\n"sv, name);
+
+                        auto& info = Infos.emplace_back();
+                        info.Name.assign(name.begin(), name.end());
+                        memcpy_s(info.Luid.data(), sizeof(info.Luid), &luid, sizeof(luid));
+                        info.VendorId = hwId.vendorID, info.DeviceId = hwId.deviceID;
+                        helper.FillDeviceInfo(info);
+                    }
+                }
+
+                if (!Infos.empty())
+                    return;
             }
             catch (const common::BaseException& be)
             {
-                console.Print(common::CommonColor::BrightRed, fmt::format(u"Failed when try using dxcore: [{}]\n{}\n", be.Message(), be.GetDetailMessage()));
+                Console.Print(common::CommonColor::BrightRed, fmt::format(u"Failed when try using dxcore: [{}]\n{}\n", be.Message(), be.GetDetailMessage()));
             }
 #endif
             try
             {
-                GatherDeviceInfoByDxgi(helper, infos);
-                if (!infos.empty())
-                    return infos;
+                common::DynLib dxgi(L"dxgi.dll");
+                const auto CreateFactory = dxgi.GetFunction<decltype(&CreateDXGIFactory)>("CreateDXGIFactory");
+
+                ComPtr<IDXGIFactory> factory;
+                THROW_HR(CreateFactory(IID_PPV_ARGS(&factory)), u"Cannot create DXGIFactory");
+
+                for (uint32_t idx = 0; ; ++idx)
+                {
+                    ComPtr<IDXGIAdapter> adapter;
+                    if (factory->EnumAdapters(idx, &adapter) == DXGI_ERROR_NOT_FOUND)
+                        break;
+                    DXGI_ADAPTER_DESC desc = {};
+                    FAILED_THEN(adapter->GetDesc(&desc), continue, u"Cannot get adapter desc: {}\n"sv);
+
+                    auto& info = Infos.emplace_back();
+                    info.Name = reinterpret_cast<const char16_t*>(desc.Description);
+                    memcpy_s(info.Luid.data(), sizeof(info.Luid), &desc.AdapterLuid, sizeof(desc.AdapterLuid));
+                    info.VendorId = desc.VendorId, info.DeviceId = desc.DeviceId;
+                    helper.FillDeviceInfo(info);
+                }
+
+                if (!Infos.empty())
+                    return;
             }
             catch (const common::BaseException& be)
             {
-                console.Print(common::CommonColor::BrightRed, fmt::format(u"Failed when try using dxgi: [{}]\n{}\n", be.Message(), be.GetDetailMessage()));
+                Console.Print(common::CommonColor::BrightRed, fmt::format(u"Failed when try using dxgi: [{}]\n{}\n", be.Message(), be.GetDetailMessage()));
             }
         }
         catch (const common::BaseException& be)
         {
-            console.Print(common::CommonColor::BrightRed, fmt::format(u"Failed when load D3DKMT: [{}]\n{}\n", be.Message(), be.GetDetailMessage()));
+            Console.Print(common::CommonColor::BrightRed, fmt::format(u"Failed when load D3DKMT: [{}]\n{}\n", be.Message(), be.GetDetailMessage()));
         }
-        return infos;
-    }();
-    return devs;
+    }
+
+    const CommonDeviceInfo* LocateByDevicePath(std::u16string_view devPath) const noexcept final
+    {
+        const auto devPathUpper = common::str::ToUpperEng(devPath);
+        for (const auto& dev : Infos)
+        {
+            if (dev.Texts.GetStringView(dev.DevicePathUpper) == devPathUpper)
+                return &dev;
+        }
+        return nullptr;
+    }
+    const CommonDeviceInfo* LocateExactDevice(void* d3dHandle) const noexcept final
+    {
+        if (!d3dHandle)
+            return nullptr;
+
+        ComPtr<IDXGIDevice> device;
+        FAILED_THEN(reinterpret_cast<IUnknown*>(d3dHandle)->QueryInterface(device.GetAddressOf()), return nullptr, u"Cannot get dxgi device: {}\n"sv);
+        
+        ComPtr<IDXGIAdapter> adapter;
+        FAILED_THEN(device->GetAdapter(adapter.GetAddressOf()), return nullptr, u"Cannot get dxgi adapter: {}\n"sv);
+        
+        DXGI_ADAPTER_DESC desc = {};
+        FAILED_THEN(adapter->GetDesc(&desc), return nullptr, u"Cannot get adapter desc: {}\n"sv);
+
+        std::array<std::byte, 8> luid = { };
+        memcpy_s(luid.data(), sizeof(luid), &desc.AdapterLuid, sizeof(desc.AdapterLuid));
+        return CommonDeviceContainer::LocateExactDevice(&luid, nullptr, nullptr, {});
+    }
+    const CommonDeviceInfo& Get(size_t index) const noexcept final { return Infos[index]; }
+    size_t GetSize() const noexcept final { return Infos.size(); }
+};
+
+const CommonDeviceContainer& ProbeDevice()
+{
+    static Win32DeviceInfoContainer container;
+    return container;
 }
 
 
