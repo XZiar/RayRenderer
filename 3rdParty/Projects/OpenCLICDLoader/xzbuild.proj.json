@@ -2,7 +2,7 @@
     "name": "OpenCLICDLoader",
     "type": "dynamic",
     "description": "Khronos official OpenCL ICD Loader",
-    "version": "3.0.8",
+    "version": "3.0.4",
     "dependency": [],
     "srcPath": "../../OpenCL-ICD-Loader/loader",
     "library": 

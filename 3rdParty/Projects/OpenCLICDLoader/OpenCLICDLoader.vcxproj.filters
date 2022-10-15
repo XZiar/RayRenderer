@@ -61,7 +61,7 @@
     <ClCompile Include="$(RealSourceDir)\windows\icd_windows.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\windows\icd_windows_apppackage.cpp">
+    <ClCompile Include="$(RealSourceDir)\windows\icd_windows_apppackage.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\windows\icd_windows_dxgk.c">

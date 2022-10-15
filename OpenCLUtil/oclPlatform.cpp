@@ -216,6 +216,7 @@ void oclPlatform_::InitDevice()
         oclDevice_ dev(this, id);
         try
         {
+            dev.Init();
             const auto luid = dev.GetLUID();
             const auto guid = dev.GetUUID();
             dev.XCompDevice = xcdevs.LocateExactDevice(luid ? &*luid : nullptr, guid ? &*guid : nullptr, 

@@ -240,9 +240,7 @@
     <ClCompile Include="$(RealSourceDir)\icd_dispatch.c" />
     <ClCompile Include="$(RealSourceDir)\icd_dispatch_generated.c" />
     <ClCompile Include="$(RealSourceDir)\windows\icd_windows.c" />
-    <ClCompile Include="$(RealSourceDir)\windows\icd_windows_apppackage.cpp">
-      <CompileAs>CompileAsCpp</CompileAs>
-    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\windows\icd_windows_apppackage.c" />
     <ClCompile Include="$(RealSourceDir)\windows\icd_windows_dxgk.c" />
     <ClCompile Include="$(RealSourceDir)\windows\icd_windows_envvars.c" />
     <ClCompile Include="$(RealSourceDir)\windows\icd_windows_hkr.c" />
