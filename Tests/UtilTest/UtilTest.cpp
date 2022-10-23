@@ -141,6 +141,20 @@ uint32_t Select36(const size_t size)
     return idx;
 }
 
+char EnterOneOf(std::u16string_view prompt, std::string_view str)
+{
+    common::mlog::SyncConsoleBackend();
+    common::console::ConsoleEx::Get().Print(prompt);
+    char ch = '\0';
+    do
+    {
+        ch = common::console::ConsoleEx::ReadCharImmediate(false);
+        if (std::isalpha(ch))
+            ch = static_cast<char>(std::tolower(ch));
+    } while (str.find_first_of(ch) == str.npos);
+    return ch;
+}
+
 
 int main(int argc, char *argv[])
 {

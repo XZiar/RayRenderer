@@ -441,6 +441,10 @@ private:
             return BackendMask.Value != 0;
         return BackendMask(backend);
     }
+    bool SupportCreateFromDevice() const noexcept final
+    {
+        return Extensions.Has("EGL_EXT_platform_device"sv) && CheckSupportPlatformDisplay();
+    }
 
     std::string_view Name() const noexcept final { return LoaderName; }
     std::u16string Description() const noexcept final
@@ -514,7 +518,7 @@ private:
         return host;
     }
 
-    bool CheckSupportPlatformDisplay()
+    bool CheckSupportPlatformDisplay() const noexcept
     {
         if (GetPlatformDisplay || GetPlatformDisplayEXT)
             return true;
@@ -619,12 +623,44 @@ private:
     }
     std::shared_ptr<EGLLoader::EGLHost> CreateHostFromAndroid(bool useOffscreen) final
     {
-        if (CheckSupportPlatformDisplay())
+        if (!Extensions.Has("EGL_KHR_platform_android"sv) || !CheckSupportPlatformDisplay())
         {
-            EGLDisplay display = GetPlatformDisplayCombine(EGL_PLATFORM_ANDROID_KHR, EGL_DEFAULT_DISPLAY, [&](auto&)
-                {
-                });
-            return CreateFromDisplay(display, useOffscreen);
+            oglLog().Warning(u"EGL Loader does not support create from android.\n");
+            return {};
+        }
+        EGLDisplay display = GetPlatformDisplayCombine(EGL_PLATFORM_ANDROID_KHR, EGL_DEFAULT_DISPLAY, [&](auto&) { });
+        return CreateFromDisplay(display, useOffscreen);
+    }
+    std::shared_ptr<EGLLoader::EGLHost> CreateHostFromDevice(const EGLLoader::DeviceHolder& device) final
+    {
+        if (!SupportCreateFromDevice())
+        {
+            oglLog().Warning(u"EGL Loader does not support create from device.\n");
+            return {};
+        }
+        if (const auto ptr = &device; ptr < Devices.get() || ptr - Devices.get() >= DeviceCount)
+        {
+            oglLog().Warning(u"Device not belongs to this loader.\n");
+            return {};
+        }
+        EGLDisplay display = GetPlatformDisplayCombine(EGL_PLATFORM_DEVICE_EXT, device.Cookie, [&](auto&) {});
+        return CreateFromDisplay(display, true);
+    }
+    std::shared_ptr<EGLLoader::EGLHost> CreateHostSurfaceless() final
+    {
+        if (!CheckSupportPlatformDisplay())
+        {
+            oglLog().Warning(u"EGL Loader does not support create from platform.\n");
+            return {};
+        }
+        if (Extensions.Has("EGL_MESA_platform_surfaceless"sv))
+        {
+            EGLDisplay display = GetPlatformDisplayCombine(EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY, [&](auto&) {});
+            return CreateFromDisplay(display, true);
+        }
+        if (Extensions.Has("EGL_KHR_platform_android"sv))
+        {
+            return CreateHostFromAndroid(true);
         }
         return {};
     }

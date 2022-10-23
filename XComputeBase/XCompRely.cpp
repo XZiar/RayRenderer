@@ -205,7 +205,7 @@ const CommonDeviceInfo* CommonDeviceContainer::TryLocateDevice(const uint32_t* v
                 {
                     console.Print(common::CommonColor::Magenta,
                         FMTSTR2(u"Found multiple match for [{}](VID {:#010x},DID {:#010x}): [{}](VID {:#010x},DID {:#010x}), [{}](VID {:#010x},DID {:#010x})\n"sv,
-                            name, vid ? 0 : *vid, did ? 0 : *did,
+                            name, vid ? *vid : 0, did ? *did : 0,
                             ret->Name, ret->VendorId, ret->DeviceId,
                             dev.Name, dev.VendorId, dev.DeviceId));
                     ret = nullptr;
@@ -218,91 +218,6 @@ const CommonDeviceInfo* CommonDeviceContainer::TryLocateDevice(const uint32_t* v
     }
     return nullptr;
 }
-
-//const CommonDeviceInfo* LocateDevice(const std::array<std::byte, 8>* luid,
-//    const std::array<std::byte, 16>* guid, const PCI_BDF* pcie, const uint32_t* vid, const uint32_t* did,
-//    std::u16string_view name)
-//{
-//    const auto devs = ProbeDevice();
-//    const auto& console = common::console::ConsoleEx::Get();
-//    if (luid || guid || pcie)
-//    {
-//        const CommonDeviceInfo* ret = nullptr;
-//        for (const auto& dev : devs)
-//        {
-//            if (pcie && *pcie == dev.PCIEAddress)
-//            {
-//                ret = &dev;
-//                break;
-//            }
-//            if (luid && *luid == dev.Luid)
-//            {
-//                ret = &dev;
-//                break;
-//            }
-//            if (guid && *guid == dev.Guid)
-//            {
-//                ret = &dev;
-//                break;
-//            }
-//        }
-//        if (ret)
-//        {
-//            if (pcie && *pcie != ret->PCIEAddress)
-//                console.Print(common::CommonColor::BrightYellow, 
-//                    FMTSTR2(u"Found pcie-addr mismatch for device [{}]({}) to [{}]({})\n"sv,
-//                        name, *pcie, ret->Name, ret->PCIEAddress));
-//            if (luid && *luid != ret->Luid)
-//                console.Print(common::CommonColor::BrightYellow,
-//                    FMTSTR2(u"Found luid mismatch for device [{}]({}) to [{}]({})\n"sv,
-//                        name, common::MiscIntrin.HexToStr(*luid), ret->Name, common::MiscIntrin.HexToStr(ret->Luid)));
-//            if (guid && *guid != ret->Guid)
-//                console.Print(common::CommonColor::BrightYellow,
-//                    FMTSTR2(u"Found guid mismatch for device [{}]({}) to [{}]({})\n"sv,
-//                        name, common::MiscIntrin.HexToStr(*guid), ret->Name, common::MiscIntrin.HexToStr(ret->Guid)));
-//            return ret;
-//        }
-//    }
-//    if (vid || did)
-//    {
-//        const CommonDeviceInfo* ret = nullptr;
-//        for (const auto& dev : devs)
-//        {
-//            if ((!vid || *vid == dev.VendorId) && (!did || *did == dev.DeviceId))
-//            {
-//                if (!ret)
-//                    ret = &dev;
-//                else // multiple devices have same name, give up
-//                {
-//                    ret = nullptr;
-//                    break;
-//                }
-//            }
-//        }
-//        if (ret)
-//            return ret;
-//    }
-//    if (!name.empty())
-//    {
-//        const CommonDeviceInfo* ret = nullptr;
-//        for (const auto& dev : devs)
-//        {
-//            if (name == dev.Name)
-//            {
-//                if (!ret)
-//                    ret = &dev;
-//                else // multiple devices have same name, give up
-//                {
-//                    ret = nullptr;
-//                    break;
-//                }
-//            }
-//        }
-//        if (ret)
-//            return ret;
-//    }
-//    return nullptr;
-//}
 
 
 struct RangeHolder::Range

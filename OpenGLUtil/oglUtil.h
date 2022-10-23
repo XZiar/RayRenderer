@@ -22,7 +22,7 @@ struct CreateInfo
 };
 
 
-class GLHost : public std::enable_shared_from_this<GLHost>
+class OGLUAPI GLHost : public std::enable_shared_from_this<GLHost>
 {
     friend oglLoader;
     friend oglContext_;
@@ -37,10 +37,10 @@ private:
     virtual void ReportFailure(std::u16string_view action) const = 0;
     virtual void TemporalInsideContext(void* hRC, const std::function<void(void* hRC)>& func) const = 0;
     [[nodiscard]] bool MakeGLContextCurrent(void* hRC) const;
-    [[nodiscard]] std::optional<ContextBaseInfo> FillBaseInfo(void* hRC) const;
     [[nodiscard]] void* GetFunction(std::string_view name) const noexcept;
-    OGLUAPI [[nodiscard]] std::shared_ptr<oglContext_> CreateContext(CreateInfo cinfo, const oglContext_* sharedCtx);
+    [[nodiscard]] std::shared_ptr<oglContext_> CreateContext(CreateInfo cinfo, const oglContext_* sharedCtx);
 protected:
+    [[nodiscard]] std::optional<ContextBaseInfo> FillBaseInfo(void* hRC) const;
     oglLoader& Loader;
     common::container::FrozenDenseSet<std::string_view> Extensions;
     uint32_t VendorId = 0, DeviceId = 0;
@@ -85,7 +85,6 @@ class oglLoader
 private:
     struct Pimpl;
     std::unique_ptr<Pimpl> Impl;
-    //virtual void Init() = 0;
 protected:
     oglLoader();
 public:
@@ -174,6 +173,7 @@ public:
     [[nodiscard]] common::span<const DeviceHolder> GetDeviceList() const noexcept { return { Devices.get(), DeviceCount }; }
     [[nodiscard]] virtual EGLType GetType() const noexcept = 0;
     [[nodiscard]] virtual bool CheckSupport(AngleBackend backend) const noexcept = 0;
+    [[nodiscard]] virtual bool SupportCreateFromDevice() const noexcept = 0;
 
     [[nodiscard]] std::shared_ptr<EGLHost> CreateHost(bool useOffscreen = false)
     {
@@ -184,6 +184,8 @@ public:
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromX11(void* display, std::optional<int32_t> screen, bool useOffscreen) = 0;
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromAngle(void* display, AngleBackend backend, bool useOffscreen) = 0;
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromAndroid(bool useOffscreen) = 0;
+    [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromDevice(const DeviceHolder& device) = 0;
+    [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostSurfaceless() = 0;
 protected:
     std::unique_ptr<DeviceHolder[]> Devices;
     uint32_t DeviceCount = 0;

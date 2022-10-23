@@ -43,23 +43,30 @@ inline const common::console::ConsoleEx& GetConsole()
 void PrintException(const common::BaseException& be, std::u16string_view info);
 void ClearReturn();
 
+char EnterOneOf(std::u16string_view prompt, std::string_view str);
 char16_t GetIdx36(const size_t idx);
 uint32_t Select36(const size_t size);
 template<typename T, typename F>
 forceinline uint32_t SelectIdx(const T& container, std::u16string_view name, F&& printer)
 {
     common::mlog::SyncConsoleBackend();
-    size_t idx = 0;
-    for (const auto& item : container)
+    auto& fmter = GetLogFmt();
+    if constexpr (!std::is_null_pointer_v<F>)
     {
-        ColorPrint(u"{@<W}{}[{}] {@<w}{}\n", name, GetIdx36(idx++), printer(item));
+        size_t idx = 0;
+        for (const auto& item : container)
+        {
+            fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}{}[{}] {@<w}{}\n"), name, GetIdx36(idx++), printer(item));
+        }
     }
     if (container.size() <= 1)
     {
-        ColorPrint(u"{@<W}Default select {@<y}{}[0]\n", name);
+        fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}Default select {@<y}{}[0]\n"), name);
+        PrintToConsole(fmter);
         common::console::ConsoleEx::ReadCharImmediate(false);
         return 0;
     }
-    ColorPrint(u"{@<W}Select {@<w}{}:\n", name);
+    fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}Select {@<w}{}:\n"), name);
+    PrintToConsole(fmter);
     return Select36(container.size());
 }

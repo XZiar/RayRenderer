@@ -115,6 +115,8 @@ private:
             SupportES = Extensions.Has("WGL_EXT_create_context_es2_profile");
             SupportSRGBFrameBuffer = Extensions.Has("WGL_ARB_framebuffer_sRGB") || Extensions.Has("WGL_EXT_framebuffer_sRGB");
             SupportFlushControl = Extensions.Has("WGL_ARB_context_flush_control");
+            const auto binfo = FillBaseInfo(loader.GetCurrentContext());
+            oglLog().Verbose(u"temp ctx of [{}]{}({}).\n"sv, binfo->VendorString, binfo->RendererString, binfo->VendorString);
         }
         ~WGLHost() final {}
         void* CreateContext_(const CreateInfo& cinfo, void* sharedCtx) noexcept final
@@ -224,11 +226,18 @@ private:
         SetPixelFormat(hdc, pixFormat, &PixFmtDesc);
         const auto oldHdc = GetCurrentDC();
         const auto oldHrc = GetCurrentContext();
-        const auto tmpHrc = CreateContext(hdc);
-        MakeCurrent(hdc, tmpHrc);
-        auto host = std::make_shared<WGLHost>(*this, hdc);
-        MakeCurrent(oldHdc, oldHrc);
-        DeleteContext(tmpHrc);
+        std::shared_ptr<WGLHost> host;
+        if (const auto tmpHrc = CreateContext(hdc); tmpHrc)
+        {
+            MakeCurrent(hdc, tmpHrc);
+            host = std::make_shared<WGLHost>(*this, hdc);
+            MakeCurrent(oldHdc, oldHrc);
+            DeleteContext(tmpHrc);
+        }
+        else
+        {
+            oglLog().Error(u"Failed to create temp context on HDC[{:p}].\n", hdc_);
+        }
         return host;
     }
 

@@ -34,41 +34,142 @@ static MiniLogger<false>& log()
     return logger;
 }
 
+struct EGLNativeWindow
+{
+    virtual EGLLoader::NativeDisplay GetDisplay() const noexcept = 0;
+};
+
+using HostResult = std::pair<std::shared_ptr<GLHost>, std::shared_ptr<void>>;
 
 #if COMMON_OS_WIN
-template<typename... Args>
-static std::shared_ptr<GLHost> GetHostWGL(oglLoader& loader, HDC dc, Args&&...)
+
+struct GDIWindow final : public EGLNativeWindow
 {
-    return static_cast<WGLLoader&>(loader).CreateHost(dc);
+    static constexpr std::u16string_view Name = u"GDI"sv;
+    HWND Window = nullptr;
+    HDC Handle = nullptr;
+    GDIWindow()
+    {
+        Window = CreateWindowW(
+            L"Static", L"Fake Window",            // window class, title
+            WS_CLIPSIBLINGS | WS_CLIPCHILDREN,  // style
+            0, 0,                               // position x, y
+            1, 1,                               // width, height
+            NULL, NULL,                         // parent window, menu
+            nullptr, NULL);                     // instance, param
+        Handle = GetDC(Window);
+        // Handle = CreateCompatibleDC(nullptr);
+    }
+    ~GDIWindow()
+    {
+        ReleaseDC(Window, Handle);
+        DestroyWindow(Window);
+    }
+    EGLLoader::NativeDisplay GetDisplay() const noexcept final { return Handle; }
+};
+
+static HostResult GetHostWGL(oglLoader& loader)
+{
+    auto window = std::make_shared<GDIWindow>();
+    return { static_cast<WGLLoader&>(loader).CreateHost(window->Handle), window };
 }
+
 #endif
 #if COMMON_OS_UNIX && !COMMON_OS_DARWIN
-template<typename... Args>
-static std::shared_ptr<GLHost> GetHostGLX(oglLoader& loader, Display* display, int32_t screen, Args&&...)
+
+struct X11Window final : public EGLNativeWindow
 {
-    return static_cast<GLXLoader&>(loader).CreateHost(display, screen, true);
+    static constexpr std::u16string_view Name = u"X11"sv;
+    Display* Handle = nullptr;
+    int32_t Screen = 0;
+    X11Window()
+    {
+        const auto dispName = common::GetEnvVar("DISPLAY");
+        const auto dispStr = dispName.empty() ? ":0.0" : dispName.c_str();
+        Handle = XOpenDisplay(dispStr);
+        if (!Handle)
+        {
+            log().Error(u"Failed to open display [{}]\n", dispStr);
+            COMMON_THROW(BaseException, u"Error");
+        }
+        Screen = DefaultScreen(Handle);
+    }
+    ~X11Window()
+    {
+    }
+    EGLLoader::NativeDisplay GetDisplay() const noexcept final { return Handle; }
+};
+
+static HostResult GetHostGLX(oglLoader& loader)
+{
+    auto window = std::make_shared<X11Window>();
+    return { static_cast<GLXLoader&>(loader).CreateHost(window->Handle, window->Screen, true), window };
 }
+
 #endif
-template<typename... Args>
-static std::shared_ptr<EGLLoader::EGLHost> GetHostEGL(oglLoader& loader, [[maybe_unused]] void* dc, Args&&...)
+
+
+template<typename T>
+struct CreateWrap
 {
+    static std::shared_ptr<EGLNativeWindow> Create()
+    {
+        return std::make_shared<T>();
+    }
+};
+
+template<typename... Ts>
+static std::shared_ptr<EGLNativeWindow> CreateEGLWindow()
+{
+    constexpr auto TCount = sizeof...(Ts);
+    static_assert(TCount > 0);
+    std::array<std::shared_ptr<EGLNativeWindow>(*)(), TCount> funcs = { &CreateWrap<Ts>::Create... };
+    uint32_t idx = 0;
+    if (TCount > 1)
+    {
+        std::array<std::u16string_view, TCount> names = { Ts::Name... };
+        idx = SelectIdx(names, u"Window", [&](const auto& name)
+            {
+                return name;
+            });
+    }
+    return funcs[idx]();
+}
+
+template<typename... Ts>
+static HostResult GetHostEGL(oglLoader& loader)
+{
+    std::vector<std::pair<std::u16string, std::function<HostResult(EGLLoader&)>>> methods;
     auto& eglLdr = static_cast<EGLLoader&>(loader);
-    if (const auto devs = eglLdr.GetDeviceList(); !devs.empty())
+    const auto devs = eglLdr.GetDeviceList();
+    if (!devs.empty())
     {
         const auto& xcdevs = xcomp::ProbeDevice();
         auto& fmter = GetLogFmt();
         uint32_t idx = 0;
         for (const auto& dev : devs)
-            fmter.FormatToStatic(fmter.Str, FmtString(u"dev[{}][@{:1}]{}\n"sv), 
+            fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}device[{}] [@{:1}]{}\n"sv),
                 idx++, GetIdx36(xcdevs.GetDeviceIndex(dev.XCompDevice)),
                 dev.Name);
-        PrintToConsole(fmter); 
+        common::mlog::SyncConsoleBackend();
+        PrintToConsole(fmter);
+        if (eglLdr.SupportCreateFromDevice())
+        {
+            methods.emplace_back(u"Device", [devs = devs](EGLLoader& eglLdr) -> HostResult
+                {
+                    const auto didx = SelectIdx(devs, u"device", nullptr);
+                    return { eglLdr.CreateHostFromDevice(devs[didx]), {} };
+                });
+        }
     }
     if (eglLdr.GetType() == EGLLoader::EGLType::ANDROID)
     {
-        return eglLdr.CreateHostFromAndroid(true);
+        methods.emplace_back(u"Android", [](EGLLoader& eglLdr) -> HostResult
+            {
+                return { eglLdr.CreateHostFromAndroid(true), {} };
+            });
     }
-    else if (eglLdr.GetType() == EGLLoader::EGLType::ANGLE)
+    if (eglLdr.GetType() == EGLLoader::EGLType::ANGLE)
     {
         std::vector<EGLLoader::AngleBackend> bes;
         constexpr EGLLoader::AngleBackend BEs[] =
@@ -85,58 +186,60 @@ static std::shared_ptr<EGLLoader::EGLHost> GetHostEGL(oglLoader& loader, [[maybe
         }
         if (!bes.empty())
         {
-            const auto beidx = SelectIdx(bes, u"Backend", [&](const auto& type)
+            methods.emplace_back(u"Angle", [abes = std::move(bes)](EGLLoader& eglLdr) -> HostResult
                 {
-                    return EGLLoader::GetAngleBackendName(type);
+                    const auto beidx = SelectIdx(abes, u"Backend", [&](const auto& type)
+                        {
+                            return EGLLoader::GetAngleBackendName(type);
+                        });
+                    auto window = CreateEGLWindow<Ts...>();
+                    return { eglLdr.CreateHostFromAngle(window->GetDisplay(), abes[beidx], true), window };
                 });
-            return eglLdr.CreateHostFromAngle(dc, bes[beidx], true);
         }
     }
-#if COMMON_OS_DARWIN || COMMON_OS_ANDROID
-    return eglLdr.CreateHost(0, true);
-#else
-    return eglLdr.CreateHost(dc, true);
+    methods.emplace_back(u"DefaultWindow", [](EGLLoader& eglLdr) -> HostResult
+        {
+            return { eglLdr.CreateHost(true), {} };
+        });
+#if !(COMMON_OS_DARWIN || COMMON_OS_ANDROID)
+    methods.emplace_back(u"Default", [](EGLLoader& eglLdr) -> HostResult
+        {
+            auto window = CreateEGLWindow<Ts...>();
+            return { eglLdr.CreateHost(window->GetDisplay(), true), window };
+        });
 #endif
+    Expects(!methods.empty());
+    const auto midx = SelectIdx(methods, u"Method", [](const auto& method)
+        {
+            return method.first;
+        });
+    return methods[midx].second(eglLdr);
 }
+
 #if COMMON_OS_IOS
-template<typename... Args>
-static std::shared_ptr<GLHost> GetHostEAGL(oglLoader& loader, void*, Args&&...)
+
+static HostResult GetHostEAGL(oglLoader& loader)
 {
-    return static_cast<EAGLLoader&>(loader).CreateHost(true);
+    return { static_cast<EAGLLoader&>(loader).CreateHost(true), {} };
 }
+
 #endif
 
-template<typename... Args>
-static std::shared_ptr<GLHost> GetHost(oglLoader& loader, const Args&... args)
+template<typename... Ts>
+static HostResult GetHost(oglLoader& loader)
 {
 #if COMMON_OS_WIN
-    if (loader.Name() == "WGL") return GetHostWGL(loader, args...);
+    if (loader.Name() == "WGL") return GetHostWGL(loader);
 #endif
 #if COMMON_OS_IOS
-    if (loader.Name() == "EAGL") return GetHostEAGL(loader, args...);
+    if (loader.Name() == "EAGL") return GetHostEAGL(loader);
 #endif
 #if COMMON_OS_UNIX && !COMMON_OS_DARWIN
-    if (loader.Name() == "GLX") return GetHostGLX(loader, args...);
+    if (loader.Name() == "GLX") return GetHostGLX(loader);
 #endif
-    if (loader.Name() == "EGL")
-    {
-        auto host = GetHostEGL(loader, args...);
-        if (const auto dev = host->GetDeviceInfo(); dev)
-        {
-            const auto& xcdevs = xcomp::ProbeDevice();
-            auto& fmter = GetLogFmt();
-            fmter.FormatToStatic(fmter.Str, FmtString(u"Device[@{:1}]{}\n"sv),
-                GetIdx36(xcdevs.GetDeviceIndex(dev->XCompDevice)), dev->Name);
-            for (const auto ext : dev->Extensions)
-            {
-                fmter.FormatToStatic(fmter.Str, FmtString(u"--{}\n"sv), ext);
-            }
-            PrintToConsole(fmter);
-        }
-        return host;
-    }
+    if (loader.Name() == "EGL") return GetHostEGL<Ts...>(loader);
     log().Error(u"Unknown loader\n");
-    return {};
+    return { {}, {} };
 }
 
 std::u16string CommonDevInfoStr(const xcomp::CommonDeviceInfo& dev)
@@ -154,28 +257,6 @@ static void OGLStub()
         return;
     }
 
-#if COMMON_OS_WIN
-    HWND tmpWND = CreateWindowW(
-        L"Static", L"Fake Window",            // window class, title
-        WS_CLIPSIBLINGS | WS_CLIPCHILDREN,  // style
-        0, 0,                               // position x, y
-        1, 1,                               // width, height
-        NULL, NULL,                         // parent window, menu
-        nullptr, NULL);                     // instance, param
-    HDC tmpDC = GetDC(tmpWND);
-#elif COMMON_OS_DARWIN
-    void* display = nullptr;
-#else
-    const auto dispName = common::GetEnvVar("DISPLAY");
-    Display* display = XOpenDisplay(dispName.empty() ? ":0.0" : dispName.data());
-    if (!display)
-    {
-        log().Error(u"Failed to open display\n");
-        COMMON_THROW(BaseException, u"Error");
-    }
-    const auto defScreen = DefaultScreen(display);
-#endif
-
     while (true)
     {
         const auto ldridx = SelectIdx(loaders, u"loader", [&](const auto& loader)
@@ -185,21 +266,42 @@ static void OGLStub()
 
         auto& loader = *loaders[ldridx];
 #if COMMON_OS_WIN
-        const auto host = GetHost(loader, tmpDC);
+            using TW = GDIWindow;
 #elif COMMON_OS_DARWIN
-        const auto host = GetHost(loader, display);
+        using TW = NullWindow;
 #else
-        const auto host = GetHost(loader, display, defScreen);
+        using TW = X11Window;
 #endif
+        [[maybe_unused]]  const auto [host, window] = GetHost<TW>(loader);
         if (!host)
         {
             log().Error(u"Failed to init [{}] Host\n", loader.Name());
             continue;
         }
         log().Success(u"Init GLHost[{}] version [{}.{}]\n", loader.Name(), host->GetVersion() / 10, host->GetVersion() % 10);
-        if (const auto cmDev = host->GetCommonDevice())
         {
-            log().Success(FmtString(u"Host is on common device: {}\n"sv), CommonDevInfoStr(*cmDev));
+            std::u16string devtxt;
+            if (const auto eglHost = std::dynamic_pointer_cast<EGLLoader::EGLHost>(host); eglHost)
+            {
+                if (const auto dev = eglHost->GetDeviceInfo(); dev)
+                {
+                    const auto& xcdevs = xcomp::ProbeDevice();
+                    auto& fmter = GetLogFmt();
+                    APPEND_FMT(devtxt, u"Host is on device:[@{:1}]{} ({})\n"sv,
+                        GetIdx36(xcdevs.GetDeviceIndex(dev->XCompDevice)), dev->Name, 
+                        dev->XCompDevice ? CommonDevInfoStr(*dev->XCompDevice) : u"");
+                    for (const auto ext : dev->Extensions)
+                    {
+                        APPEND_FMT(devtxt, u"--{}\n"sv, ext);
+                    }
+                }
+            }
+            if (const auto cmDev = host->GetCommonDevice(); devtxt.empty() && cmDev)
+            {
+                APPEND_FMT(devtxt, u"Host is on common device: {}\n"sv, CommonDevInfoStr(*cmDev));
+            }
+            if (!devtxt.empty())
+                log().Success(devtxt);
         }
 
         CreateInfo cinfo;

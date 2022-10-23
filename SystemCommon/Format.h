@@ -1526,7 +1526,7 @@ struct ArgInfo
         constexpr auto ArgSize = (((sizeof(decltype(BoxAnArg(std::forward<Ts>(args)))) + 1) / 2) + ... + size_t(0));
         StaticArgPack<ArgCount + ArgSize> pack;
         pack.CurrentSlot = ArgCount;
-        uint16_t argIdx = 0;
+        [[maybe_unused]] uint16_t argIdx = 0;
         (..., PackAnArg     (pack, std::forward<Ts>(args), argIdx));
         (..., PackAnNamedArg(pack, std::forward<Ts>(args), argIdx));
         return pack;
