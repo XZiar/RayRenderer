@@ -4,49 +4,42 @@
 #define JPEG_LIB_VERSION  80
 
 /* libjpeg-turbo version */
-#define LIBJPEG_TURBO_VERSION  2.1.3
+#define LIBJPEG_TURBO_VERSION  2.1.90
 
 /* libjpeg-turbo version in integer form */
-#define LIBJPEG_TURBO_VERSION_NUMBER  2001003
+#define LIBJPEG_TURBO_VERSION_NUMBER  2001090
 
-/* Support arithmetic encoding */
+/* Support arithmetic encoding when using 8-bit samples */
 #define C_ARITH_CODING_SUPPORTED 1
 
-/* Support arithmetic decoding */
+/* Support arithmetic decoding when using 8-bit samples */
 #define D_ARITH_CODING_SUPPORTED 1
 
 /* Support in-memory source/destination managers */
-/* #undef MEM_SRCDST_SUPPORTED */
+#define MEM_SRCDST_SUPPORTED  1
 
 /* Use accelerated SIMD routines. */
 #define WITH_SIMD 1
 
-/*
- * Define BITS_IN_JSAMPLE as either
- *   8   for 8-bit sample values (the usual setting)
- *   12  for 12-bit sample values
- * Only 8 and 12 are legal data precisions for lossy JPEG according to the
- * JPEG standard, and the IJG code does not support anything else!
- * We do not support run-time selection of data precision, sorry.
+/* This version of libjpeg-turbo supports run-time selection of data precision,
+ * so BITS_IN_JSAMPLE is no longer used to specify the data precision at build
+ * time.  However, some downstream software expects the macro to be defined.
+ * Since 12-bit data precision is an opt-in feature that requires explicitly
+ * calling 12-bit-specific libjpeg API functions and using 12-bit-specific data
+ * types, the unmodified portion of the libjpeg API still behaves as if it were
+ * built for 8-bit precision, and JSAMPLE is still literally an 8-bit data
+ * type.  Thus, it is correct to define BITS_IN_JSAMPLE to 8 here.
  */
-
-#define BITS_IN_JSAMPLE  8      /* use 8 or 12 */
+#ifndef BITS_IN_JSAMPLE
+#define BITS_IN_JSAMPLE  8
+#endif
 
 
 #if defined(_MSC_VER)
 
 
 
-#define HAVE_STDDEF_H
-#define HAVE_STDLIB_H
-#undef NEED_SYS_TYPES_H
-#undef NEED_BSD_STRINGS
-
-#define HAVE_UNSIGNED_CHAR
-#define HAVE_UNSIGNED_SHORT
-#undef INCOMPLETE_TYPES_BROKEN
 #undef RIGHT_SHIFT_IS_UNSIGNED
-#undef __CHAR_UNSIGNED__
 
 /* Define "boolean" as unsigned char, not int, per Windows custom */
 #ifndef __RPCNDR_H__            /* don't conflict if rpcndr.h already read */

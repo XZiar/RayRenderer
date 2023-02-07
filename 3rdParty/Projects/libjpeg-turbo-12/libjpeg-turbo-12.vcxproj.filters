@@ -1,0 +1,195 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RealSourceDir)\jcapistd.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jccoefct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jccolor.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jcdctmgr.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jcdiffct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jclossls.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jcmainct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jcprepct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jcsample.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jdapistd.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jdcoefct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jdcolor.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jddctmgr.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jddiffct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jdlossls.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jdmainct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jdmerge.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jdpostct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jdsample.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jfdctfst.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jfdctint.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jidctflt.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jidctfst.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jidctint.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jidctred.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jquant1.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jquant2.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jutils.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\rdppm.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\wrppm.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(RealSourceDir)\LICENSE.md" />
+    <None Include="$(RealSourceDir)\README.ijg" />
+    <None Include="$(RealSourceDir)\README.md" />
+    <None Include="xzbuild.proj.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(RealSourceDir)\jerror.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jinclude.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jmemsys.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jmorecfg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jpeg_nbits_table.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jpegcomp.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jpegint.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jpeglib.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jsimd.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jsimddct.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\tjutil.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\transupp.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\turbojpeg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\cderror.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\cdjpeg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jchuff.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\libjpeg-turbo\jconfig.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\libjpeg-turbo\jconfigint.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\libjpeg-turbo\jversion.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jdcoefct.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jdct.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jdhuff.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jdmainct.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jdmaster.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\jdsample.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\cmyk.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

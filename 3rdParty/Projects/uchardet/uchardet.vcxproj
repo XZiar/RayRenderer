@@ -249,6 +249,7 @@
     <ClCompile Include="$(RealSourceDir)\LangModels\LangLatvianModel.cpp" />
     <ClCompile Include="$(RealSourceDir)\LangModels\LangLithuanianModel.cpp" />
     <ClCompile Include="$(RealSourceDir)\LangModels\LangMalteseModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangNorwegianModel.cpp" />
     <ClCompile Include="$(RealSourceDir)\LangModels\LangPolishModel.cpp" />
     <ClCompile Include="$(RealSourceDir)\LangModels\LangPortugueseModel.cpp" />
     <ClCompile Include="$(RealSourceDir)\LangModels\LangRomanianModel.cpp" />

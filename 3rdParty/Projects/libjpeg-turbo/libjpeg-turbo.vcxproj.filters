@@ -21,12 +21,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(RealSourceDir)\jquant2.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\jutils.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\transupp.c">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -54,10 +48,19 @@
     <ClCompile Include="$(RealSourceDir)\jcdctmgr.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jcdiffct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\jchuff.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\jcinit.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jclhuff.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jclossls.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\jcmainct.c">
@@ -117,10 +120,19 @@
     <ClCompile Include="$(RealSourceDir)\jddctmgr.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jddiffct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\jdhuff.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\jdinput.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jdlhuff.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jdlossls.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\jdmainct.c">
@@ -178,6 +190,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\jquant1.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jquant2.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jutils.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\simd\x86_64\jsimd.c">

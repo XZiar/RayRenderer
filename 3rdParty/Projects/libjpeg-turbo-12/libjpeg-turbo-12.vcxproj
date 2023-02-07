@@ -1,0 +1,328 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{3797BA95-6625-4483-B66E-3B3F9B845DAB}</ProjectGuid>
+    <RootNamespace>libjpegturbo12</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\nasm.props" />
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros">
+    <RealSourceDir>$(SolutionDir)3rdParty\libjpeg-turbo</RealSourceDir>
+  </PropertyGroup>
+  <PropertyGroup>
+    <IncludePath>$(SolutionDir)3rdParty\libjpeg-turbo;$(ProjectDir);$(ProjectDir)\..\libjpeg-turbo;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_ITERATOR_DEBUG_LEVEL=0;BITS_IN_JSAMPLE=12;BMP_SUPPORTED;PPM_SUPPORTED;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <CompileAs>CompileAsC</CompileAs>
+      <ConformanceMode>true</ConformanceMode>
+      <CompileAsManaged>false</CompileAsManaged>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <NASM>
+      <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
+      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
+    </NASM>
+    <Lib>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_ITERATOR_DEBUG_LEVEL=0;BITS_IN_JSAMPLE=12;BMP_SUPPORTED;PPM_SUPPORTED;NDEBUG;NEON_INTRINSICS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <CompileAs>CompileAsC</CompileAs>
+      <ConformanceMode>true</ConformanceMode>
+      <CompileAsManaged>false</CompileAsManaged>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <NASM>
+      <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
+      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
+    </NASM>
+    <Lib>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_ITERATOR_DEBUG_LEVEL=0;BITS_IN_JSAMPLE=12;BMP_SUPPORTED;PPM_SUPPORTED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <CompileAs>CompileAsC</CompileAs>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ConformanceMode>true</ConformanceMode>
+      <CompileAsManaged>false</CompileAsManaged>
+    </ClCompile>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <NASM>
+      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\i386;%(IncludePaths)</IncludePaths>
+      <PreprocessorDefinitions>WIN32</PreprocessorDefinitions>
+    </NASM>
+    <Lib>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_ITERATOR_DEBUG_LEVEL=0;BITS_IN_JSAMPLE=12;BMP_SUPPORTED;PPM_SUPPORTED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <CompileAs>CompileAsC</CompileAs>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ConformanceMode>true</ConformanceMode>
+      <CompileAsManaged>false</CompileAsManaged>
+    </ClCompile>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <NASM>
+      <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
+      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
+    </NASM>
+    <Lib>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_ITERATOR_DEBUG_LEVEL=0;BITS_IN_JSAMPLE=12;BMP_SUPPORTED;PPM_SUPPORTED;NEON_INTRINSICS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <CompileAs>CompileAsC</CompileAs>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ConformanceMode>true</ConformanceMode>
+      <CompileAsManaged>false</CompileAsManaged>
+    </ClCompile>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <NASM>
+      <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
+      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
+    </NASM>
+    <Lib>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_ITERATOR_DEBUG_LEVEL=0;BITS_IN_JSAMPLE=12;BMP_SUPPORTED;PPM_SUPPORTED;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <CompileAs>CompileAsC</CompileAs>
+      <ConformanceMode>true</ConformanceMode>
+      <CompileAsManaged>false</CompileAsManaged>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <NASM>
+      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\i386;%(IncludePaths)</IncludePaths>
+      <PreprocessorDefinitions>WIN32</PreprocessorDefinitions>
+    </NASM>
+    <Lib>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RealSourceDir)\jcapistd.c" />
+    <ClCompile Include="$(RealSourceDir)\jccoefct.c" />
+    <ClCompile Include="$(RealSourceDir)\jccolor.c" />
+    <ClCompile Include="$(RealSourceDir)\jcdctmgr.c" />
+    <ClCompile Include="$(RealSourceDir)\jcdiffct.c" />
+    <ClCompile Include="$(RealSourceDir)\jclossls.c" />
+    <ClCompile Include="$(RealSourceDir)\jcmainct.c" />
+    <ClCompile Include="$(RealSourceDir)\jcprepct.c" />
+    <ClCompile Include="$(RealSourceDir)\jcsample.c" />
+    <ClCompile Include="$(RealSourceDir)\jdapistd.c" />
+    <ClCompile Include="$(RealSourceDir)\jdcoefct.c" />
+    <ClCompile Include="$(RealSourceDir)\jdcolor.c" />
+    <ClCompile Include="$(RealSourceDir)\jddctmgr.c" />
+    <ClCompile Include="$(RealSourceDir)\jddiffct.c" />
+    <ClCompile Include="$(RealSourceDir)\jdlossls.c" />
+    <ClCompile Include="$(RealSourceDir)\jdmainct.c" />
+    <ClCompile Include="$(RealSourceDir)\jdmerge.c" />
+    <ClCompile Include="$(RealSourceDir)\jdpostct.c" />
+    <ClCompile Include="$(RealSourceDir)\jdsample.c" />
+    <ClCompile Include="$(RealSourceDir)\jfdctfst.c" />
+    <ClCompile Include="$(RealSourceDir)\jfdctint.c" />
+    <ClCompile Include="$(RealSourceDir)\jidctflt.c" />
+    <ClCompile Include="$(RealSourceDir)\jidctfst.c" />
+    <ClCompile Include="$(RealSourceDir)\jidctint.c" />
+    <ClCompile Include="$(RealSourceDir)\jidctred.c" />
+    <ClCompile Include="$(RealSourceDir)\jquant1.c" />
+    <ClCompile Include="$(RealSourceDir)\jquant2.c" />
+    <ClCompile Include="$(RealSourceDir)\jutils.c" />
+    <ClCompile Include="$(RealSourceDir)\rdppm.c" />
+    <ClCompile Include="$(RealSourceDir)\wrppm.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(RealSourceDir)\LICENSE.md" />
+    <None Include="$(RealSourceDir)\README.ijg" />
+    <None Include="$(RealSourceDir)\README.md" />
+    <None Include="xzbuild.proj.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\libjpeg-turbo\jconfig.h" />
+    <ClInclude Include="..\libjpeg-turbo\jconfigint.h" />
+    <ClInclude Include="..\libjpeg-turbo\jversion.h" />
+    <ClInclude Include="$(RealSourceDir)\cderror.h" />
+    <ClInclude Include="$(RealSourceDir)\cdjpeg.h" />
+    <ClInclude Include="$(RealSourceDir)\cmyk.h" />
+    <ClInclude Include="$(RealSourceDir)\jchuff.h" />
+    <ClInclude Include="$(RealSourceDir)\jdcoefct.h" />
+    <ClInclude Include="$(RealSourceDir)\jdct.h" />
+    <ClInclude Include="$(RealSourceDir)\jdhuff.h" />
+    <ClInclude Include="$(RealSourceDir)\jdmainct.h" />
+    <ClInclude Include="$(RealSourceDir)\jdmaster.h" />
+    <ClInclude Include="$(RealSourceDir)\jdsample.h" />
+    <ClInclude Include="$(RealSourceDir)\jerror.h" />
+    <ClInclude Include="$(RealSourceDir)\jinclude.h" />
+    <ClInclude Include="$(RealSourceDir)\jmemsys.h" />
+    <ClInclude Include="$(RealSourceDir)\jmorecfg.h" />
+    <ClInclude Include="$(RealSourceDir)\jpegcomp.h" />
+    <ClInclude Include="$(RealSourceDir)\jpegint.h" />
+    <ClInclude Include="$(RealSourceDir)\jpeglib.h" />
+    <ClInclude Include="$(RealSourceDir)\jpeg_nbits_table.h" />
+    <ClInclude Include="$(RealSourceDir)\jsimd.h" />
+    <ClInclude Include="$(RealSourceDir)\jsimddct.h" />
+    <ClInclude Include="$(RealSourceDir)\tjutil.h" />
+    <ClInclude Include="$(RealSourceDir)\transupp.h" />
+    <ClInclude Include="$(RealSourceDir)\turbojpeg.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\nasm.targets" />
+  </ImportGroup>
+</Project>

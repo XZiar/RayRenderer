@@ -1,0 +1,58 @@
+{
+    "name": "jpeg-turbo-12",
+    "type": "static",
+    "version": "2.1.90",
+    "description": "A SIMD accelerated JPEG image codec library",
+    "dependency": [],
+    "srcPath": "../../libjpeg-turbo",
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cxx":
+        {
+            "defines": ["_LARGEFILE64_SOURCE=1", "BITS_IN_JSAMPLE=12", "BMP_SUPPORTED", "PPM_SUPPORTED"],
+            "incpath": ["$(BuildDir)", "$(BuildDir)/../libjpeg-turbo", "."]
+        },
+        "c":
+        {
+            "sources": 
+            [
+                "jcapistd.c",
+                "jccoefct.c",
+                "jccolor.c",
+                "jcdctmgr.c",
+                "jcdiffct.c",
+                "jclossls.c",
+                "jcmainct.c",
+                "jcprepct.c",
+                "jcsample.c",
+                "jdapistd.c",
+                "jdcoefct.c",
+                "jdcolor.c",
+                "jddctmgr.c",
+                "jddiffct.c",
+                "jdlossls.c",
+                "jdmainct.c",
+                "jdmerge.c",
+                "jdpostct.c",
+                "jdsample.c",
+                "jfdctfst.c",
+                "jfdctint.c",
+                "jidctflt.c",
+                "jidctfst.c",
+                "jidctint.c",
+                "jidctred.c",
+                "jquant1.c",
+                "jquant2.c",
+                "jutils.c",
+                "rdppm.c",
+                "wrppm.c"
+            ],
+            "version": ""
+        }
+    }
+}

@@ -261,9 +261,12 @@
     <ClCompile Include="$(RealSourceDir)\jccoefct.c" />
     <ClCompile Include="$(RealSourceDir)\jccolor.c" />
     <ClCompile Include="$(RealSourceDir)\jcdctmgr.c" />
+    <ClCompile Include="$(RealSourceDir)\jcdiffct.c" />
     <ClCompile Include="$(RealSourceDir)\jchuff.c" />
     <ClCompile Include="$(RealSourceDir)\jcicc.c" />
     <ClCompile Include="$(RealSourceDir)\jcinit.c" />
+    <ClCompile Include="$(RealSourceDir)\jclhuff.c" />
+    <ClCompile Include="$(RealSourceDir)\jclossls.c" />
     <ClCompile Include="$(RealSourceDir)\jcmainct.c" />
     <ClCompile Include="$(RealSourceDir)\jcmarker.c" />
     <ClCompile Include="$(RealSourceDir)\jcmaster.c" />
@@ -280,9 +283,12 @@
     <ClCompile Include="$(RealSourceDir)\jdcoefct.c" />
     <ClCompile Include="$(RealSourceDir)\jdcolor.c" />
     <ClCompile Include="$(RealSourceDir)\jddctmgr.c" />
+    <ClCompile Include="$(RealSourceDir)\jddiffct.c" />
     <ClCompile Include="$(RealSourceDir)\jdhuff.c" />
     <ClCompile Include="$(RealSourceDir)\jdicc.c" />
     <ClCompile Include="$(RealSourceDir)\jdinput.c" />
+    <ClCompile Include="$(RealSourceDir)\jdlhuff.c" />
+    <ClCompile Include="$(RealSourceDir)\jdlossls.c" />
     <ClCompile Include="$(RealSourceDir)\jdmainct.c" />
     <ClCompile Include="$(RealSourceDir)\jdmarker.c" />
     <ClCompile Include="$(RealSourceDir)\jdmaster.c" />
@@ -703,6 +709,14 @@
     <ClInclude Include="$(RealSourceDir)\tjutil.h" />
     <ClInclude Include="$(RealSourceDir)\transupp.h" />
     <ClInclude Include="$(RealSourceDir)\turbojpeg.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\libjpeg-turbo-12\libjpeg-turbo-12.vcxproj">
+      <Project>{3797ba95-6625-4483-b66e-3b3f9b845dab}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\libjpeg-turbo-16\libjpeg-turbo-16.vcxproj">
+      <Project>{3797ba95-6625-4483-b96e-3b3f9b845dab}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

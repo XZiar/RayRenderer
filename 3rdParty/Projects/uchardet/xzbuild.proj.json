@@ -1,7 +1,7 @@
 {
     "name": "uchardet",
     "type": "static",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "description": "An encoding detector library",
     "dependency": [],
     "srcPath": "../../uchardet/src",
@@ -19,7 +19,7 @@
             [
                 {"ifeq":{"arch": "x86"}, "+":["-mfpmath=sse"]}
             ], 
-            "defines":  ["VERSION=\"0.0.7\""]
+            "defines":  ["VERSION=\"0.0.8\""]
         }
         
     }

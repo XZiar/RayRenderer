@@ -143,6 +143,9 @@
     <ClCompile Include="$(RealSourceDir)\LangModels\LangMalteseModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangNorwegianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\LangModels\LangPolishModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
