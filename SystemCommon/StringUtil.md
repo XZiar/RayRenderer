@@ -75,11 +75,11 @@ StringUtil also exposes the embedded [fmt](../3rdParty/fmt), with dynamic-linkin
 
 # Dependency
 
-* [uchardet](https://www.freedesktop.org/wiki/Software/uchardet/) `submodule` 0.0.7
+* [uchardet](https://www.freedesktop.org/wiki/Software/uchardet/) `submodule` 0.0.8
 
   [MPL 1.1 License](./3rdParty/uchardet/COPYING)
 
-* [fmt](http://fmtlib.net) `submodule` 9.0.0
+* [fmt](http://fmtlib.net) `submodule` 9.1.0
 
   [MIT License](./3rdParty/fmt/LICENSE.rst)
 

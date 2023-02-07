@@ -80,19 +80,19 @@ python3 xzbuild buildall UtilTest
 
 [nasm](https://www.nasm.us/) needed for [libjpeg-turbo](./3rdParty/libjpeg-turbo) --- add it to system environment path
 
-[ispc compiler](https://ispc.github.io/downloads.html) needed for [ispc_texcomp](./3rdParty/ispc_texcomp) --- add it to system environment path.
+[ispc compiler](https://ispc.github.io/downloads.html) needed for [ispc_texcomp](./3rdParty/ISPCTextureCompressor) --- add it to system environment path.
 
 ## Dependency
 
 * [gsl](https://github.com/microsoft/GSL) `submodule` 4.0.0
   
-  [MIT License](./3rdParty/gsl/LICENSE)
+  [MIT License](https://github.com/microsoft/GSL/blob/main/LICENSE)
 
-* [Google Test](https://github.com/google/googletest) `submodule` 1.12.1
+* [Google Test](https://github.com/google/googletest) `submodule` 1.13.0
 
   [BSD 3-Clause License](https://github.com/google/googletest/blob/master/LICENSE)
 
-* [boost](http://www.boost.org/)  1.80.0 (not included in this repo)
+* [boost](http://www.boost.org/)  1.81.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 
@@ -114,11 +114,11 @@ python3 xzbuild buildall UtilTest
 
 * [FreeType](https://www.freetype.org/) `submodule` 2.12.1
 
-  [The FreeType License](./3rdParty/FreeType/LICENSE.TXT)
+  [The FreeType License](https://github.com/freetype/freetype/blob/master/LICENSE.TXT)
 
-* [ISPCTextureCompressor](https://github.com/GameTechDev/ISPCTextureCompressor)
+* [ISPCTextureCompressor](https://github.com/GameTechDev/ISPCTextureCompressor) `submodule`
   
-  [MIT License](./3rdParty/ispc_texcomp/license.txt)
+  [MIT License](https://github.com/GameTechDev/ISPCTextureCompressor/blob/master/license.txt)
 
 * [half](http://half.sourceforge.net/) 2.2.0
   
@@ -126,7 +126,7 @@ python3 xzbuild buildall UtilTest
 
 * [libcpuid](http://libcpuid.sourceforge.net/) `submodule` 0.5.1
 
-  [BSD License](./3rdParty/cpuid/COPYING)
+  [BSD License](https://github.com/anrieff/libcpuid/blob/master/COPYING)
 
 ## License
 

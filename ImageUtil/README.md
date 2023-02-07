@@ -40,11 +40,11 @@ It's bitfield arrangement is listed below
 
   [zlib License](../3rdParty/zlib-ng/LICENSE.md)
 
-* [libpng](http://www.libpng.org/pub/png/libpng.html) `submodule` 1.6.37
+* [libpng](http://www.libpng.org/pub/png/libpng.html) `submodule` 1.6.39
 
   [libpng License](../3rdParty/libpng/LICENSE)
 
-* [libjpeg-turbo](https://www.libjpeg-turbo.org/Main/HomePage) `submodule`  2.1.4
+* [libjpeg-turbo](https://www.libjpeg-turbo.org/Main/HomePage) `submodule`  2.1.90
 
   [IJG License, BSD-3 License, zlib License](../3rdParty/libjpeg-turbo/LICENSE.md)
   
