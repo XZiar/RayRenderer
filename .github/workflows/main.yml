@@ -3,8 +3,8 @@
 name: CI
 
 env:
-  boost_ver1: "1_80_0"
-  boost_ver2: "1.80.0"
+  boost_ver1: "1_81_0"
+  boost_ver2: "1.81.0"
   ispc_ver: "1.18.0"
 
 # Controls when the action will run. 
@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cxx: [gcc9, gcc10, gcc11, clang9, clang10, clang11, clang12]
+        cxx: [gcc9, gcc10, gcc11, clang9, clang10, clang11, clang12, clang13]
         include:
           - cxx: gcc9
             env_cc: "gcc-9"
@@ -147,6 +147,17 @@ jobs:
             env_clang: true
             env_clang_ver: 12
             pkg: "clang-12 lld-12 llvm-12"
+          - cxx: clang13
+            env_cc: "clang-13"
+            env_asm: "clang++-13"
+            env_cpp: "clang++-13"
+            env_stalink: "llvm-ar-13"
+            env_dynlink: "clang++-13"
+            env_applink: "clang++-13"
+            env_module: "all"
+            env_clang: true
+            env_clang_ver: 13
+            pkg: "clang-13 lld-13 llvm-13"
     
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it

@@ -74,3 +74,6 @@
 [submodule "3rdParty/angle-Headers"]
 	path = 3rdParty/angle-Headers
 	url = https://github.com/XZiar/angle-Headers.git
+[submodule "3rdParty/ISPCTextureCompressor"]
+	path = 3rdParty/ISPCTextureCompressor
+	url = https://github.com/GameTechDev/ISPCTextureCompressor.git

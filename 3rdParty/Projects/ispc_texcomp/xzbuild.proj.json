@@ -3,6 +3,7 @@
     "type": "static",
     "description": "ISPC Texture Compressor",
     "dependency": [],
+    "srcPath": "../../ISPCTextureCompressor/ispc_texcomp",
     "library": 
     {
         "static": [],
@@ -12,6 +13,7 @@
     {
         "cpp":
         {
+            "incpath": ["$(BuildDir)", "."],
             "sources": ["*.cpp"]
         },
         "ispc":

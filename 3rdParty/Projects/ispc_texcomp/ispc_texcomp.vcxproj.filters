@@ -15,15 +15,15 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ispc_texcomp.cpp">
+    <ClCompile Include="$(RealSourceDir)\ispc_texcomp\ispc_texcomp.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="ispc_texcomp_astc.cpp">
+    <ClCompile Include="$(RealSourceDir)\ispc_texcomp\ispc_texcomp_astc.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ispc_texcomp.h">
+    <ClInclude Include="$(RealSourceDir)\ispc_texcomp\ispc_texcomp.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -31,10 +31,10 @@
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="license.txt" />
+    <Text Include="$(RealSourceDir)\license.txt" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="kernel.ispc" />
-    <CustomBuild Include="kernel_astc.ispc" />
+    <CustomBuild Include="$(RealSourceDir)\ispc_texcomp\kernel.ispc" />
+    <CustomBuild Include="$(RealSourceDir)\ispc_texcomp\kernel_astc.ispc" />
   </ItemGroup>
 </Project>

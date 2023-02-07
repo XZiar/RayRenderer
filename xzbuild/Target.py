@@ -245,6 +245,8 @@ class ISPCTarget(BuildTarget):
             self.flags += ["--arch=x86-64"]
         elif env["platform"] == "x86":
             self.flags += ["--arch=x86"]
+        elif env["platform"] == "ARM64":
+            self.flags += ["--arch=aarch64"]
         elif env["platform"] == "ARM":
             self.flags += ["--arch=arm"]
         super().solveTarget(targets, proj, env)

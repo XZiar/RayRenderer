@@ -221,7 +221,7 @@ $(OBJDIR)/%.rc.o: %.rc $(DEP_MK)
 ### ispc targets
 # ispc's dependency file is still buggy, so only generate it but not use it
 $(OBJDIR)/%.ispc.o: %.ispc $(DEP_MK)
-	$(eval $@_bcmd := $(ISPCCOMPILER) $< -M -MF $(patsubst %.ispc.o, %.ispc.d, $@) -o $(OBJDIR)/$*.o -h $*_ispc.h $(ispc_flags) -MT $@)
+	$(eval $@_bcmd := $(ISPCCOMPILER) $< -M -MF $(patsubst %.ispc.o, %.ispc.d, $@) -o $(OBJDIR)/$*.o -h $(SOLDIR)/$(BUILDPATH)/$*_ispc.h $(ispc_flags) -MT $@)
 	$(call BuildProgress,compile, ispc, $<, $($@_bcmd))
 #	sed -i '1s/^(null):/$@:/g' $(patsubst %.ispc.o, %.ispc.d, $@)
 	$(eval $@_bcmd := ld -r $(patsubst %, $(OBJDIR)/$*_%.o, $(ispc_targets)) $(patsubst %.ispc.o, %.o, $@) -o $@)

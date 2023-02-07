@@ -19,7 +19,7 @@
 #endif
 
 
-namespace oglu::texutil::detail
+namespace oglu::texutil::detail::stb
 {
 using xziar::img::ImageView;
 using xziar::img::ImageDataType;

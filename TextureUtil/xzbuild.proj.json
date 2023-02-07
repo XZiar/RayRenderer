@@ -12,6 +12,7 @@
     {
         "cpp":
         {
+            "incpath": ["$(SolutionDir)/3rdParty/Projects/ispc_texcomp"],
             "sources": ["*.cpp", {"-": "dllmain.cpp"}],
             "defines": ["TEXUTIL_EXPORT"],
             "pch": "TexUtilPch.h"

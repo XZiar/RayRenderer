@@ -80,8 +80,12 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Label="UserMacros">
+    <RealSourceDir>$(SolutionDir)3rdParty\ISPCTextureCompressor</RealSourceDir>
+  </PropertyGroup>
+  <PropertyGroup>
+    <IncludePath>$(SolutionDir)3rdParty\ISPCTextureCompressor\ispc_texcomp;$(ProjectDir);$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -177,28 +181,36 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="ispc_texcomp.cpp" />
-    <ClCompile Include="ispc_texcomp_astc.cpp" />
+    <ClCompile Include="$(RealSourceDir)\ispc_texcomp\ispc_texcomp.cpp" />
+    <ClCompile Include="$(RealSourceDir)\ispc_texcomp\ispc_texcomp_astc.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ispc_texcomp.h" />
+    <ClInclude Include="$(RealSourceDir)\ispc_texcomp\ispc_texcomp.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="license.txt" />
+    <Text Include="$(RealSourceDir)\license.txt" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="kernel.ispc">
+    <CustomBuild Include="$(RealSourceDir)\ispc_texcomp\kernel.ispc">
       <FileType>Document</FileType>
-      <Command>ispc -g -O2 "%(Filename).ispc" -o "$(Platform)\$(Configuration)\%(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --arch=x86-64 --target=sse4,avx2 --opt=fast-math</Command>
-      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj;$(Platform)\$(Configuration)\%(Filename)_sse4.obj;$(Platform)\$(Configuration)\%(Filename)_avx2.obj;</Outputs>
+      <Command Condition="'$(Platform)'=='x64'">ispc -g -O2 "%(FullPath)" -o "$(Platform)\$(Configuration)\%(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --arch=x86-64 --target=sse4,avx2 --opt=fast-math</Command>
+      <Outputs Condition="'$(Platform)'=='x64'">$(Platform)\$(Configuration)\%(Filename).obj;$(Platform)\$(Configuration)\%(Filename)_sse4.obj;$(Platform)\$(Configuration)\%(Filename)_avx2.obj;</Outputs>
+      <Command Condition="'$(Platform)'=='Win32'">ispc -g -O2 "%(FullPath)" -o "$(Platform)\$(Configuration)\%(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --arch=x86 --target=sse4,avx2 --opt=fast-math</Command>
+      <Outputs Condition="'$(Platform)'=='Win32'">$(Platform)\$(Configuration)\%(Filename).obj;$(Platform)\$(Configuration)\%(Filename)_sse4.obj;$(Platform)\$(Configuration)\%(Filename)_avx2.obj;</Outputs>
+      <Command Condition="'$(Platform)'=='ARM64'">ispc -g -O2 "%(FullPath)" -o "$(Platform)\$(Configuration)\%(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --arch=aarch64 --target=neon --opt=fast-math</Command>
+      <Outputs Condition="'$(Platform)'=='ARM64'">$(Platform)\$(Configuration)\%(Filename).obj;$(Platform)\$(Configuration)\%(Filename)_neon.obj;</Outputs>
     </CustomBuild>
-    <CustomBuild Include="kernel_astc.ispc">
+    <CustomBuild Include="$(RealSourceDir)\ispc_texcomp\kernel_astc.ispc">
       <FileType>Document</FileType>
-      <Command>ispc -g -O2 "%(Filename).ispc" -o "$(Platform)\$(Configuration)\%(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --arch=x86-64 --target=sse4,avx2 --opt=fast-math</Command>
-      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj;$(Platform)\$(Configuration)\%(Filename)_sse4.obj;$(Platform)\$(Configuration)\%(Filename)_avx2.obj;</Outputs>
+      <Command Condition="'$(Platform)'=='x64'">ispc -g -O2 "%(FullPath)" -o "$(Platform)\$(Configuration)\%(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --arch=x86-64 --target=sse4,avx2 --opt=fast-math</Command>
+      <Outputs Condition="'$(Platform)'=='x64'">$(Platform)\$(Configuration)\%(Filename).obj;$(Platform)\$(Configuration)\%(Filename)_sse4.obj;$(Platform)\$(Configuration)\%(Filename)_avx2.obj;</Outputs>
+      <Command Condition="'$(Platform)'=='Win32'">ispc -g -O2 "%(FullPath)" -o "$(Platform)\$(Configuration)\%(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --arch=x86 --target=sse4,avx2 --opt=fast-math</Command>
+      <Outputs Condition="'$(Platform)'=='Win32'">$(Platform)\$(Configuration)\%(Filename).obj;$(Platform)\$(Configuration)\%(Filename)_sse4.obj;$(Platform)\$(Configuration)\%(Filename)_avx2.obj;</Outputs>
+      <Command Condition="'$(Platform)'=='ARM64'">ispc -g -O2 "%(FullPath)" -o "$(Platform)\$(Configuration)\%(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --arch=aarch64 --target=neon --opt=fast-math</Command>
+      <Outputs Condition="'$(Platform)'=='ARM64'">$(Platform)\$(Configuration)\%(Filename).obj;$(Platform)\$(Configuration)\%(Filename)_neon.obj;</Outputs>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -158,7 +158,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UtilTest", "Tests\UtilTest\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WPFControlExt", "WPFControlExt\WPFControlExt.csproj", "{0D2A44B0-A0F5-45AF-8509-602EE4E7745A}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ispc_texcomp", "3rdParty\ispc_texcomp\ispc_texcomp.vcxproj", "{4F70F1AB-8F3E-471B-96F9-0B2989652F50}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ispc_texcomp", "3rdParty\Projects\ispc_texcomp\ispc_texcomp.vcxproj", "{4F70F1AB-8F3E-471B-96F9-0B2989652F50}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TextureUtil", "TextureUtil\TextureUtil.vcxproj", "{2546BBDA-0AD8-409A-8FCF-BB89AC8A9635}"
 EndProject

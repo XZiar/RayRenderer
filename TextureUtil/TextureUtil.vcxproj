@@ -199,7 +199,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="..\3rdParty\ispc_texcomp\ispc_texcomp.vcxproj">
+    <ProjectReference Include="..\3rdParty\Projects\ispc_texcomp\ispc_texcomp.vcxproj">
       <Project>{4f70f1ab-8f3e-471b-96f9-0b2989652f50}</Project>
     </ProjectReference>
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">
