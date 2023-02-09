@@ -2,7 +2,7 @@
     "name": "googletest",
     "type": "dynamic",
     "description": "Google's C++ test framework",
-    "version": "1.13.0",
+    "version": {"type": "cmake", "file": "../../googletest/CMakeLists.txt", "targets":["GOOGLETEST_VERSION"], "format":"{GOOGLETEST_VERSION}"},
     "dependency": [],
     "library": 
     {

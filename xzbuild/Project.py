@@ -2,6 +2,7 @@ import json
 import os
 import platform
 import time
+import re
 from collections import deque,OrderedDict
 from enum import Flag
 from . import writeItems,writeItem
@@ -15,6 +16,31 @@ class ProjectType(Flag):
     Static = 2
     Executable = 4
     All = Dynamic | Static | Executable
+
+def parseVersionFromCMake(fpath:str, targets:list) -> dict:
+    with open(fpath, 'r') as file:
+        pending = set(targets)
+        result = {}
+        for line in file:
+            mth = re.match(r'set\s*\((\w+)\s+(.*)\)', line)
+            if mth == None: continue
+            key = mth.group(1)
+            if key in pending:
+                result[key] = mth.group(2).strip('\"')
+                pending.remove(key)
+                if len(pending) == 0:
+                    break
+        return result
+
+def parseVersion(req:dict, srcPath:str, buildPath:str) -> str:
+    type = req["type"]
+    fpath = os.path.normpath(os.path.join(srcPath if srcPath else buildPath, req["file"]))
+    elements = {}
+    if type == "cmake":
+        elements = parseVersionFromCMake(fpath, req["targets"])
+    else:
+        return ""
+    return req["format"].format(**elements)
 
 class Project:
     def __init__(self, data:dict, path:str):
@@ -34,6 +60,8 @@ class Project:
         self.srcPath = os.path.normpath(os.path.join(path, data.get("srcPath", "")))
         self.dependency = []
         self.version = data.get("version", "")
+        if isinstance(self.version, dict):
+            self.version = parseVersion(self.version, self.srcPath, self.buildPath)
         self.desc = data.get("description", "")
         self.libs = data.get("library", {})
         self.libFlags = data.get("libflags", {})

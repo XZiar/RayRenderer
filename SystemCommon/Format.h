@@ -13,6 +13,10 @@
 #   pragma clang diagnostic push
 #   pragma clang diagnostic ignored "-Wassume"
 #endif
+#if COMMON_COMPILER_GCC & COMMON_GCC_VER < 100000
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wattributes"
+#endif
 namespace common::str
 {
 
@@ -1890,6 +1894,9 @@ private:
 
 }
 
+#if COMMON_COMPILER_GCC & COMMON_GCC_VER < 100000
+#   pragma GCC diagnostic pop
+#endif
 #if COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop
 #endif

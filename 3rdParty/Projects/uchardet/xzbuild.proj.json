@@ -1,7 +1,7 @@
 {
     "name": "uchardet",
     "type": "static",
-    "version": "0.0.8",
+    "version": {"type": "cmake", "file": "../CMakeLists.txt", "targets":["UCHARDET_VERSION_MAJOR", "UCHARDET_VERSION_MINOR", "UCHARDET_VERSION_REVISION"], "format":"{UCHARDET_VERSION_MAJOR}.{UCHARDET_VERSION_MINOR}.{UCHARDET_VERSION_REVISION}"},
     "description": "An encoding detector library",
     "dependency": [],
     "srcPath": "../../uchardet/src",

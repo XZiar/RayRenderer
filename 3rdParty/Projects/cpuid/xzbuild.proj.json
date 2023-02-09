@@ -2,7 +2,7 @@
     "name": "cpuid",
     "type": "static",
     "description": "A small C library for x86 CPU detection and feature extraction",
-    "version": "0.5.1",
+    "version": {"type": "cmake", "file": "../CMakeLists.txt", "targets":["VERSION"], "format":"{VERSION}"},
     "dependency": [],
     "srcPath": "../../libcpuid/libcpuid",
     "library": 

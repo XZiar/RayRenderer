@@ -2,7 +2,7 @@
     "name": "png",
     "type": "static",
     "description": "The official PNG reference library",
-    "version": "1.6.39",
+    "version": {"type": "cmake", "file": "CMakeLists.txt", "targets":["PNGLIB_MAJOR", "PNGLIB_MINOR", "PNGLIB_REVISION"], "format":"{PNGLIB_MAJOR}.{PNGLIB_MINOR}.{PNGLIB_REVISION}"},
     "dependency": ["zlib-ng"],
     "srcPath": "../../libpng",
     "library": 

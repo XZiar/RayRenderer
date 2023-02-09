@@ -1,7 +1,7 @@
 {
     "name": "jpeg-turbo-12",
     "type": "static",
-    "version": "2.1.90",
+    "version": {"type": "cmake", "file": "CMakeLists.txt", "targets":["VERSION"], "format":"{VERSION}"},
     "description": "A SIMD accelerated JPEG image codec library",
     "dependency": [],
     "srcPath": "../../libjpeg-turbo",

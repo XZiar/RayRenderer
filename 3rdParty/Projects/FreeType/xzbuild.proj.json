@@ -2,7 +2,7 @@
     "name": "FreeType",
     "type": "static",
     "description": "A freely available software library to render fonts",
-    "version": "2.12.1",
+    "version": {"type": "cmake", "file": "CMakeLists.txt", "targets":["VERSION_MAJOR", "VERSION_MINOR", "VERSION_PATCH"], "format":"{VERSION_MAJOR}.{VERSION_MINOR}.{VERSION_PATCH}"},
     "dependency": ["zlib-ng", "png"],
     "srcPath": "../../FreeType",
     "library": 
