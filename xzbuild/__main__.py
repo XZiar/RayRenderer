@@ -147,11 +147,9 @@ def main(argv:list, params:dict):
             print(f"{preclr}build [{suc}/{tol}] successed.{COLOR.clear}")
             return 0 if suc == tol else -2
         else:
-            raise IndexError()
-    except IndexError:
-        print(f"{COLOR.red}unknown action: {argv}{COLOR.clear}")
-        help()
-        return -1
+            print(f"{COLOR.red}unknown action: {argv}{COLOR.clear}")
+            help()
+            return -1
     except KeyError:
         print(f"{COLOR.red}cannot find target project [{objproj}]{COLOR.clear}")
         return -1

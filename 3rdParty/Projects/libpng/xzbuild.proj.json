@@ -2,7 +2,8 @@
     "name": "png",
     "type": "static",
     "description": "The official PNG reference library",
-    "version": {"type": "cmake", "file": "CMakeLists.txt", "targets":["PNGLIB_MAJOR", "PNGLIB_MINOR", "PNGLIB_REVISION"], "format":"{PNGLIB_MAJOR}.{PNGLIB_MINOR}.{PNGLIB_REVISION}"},
+    "kvSource": [{"type": "cmake", "file": "CMakeLists.txt", "targets":["PNGLIB_MAJOR", "PNGLIB_MINOR", "PNGLIB_REVISION"]}],
+    "version": {"targets":["PNGLIB_MAJOR", "PNGLIB_MINOR", "PNGLIB_REVISION"]},
     "dependency": ["zlib-ng"],
     "srcPath": "../../libpng",
     "library": 
@@ -32,8 +33,8 @@
             "defines":
             [
                 {"ifeq": {"arch": "x86"}, "+": "PNG_INTEL_SSE"},
-                {"ifeq": {"arch": "arm"}, "+": "PNG_ARM_NEON_API_SUPPORTED"},
-                {"ifeq": {"arch": "arm"}, "ifno": "iOS", "+": "PNG_ARM_NEON_CHECK_SUPPORTED"}
+                {"ifeq": {"platform": "ARM64"}, "+": "PNG_ARM_NEON_OPT=2"},
+                {"ifeq": {"arch": "arm"}, "+": "PNG_ARM_NEON_API_SUPPORTED"}
             ]
         }
     }

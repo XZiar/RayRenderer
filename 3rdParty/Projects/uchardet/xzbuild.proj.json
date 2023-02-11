@@ -1,7 +1,8 @@
 {
     "name": "uchardet",
     "type": "static",
-    "version": {"type": "cmake", "file": "../CMakeLists.txt", "targets":["UCHARDET_VERSION_MAJOR", "UCHARDET_VERSION_MINOR", "UCHARDET_VERSION_REVISION"], "format":"{UCHARDET_VERSION_MAJOR}.{UCHARDET_VERSION_MINOR}.{UCHARDET_VERSION_REVISION}"},
+    "kvSource": [{"type": "cmake", "file": "../CMakeLists.txt", "targets":["UCHARDET_VERSION_MAJOR", "UCHARDET_VERSION_MINOR", "UCHARDET_VERSION_REVISION"]}],
+    "version": {"targets":["UCHARDET_VERSION_MAJOR", "UCHARDET_VERSION_MINOR", "UCHARDET_VERSION_REVISION"]},
     "description": "An encoding detector library",
     "dependency": [],
     "srcPath": "../../uchardet/src",
@@ -19,7 +20,7 @@
             [
                 {"ifeq":{"arch": "x86"}, "+":["-mfpmath=sse"]}
             ], 
-            "defines":  ["VERSION=\"0.0.8\""]
+            "defines":  ["VERSION=\"${version}\""]
         }
         
     }

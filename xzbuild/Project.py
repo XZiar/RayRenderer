@@ -17,30 +17,39 @@ class ProjectType(Flag):
     Executable = 4
     All = Dynamic | Static | Executable
 
-def parseVersionFromCMake(fpath:str, targets:list) -> dict:
+def parseKVDataFromRegex(fpath:str, targets:list, rstr:str, keyIdx:int, valIdx:int) -> dict:
     with open(fpath, 'r') as file:
         pending = set(targets)
         result = {}
         for line in file:
-            mth = re.match(r'set\s*\((\w+)\s+(.*)\)', line)
+            mth = re.match(rstr, line)
             if mth == None: continue
-            key = mth.group(1)
+            key = mth.group(keyIdx)
             if key in pending:
-                result[key] = mth.group(2).strip('\"')
+                result[key] = mth.group(valIdx).strip('\"')
                 pending.remove(key)
                 if len(pending) == 0:
                     break
         return result
 
-def parseVersion(req:dict, srcPath:str, buildPath:str) -> str:
+def parseKVData(dst:dict, req:dict, srcPath:str, buildPath:str):
     type = req["type"]
     fpath = os.path.normpath(os.path.join(srcPath if srcPath else buildPath, req["file"]))
-    elements = {}
+    regexStr = ""
+    keyIdx = 1
+    valIdx = 2
     if type == "cmake":
-        elements = parseVersionFromCMake(fpath, req["targets"])
-    else:
-        return ""
-    return req["format"].format(**elements)
+        regexStr = r'^\s*set\s*\((\w+)\s+(.*)\)'
+    elif type == "cxx":
+        regexStr = r'^\s*#\s*define\s+(\w+)\s+([^\s\\]+)'
+    elif type == "regex":
+        regexStr = req["regex"]
+        keyIdx = req.get("key", 1)
+        valIdx = req.get("val", 2)
+    if regexStr:
+        targets = req["targets"]
+        kvs = parseKVDataFromRegex(fpath, targets, regexStr, keyIdx, valIdx)
+        dst.update(kvs)
 
 class Project:
     def __init__(self, data:dict, path:str):
@@ -59,9 +68,17 @@ class Project:
         self.buildPath = os.path.normpath(path)
         self.srcPath = os.path.normpath(os.path.join(path, data.get("srcPath", "")))
         self.dependency = []
+        self.kvDict = {}
+        for req in data.get("kvSource", []):
+            parseKVData(self.kvDict, req, self.srcPath, self.buildPath)
         self.version = data.get("version", "")
         if isinstance(self.version, dict):
-            self.version = parseVersion(self.version, self.srcPath, self.buildPath)
+            if "format" in self.version:
+                self.version = self.version["format"].format(**self.kvDict)
+            elif "targets" in self.version:
+                self.version = ".".join([self.kvDict.get(key, "0") for key in self.version["targets"]])
+            else:
+                self.version = ""
         self.desc = data.get("description", "")
         self.libs = data.get("library", {})
         self.libFlags = data.get("libflags", {})

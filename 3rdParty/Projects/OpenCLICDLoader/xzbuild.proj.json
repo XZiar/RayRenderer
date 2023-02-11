@@ -2,7 +2,14 @@
     "name": "OpenCLICDLoader",
     "type": "dynamic",
     "description": "Khronos official OpenCL ICD Loader",
-    "version": "3.0.5",
+    "kvSource": 
+    [{
+        "type": "regex", 
+        "file": "../CMakeLists.txt", 
+        "regex": "^\\s*(\\w+)=(\\d+)", 
+        "targets":["CL_TARGET_OPENCL_VERSION", "OPENCL_ICD_LOADER_VERSION_MAJOR", "OPENCL_ICD_LOADER_VERSION_MINOR", "OPENCL_ICD_LOADER_VERSION_REV"]
+    }],
+    "version": {"targets":["OPENCL_ICD_LOADER_VERSION_MAJOR", "OPENCL_ICD_LOADER_VERSION_MINOR", "OPENCL_ICD_LOADER_VERSION_REV"]},
     "dependency": [],
     "srcPath": "../../OpenCL-ICD-Loader/loader",
     "library": 
@@ -15,7 +22,15 @@
     {
         "cxx":
         {
-            "defines": ["OpenCL_EXPORTS", "CL_TARGET_OPENCL_VERSION=300", "OPENCL_ICD_LOADER_VERSION_MAJOR=3", "OPENCL_ICD_LOADER_VERSION_MINOR=0", "OPENCL_ICD_LOADER_VERSION_REV=5", "CL_ENABLE_LAYERS"],
+            "defines": 
+            [
+                "OpenCL_EXPORTS", 
+                "CL_ENABLE_LAYERS", 
+                "CL_TARGET_OPENCL_VERSION=${CL_TARGET_OPENCL_VERSION}", 
+                "OPENCL_ICD_LOADER_VERSION_MAJOR=${OPENCL_ICD_LOADER_VERSION_MAJOR}", 
+                "OPENCL_ICD_LOADER_VERSION_MINOR=${OPENCL_ICD_LOADER_VERSION_MINOR}", 
+                "OPENCL_ICD_LOADER_VERSION_REV=${OPENCL_ICD_LOADER_VERSION_REV}"
+            ],
             "visibility": "default"
         },
         "c":

@@ -2,7 +2,8 @@
     "name": "zlib-ng",
     "type": "static",
     "description": "zlib replacement with optimizations for \"next generation\" systems",
-    "version": "2.0.6",
+    "kvSource": [{"type": "cxx", "file": "zlib-ng.h", "targets":["ZLIBNG_VER_MAJOR", "ZLIBNG_VER_MINOR", "ZLIBNG_VER_REVISION"]}],
+    "version": {"targets":["ZLIBNG_VER_MAJOR", "ZLIBNG_VER_MINOR", "ZLIBNG_VER_REVISION"]},
     "dependency": [],
     "srcPath": "../../zlib-ng",
     "library": 

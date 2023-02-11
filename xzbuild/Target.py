@@ -2,7 +2,7 @@ import abc
 import glob
 import inspect
 import os
-
+import re
 from . import COLOR, writeItems, writeItem
 from . import PowerList as PList
 from .Environment import findAppInPath
@@ -21,6 +21,14 @@ class BuildTarget(metaclass=abc.ABCMeta):
     def modifyProject(proj, env:dict):
         '''modify parent project'''
         pass
+
+    @staticmethod
+    def replaceKV(proj, data:str):
+        for mth in re.finditer(r"(\${(\w+)})", data):
+            key = mth.group(2)
+            val = proj.version if key == "version" else proj.kvDict.get(key, None)
+            if val is not None: data = data.replace(mth.group(1), val)
+        return data
 
     def porcPathDefine(self, path:str):
         path = path.replace("$(SolutionDir)", self.solDir)
@@ -131,6 +139,7 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         self.optimize    = PList.solveSingleElement(target, "optimize",    env, self.optimize)
         a,d = PList.solveElementList(target, "defines", env)
         self.defines = PList.combineElements(self.defines, a, d)
+        self.defines = [BuildTarget.replaceKV(proj, x) for x in self.defines]
         a,d = PList.solveElementList(target, "incpath", env)
         self.incpath = PList.combineElements(self.incpath, a, d)
         self.dbgSymLevel = env.get("dslv", self.dbgSymLevel)

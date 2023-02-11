@@ -39,6 +39,12 @@ _intrinAVX32 = ["__AVX512F__", "__AVX512CD__", "__AVX512BW__", "__AVX512DQ__", "
 _checkCpp = '''
 #if __cplusplus >= 202002L
 #   include <version>
+#elif defined(__has_include)
+#   if __has_include(<ciso646>)
+#       include <ciso646>
+#   else
+#       include <iso646.h>
+#   endif
 #else
 #   include <ciso646>
 #endif
