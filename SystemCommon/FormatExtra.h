@@ -161,7 +161,40 @@ struct FormatSpecCacher
     std::vector<OpaqueFormatSpec> NamedSpec;
     SmallBitset CachedBitMap;
     SYSCOMMONAPI bool Cache(const StrArgInfo& strInfo, const ArgInfo& argInfo, const NamedMapper& mapper) noexcept;
+    template<typename T, typename... Args>
+    static auto CreateFrom(const T&, Args&&...);
 };
+template<typename Char>
+struct FormatSpecCacherCh : private FormatSpecCacher
+{
+    const StrArgInfoCh<Char>& StrInfo;
+    const ArgInfo& TheArgInfo;
+    const NamedMapper& Mapping;
+    FormatSpecCacherCh(const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, const NamedMapper& mapper) noexcept :
+        StrInfo(strInfo), TheArgInfo(argInfo), Mapping(mapper)
+    {
+        Cache(StrInfo, TheArgInfo, Mapping);
+    }
+    SYSCOMMONAPI void FormatTo(std::basic_string<Char>& dst, span<const uint16_t> argStore);
+    template<typename... Args>
+    auto Format(std::basic_string<Char>& dst, Args&&... args)
+    {
+        // TODO: check equality of cache and real argsinfo
+        static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
+        [[maybe_unused]] const auto mapping = ArgChecker::CheckDD(StrInfo, ArgsInfo);
+        const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
+        FormatTo(dst, argStore.ArgStore);
+    }
+};
+template<typename T, typename... Args>
+auto FormatSpecCacher::CreateFrom(const T&, Args&&...)
+{
+    using Char = typename std::decay_t<T>::CharType;
+    static constexpr auto Mapping = ArgChecker::CheckSS<T, Args...>();
+    static constexpr T StrInfo;
+    static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
+    return FormatSpecCacherCh<Char>{ StrInfo, ArgsInfo, Mapping };
+}
 
 
 template<typename Char, typename Fmter>
@@ -302,14 +335,6 @@ struct FormatterBase::StaticExecutor
         NamedMapper Mapping;
     };
     Formatter<Char>& Fmter;
-    template<typename T>
-    forceinline static std::basic_string_view<T> BuildStr(uintptr_t ptr, size_t len) noexcept
-    {
-        const auto arg = reinterpret_cast<const T*>(ptr);
-        if (len == SIZE_MAX)
-            len = std::char_traits<T>::length(arg);
-        return { arg, len };
-    }
     forceinline void OnFmtStr(Context& context, uint32_t offset, uint32_t length)
     {
         context.Dst.append(context.StrInfo.FormatString.data() + offset, length);

@@ -257,7 +257,7 @@ public:
             using Char = typename U::CharType;
             static_assert(std::is_same_v<Char, char16_t>, "Log formatter need to be char16_t");
 
-            constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
+            static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
             const auto mapping = ArgChecker::CheckDD(formatter, ArgsInfo);
             const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
 
@@ -268,11 +268,11 @@ public:
             using Char = typename U::CharType;
             static_assert(std::is_same_v<Char, char16_t>, "Log formatter need to be char16_t");
 
-            constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
-            const auto mapping = ArgChecker::CheckSS(formatter, std::forward<Args>(args)...);
+            static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
+            static constexpr auto Mapping = ArgChecker::CheckSS<U, Args...>();
             const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
 
-            msg = GenerateMessage(level, formatter.ToStrArgInfo(), ArgsInfo, argStore.ArgStore, mapping);
+            msg = GenerateMessage(level, formatter.ToStrArgInfo(), ArgsInfo, argStore.ArgStore, Mapping);
         }
         else
         {
@@ -286,7 +286,7 @@ public:
                 using Char = typename decltype(fmtSv)::value_type;
                 static_assert(std::is_same_v<Char, char16_t>, "Log formatter need to be char16_t");
 
-                constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
+                static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
                 const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
                 msg = GenerateMessage(level, fmtSv, ArgsInfo, argStore.ArgStore);
             }

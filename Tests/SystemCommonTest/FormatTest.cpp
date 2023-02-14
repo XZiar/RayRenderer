@@ -742,6 +742,7 @@ TEST(Format, Formating)
 }
 
 
+#if defined(NDEBUG)
 TEST(Format, Perf)
 {
     constexpr uint32_t times = 100000;
@@ -845,5 +846,21 @@ TEST(Format, Perf)
         TestCout() << "[csf-sta] u8 use avg[" << (timens / times) << "]ns to finish\n";
         EXPECT_TRUE(csf[1] == csf[0]);
     }
+    {
+        uint64_t timens = 0;
+        auto cachedFmter = FormatSpecCacher::CreateFrom(FmtString("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}"),
+            "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
+        for (uint32_t i = 0; i < times; ++i)
+        {
+            csf[2].clear();
+            timer.Start();
+            cachedFmter.Format(csf[2], "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
+            timer.Stop();
+            timens += timer.ElapseNs();
+        }
+        TestCout() << "[csf-cah] u8 use avg[" << (timens / times) << "]ns to finish\n";
+        EXPECT_TRUE(csf[2] == csf[0]);
+    }
 
 }
+#endif

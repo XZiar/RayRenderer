@@ -1,6 +1,7 @@
 import json
 import plistlib
 import os
+import re
 import errno
 import platform
 import subprocess
@@ -90,7 +91,8 @@ def findAppInPath(appname:str):
     return findFileInPath(appname+".exe" if osname == "Windows" else appname)
 
 def strToVer(verstr:str, count:int) -> int:
-    vers = verstr.split(".")
+    trimedVer = re.match(r"([\d|\.])+", verstr).group(1)
+    vers = trimedVer.split(".")
     muler = pow(100, count - 1)
     ver = 0
     for part in vers:

@@ -17,6 +17,10 @@
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wattributes"
 #endif
+#if COMMON_COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4714)
+#endif
 namespace common::str
 {
 
@@ -1205,7 +1209,9 @@ struct StaticArgPack
     {
         constexpr auto NeedSize = sizeof(T);
         constexpr auto NeedSlot = (NeedSize + 1) / 2;
+#if !defined(NDEBUG)
         Expects(CurrentSlot + NeedSlot <= N);
+#endif
         *reinterpret_cast<T*>(&ArgStore[CurrentSlot]) = arg;
         ArgStore[idx] = CurrentSlot;
         CurrentSlot += NeedSlot;
@@ -1296,7 +1302,7 @@ struct ArgInfo
     ArgRealType IndexTypes[ParseResultCommon::IdxArgSlots] = { ArgRealType::Error };
     uint8_t NamedArgCount = 0, IdxArgCount = 0;
     template<typename T>
-    forceinline static constexpr ArgRealType EncodeTypeSizeData() noexcept
+    forceinline static COMMON_CONSTEVAL ArgRealType EncodeTypeSizeData() noexcept
     {
         switch (sizeof(T))
         {
@@ -1311,14 +1317,14 @@ struct ArgInfo
         }
     }
     template<typename T>
-    forceinline static constexpr ArgRealType GetCharTypeData() noexcept
+    forceinline static COMMON_CONSTEVAL ArgRealType GetCharTypeData() noexcept
     {
         constexpr auto data = EncodeTypeSizeData<T>();
         static_assert(enum_cast(data) <= 0x20);
         return data;
     }
     template<typename T>
-    static constexpr bool CheckCharType() noexcept
+    static COMMON_CONSTEVAL bool CheckCharType() noexcept
     {
         bool result = std::is_same_v<T, char> || std::is_same_v<T, char16_t> || std::is_same_v<T, wchar_t> || std::is_same_v<T, char32_t>;
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
@@ -1327,7 +1333,7 @@ struct ArgInfo
         return result;
     }
     template<typename T, bool AllowPair = false>
-    static constexpr bool CheckColorType() noexcept
+    static COMMON_CONSTEVAL bool CheckColorType() noexcept
     {
         using U = std::decay_t<T>;
         bool result = std::is_same_v<U, CommonColor> || std::is_same_v<U, ScreenColor>;
@@ -1340,7 +1346,7 @@ struct ArgInfo
         return result;
     }
     template<typename T>
-    static constexpr ArgRealType GetArgType() noexcept
+    static COMMON_CONSTEVAL ArgRealType GetArgType() noexcept
     {
         using U = std::decay_t<T>;
         if constexpr (common::is_specialization<U, std::basic_string_view>::value || 
@@ -1422,7 +1428,7 @@ struct ArgInfo
         }
     }
     template<typename... Args>
-    static constexpr ArgInfo ParseArgs() noexcept
+    static COMMON_CONSTEVAL ArgInfo ParseArgs() noexcept
     {
         ArgInfo info;
         (..., ParseAnArg<Args>(info));
@@ -1584,7 +1590,7 @@ struct ArgChecker
         return ParseResultCommon::IdxArgSlots;
     }
     template<uint32_t Index>
-    static constexpr void CheckIdxArgMismatch() noexcept
+    static COMMON_CONSTEVAL void CheckIdxArgMismatch() noexcept
     {
         static_assert(Index == ParseResultCommon::IdxArgSlots, "Type mismatch");
     }
@@ -1634,7 +1640,7 @@ struct ArgChecker
         return ret;
     }
     template<uint32_t AskIdx, uint32_t GiveIdx>
-    static constexpr void CheckNamedArgMismatch() noexcept
+    static COMMON_CONSTEVAL void CheckNamedArgMismatch() noexcept
     {
         static_assert(GiveIdx == ParseResultCommon::NamedArgSlots, "Named arg type mismatch at [AskIdx, GiveIdx]");
         static_assert(AskIdx  == ParseResultCommon::NamedArgSlots, "Missing named arg at [AskIdx]");
@@ -1663,11 +1669,11 @@ struct ArgChecker
     {
         return CheckDD(strInfo, argInfo);
     }
+    static constexpr NamedMapper EmptyMapper = { 0 };
     template<typename StrType, typename... Args>
-    static constexpr NamedMapper CheckSS(const StrType&, Args&&...)
+    static COMMON_CONSTEVAL NamedMapper CheckSS() noexcept
     {
         constexpr StrType StrInfo;
-        //const TrimedResult<OpCount, NamedArgCount, IdxArgCount>& cookie
         constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
         static_assert(ArgsInfo.IdxArgCount >= StrInfo.IdxArgCount, "No enough indexed arg");
         static_assert(ArgsInfo.NamedArgCount >= StrInfo.NamedArgCount, "No enough named arg");
@@ -1676,16 +1682,20 @@ struct ArgChecker
             constexpr auto Index = GetIdxArgMismatch(StrInfo.IndexTypes, ArgsInfo.IndexTypes, StrInfo.IdxArgCount);
             CheckIdxArgMismatch<Index>();
         }
-        NamedMapper mapper = { 0 };
         if constexpr (StrInfo.NamedArgCount > 0)
         {
             constexpr auto NamedRet = GetNamedArgMismatch(StrInfo.NamedTypes, StrInfo.FormatString, StrInfo.NamedArgCount,
                 ArgsInfo.NamedTypes, ArgsInfo.Names, ArgsInfo.NamedArgCount);
             CheckNamedArgMismatch<NamedRet.AskIndex ? *NamedRet.AskIndex : ParseResultCommon::NamedArgSlots,
                 NamedRet.GiveIndex ? *NamedRet.GiveIndex : ParseResultCommon::NamedArgSlots>();
-            mapper = NamedRet.Mapper;
+            return NamedRet.Mapper;
         }
-        return mapper;
+        return EmptyMapper;
+    }
+    template<typename StrType, typename... Args>
+    static constexpr NamedMapper CheckSS(const StrType&, Args&&...) noexcept
+    {
+        return CheckSS<StrType, Args...>();
     }
 };
 
@@ -1820,12 +1830,11 @@ public:
     forceinline void FormatToStatic(std::basic_string<Char>& dst, const T&, Args&&... args)
     {
         static_assert(std::is_same_v<typename std::decay_t<T>::CharType, Char>);
+        static constexpr auto Mapping = ArgChecker::CheckSS<T, Args...>();
         static constexpr T StrInfo;
-        // const auto strInfo = res.ToStrArgInfo();
-        const auto mapping = ArgChecker::CheckSS(StrInfo, std::forward<Args>(args)...);
         static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
         const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
-        FormatterBase::FormatTo<Char>(*this, dst, StrInfo, ArgsInfo, argStore.ArgStore, mapping);
+        FormatterBase::FormatTo<Char>(*this, dst, StrInfo, ArgsInfo, argStore.ArgStore, Mapping);
     }
     template<typename... Args>
     forceinline void FormatToDynamic(std::basic_string<Char>& dst, std::basic_string_view<Char> format, Args&&... args)
@@ -1899,4 +1908,7 @@ private:
 #endif
 #if COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop
+#endif
+#if COMMON_COMPILER_MSVC
+#   pragma warning(pop)
 #endif

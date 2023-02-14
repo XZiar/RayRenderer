@@ -22,6 +22,10 @@
 #   define ABORT_CHECK(...)
 #endif
 
+#if COMMON_COMPILER_GCC & COMMON_GCC_VER < 100000
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wattributes"
+#endif
 namespace common::str
 {
 using namespace std::string_view_literals;
@@ -224,7 +228,7 @@ struct FormatterHelper : public FormatterBase
     template<typename T>
     static forceinline constexpr auto ConvertFill(char32_t ch) noexcept
     {
-        std::array<typename T::ElementType, T::MaxOutputUnit> tmp;
+        std::array<typename T::ElementType, T::MaxOutputUnit> tmp{};
         const auto count = T::To(ch, T::MaxOutputUnit, tmp.data());
         return std::pair{ tmp, count };
     }
@@ -262,14 +266,14 @@ struct FormatterHelper : public FormatterBase
             spec.Fill32[0] = U'0';
             spec.Fill16[0] = u'0';
             spec.Fill8 [0] =  '0';
-            spec.Count32 = spec.Count16 = spec.Count8;
+            spec.Count32 = spec.Count16 = spec.Count8 = 1;
         }
         else IF_LIKELY(fill == ' ') // fast pass
         {
             spec.Fill32[0] = U' ';
             spec.Fill16[0] = u' ';
             spec.Fill8 [0] =  ' ';
-            spec.Count32 = spec.Count16 = spec.Count8;
+            spec.Count32 = spec.Count16 = spec.Count8 = 1;
         }
         else
         {
@@ -1125,62 +1129,6 @@ forceinline uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, T& exe
 template SYSCOMMONTPL uint32_t FormatterBase::Execute(span<const uint8_t>& opcodes, FormatterExecutor& executor, FormatterExecutor::Context& context, uint32_t instCount);
 
 
-bool FormatSpecCacher::Cache(const StrArgInfo& strInfo, const ArgInfo& argInfo, const NamedMapper& mapper) noexcept
-{
-    struct RecordExecutor final : public FormatterExecutor, private FormatterBase
-    {
-        FormatSpecCacher& Cache;
-        const StrArgInfo& StrInfo;
-        const ArgInfo& RealArgInfo;
-        const NamedMapper& Mapper;
-
-        void PutString(Context&, ::std::   string_view, const OpaqueFormatSpec&) final {}
-        void PutString(Context&, ::std::u16string_view, const OpaqueFormatSpec&) final {}
-        void PutString(Context&, ::std::u32string_view, const OpaqueFormatSpec&) final {}
-        void PutInteger(Context&, uint32_t, bool, const OpaqueFormatSpec&) final {}
-        void PutInteger(Context&, uint64_t, bool, const OpaqueFormatSpec&) final {}
-        void PutFloat  (Context&, float , const OpaqueFormatSpec&) final {}
-        void PutFloat  (Context&, double, const OpaqueFormatSpec&) final {}
-        void PutPointer(Context&, uintptr_t, const OpaqueFormatSpec&) final {}
-
-        void PutString(Context&, ::std::   string_view, const FormatSpec*) final {}
-        void PutString(Context&, ::std::u16string_view, const FormatSpec*) final {}
-        void PutString(Context&, ::std::u32string_view, const FormatSpec*) final {}
-        void PutInteger(Context&, uint32_t, bool, const FormatSpec*) final {}
-        void PutInteger(Context&, uint64_t, bool, const FormatSpec*) final {}
-        void PutFloat  (Context&, float, const FormatSpec*) final {}
-        void PutFloat  (Context&, double, const FormatSpec*) final {}
-        void PutPointer(Context&, uintptr_t, const FormatSpec*) final {}
-        void PutDate   (Context&, ::std::string_view, const ::std::tm&) final {}
-
-        void OnFmtStr(Context&, uint32_t, uint32_t) final {}
-        void OnArg(Context&, uint8_t argIdx, bool isNamed, SpecReader& reader) final
-        {
-            const auto dispType = isNamed ? StrInfo.NamedTypes[argIdx].Type : StrInfo.IndexTypes[argIdx];
-            const auto realType = isNamed ? RealArgInfo.NamedTypes[Mapper[argIdx]] : RealArgInfo.IndexTypes[argIdx];
-            const auto bitIndex = (isNamed ? StrInfo.NamedTypes.size() : 0) + argIdx;
-            auto& target = isNamed ? Cache.NamedSpec : Cache.IndexSpec;
-            target.resize(std::max<size_t>(target.size(), argIdx + 1));
-            Cache.CachedBitMap.Set(bitIndex, ConvertSpec(target[argIdx], reader.ReadSpec(), realType, dispType));
-        }
-
-        constexpr RecordExecutor(FormatSpecCacher& cache, const StrArgInfo& strInfo, const ArgInfo& argInfo, const NamedMapper& mapper) noexcept :
-            Cache(cache), StrInfo(strInfo), RealArgInfo(argInfo), Mapper(mapper) {}
-        using FormatterBase::Execute;
-    };
-    IndexSpec.clear();
-    IndexSpec.reserve(strInfo.IndexTypes.size());
-    NamedSpec.clear();
-    NamedSpec.reserve(strInfo.NamedTypes.size());
-    CachedBitMap = SmallBitset(strInfo.IndexTypes.size() + strInfo.NamedTypes.size(), false);
-    RecordExecutor executor{ *this, strInfo, argInfo, mapper };
-    RecordExecutor::Context context;
-    auto opcodes = strInfo.Opcodes;
-    RecordExecutor::Execute(opcodes, executor, context);
-    return true;
-}
-
-
 template<typename Char>
 struct WrapExecutor final : public FormatterExecutor
 {
@@ -1318,6 +1266,171 @@ constexpr RealSizeInfo GetSizeInfo() noexcept
     else
         static_assert(!AlwaysTrue<T>, "unsupported type size");
 }
+template<typename T>
+forceinline static std::basic_string_view<T> BuildStr(uintptr_t ptr, size_t len) noexcept
+{
+    const auto arg = reinterpret_cast<const T*>(ptr);
+    if (len == SIZE_MAX)
+        len = std::char_traits<T>::length(arg);
+    return { arg, len };
+}
+
+template<typename Char, typename Host, typename Context, typename Spec>
+forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_string_view<Char> fmtString, ArgDispType fmtType, const uint16_t* argPtr, ArgRealType argType, const Spec& spec)
+{
+    const auto realType = argType & ArgRealType::BaseTypeMask;
+    const auto intSize = static_cast<RealSizeInfo>(enum_cast(argType & ArgRealType::TypeSizeMask) >> 4);
+    switch (realType)
+    {
+    case ArgRealType::String:
+    {
+        uintptr_t ptr = 0;
+        size_t len = SIZE_MAX;
+        if (enum_cast(argType & ArgRealType::StrPtrBit))
+            ptr = *reinterpret_cast<const uintptr_t*>(argPtr);
+        else
+            std::tie(ptr, len) = *reinterpret_cast<const std::pair<uintptr_t, size_t>*>(argPtr);
+        IF_UNLIKELY(fmtType == ArgDispType::Pointer)
+        {
+            host.PutPointer(context, ptr, spec);
+        }
+        else
+        {
+            ABORT_CHECK(fmtType == ArgDispType::String || fmtType == ArgDispType::Any);
+            switch (static_cast<RealSizeInfo>(enum_cast(intSize) & 0x3)) // remove StrPtrBit
+            {
+            case RealSizeInfo::Byte1: host.PutString(context, BuildStr<char    >(ptr, len), spec); break;
+            case RealSizeInfo::Byte2: host.PutString(context, BuildStr<char16_t>(ptr, len), spec); break;
+            case RealSizeInfo::Byte4: host.PutString(context, BuildStr<char32_t>(ptr, len), spec); break;
+            default: break;
+            }
+        }
+    } return;
+    case ArgRealType::Bool:
+    {
+        const auto val = *reinterpret_cast<const uint16_t*>(argPtr);
+        if (fmtType == ArgDispType::Char)
+        {
+            if constexpr (sizeof(Char) == 1)
+                host.PutString(context, val ? "Y"sv : "N"sv, spec);
+            else if constexpr (sizeof(Char) == 2)
+                host.PutString(context, val ? u"Y"sv : u"N"sv, spec);
+            else if constexpr (sizeof(Char) == 4)
+                host.PutString(context, val ? U"Y"sv : U"N"sv, spec);
+            else
+                static_assert(!AlwaysTrue<Char>, "unsupported char size");
+        }
+        else IF_UNLIKELY(fmtType == ArgDispType::Integer || fmtType == ArgDispType::Numeric)
+        {
+            host.PutInteger(context, val ? 1u : 0u, false, spec);
+        }
+        ELSE_LIKELY
+        {
+            ABORT_CHECK(fmtType == ArgDispType::String || fmtType == ArgDispType::Any);
+            host.PutString(context, GetStrTrueFalse<SimChar<Char>>(val), nullptr);
+        }
+    } return;
+    case ArgRealType::Ptr:
+    {
+        ABORT_CHECK(fmtType == ArgDispType::Pointer || fmtType == ArgDispType::Any);
+        const auto val = *reinterpret_cast<const uintptr_t*>(argPtr);
+        host.PutPointer(context, val, spec);
+    } return;
+    case ArgRealType::Date:
+        if constexpr (std::is_same_v<Spec, const FormatSpec*>)
+        {
+            ABORT_CHECK(fmtType == ArgDispType::Date || fmtType == ArgDispType::Any);
+            std::basic_string_view<Char> fmtStr{};
+            if (spec && spec->FmtLen)
+                fmtStr = fmtString.substr(spec->FmtOffset, spec->FmtLen);
+            std::tm date{};
+            if (HAS_FIELD(argType, ArgRealType::DateDeltaBit))
+            {
+                const auto delta = *reinterpret_cast<const int64_t*>(argPtr);
+                const std::chrono::duration<int64_t, std::milli> d{ delta };
+                const std::chrono::time_point<std::chrono::system_clock> tp{ d };
+                const auto time = std::chrono::system_clock::to_time_t(tp);
+                date = fmt::localtime(time);
+            }
+            else
+                date = *reinterpret_cast<const CompactDate*>(argPtr);
+            host.PutDate(context, fmtStr, date);
+        }
+        else
+        {
+            Expects(false);
+        } return;
+    case ArgRealType::Color:
+        if constexpr (std::is_same_v<Spec, const FormatSpec*>)
+        {
+            ABORT_CHECK(fmtType == ArgDispType::Color || fmtType == ArgDispType::Any);
+            switch (intSize)
+            {
+            case RealSizeInfo::Byte1: host.PutColorArg(context, { false, *reinterpret_cast<const CommonColor*>(argPtr) }, spec); break;
+            case RealSizeInfo::Byte4: host.PutColorArg(context,          *reinterpret_cast<const ScreenColor*>(argPtr)  , spec); break;
+            default: break;
+            }
+        }
+        else
+        {
+            Expects(false);
+        } return;
+    case ArgRealType::Custom:
+        if constexpr (std::is_same_v<Spec, const FormatSpec*>)
+        {
+            const auto& pair = *reinterpret_cast<const detail::FmtWithPair*>(argPtr);
+            WrapExecutor<Char> executor{ host };
+            typename WrapExecutor<Char>::Context context2{ context };
+            pair.Executor(pair.Data, executor, context2, spec);
+        }
+        else
+        {
+            Expects(false);
+        } return;
+    case ArgRealType::Float:
+    {
+        switch (intSize)
+        {
+        case RealSizeInfo::Byte2: host.PutFloat(context, static_cast<float>(*reinterpret_cast<const half_float::half*>(argPtr)), spec); break;
+        case RealSizeInfo::Byte4: host.PutFloat(context,                    *reinterpret_cast<const            float*>(argPtr) , spec); break;
+        case RealSizeInfo::Byte8: host.PutFloat(context,                    *reinterpret_cast<const           double*>(argPtr) , spec); break;
+        default: break;
+        }
+    } return;
+    // Below are integer
+    case ArgRealType::Char:
+    {
+        IF_LIKELY(fmtType == ArgDispType::Char || fmtType == ArgDispType::Any)
+        {
+            switch (intSize)
+            {
+            case RealSizeInfo::Byte1: host.PutString(context, std::   string_view{ reinterpret_cast<const char    *>(argPtr), 1 }, spec); break;
+            case RealSizeInfo::Byte2: host.PutString(context, std::u16string_view{ reinterpret_cast<const char16_t*>(argPtr), 1 }, spec); break;
+            case RealSizeInfo::Byte4: host.PutString(context, std::u32string_view{ reinterpret_cast<const char32_t*>(argPtr), 1 }, spec); break;
+            default: break;
+            }
+            return;
+        }
+    }
+    [[fallthrough]];
+    case ArgRealType::SInt:
+    case ArgRealType::UInt:
+    {
+        ABORT_CHECK(fmtType == ArgDispType::Integer || fmtType == ArgDispType::Numeric || fmtType == ArgDispType::Any);
+        const auto isSigned = realType == ArgRealType::SInt;
+        switch (intSize)
+        {
+        case RealSizeInfo::Byte1: host.PutInteger(context, static_cast<uint32_t>(*reinterpret_cast<const uint8_t *>(argPtr)), isSigned, spec); break;
+        case RealSizeInfo::Byte2: host.PutInteger(context, static_cast<uint32_t>(*reinterpret_cast<const uint16_t*>(argPtr)), isSigned, spec); break;
+        case RealSizeInfo::Byte4: host.PutInteger(context, static_cast<uint32_t>(*reinterpret_cast<const uint32_t*>(argPtr)), isSigned, spec); break;
+        case RealSizeInfo::Byte8: host.PutInteger(context, static_cast<uint64_t>(*reinterpret_cast<const uint64_t*>(argPtr)), isSigned, spec); break;
+        default: break;
+        }
+    } return;
+    default:
+        return;
+    }
+}
 
 template<typename Char>
 forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader)
@@ -1340,144 +1453,8 @@ forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, ui
         const auto argSlot = argIdx;
         argPtr = context.ArgStore.data() + context.ArgStore[argSlot];
     }
-    const auto realType = argType & ArgRealType::BaseTypeMask;
-    const auto intSize = static_cast<RealSizeInfo>(enum_cast(argType & ArgRealType::TypeSizeMask) >> 4);
     const auto spec = reader.ReadSpec();
-    switch (realType)
-    {
-    case ArgRealType::String:
-    {
-        uintptr_t ptr = 0;
-        size_t len = SIZE_MAX;
-        if (enum_cast(argType & ArgRealType::StrPtrBit))
-            ptr = *reinterpret_cast<const uintptr_t*>(argPtr);
-        else
-            std::tie(ptr, len) = *reinterpret_cast<const std::pair<uintptr_t, size_t>*>(argPtr);
-        IF_UNLIKELY(fmtType == ArgDispType::Pointer)
-        {
-            Fmter.PutPointer(context.Dst, ptr, spec);
-        }
-        else
-        {
-            ABORT_CHECK(fmtType == ArgDispType::String || fmtType == ArgDispType::Any);
-            switch (static_cast<RealSizeInfo>(enum_cast(intSize) & 0x3)) // remove StrPtrBit
-            {
-            case RealSizeInfo::Byte1: Fmter.PutString(context.Dst, BuildStr<char    >(ptr, len), spec); break;
-            case RealSizeInfo::Byte2: Fmter.PutString(context.Dst, BuildStr<char16_t>(ptr, len), spec); break;
-            case RealSizeInfo::Byte4: Fmter.PutString(context.Dst, BuildStr<char32_t>(ptr, len), spec); break;
-            default: break;
-            }
-        }
-    } return;
-    case ArgRealType::Bool:
-    {
-        const auto val = *reinterpret_cast<const uint16_t*>(argPtr);
-        if (fmtType == ArgDispType::Char)
-        {
-            if constexpr (sizeof(Char) == 1)
-                Fmter.PutString(context.Dst, val ?  "Y"sv : "N"sv, spec);
-            else if constexpr (sizeof(Char) == 2)
-                Fmter.PutString(context.Dst, val ? u"Y"sv : u"N"sv, spec);
-            else if constexpr (sizeof(Char) == 4)
-                Fmter.PutString(context.Dst, val ? U"Y"sv : U"N"sv, spec);
-            else
-                static_assert(!AlwaysTrue<Char>, "unsupported char size");
-        }
-        else IF_UNLIKELY(fmtType == ArgDispType::Integer || fmtType == ArgDispType::Numeric)
-        {
-            Fmter.PutInteger(context.Dst, val ? 1u : 0u, false, spec);
-        }
-        ELSE_LIKELY
-        {
-            ABORT_CHECK(fmtType == ArgDispType::String || fmtType == ArgDispType::Any);
-            Fmter.PutString(context.Dst, GetStrTrueFalse<SimChar<Char>>(val), nullptr);
-        }
-    } return;
-    case ArgRealType::Ptr:
-    {
-        ABORT_CHECK(fmtType == ArgDispType::Pointer || fmtType == ArgDispType::Any);
-        const auto val = *reinterpret_cast<const uintptr_t*>(argPtr);
-        Fmter.PutPointer(context.Dst, val, spec);
-    } return;
-    case ArgRealType::Date:
-    {
-        ABORT_CHECK(fmtType == ArgDispType::Date || fmtType == ArgDispType::Any);
-        std::basic_string_view<Char> fmtStr{};
-        if (spec && spec->FmtLen)
-            fmtStr = context.StrInfo.FormatString.substr(spec->FmtOffset, spec->FmtLen);
-        std::tm date{};
-        if (HAS_FIELD(argType, ArgRealType::DateDeltaBit))
-        {
-            const auto delta = *reinterpret_cast<const int64_t*>(argPtr);
-            const std::chrono::duration<int64_t, std::milli> d{ delta };
-            const std::chrono::time_point<std::chrono::system_clock> tp{ d };
-            const auto time = std::chrono::system_clock::to_time_t(tp);
-            date = fmt::localtime(time);
-        }
-        else
-            date = *reinterpret_cast<const CompactDate*>(argPtr);
-        Fmter.PutDate(context.Dst, fmtStr, date);
-    } return;
-    case ArgRealType::Color:
-    {
-        ABORT_CHECK(fmtType == ArgDispType::Color || fmtType == ArgDispType::Any);
-        switch (intSize)
-        {
-        case RealSizeInfo::Byte1: Fmter.PutColorArg(context.Dst, { false, *reinterpret_cast<const CommonColor*>(argPtr) }, spec); break;
-        case RealSizeInfo::Byte4: Fmter.PutColorArg(context.Dst,          *reinterpret_cast<const ScreenColor*>(argPtr)  , spec); break;
-        default: break;
-        }
-    } return;
-    case ArgRealType::Custom:
-    {
-        const auto& pair = *reinterpret_cast<const detail::FmtWithPair*>(argPtr);
-        WrapExecutor<Char> executor{ Fmter };
-        typename WrapExecutor<Char>::Context context2{ context.Dst };
-        pair.Executor(pair.Data, executor, context2, spec);
-    } return;
-    case ArgRealType::Float:
-    {
-        switch (intSize)
-        {
-        case RealSizeInfo::Byte2: Fmter.PutFloat(context.Dst, static_cast<float>(*reinterpret_cast<const half_float::half*>(argPtr)), spec); break;
-        case RealSizeInfo::Byte4: Fmter.PutFloat(context.Dst,                    *reinterpret_cast<const float           *>(argPtr),  spec); break;
-        case RealSizeInfo::Byte8: Fmter.PutFloat(context.Dst,                    *reinterpret_cast<const double          *>(argPtr),  spec); break;
-        default: break;
-        }
-    } return;
-    // Below are integer
-    case ArgRealType::Char:
-    {
-        IF_LIKELY(fmtType == ArgDispType::Char || fmtType == ArgDispType::Any)
-        {
-            switch (intSize)
-            {
-            case RealSizeInfo::Byte1: Fmter.PutString(context.Dst, std::   string_view{ reinterpret_cast<const char    *>(argPtr), 1 }, spec); break;
-            case RealSizeInfo::Byte2: Fmter.PutString(context.Dst, std::u16string_view{ reinterpret_cast<const char16_t*>(argPtr), 1 }, spec); break;
-            case RealSizeInfo::Byte4: Fmter.PutString(context.Dst, std::u32string_view{ reinterpret_cast<const char32_t*>(argPtr), 1 }, spec); break;
-            default: break;
-            }
-            return;
-        }
-    }
-    [[fallthrough]];
-    case ArgRealType::SInt:
-    case ArgRealType::UInt:
-    {
-        ABORT_CHECK(fmtType == ArgDispType::Integer || fmtType == ArgDispType::Numeric || fmtType == ArgDispType::Any);
-        const auto isSigned = realType == ArgRealType::SInt;
-        switch (intSize)
-        {
-        case RealSizeInfo::Byte1: Fmter.PutInteger(context.Dst, static_cast<uint32_t>(*reinterpret_cast<const uint8_t *>(argPtr)), isSigned, spec); break;
-        case RealSizeInfo::Byte2: Fmter.PutInteger(context.Dst, static_cast<uint32_t>(*reinterpret_cast<const uint16_t*>(argPtr)), isSigned, spec); break;
-        case RealSizeInfo::Byte4: Fmter.PutInteger(context.Dst, static_cast<uint32_t>(*reinterpret_cast<const uint32_t*>(argPtr)), isSigned, spec); break;
-        case RealSizeInfo::Byte8: Fmter.PutInteger(context.Dst, static_cast<uint64_t>(*reinterpret_cast<const uint64_t*>(argPtr)), isSigned, spec); break;
-        default: break;
-        }
-    } return;
-    default:
-        return;
-    }
+    UniversalOnArg<Char>(Fmter, context.Dst, context.StrInfo.FormatString, fmtType, argPtr, argType, spec);
 }
 template SYSCOMMONTPL void FormatterBase::StaticExecutor<char>    ::OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
 template SYSCOMMONTPL void FormatterBase::StaticExecutor<wchar_t> ::OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
@@ -1485,6 +1462,168 @@ template SYSCOMMONTPL void FormatterBase::StaticExecutor<char16_t>::OnArg(Contex
 template SYSCOMMONTPL void FormatterBase::StaticExecutor<char32_t>::OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
 template SYSCOMMONTPL void FormatterBase::StaticExecutor<char8_t> ::OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
+#endif
+
+
+bool FormatSpecCacher::Cache(const StrArgInfo& strInfo, const ArgInfo& argInfo, const NamedMapper& mapper) noexcept
+{
+    struct RecordExecutor : private FormatterBase
+    {
+        struct Context {};
+        FormatSpecCacher& Cache;
+        const StrArgInfo& StrInfo;
+        const ArgInfo& RealArgInfo;
+        const NamedMapper& Mapper;
+
+        void OnFmtStr(Context&, uint32_t, uint32_t) {}
+        void OnBrace(Context&, bool) {}
+        void OnColor(Context&, ScreenColor) {}
+        void OnArg(Context&, uint8_t argIdx, bool isNamed, SpecReader& reader)
+        {
+            const auto dispType = isNamed ? StrInfo.NamedTypes[argIdx].Type : StrInfo.IndexTypes[argIdx];
+            const auto realType = isNamed ? RealArgInfo.NamedTypes[Mapper[argIdx]] : RealArgInfo.IndexTypes[argIdx];
+            if (const auto realType2 = realType & ArgRealType::BaseTypeMask; 
+                realType2 != ArgRealType::Custom && realType2 != ArgRealType::Color && realType2 != ArgRealType::Date)
+            {
+                const auto bitIndex = (isNamed ? StrInfo.NamedTypes.size() : 0) + argIdx;
+                auto& target = isNamed ? Cache.NamedSpec : Cache.IndexSpec;
+                target.resize(std::max<size_t>(target.size(), argIdx + 1));
+                Cache.CachedBitMap.Set(bitIndex, FormatterExecutor::ConvertSpec(target[argIdx], reader.ReadSpec(), realType, dispType));
+            }
+        }
+
+        constexpr RecordExecutor(FormatSpecCacher& cache, const StrArgInfo& strInfo, const ArgInfo& argInfo, const NamedMapper& mapper) noexcept :
+            Cache(cache), StrInfo(strInfo), RealArgInfo(argInfo), Mapper(mapper) {}
+        void Execute()
+        {
+            Context context;
+            auto opcodes = StrInfo.Opcodes;
+            FormatterBase::Execute(opcodes, *this, context);
+        }
+        using FormatterBase::Execute;
+    };
+    IndexSpec.clear();
+    IndexSpec.reserve(strInfo.IndexTypes.size());
+    NamedSpec.clear();
+    NamedSpec.reserve(strInfo.NamedTypes.size());
+    CachedBitMap = SmallBitset(strInfo.IndexTypes.size() + strInfo.NamedTypes.size(), false);
+    RecordExecutor executor{ *this, strInfo, argInfo, mapper };
+    executor.Execute();
+    return true;
+}
+
+template<typename Char>
+void FormatSpecCacherCh<Char>::FormatTo(std::basic_string<Char>& dst, span<const uint16_t> argStore)
+{
+    struct RecordedSpecExecutor final : public Formatter<Char>
+    {
+        struct Context
+        {
+            std::basic_string<Char>& Dst;
+            span<const uint16_t> ArgStore;
+        };
+        const FormatSpecCacherCh<Char>& Cache;
+
+        void PutString (std::basic_string<Char>& ret, std::   string_view str, const OpaqueFormatSpec& spec)
+        {
+            CommonFormatter<Char>::PutString(ret, str, &spec);
+        }
+        void PutString (std::basic_string<Char>& ret, std::  wstring_view str, const OpaqueFormatSpec& spec)
+        {
+            CommonFormatter<Char>::PutString(ret, str, &spec);
+        }
+        void PutString (std::basic_string<Char>& ret, std::u16string_view str, const OpaqueFormatSpec& spec)
+        {
+            CommonFormatter<Char>::PutString(ret, str, &spec);
+        }
+        void PutString (std::basic_string<Char>& ret, std::u32string_view str, const OpaqueFormatSpec& spec)
+        {
+            CommonFormatter<Char>::PutString(ret, str, &spec);
+        }
+        void PutInteger(std::basic_string<Char>& ret, uint32_t val, bool isSigned, const OpaqueFormatSpec& spec)
+        {
+            CommonFormatter<Char>::PutInteger(ret, val, isSigned, spec);
+        }
+        void PutInteger(std::basic_string<Char>& ret, uint64_t val, bool isSigned, const OpaqueFormatSpec& spec)
+        {
+            CommonFormatter<Char>::PutInteger(ret, val, isSigned, spec);
+        }
+        void PutFloat  (std::basic_string<Char>& ret, float  val, const OpaqueFormatSpec& spec)
+        {
+            CommonFormatter<Char>::PutFloat(ret, val, spec);
+        }
+        void PutFloat  (std::basic_string<Char>& ret, double val, const OpaqueFormatSpec& spec)
+        {
+            CommonFormatter<Char>::PutFloat(ret, val, spec);
+        }
+        void PutPointer(std::basic_string<Char>& ret, uintptr_t val, const OpaqueFormatSpec& spec)
+        {
+            CommonFormatter<Char>::PutPointer(ret, val, spec);
+        }
+        using Formatter<Char>::PutString;
+        using Formatter<Char>::PutInteger;
+        using Formatter<Char>::PutFloat;
+        using Formatter<Char>::PutPointer;
+
+        forceinline void OnFmtStr(Context& context, uint32_t offset, uint32_t length)
+        {
+            context.Dst.append(Cache.StrInfo.FormatString.data() + offset, length);
+        }
+        forceinline void OnBrace(Context& context, bool isLeft)
+        {
+            context.Dst.push_back(ParseLiterals<Char>::BracePair[isLeft ? 0 : 1]);
+        }
+        forceinline void OnColor(Context& context, ScreenColor color)
+        {
+            this->PutColor(context.Dst, color);
+        }
+        void OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader)
+        {
+            ArgDispType fmtType = ArgDispType::Any;
+            const uint16_t* argPtr = nullptr;
+            ArgRealType argType = ArgRealType::Error;
+            if (isNamed)
+            {
+                fmtType = Cache.StrInfo.NamedTypes[argIdx].Type;
+                const auto mapIdx = Cache.Mapping[argIdx];
+                argType = Cache.TheArgInfo.NamedTypes[mapIdx];
+                const auto argSlot = mapIdx + Cache.TheArgInfo.IdxArgCount;
+                argPtr = context.ArgStore.data() + context.ArgStore[argSlot];
+            }
+            else
+            {
+                fmtType = Cache.StrInfo.IndexTypes[argIdx];
+                argType = Cache.TheArgInfo.IndexTypes[argIdx];
+                const auto argSlot = argIdx;
+                argPtr = context.ArgStore.data() + context.ArgStore[argSlot];
+            }
+            const auto bitIndex = (isNamed ? Cache.StrInfo.NamedTypes.size() : 0) + argIdx;
+            if (Cache.CachedBitMap.Get(bitIndex))
+            {
+                auto& target = isNamed ? Cache.NamedSpec : Cache.IndexSpec;
+                UniversalOnArg<Char>(*this, context.Dst, Cache.StrInfo.FormatString, fmtType, argPtr, argType, target[argIdx]);
+            }
+            else
+            {
+                const auto spec = reader.ReadSpec();
+                UniversalOnArg<Char>(*this, context.Dst, Cache.StrInfo.FormatString, fmtType, argPtr, argType, spec);
+            }
+        }
+
+        constexpr RecordedSpecExecutor(const FormatSpecCacherCh<Char>& cache) noexcept : Cache(cache) {}
+        using FormatterBase::Execute;
+    };
+    typename RecordedSpecExecutor::Context context{ dst, argStore };
+    RecordedSpecExecutor executor{ *this };
+    auto opcodes = StrInfo.Opcodes;
+    executor.Execute(opcodes, executor, context);
+}
+template SYSCOMMONTPL void FormatSpecCacherCh<char>    ::FormatTo(std::basic_string<char>    & dst, span<const uint16_t> argStore);
+template SYSCOMMONTPL void FormatSpecCacherCh<wchar_t> ::FormatTo(std::basic_string<wchar_t> & dst, span<const uint16_t> argStore);
+template SYSCOMMONTPL void FormatSpecCacherCh<char16_t>::FormatTo(std::basic_string<char16_t>& dst, span<const uint16_t> argStore);
+template SYSCOMMONTPL void FormatSpecCacherCh<char32_t>::FormatTo(std::basic_string<char32_t>& dst, span<const uint16_t> argStore);
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+template SYSCOMMONTPL void FormatSpecCacherCh<char8_t> ::FormatTo(std::basic_string<char8_t> & dst, span<const uint16_t> argStore);
 #endif
 
 
@@ -1506,4 +1645,7 @@ template SYSCOMMONTPL void FormatterBase::FormatTo(Formatter<char8_t> & formatte
 
 
 }
+#if COMMON_COMPILER_GCC & COMMON_GCC_VER < 100000
+#   pragma GCC diagnostic pop
+#endif
 
