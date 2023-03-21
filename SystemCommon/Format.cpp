@@ -35,16 +35,26 @@ using namespace std::string_view_literals;
 #   pragma warning(disable:4324)
 #endif
 template<typename Char>
+struct FormatSpecFillCh
+{
+    Char Fill[4];
+    uint8_t Count;
+};
+template<typename Char>
 struct alignas(4) OpaqueFormatSpecCh
 {
     OpaqueFormatSpecBase Base;
-    Char Fill[4];
-    uint8_t Count;
+    FormatSpecFillCh<Char> Fill;
 };
 #if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 
+static_assert(sizeof(fmt::detail::fill_t<    char>) == sizeof(FormatSpecFillCh<    char>), "OpaqueFormatSpec size mismatch, incompatible");
+static_assert(sizeof(fmt::detail::fill_t<char16_t>) == sizeof(FormatSpecFillCh<char16_t>), "OpaqueFormatSpec size mismatch, incompatible");
+static_assert(sizeof(fmt::detail::fill_t<char32_t>) == sizeof(FormatSpecFillCh<char32_t>), "OpaqueFormatSpec size mismatch, incompatible");
+static_assert(sizeof(fmt::detail::fill_t< wchar_t>) == sizeof(FormatSpecFillCh< wchar_t>), "OpaqueFormatSpec size mismatch, incompatible");
+static_assert(sizeof(fmt::detail::fill_t< char8_t>) == sizeof(FormatSpecFillCh< char8_t>), "OpaqueFormatSpec size mismatch, incompatible");
 static_assert(sizeof(fmt::basic_format_specs<    char>) == sizeof(OpaqueFormatSpecCh<    char>), "OpaqueFormatSpec size mismatch, incompatible");
 static_assert(sizeof(fmt::basic_format_specs<char16_t>) == sizeof(OpaqueFormatSpecCh<char16_t>), "OpaqueFormatSpec size mismatch, incompatible");
 static_assert(sizeof(fmt::basic_format_specs<char32_t>) == sizeof(OpaqueFormatSpecCh<char32_t>), "OpaqueFormatSpec size mismatch, incompatible");
@@ -558,26 +568,33 @@ template<typename Char>
 struct alignas(4) WrapSpec
 {
     using T = fmt::basic_format_specs<Char>;
-    uint8_t Data[sizeof(T)] = { 0 };
+    uint8_t Data[sizeof(T)] = {};
     T& Get() noexcept
     {
         return *reinterpret_cast<T*>(Data);
     }
     WrapSpec(const OpaqueFormatSpec& spec) noexcept
     {
-        memcpy_s(&Data, sizeof(OpaqueFormatSpecBase), &spec.Base, sizeof(OpaqueFormatSpecBase));
-        auto& dst = Get();
+        memcpy(&Data, &spec.Base, sizeof(OpaqueFormatSpecBase));
+        auto& fill = std::launder(reinterpret_cast<OpaqueFormatSpecCh<Char>*>(Data))->Fill;
+        // plain copy is faster than fmt's constructor
         if constexpr (sizeof(Char) == 4)
         {
-            dst.fill = std::basic_string_view<Char>{ reinterpret_cast<const Char*>(&spec.Fill32), spec.Count32 };
+            memcpy(&fill.Fill, &spec.Fill32, sizeof(spec.Fill32));
+            fill.Count = spec.Count32;
+            // dst.fill = std::basic_string_view<Char>{ reinterpret_cast<const Char*>(&spec.Fill32), spec.Count32 };
         }
         else if constexpr (sizeof(Char) == 2)
         {
-            dst.fill = std::basic_string_view<Char>{ reinterpret_cast<const Char*>(&spec.Fill16), spec.Count16 };
+            memcpy(&fill.Fill, &spec.Fill16, sizeof(spec.Fill16));
+            fill.Count = spec.Count16;
+            //dst.fill = std::basic_string_view<Char>{ reinterpret_cast<const Char*>(&spec.Fill16), spec.Count16 };
         }
         else if constexpr (sizeof(Char) == 1)
         {
-            dst.fill = std::basic_string_view<Char>{ reinterpret_cast<const Char*>(&spec.Fill8), spec.Count8 };
+            memcpy(&fill.Fill, &spec.Fill8, sizeof(spec.Fill8));
+            fill.Count = spec.Count8;
+            //dst.fill = std::basic_string_view<Char>{ reinterpret_cast<const Char*>(&spec.Fill8), spec.Count8 };
         }
         else
             static_assert(!AlwaysTrue<Char>);

@@ -167,7 +167,7 @@ struct FormatSpecCacher
 template<typename Char>
 struct FormatSpecCacherCh : private FormatSpecCacher
 {
-    const StrArgInfoCh<Char>& StrInfo;
+    const StrArgInfoCh<Char> StrInfo;
     const ArgInfo& TheArgInfo;
     const NamedMapper& Mapping;
     FormatSpecCacherCh(const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, const NamedMapper& mapper) noexcept :
