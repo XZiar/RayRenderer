@@ -535,7 +535,9 @@ FT_BEGIN_HEADER
    *
    *   More details can be found in the file `fterrors.h`.
    */
-/* #define FT_CONFIG_OPTION_ERROR_STRINGS */
+#if !defined(NDEBUG) && !defined(_NDEBUG)
+#  define FT_CONFIG_OPTION_ERROR_STRINGS 
+#endif
 
 
   /*************************************************************************/

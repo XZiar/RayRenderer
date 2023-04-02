@@ -34,7 +34,7 @@
   - [ ] Desgin common waitable, with native support of multi-wait
   - [x] Add delayed stacktrace resolve for Exceptions
   - [ ] Use libdawrf/libdw as fallback support for stacktrace
-  - [ ] Add direct support for output color-segemented text for Console
+  - [x] Add direct support for output color-segemented text for Console
   * StringUtil
     - [x] Add general charset default value
     - [x] Add compile-time LE/BE decision
@@ -211,6 +211,7 @@
   - [x] Add mipmap
   - [ ] Add blur
   - [ ] Migrate ISPC tex-compressor to OpenCL
+  - [ ] Migrate to use ARM's astc-encoder
   - [ ] Move to based on XCompute with multi-language support
 
 * FontHelper
