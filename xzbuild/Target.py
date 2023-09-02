@@ -49,6 +49,7 @@ class BuildTarget(metaclass=abc.ABCMeta):
         self.flags = []
         self.solDir = env["rootDir"]
         self.buildDir = os.path.join(self.solDir, proj.buildPath)
+        self.baseDirs = set()
         self.solveTarget(targets, proj, env)
         if hasattr(self, "incpath"):
             self.incpath = [self.porcPathDefine(path) for path in self.incpath]
@@ -65,8 +66,17 @@ class BuildTarget(metaclass=abc.ABCMeta):
         dels = set(f for i in d for f in glob.glob(i))
         forceadd = adds & set(a)
         forcedel = dels & set(d)
-        self.sources = list(((adds - dels) | forceadd) - forcedel)
-        self.sources.sort()
+        srcs = list(((adds - dels) | forceadd) - forcedel)
+        trimmed = []
+        for src in srcs:
+            if not os.path.relpath(src).startswith(".."):
+                trimmed.append(src)
+                continue
+            common = os.path.relpath(os.path.commonpath([os.path.abspath(src), os.path.abspath(os.path.curdir)]))
+            trimmed.append(os.path.relpath(src, common))
+            self.baseDirs.add(common)
+            print(f"add base[{common}] for [{src}]")
+        self.sources = sorted(trimmed)
 
     def solveTarget(self, targets:dict, proj, env:dict):
         '''solve sources and flags'''

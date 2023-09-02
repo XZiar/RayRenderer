@@ -210,6 +210,11 @@ class Project:
             writeItems(file, "libStatic",   libStatic)
             writeItems(file, "libVersion",  self.libVersion)
             # writeItems(file, "xz_libDir",   self.libDirs, state="+")
+            baseDirs = set()
+            for t in self.targets:
+                baseDirs.update(t.baseDirs)
+            if len(baseDirs) > 0:
+                writeItems(file, "VPATH", baseDirs)
             for t in self.targets:
                 t.write(file)
 

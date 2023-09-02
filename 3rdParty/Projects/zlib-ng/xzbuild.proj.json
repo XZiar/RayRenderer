@@ -2,7 +2,7 @@
     "name": "zlib-ng",
     "type": "static",
     "description": "zlib replacement with optimizations for \"next generation\" systems",
-    "kvSource": [{"type": "cxx", "file": "zlib-ng.h", "targets":["ZLIBNG_VER_MAJOR", "ZLIBNG_VER_MINOR", "ZLIBNG_VER_REVISION"]}],
+    "kvSource": [{"type": "cxx", "file": "zlib-ng.h.in", "targets":["ZLIBNG_VER_MAJOR", "ZLIBNG_VER_MINOR", "ZLIBNG_VER_REVISION"]}],
     "version": {"targets":["ZLIBNG_VER_MAJOR", "ZLIBNG_VER_MINOR", "ZLIBNG_VER_REVISION"]},
     "dependency": [],
     "srcPath": "../../zlib-ng",
@@ -17,36 +17,64 @@
         {
             "defines": 
             [
-                {"ifeq": {"arch": "x86"},       "+": ["X86_FEATURES", "X86_QUICK_STRATEGY", "UNALIGNED64_OK"]},
-                {"ifeq": {"arch": "arm"},       "+": ["ARM_FEATURES"]},
-                {"ifin": {"intrin": "avx2"},    "+": ["X86_AVX2", "X86_AVX2_ADLER32"]},
-                {"ifin": {"intrin": "avx"},     "+": ["X86_AVX_CHUNKSET"]},
-                {"ifin": {"intrin": "pclmul"},  "+": ["X86_PCLMULQDQ_CRC"]},
-                {"ifin": {"intrin": "sse42"},   "+": ["X86_SSE42_CRC_HASH", "X86_SSE42_CRC_INTRIN", "X86_SSE42_CMP_STR"]},
-                {"ifin": {"intrin": "ssse3"},   "+": ["X86_SSSE3", "X86_SSSE3_ADLER32"]},
-                {"ifin": {"intrin": "sse2"},    "+": ["X86_SSE2", "X86_SSE2_CHUNKSET", "X86_SSE2_SLIDEHASH"]},
-                {"ifin": {"intrin": "neon"},    "+": ["ARM_NEON_ADLER32", "ARM_NEON_CHUNKSET", "ARM_NEON_SLIDEHASH"]},
-                {"ifin": {"intrin": "acle_crc"}, "ifge": {"armArch": 8}, "+": ["ARM_ACLE_CRC_HASH"]},
-                {"ifin": {"arch": "arm"},        "ifge": {"armArch": 8}, "+": ["UNALIGNED64_OK"]},
-                {"ifin": {"arch": "arm"},        "ifeq": {"bits": 64},   "+": ["UNALIGNED64_OK"]},
+                {"ifeq": {"arch": "x86"},           "+": ["X86_FEATURES", "X86_NOCHECK_SSE2", "X86_SSE2"]},
+                {"ifeq": {"arch": "arm"},           "+": ["ARM_FEATURES", "ARM_AUXV_HAS_CRC32"]},
+                {"ifin": {"arch": "arm"}, "iflt": {"bits": 64}, "+": ["ARM_AUXV_HAS_NEON"]},
+                {"ifin": {"intrin": "avx512vnni"},  "+": ["X86_AVX512VNNI"]},
+                {"ifin": {"intrin": "avx32"},       "+": ["X86_AVX512", "X86_MASK_INTRIN"]},
+                {"ifin": {"intrin": "avx2"},        "+": ["X86_AVX2"]},
+                {"ifin": {"intrin": "sse42"},       "+": ["X86_SSE42", "X86_SSE42_CRC_INTRIN"]},
+                {"ifin": {"intrin": "ssse3"},       "+": ["X86_SSSE3"]},
+                {"ifin": [["intrin", "pclmul"], ["intrin", "avx32"]], "+": ["X86_VPCLMULQDQ_CRC"]},
+                {"ifin": [["intrin", "pclmul"], ["intrin", "ssse3"]], "+": ["X86_PCLMULQDQ_CRC"]},
+                {"ifin": {"intrin": "neon"},        "+": ["ARM_NEON", "ARM_NEON_HASLD4"]},
+                {"ifin": {"intrin": "acle_crc"}, "ifge": {"armArch": 8}, "+": ["ARM_ACLE"]},
                 "HAVE_VISIBILITY_HIDDEN", "HAVE_VISIBILITY_INTERNAL", "HAVE_BUILTIN_CTZ", "HAVE_BUILTIN_CTZL",
-                "_LARGEFILE64_SOURCE=1", "__USE_LARGEFILE64", "HAVE_UNISTD_H", "HAVE_STDARG_H",
-                "ZLIB_COMPAT", "WITH_GZFILEOP", "UNALIGNED_OK"
+                "_LARGEFILE64_SOURCE=1", "__USE_LARGEFILE64", "HAVE_UNISTD_H", "HAVE_STDARG_H", "HAVE_SYS_AUXV_H",
+                "HAVE_ATTRIBUTE_ALIGNED", "HAVE_THREAD_LOCAL",
+                "ZLIB_COMPAT", "WITH_GZFILEOP"
             ],
-            "sources": 
+            "sources":
             [
                 "*.c", 
+                "../Projects/zlib-ng/gzread.c",
                 {"ifeq": {"arch": "x86"}, "+": "arch/x86/*.c"},
-                {"ifeq": {"arch": "arm"}, "+": "arch/arm/*.c"},
+                {
+                    "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "avx512vnni"}, 
+                    "dir": "arch/x86",
+                    "-": ["adler32_avx512_vnni.c"]
+                },
+                {
+                    "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "avx32"}, 
+                    "dir": "arch/x86",
+                    "-": ["adler32_avx512.c", "adler32_avx512_vnni.c", "crc32_vpclmulqdq.c"]
+                },
                 {
                     "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "avx2"}, 
                     "dir": "arch/x86",
-                    "-": ["adler32_avx.c", "chunkset_avx.c", "slide_avx.c", "compare258_avx.c"]
+                    "-": ["adler32_avx2.c", "chunkset_avx2.c", "slide_hash_avx2.c", "compare256_avx2.c"]
+                },
+                {
+                    "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "sse42"}, 
+                    "dir": "arch/x86",
+                    "-": ["adler32_sse42.c", "insert_string_sse42.c"]
                 },
                 {
                     "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "ssse3"}, 
                     "dir": "arch/x86",
-                    "-": ["adler32_ssse3.c"]
+                    "-": ["adler32_ssse3.c", "chunkset_ssse3.c", "crc32_pclmulqdq.c"]
+                },
+                {
+                    "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "pclmul"}, 
+                    "dir": "arch/x86",
+                    "-": ["crc32_pclmulqdq.c", "crc32_vpclmulqdq.c"]
+                },
+
+                {"ifeq": {"arch": "arm"}, "+": "arch/arm/*.c"},
+                {
+                    "ifeq": {"arch": "arm"}, "ifnin": {"intrin": "neon"}, 
+                    "dir": "arch/arm",
+                    "-": ["adler32_neon.c", "chunkset_neon.c", "compare256_neon.c", "slide_hash_neon.c"]
                 },
                 {
                     "ifeq": {"arch": "arm"}, "ifnin": {"intrin": "acle_crc"}, 

@@ -88,11 +88,11 @@ python3 xzbuild buildall UtilTest
   
   [MIT License](https://github.com/microsoft/GSL/blob/main/LICENSE)
 
-* [Google Test](https://github.com/google/googletest) `submodule` 1.13.0
+* [Google Test](https://github.com/google/googletest) `submodule` 1.14.0
 
   [BSD 3-Clause License](https://github.com/google/googletest/blob/master/LICENSE)
 
-* [boost](http://www.boost.org/)  1.81.0 (not included in this repo)
+* [boost](http://www.boost.org/)  1.83.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 
@@ -112,7 +112,7 @@ python3 xzbuild buildall UtilTest
   
   [Public Domain](https://github.com/kerukuro/digestpp/blob/master/LICENSE)
 
-* [FreeType](https://www.freetype.org/) `submodule` 2.12.1
+* [FreeType](https://www.freetype.org/) `submodule` 2.13.2
 
   [The FreeType License](https://github.com/freetype/freetype/blob/master/LICENSE.TXT)
 
