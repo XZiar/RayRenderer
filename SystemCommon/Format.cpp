@@ -55,11 +55,11 @@ static_assert(sizeof(fmt::detail::fill_t<char16_t>) == sizeof(FormatSpecFillCh<c
 static_assert(sizeof(fmt::detail::fill_t<char32_t>) == sizeof(FormatSpecFillCh<char32_t>), "OpaqueFormatSpec size mismatch, incompatible");
 static_assert(sizeof(fmt::detail::fill_t< wchar_t>) == sizeof(FormatSpecFillCh< wchar_t>), "OpaqueFormatSpec size mismatch, incompatible");
 static_assert(sizeof(fmt::detail::fill_t< char8_t>) == sizeof(FormatSpecFillCh< char8_t>), "OpaqueFormatSpec size mismatch, incompatible");
-static_assert(sizeof(fmt::basic_format_specs<    char>) == sizeof(OpaqueFormatSpecCh<    char>), "OpaqueFormatSpec size mismatch, incompatible");
-static_assert(sizeof(fmt::basic_format_specs<char16_t>) == sizeof(OpaqueFormatSpecCh<char16_t>), "OpaqueFormatSpec size mismatch, incompatible");
-static_assert(sizeof(fmt::basic_format_specs<char32_t>) == sizeof(OpaqueFormatSpecCh<char32_t>), "OpaqueFormatSpec size mismatch, incompatible");
-static_assert(sizeof(fmt::basic_format_specs< wchar_t>) == sizeof(OpaqueFormatSpecCh< wchar_t>), "OpaqueFormatSpec size mismatch, incompatible");
-static_assert(sizeof(fmt::basic_format_specs< char8_t>) == sizeof(OpaqueFormatSpecCh< char8_t>), "OpaqueFormatSpec size mismatch, incompatible");
+static_assert(sizeof(fmt::format_specs<    char>) == sizeof(OpaqueFormatSpecCh<    char>), "OpaqueFormatSpec size mismatch, incompatible");
+static_assert(sizeof(fmt::format_specs<char16_t>) == sizeof(OpaqueFormatSpecCh<char16_t>), "OpaqueFormatSpec size mismatch, incompatible");
+static_assert(sizeof(fmt::format_specs<char32_t>) == sizeof(OpaqueFormatSpecCh<char32_t>), "OpaqueFormatSpec size mismatch, incompatible");
+static_assert(sizeof(fmt::format_specs< wchar_t>) == sizeof(OpaqueFormatSpecCh< wchar_t>), "OpaqueFormatSpec size mismatch, incompatible");
+static_assert(sizeof(fmt::format_specs< char8_t>) == sizeof(OpaqueFormatSpecCh< char8_t>), "OpaqueFormatSpec size mismatch, incompatible");
 
 
 ArgMismatchException::ExceptionInfo::ExceptionInfo(const std::u16string_view msg, Reasons reason,
@@ -213,7 +213,7 @@ void FormatterExecutor::OnColor(Context&, ScreenColor)
 struct FormatterHelper : public FormatterBase
 {
     template<typename Char, typename T>
-    static forceinline void ConvertSpecNoFill(fmt::basic_format_specs<Char>& spec, const T& in) noexcept
+    static forceinline void ConvertSpecNoFill(fmt::format_specs<Char>& spec, const T& in) noexcept
     {
         spec.width = in.Width;
         spec.precision = static_cast<int32_t>(in.Precision);
@@ -243,7 +243,7 @@ struct FormatterHelper : public FormatterBase
         return std::pair{ tmp, count };
     }
     template<typename Char>
-    static forceinline void ConvertSpecFill(fmt::basic_format_specs<Char>& spec, const FormatSpec& in) noexcept
+    static forceinline void ConvertSpecFill(fmt::format_specs<Char>& spec, const FormatSpec& in) noexcept
     {
         if (in.ZeroPad)
         {
@@ -305,9 +305,9 @@ struct FormatterHelper : public FormatterBase
     }
 
     template<typename Char>
-    static forceinline fmt::basic_format_specs<Char> ConvertSpecBasic(const FormatSpec& in) noexcept
+    static forceinline fmt::format_specs<Char> ConvertSpecBasic(const FormatSpec& in) noexcept
     {
-        fmt::basic_format_specs<Char> spec;
+        fmt::format_specs<Char> spec;
         ConvertSpecNoFill(spec, in);
         ConvertSpecFill(spec, in);
         return spec;
@@ -393,7 +393,7 @@ struct FormatterHelper : public FormatterBase
         }
     }
     template<typename Dst, typename Src>
-    static void PutString(std::basic_string<Dst>& ret, std::basic_string_view<Src> str, const fmt::basic_format_specs<Dst>* __restrict spec)
+    static void PutString(std::basic_string<Dst>& ret, std::basic_string_view<Src> str, const fmt::format_specs<Dst>* __restrict spec)
     {
         if constexpr (std::is_same_v<Dst, Src>)
         {
@@ -458,7 +458,7 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
     else
         FormatterHelper::ConvertSpecFill(dst, false, U' ');
 
-    fmt::basic_format_specs<char> spec{};
+    fmt::format_specs<char> spec{};
     if (src)
         FormatterHelper::ConvertSpecNoFill(spec, *src);
     switch (const auto realType = real & ArgRealType::BaseTypeMask; realType)
@@ -521,7 +521,7 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view s
 
     FormatterHelper::ConvertSpecFill(dst, spec_.ZeroPad, static_cast<char32_t>(spec_.Fill));
 
-    fmt::basic_format_specs<char> spec{};
+    fmt::format_specs<char> spec{};
     FormatterHelper::ConvertSpecNoFill(spec, spec_);
     switch (const auto realType = real & ArgRealType::BaseTypeMask; realType)
     {
@@ -567,7 +567,7 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view s
 template<typename Char>
 struct alignas(4) WrapSpec
 {
-    using T = fmt::basic_format_specs<Char>;
+    using T = fmt::format_specs<Char>;
     uint8_t Data[sizeof(T)] = {};
     T& Get() noexcept
     {
@@ -724,7 +724,7 @@ inline void Formatter<Char>::PutColorArg(StrType& ret, ScreenColor color, const 
             if (spec && spec->AlterForm)
             {
                 ret.push_back('#');
-                fmt::basic_format_specs<Char> fmtSpec = {};
+                fmt::format_specs<Char> fmtSpec = {};
                 fmtSpec.type = fmt::presentation_type::hex_lower;
                 fmtSpec.fill[0] = static_cast<Char>('0');
                 fmtSpec.width = 6;
@@ -736,7 +736,7 @@ inline void Formatter<Char>::PutColorArg(StrType& ret, ScreenColor color, const 
             {
                 char head[] = "rgb(";
                 ret.append(&head[0], &head[4]);
-                fmt::basic_format_specs<Char> fmtSpec = {};
+                fmt::format_specs<Char> fmtSpec = {};
                 fmtSpec.type = fmt::presentation_type::dec;
                 fmt::detail::write_int_arg<uint32_t> arg{ 0, 0 };
 
@@ -812,7 +812,7 @@ void Formatter<Char>::PutString(StrType& ret, std::u32string_view str, const For
 template<typename Char>
 void Formatter<Char>::PutInteger(StrType& ret, uint32_t val, bool isSigned, const FormatSpec* spec)
 {
-    fmt::basic_format_specs<Char> fmtSpec = {};
+    fmt::format_specs<Char> fmtSpec = {};
     if (spec)
     {
         fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
@@ -825,7 +825,7 @@ void Formatter<Char>::PutInteger(StrType& ret, uint32_t val, bool isSigned, cons
 template<typename Char>
 void Formatter<Char>::PutInteger(StrType& ret, uint64_t val, bool isSigned, const FormatSpec* spec)
 {
-    fmt::basic_format_specs<Char> fmtSpec = {};
+    fmt::format_specs<Char> fmtSpec = {};
     if (spec)
     {
         fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
@@ -839,7 +839,7 @@ void Formatter<Char>::PutInteger(StrType& ret, uint64_t val, bool isSigned, cons
 template<typename Char>
 void Formatter<Char>::PutFloat(StrType& ret, float val, const FormatSpec* spec)
 {
-    fmt::basic_format_specs<Char> fmtSpec = {};
+    fmt::format_specs<Char> fmtSpec = {};
     if (spec)
     {
         fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
@@ -851,7 +851,7 @@ void Formatter<Char>::PutFloat(StrType& ret, float val, const FormatSpec* spec)
 template<typename Char>
 void Formatter<Char>::PutFloat(StrType& ret, double val, const FormatSpec* spec)
 {
-    fmt::basic_format_specs<Char> fmtSpec = {};
+    fmt::format_specs<Char> fmtSpec = {};
     if (spec)
     {
         fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
@@ -864,7 +864,7 @@ void Formatter<Char>::PutFloat(StrType& ret, double val, const FormatSpec* spec)
 template<typename Char>
 void Formatter<Char>::PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec)
 {
-    fmt::basic_format_specs<Char> fmtSpec = {};
+    fmt::format_specs<Char> fmtSpec = {};
     if (spec)
         fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
     fmtSpec.type = fmt::presentation_type::pointer;

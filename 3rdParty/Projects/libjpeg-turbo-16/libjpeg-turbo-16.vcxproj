@@ -270,8 +270,6 @@
     <ClCompile Include="$(RealSourceDir)\jdmainct.c" />
     <ClCompile Include="$(RealSourceDir)\jdpostct.c" />
     <ClCompile Include="$(RealSourceDir)\jdsample.c" />
-    <ClCompile Include="$(RealSourceDir)\jquant1.c" />
-    <ClCompile Include="$(RealSourceDir)\jquant2.c" />
     <ClCompile Include="$(RealSourceDir)\jutils.c" />
     <ClCompile Include="$(RealSourceDir)\rdppm.c" />
     <ClCompile Include="$(RealSourceDir)\wrppm.c" />

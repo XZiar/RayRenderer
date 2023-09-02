@@ -5,7 +5,7 @@
 #endif
 #define FMT_USE_FULL_CACHE_DRAGONBOX 1
 #ifdef SYSCOMMON_EXPORT
-#  define FMT_EXPORT
+#  define FMT_LIB_EXPORT
 #else
 #  define FMT_SHARED
 #endif
@@ -16,8 +16,8 @@
 #include "3rdParty/fmt/include/fmt/chrono.h"
 #include "3rdParty/fmt/include/fmt/format.h"
 
-#if FMT_VERSION < 80000
-#   error("Require fmt 8.0.0+")
+#if FMT_VERSION < 100000
+#   error("Require fmt 10.0.0+")
 #endif
 
 FMT_BEGIN_NAMESPACE

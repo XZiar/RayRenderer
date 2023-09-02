@@ -30,6 +30,9 @@
     <ClInclude Include="$(RealSourceDir)\nsCharSetProber.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsCJKDetector.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="$(RealSourceDir)\nsCodingStateMachine.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -54,6 +57,15 @@
     <ClInclude Include="$(RealSourceDir)\nsHebrewProber.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsJohabProber.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsLanguageDetector.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsLanguageDetector-generated.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="$(RealSourceDir)\nsLatin1Prober.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -64,6 +76,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\nsSBCharSetProber.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsSBCharSetProber-generated.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\nsSBCSGroupProber.h">
@@ -92,7 +107,13 @@
     <ClCompile Include="$(RealSourceDir)\LangModels\LangArabicModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangBelarusianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\LangModels\LangBulgarianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangCatalanModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\LangModels\LangCroatianModel.cpp">
@@ -102,6 +123,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\LangModels\LangDanishModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangEnglishModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\LangModels\LangEsperantoModel.cpp">
@@ -116,6 +140,9 @@
     <ClCompile Include="$(RealSourceDir)\LangModels\LangFrenchModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangGeorgianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\LangModels\LangGermanModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -123,6 +150,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\LangModels\LangHebrewModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangHindiModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\LangModels\LangHungarianModel.cpp">
@@ -138,6 +168,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\LangModels\LangLithuanianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangMacedonianModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\LangModels\LangMalteseModel.cpp">
@@ -158,6 +191,9 @@
     <ClCompile Include="$(RealSourceDir)\LangModels\LangRussianModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangSerbianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\LangModels\LangSlovakModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -176,6 +212,9 @@
     <ClCompile Include="$(RealSourceDir)\LangModels\LangTurkishModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangUkrainianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\LangModels\LangVietnameseModel.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -183,6 +222,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\nsCharSetProber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsCJKDetector.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\nsEscCharsetProber.cpp">
@@ -204,6 +246,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\nsHebrewProber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsJohabProber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsLanguageDetector.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\nsLatin1Prober.cpp">
@@ -233,9 +281,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="$(RealSourceDir)\..\README.md" />
-    <None Include="$(RealSourceDir)\Big5Freq.tab">
-      <Filter>table</Filter>
-    </None>
     <None Include="$(RealSourceDir)\EUCKRFreq.tab">
       <Filter>table</Filter>
     </None>
@@ -246,6 +291,9 @@
       <Filter>table</Filter>
     </None>
     <None Include="$(RealSourceDir)\JISFreq.tab">
+      <Filter>table</Filter>
+    </None>
+    <None Include="$(RealSourceDir)\JohabFreq.tab">
       <Filter>table</Filter>
     </None>
     <None Include="xzbuild.proj.json" />

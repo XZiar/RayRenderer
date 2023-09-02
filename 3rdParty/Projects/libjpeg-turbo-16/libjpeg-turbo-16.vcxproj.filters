@@ -57,12 +57,6 @@
     <ClCompile Include="$(RealSourceDir)\jdsample.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\jquant1.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\jquant2.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\jutils.c">
       <Filter>源文件</Filter>
     </ClCompile>

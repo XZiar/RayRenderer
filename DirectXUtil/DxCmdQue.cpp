@@ -417,7 +417,7 @@ void DxCmdList_::PrintFlushRecord() const
         for (size_t i = 0; i < 5 && i < record.Stack().size(); ++i)
         {
             const auto& stack = record.Stack()[i];
-            APPEND_FMT(allText, u"[{}:{}] {}\n"sv, stack.File, stack.Line, stack.Func);
+            APPEND_FMT(allText, u"[{}:{}] {}\n"sv, (std::u16string_view)stack.File, stack.Line, (std::u16string_view)stack.Func);
         }
         allText += u"\n";
     }

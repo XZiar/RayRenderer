@@ -13,9 +13,9 @@ class Uchardet final : public nsUniversalDetector
 {
 protected:
     std::string Encoding;
-    void Report(const char* charset) final
+    void Report(const char* encoding, const char*, float) final
     {
-        Encoding = charset;
+        Encoding = encoding;
     }
 public:
     Uchardet() : nsUniversalDetector(NS_FILTER_ALL) { }
@@ -33,7 +33,7 @@ public:
 
     std::string GetEncoding() const
     {
-        return Encoding.empty() ? (IsDone() ? mDetectedCharset : "") : Encoding;
+        return Encoding.empty() ? (IsDone() ? shortcutCharset : "") : Encoding;
     }
 };
 
