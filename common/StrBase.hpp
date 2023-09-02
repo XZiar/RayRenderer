@@ -231,6 +231,12 @@ struct ShortStrBase
         }
         return val;
     }
+    template<typename T, size_t Bits>
+    static constexpr char UnPack(const T val, const uint32_t index) noexcept
+    {
+        constexpr T limit = T(1) << Bits;
+        return static_cast<char>((val >> (index * Bits)) & limit);
+    }
 };
 }
 
@@ -247,12 +253,17 @@ struct ShortStrVal
         Val(M > N + 1 ? std::numeric_limits<T>::max() :
             detail::ShortStrBase::template Pack<T, EleBits>(str, std::make_index_sequence<M - 1>{}))
     { }
-    constexpr ShortStrVal(std::u32string_view str) noexcept :
+    template<typename Char>
+    constexpr ShortStrVal(std::basic_string_view<Char> str) noexcept :
         Val(str.size() > N ? std::numeric_limits<T>::max() :
-            detail::ShortStrBase::template Pack<T, EleBits, char32_t>(str))
+            detail::ShortStrBase::template Pack<T, EleBits, Char>(str))
     { }
     constexpr bool operator==(const ShortStrVal& other) const noexcept { return Val == other.Val; }
     constexpr bool operator<(const ShortStrVal& other) const noexcept { return Val < other.Val; }
+    constexpr char At(uint32_t index) const noexcept
+    { 
+        return detail::ShortStrBase::template UnPack<T, EleBits>(Val, index);
+    };
 };
 
 

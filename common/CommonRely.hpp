@@ -679,7 +679,7 @@ struct DJBHash // DJB Hash
 
 /* span compatible include */
 
-#if (defined(__cpp_lib_span) && (__cpp_lib_span >= 201902L)) && !COMMON_COMPILER_MSVC // C++/CLI's incompatibility with C++20
+#if (defined(__cpp_lib_span) && (__cpp_lib_span >= 201902L))
 #   include <span>
 namespace common
 {

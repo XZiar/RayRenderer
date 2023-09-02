@@ -47,17 +47,17 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
 
-For Windows parts, Windows SDK Target is `10(latest)`. `.Net Core 6.0` needed for C# components.
+For Windows parts, Windows SDK Target is `10(latest)`. `.Net Core 7.0` needed for C# components.
 
-To use `xzbuild`, python3.6+ is required.
+To use `xzbuild`, python3.7+ is required.
 
 ## Build
 
 To build C++ parts, a C++17 compiler is needed and C++20 is recommanded (defaultly used for gcc>=9 and clang>=9). 
 
-For Windows, project uses `VisualStudio2022`, VS2022(`17.0`) is needed for the vcproj version.
+For Windows, project uses `VisualStudio2022`, VS2022(>`17.6`) is needed for the vcproj version.
 
-For Linux, project uses [`xzbuild`](./xzbuild) (need python3.6+) with make. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on gcc(9\~11) and clang(9\~12).
+For Linux, project uses [`xzbuild`](./xzbuild) (need python3.7+) with make. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on gcc(9\~11) and clang(9\~12).
 ### ICEs
 * **gcc7** has [compatibility issue](https://github.com/XZiar/RayRenderer/runs/3111404571#step:9:456) with SIMD.hpp
 * **clang8** has [ICE](https://github.com/XZiar/RayRenderer/runs/3111404672#step:9:443) with SystemCommon
@@ -96,7 +96,7 @@ python3 xzbuild buildall UtilTest
 
   [Boost Software License](./License/boost.txt)
 
-* [fmt](https://fmt.dev/) `submodule` 9.1.0
+* [fmt](https://fmt.dev/) `submodule` 10.1.0
 
   [MIT License](https://github.com/fmtlib/fmt/blob/master/LICENSE.rst)
 

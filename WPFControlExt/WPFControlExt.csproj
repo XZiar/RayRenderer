@@ -1,12 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net7.0-windows</TargetFramework>
     <OutputType>Library</OutputType>
     <Platforms>x64;ARM64</Platforms>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <UseWPF>true</UseWPF>
     <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
-    <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
     <UseCommonOutputDirectory>true</UseCommonOutputDirectory>
     <!-- <GenerateRuntimeConfigDevFile>true</GenerateRuntimeConfigDevFile> -->
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>

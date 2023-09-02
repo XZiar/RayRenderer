@@ -15,6 +15,22 @@
 namespace common
 {
 
+template<typename T>
+inline constexpr void SortAscending(T* ptr, size_t count) noexcept
+{
+#if defined(__cpp_lib_constexpr_algorithms) && __cpp_lib_constexpr_algorithms >= 201806L
+    std::sort(ptr, ptr + count);
+#else
+    for (size_t i = 0; i < count - 1; i++)
+        for (size_t j = 0; j < count - 1 - i; j++)
+            if (ptr[j + 1] < ptr[j])
+            {
+                const auto tmp = ptr[j];
+                ptr[j] = ptr[j + 1];
+                ptr[j + 1] = tmp;
+            }
+#endif
+}
 
 namespace detail
 {
@@ -86,25 +102,28 @@ constexpr inline auto BuildTableStore(Type&&) noexcept
         table.Items[i].Key   = Dummy.Data[i].first;
         table.Items[i].Value = Dummy.Data[i].second;
     }
-#if defined(__cpp_lib_constexpr_algorithms) && __cpp_lib_constexpr_algorithms >= 201806L
-    std::sort(table.Items.begin(), table.Items.end());
-#else
-    for (size_t i = 0; i < N - 1; i++)
-        for (size_t j = 0; j < N - 1 - i; j++)
-            if (table.Items[j + 1] < table.Items[j])
-            {
-                const auto tmp = table.Items[j];
-                table.Items[j] = table.Items[j + 1];
-                table.Items[j + 1] = tmp;
-            }
-#endif
+    SortAscending(table.Items.data(), N);
+    return table;
+}
+
+
+template<typename NK, typename NV, typename K, typename V, size_t N>
+constexpr inline auto BuildTableStoreFrom(const std::pair<K, V> (&arr)[N]) noexcept
+{
+    StaticLookupTable<NK, NV, N> table;
+    for (size_t i = 0; i < N; ++i)
+    {
+        table.Items[i].Key   = NK(arr[i].first);
+        table.Items[i].Value = NV(arr[i].second);
+    }
+    SortAscending(table.Items.data(), N);
     return table;
 }
 
 
 }
 
-
+#if 0
 #define BuildStaticLookup(k, v, ...)                    \
 ::common::detail::BuildTableStore([]()                  \
 {                                                       \
@@ -116,6 +135,23 @@ constexpr inline auto BuildTableStore(Type&&) noexcept
     };                                                  \
     return Type{};                                      \
 }())
+#endif
 
+#define BuildStaticLookupFrom(k, v, src) []()                       \
+{                                                                   \
+    using K = decltype(src[0].first);                               \
+    using V = decltype(src[0].second);                              \
+    static_assert(::common::detail::StaticLookupItem<K, V>::        \
+        CheckUnique(src), "cannot contain repeat key");             \
+    return ::common::detail::BuildTableStoreFrom<k, v, K, V>(src);  \
+}()
+
+#define BuildStaticLookup(k, v, ...) []()                           \
+{                                                                   \
+    constexpr std::pair<k, v> tmp[] = { __VA_ARGS__ };              \
+    static_assert(::common::detail::StaticLookupItem<k, v>::        \
+        CheckUnique(tmp), "cannot contain repeat key");             \
+    return ::common::detail::BuildTableStoreFrom<k, v, k, v>(tmp);  \
+}()
 
 }
