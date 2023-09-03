@@ -2,7 +2,6 @@
 #include "oglRely.h"
 #include "GLFuncWrapper.h"
 #include "SystemCommon/Format.h"
-#include "SystemCommon/StringFormat.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/DynamicLibrary.h"
 #include "SystemCommon/FileEx.h"

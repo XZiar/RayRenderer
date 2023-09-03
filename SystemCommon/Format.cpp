@@ -891,56 +891,58 @@ constexpr auto GetDateStr() noexcept
 }
 
 template<typename Char>
-inline void PutDate_(std::basic_string<Char>& ret, std::basic_string_view<Char> fmtStr, const std::tm& date)
+inline void PutDate_(std::basic_string<Char>& ret, std::basic_string_view<Char> fmtStr, const std::tm& date, uint32_t us)
 {
     auto ins = std::back_inserter(ret);
     if (fmtStr.empty())
         fmtStr = GetDateStr<Char>();
-    fmt::detail::tm_writer<decltype(ins), Char> writer({}, ins, date);
+    std::chrono::microseconds duration { us };
+    const auto subdesc = us != UINT32_MAX ? &duration : nullptr;
+    fmt::detail::tm_writer<decltype(ins), Char, std::chrono::microseconds> writer({}, ins, date, subdesc);
     fmt::detail::parse_chrono_format(fmtStr.data(), fmtStr.data() + fmtStr.size(), writer);
 }
 
 template<typename Char>
-void Formatter<Char>::PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date)
+void Formatter<Char>::PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date, uint32_t us)
 {
 #if COMMON_OS_ANDROID || COMMON_OS_IOS // android's std::put_time is limited to char/wchar_t
     if constexpr (std::is_same_v<Char, char> || std::is_same_v<Char, wchar_t>)
     {
-        PutDate_(ret, fmtStr, date);
+        PutDate_(ret, fmtStr, date, us);
     }
     else if constexpr (sizeof(Char) == sizeof(wchar_t))
     {
-        PutDate_(*reinterpret_cast<std::wstring*>(&ret), *reinterpret_cast<std::wstring_view*>(&fmtStr), date);
+        PutDate_(*reinterpret_cast<std::wstring*>(&ret), *reinterpret_cast<std::wstring_view*>(&fmtStr), date, us);
     }
     else if constexpr (sizeof(Char) == sizeof(char))
     {
-        PutDate_(*reinterpret_cast<std::string*>(&ret), *reinterpret_cast<std::string_view*>(&fmtStr), date);
+        PutDate_(*reinterpret_cast<std::string*>(&ret), *reinterpret_cast<std::string_view*>(&fmtStr), date, us);
     }
     else
     {
         const auto fmtStr_ = to_string(fmtStr, Encoding::UTF8);
         std::string tmp;
-        PutDate_<char>(tmp, fmtStr_, date);
+        PutDate_<char>(tmp, fmtStr_, date, us);
         if constexpr (std::is_same_v<Char, char16_t>)
             ret.append(to_u16string(tmp, Encoding::UTF8));
         else
             ret.append(to_u32string(tmp, Encoding::UTF8));
     }
 #else
-    PutDate_(ret, fmtStr, date);
+    PutDate_(ret, fmtStr, date, us);
 #endif
 }
 template<typename Char>
-void Formatter<Char>::PutDateBase(StrType& ret, std::string_view fmtStr, const std::tm& date)
+void Formatter<Char>::PutDateBase(StrType& ret, std::string_view fmtStr, const std::tm& date, uint32_t us)
 {
     if constexpr (sizeof(Char) == sizeof(char))
     {
-        PutDate_(*reinterpret_cast<std::string*>(&ret), fmtStr, date);
+        PutDate_(*reinterpret_cast<std::string*>(&ret), fmtStr, date, us);
     }
     else
     {
         std::string tmp;
-        PutDate_<char>(tmp, fmtStr, date);
+        PutDate_<char>(tmp, fmtStr, date, us);
         if constexpr (sizeof(Char) == sizeof(char16_t))
         {
             const auto tmp2 = to_u16string(tmp, Encoding::UTF8);
@@ -1361,17 +1363,37 @@ forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_
             if (spec && spec->FmtLen)
                 fmtStr = fmtString.substr(spec->FmtOffset, spec->FmtLen);
             std::tm date{};
+            uint32_t extraUs = UINT32_MAX;
             if (HAS_FIELD(argType, ArgRealType::DateDeltaBit))
             {
-                const auto delta = *reinterpret_cast<const int64_t*>(argPtr);
-                const std::chrono::duration<int64_t, std::milli> d{ delta };
-                const std::chrono::time_point<std::chrono::system_clock> tp{ d };
+                using Us = std::chrono::microseconds;
+                const auto val = *reinterpret_cast<const uint64_t*>(argPtr);
+                const Us timeUs{ static_cast<int64_t>(val << 1) };
+                auto timeS = std::chrono::duration_cast<std::chrono::seconds>(timeUs);
+                if (val & static_cast<uint64_t>(0x8000000000000000))
+                {
+                    const auto delta = timeUs - timeS;
+                    static_assert(std::is_same_v<decltype(delta)::period, std::chrono::microseconds::period>);
+                    if (delta.count() < 0)
+                    {
+                        constexpr std::chrono::seconds us1{ 1 };
+                        extraUs = static_cast<uint32_t>((us1 - delta).count());
+                        timeS -= us1;
+                    }
+                    else
+                    {
+                        extraUs = static_cast<uint32_t>(delta.count());
+                    }
+                }
+                const std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds> tp{ timeS };
                 const auto time = std::chrono::system_clock::to_time_t(tp);
-                date = fmt::localtime(time);
+                //date = fmt::localtime(time);
+                // format of chrono will be UTC time instead of local time
+                date = fmt::gmtime(time);
             }
             else
                 date = *reinterpret_cast<const CompactDate*>(argPtr);
-            host.PutDate(context, fmtStr, date);
+            host.PutDate(context, fmtStr, date, extraUs);
         }
         else
         {

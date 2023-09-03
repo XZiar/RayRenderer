@@ -2,7 +2,7 @@
 #include "ParserCommon.h"
 #include "Nailang/NailangParserRely.h"
 #include "Nailang/NailangParser.h"
-#include "SystemCommon/StringFormat.h"
+#include "SystemCommon/Format.h"
 #include <algorithm>
 
 
@@ -26,13 +26,15 @@ static std::string PrintMemPool(const xziar::nailang::MemoryPool& pool_) noexcep
 {
     const auto& pool = static_cast<const MemPool_&>(pool_);
     const auto [used, total] = pool.Usage();
-    std::string txt = fmt::format("MemoryPool[{} trunks(default {} bytes)]: [{}/{}]\n", 
+    common::str::Formatter<char> formatter;
+    std::string txt;
+    formatter.FormatToStatic(txt, FmtString("MemoryPool[{} trunks(default {} bytes)]: [{}/{}]\n"sv), 
         pool.Trunks.size(), pool.DefaultTrunkLength, used, total);
-    auto ins = std::back_inserter(txt);
     size_t i = 0;
     for (const auto& [ptr, offset, avaliable] : pool.Trunks)
     {
-        fmt::format_to(ins, "[{}] ptr[{}], offset[{}], avaliable[{}]\n", i++, (void*)ptr, offset, avaliable);
+        formatter.FormatToStatic(txt, FmtString("[{}] ptr[{}], offset[{}], avaliable[{}]\n"sv), 
+            i++, (void*)ptr, offset, avaliable);
     }
     return txt;
 }

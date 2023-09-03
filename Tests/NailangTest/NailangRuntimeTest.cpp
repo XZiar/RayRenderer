@@ -4,7 +4,7 @@
 #include "Nailang/NailangRuntime.h"
 #include "SystemCommon/MiscIntrins.h"
 #include "SystemCommon/StringConvert.h"
-#include "SystemCommon/StringFormat.h"
+#include "SystemCommon/Format.h"
 #include <cmath>
 
 
@@ -45,8 +45,9 @@ testing::AssertionResult CheckArg(const Arg& arg, const Arg::Type type)
         return testing::AssertionSuccess();
     else
     {
-        const auto detail = common::str::to_string(FMTSTR(U"arg is [{}]({:#04x})"sv,
-            arg.GetTypeName(), common::enum_cast(arg.TypeData)), common::str::Encoding::ASCII);
+        common::str::Formatter<char> formatter;
+        const auto detail = formatter.FormatStatic(FmtString("arg is [{}]({:#04x})"sv), 
+            arg.GetTypeName(), common::enum_cast(arg.TypeData));
         return testing::AssertionFailure() << detail;
     }
 }

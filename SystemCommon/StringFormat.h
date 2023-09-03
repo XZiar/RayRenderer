@@ -10,11 +10,20 @@
 #  define FMT_SHARED
 #endif
 
+#if COMMON_COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4127)
+#endif
+
 #include "3rdParty/fmt/include/fmt/xchar.h"
 #include "3rdParty/fmt/include/fmt/args.h"
 #include "3rdParty/fmt/include/fmt/ranges.h"
 #include "3rdParty/fmt/include/fmt/chrono.h"
 #include "3rdParty/fmt/include/fmt/format.h"
+
+#if COMMON_COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 #if FMT_VERSION < 100000
 #   error("Require fmt 10.0.0+")

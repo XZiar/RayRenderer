@@ -1,10 +1,10 @@
 #include "NailangPch.h"
 #include "NailangRuntime.h"
 #include "NailangParser.h"
-#include "SystemCommon/StringFormat.h"
 #include "common/Linq2.hpp"
 #include "common/StrParsePack.hpp"
 #include "common/CharConvs.hpp"
+#include "3rdParty/fmt/include/fmt/format.h"
 #include <cmath>
 #include <cassert>
 

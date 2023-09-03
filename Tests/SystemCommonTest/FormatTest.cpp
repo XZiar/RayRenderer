@@ -734,9 +734,10 @@ TEST(Format, Formating)
     }
     {
         const auto t1 = common::SimpleTimer::getCurLocalTime();
-        const auto t2 = std::chrono::system_clock::now();
-        const auto ref = fmt::format("{0:%Y-%m-%dT%H:%M:%S}|{0:%Y-%m-%dT%H:%M:%S}|{1:%Y-%m-%d %H:%M:%S}"sv, t1, t2);
-        const auto ret = ToString(FmtString("{}|{0:T}|{1:T%Y-%m-%d %H:%M:%S}"sv), t1, t2);
+        const auto t2 = std::chrono::time_point_cast<std::chrono::microseconds>(std::chrono::system_clock::now());
+        const auto t3 = std::chrono::current_zone()->to_local(t2);
+        const auto ref = fmt::format("{0:%Y-%m-%dT%H:%M:%S}|{0:%Y-%m-%dT%H:%M:%S}|{1:%Y-%m-%d %H:%M:%S}|{1:%Y-%m-%d %H:%M:%S}"sv, t1, t2, t3);
+        const auto ret = ToString(FmtString("{}|{0:T}|{1:T%Y-%m-%d %H:%M:%S}|{1:T%Y-%m-%d %H:%M:%S}"sv), t1, t2, t3);
         EXPECT_EQ(ret, ref);
     }
 }

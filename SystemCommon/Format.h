@@ -1476,8 +1476,15 @@ struct ArgInfo
             }
             else if constexpr (is_specialization<U, std::chrono::time_point>::value)
             {
-                const auto deltaMs = std::chrono::duration_cast<std::chrono::duration<int64_t, std::milli>>(arg.time_since_epoch()).count();
-                return deltaMs;
+                const auto deltaUs = std::chrono::duration_cast<std::chrono::duration<int64_t, std::micro>>(arg.time_since_epoch()).count();
+                auto ret = static_cast<uint64_t>(deltaUs) >> 1;
+                using Ratio = typename U::period;
+                constexpr bool FPSecond = Ratio::num != 1 || Ratio::den != 1 || std::is_floating_point_v<typename U::rep>;
+                if constexpr (FPSecond)
+                {
+                    ret |= static_cast<uint64_t>(0x8000000000000000);
+                }
+                return ret;
             }
             else if constexpr (CheckColorType<U>())
             {
@@ -1824,8 +1831,8 @@ public:
     SYSCOMMONAPI virtual void PutFloat(StrType& ret, float  val, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutFloat(StrType& ret, double val, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec);
-    SYSCOMMONAPI virtual void PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date);
-    SYSCOMMONAPI virtual void PutDateBase(StrType& ret, std::string_view fmtStr, const std::tm& date);
+    SYSCOMMONAPI virtual void PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date, uint32_t us = UINT32_MAX);
+    SYSCOMMONAPI virtual void PutDateBase(StrType& ret, std::string_view fmtStr, const std::tm& date, uint32_t us = UINT32_MAX);
     template<typename T, typename... Args>
     forceinline void FormatToStatic(std::basic_string<Char>& dst, const T&, Args&&... args)
     {
