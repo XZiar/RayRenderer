@@ -2,11 +2,11 @@
 
 #include "SystemCommonRely.h"
 #include "FormatInclude.h"
+#include "Date.h"
 #include "common/StrBase.hpp"
 #include "common/RefHolder.hpp"
 #include "common/SharedString.hpp"
 #include <optional>
-#include <chrono>
 #include <ctime>
 
 #if COMMON_COMPILER_CLANG
@@ -1250,7 +1250,7 @@ struct CompactDate
     constexpr CompactDate() noexcept : Year(0), MWD(0), FDH(0), Minute(0), Second(0) {}
     constexpr CompactDate(const std::tm& date) noexcept :
         Year(static_cast<int16_t>(date.tm_year)), MWD(CompactMWD(date.tm_mon, date.tm_wday, date.tm_yday)),
-        FDH(CompactFDH(date.tm_isdst, date.tm_mday, date.tm_hour)), 
+        FDH(CompactFDH(date.tm_isdst, date.tm_mday, date.tm_hour)),
         Minute(static_cast<uint8_t>(date.tm_min)), Second(static_cast<uint8_t>(date.tm_sec)) {}
     constexpr operator std::tm() const noexcept
     {
@@ -1266,6 +1266,109 @@ struct CompactDate
         date.tm_sec = Second;
         return date;
     }
+    template<typename T>
+    void FillInto(T& dst) const noexcept
+    {
+        static_assert(std::is_same_v<T, DateStructure>);
+        dst.Base = *this;
+        dst.Zone.clear();
+        dst.GMTOffset = 0;
+        dst.MicroSeconds = UINT32_MAX;
+        if constexpr (detail::tm_has_all_zone_info)
+        {
+            dst.Base.tm_gmtoff = 0;
+            dst.Base.tm_zone = nullptr;
+        }
+    }
+};
+
+struct CompactDateEx
+{
+    const char* Zone = nullptr;
+    int32_t GMTOffset = 0;
+    uint32_t MicroSeconds = UINT32_MAX;
+    CompactDate Date;
+    constexpr CompactDateEx() noexcept {}
+    constexpr CompactDateEx(const std::tm& date) noexcept : Date(date)
+    {
+        SetFrom(date);
+    }
+    constexpr CompactDateEx(const std::tm& date, uint32_t us) noexcept : CompactDateEx(date)
+    {
+        Expects(MicroSeconds < std::chrono::microseconds::period::den);
+        MicroSeconds = us;
+    }
+    constexpr operator std::tm() const noexcept
+    {
+        std::tm date = Date;
+        SetTo(date);
+        return date;
+    }
+    template<typename T>
+    void FillInto(T& dst) const noexcept
+    {
+        static_assert(std::is_same_v<T, DateStructure>);
+        dst.Base = *this;
+        dst.Zone = Zone;
+        dst.GMTOffset = GMTOffset;
+        dst.MicroSeconds = UINT32_MAX;
+        if constexpr (detail::tm_has_all_zone_info)
+        {
+            dst.Base.tm_gmtoff = GMTOffset;
+            dst.Base.tm_zone = Zone;
+        }
+    }
+private:
+    template<typename T>
+    constexpr void SetFrom([[maybe_unused]] const T& date) noexcept 
+    {
+        if constexpr (detail::has_gmtoff_v<std::tm>)
+            GMTOffset = gsl::narrow_cast<int32_t>(date.tm_gmtoff);
+        if constexpr (detail::has_zone_v<std::tm>)
+            Zone = date.tm_zone;
+    }
+    template<typename T>
+    constexpr void SetTo([[maybe_unused]] T& date) const noexcept
+    {
+        if constexpr (detail::has_gmtoff_v<std::tm>)
+            date.tm_gmtoff = GMTOffset;
+        if constexpr (detail::has_zone_v<std::tm>)
+            date.tm_zone = Zone;
+    }
+};
+
+struct ZonedDate
+{
+    uint64_t Microseconds = 0;
+    const common::date::time_zone* TimeZone = nullptr;
+    template<typename Duration>
+    constexpr ZonedDate(const common::date::zoned_time<Duration, const common::date::time_zone*>& time) noexcept :
+        Microseconds(EncodeUs(time.get_local_time().time_since_epoch())), TimeZone(time.get_time_zone())
+    { }
+
+    template<typename Rep, typename Period>
+    static constexpr uint64_t EncodeUs(std::chrono::duration<Rep, Period> time) noexcept
+    {
+        const auto deltaUs = std::chrono::duration_cast<std::chrono::duration<int64_t, std::micro>>(time).count();
+        auto ret = static_cast<uint64_t>(deltaUs);
+        Expects((ret >> 63) == ((ret >> 62) & 1));
+        constexpr bool FPSecond = Period::num != 1 || Period::den != 1 || std::is_floating_point_v<Rep>;
+        if constexpr (FPSecond)
+        {
+            ret |= static_cast<uint64_t>(0x8000000000000000);
+        }
+        else
+        {
+            ret &= static_cast<uint64_t>(0x7fffffffffffffff);
+        }
+        return ret;
+    }
+    template<typename Rep, typename Period>
+    static void ConvertToDate(const common::date::time_zone* zone, std::chrono::duration<Rep, Period> time, DateStructure& date) noexcept
+    {
+        ConvertToDate(zone, EncodeUs(time), date);
+    }
+    SYSCOMMONAPI static void ConvertToDate(const common::date::time_zone* zone, uint64_t encodedUS, DateStructure& date) noexcept;
 };
 
 
@@ -1378,14 +1481,25 @@ struct ArgInfo
         {
             return (std::is_unsigned_v<U> ? ArgRealType::UInt : ArgRealType::SInt) | EncodeTypeSizeData<U>();
         }
-        else if constexpr (std::is_same_v<U, std::tm> || std::is_same_v<U, CompactDate>)
+        else if constexpr (std::is_same_v<U, std::tm> || std::is_same_v<U, CompactDate> || std::is_same_v<U, CompactDateEx>)
         {
-            return ArgRealType::Date;
+            constexpr auto needExtra = std::is_same_v<U, std::tm> ? detail::tm_has_zone_info : std::is_same_v<U, CompactDateEx>;
+            return needExtra ? ArgRealType::Date | ArgRealType::DateZoneBit : ArgRealType::Date;
         }
         else if constexpr (is_specialization<U, std::chrono::time_point>::value)
         {
             return ArgRealType::Date | ArgRealType::DateDeltaBit;
         }
+#if SYSCOMMON_DATE
+#   if SYSCOMMON_DATE == 1
+        else if constexpr (is_specialization<U, std::chrono::zoned_time>::value)
+#   elif SYSCOMMON_DATE == 2
+        else if constexpr (is_specialization<U, ::date::zoned_time>::value)
+#   endif
+        {
+            return ArgRealType::Date | ArgRealType::DateZoneBit | ArgRealType::DateDeltaBit;
+        }
+#endif
         else if constexpr (CheckColorType<U>())
         {
             // size 1,2,4,8: CommonColor, pair<CommonColor>, ScreenColor, pair<ScreenColor>
@@ -1470,22 +1584,31 @@ struct ArgInfo
             {
                 return arg;
             }
+            else if constexpr (std::is_same_v<U, CompactDateEx>)
+            {
+                return arg;
+            }
             else if constexpr (std::is_same_v<U, std::tm>)
             {
-                return CompactDate(arg);
+                if constexpr (detail::tm_has_zone_info)
+                    return CompactDateEx(arg);
+                else
+                    return CompactDate(arg);
             }
             else if constexpr (is_specialization<U, std::chrono::time_point>::value)
             {
-                const auto deltaUs = std::chrono::duration_cast<std::chrono::duration<int64_t, std::micro>>(arg.time_since_epoch()).count();
-                auto ret = static_cast<uint64_t>(deltaUs) >> 1;
-                using Ratio = typename U::period;
-                constexpr bool FPSecond = Ratio::num != 1 || Ratio::den != 1 || std::is_floating_point_v<typename U::rep>;
-                if constexpr (FPSecond)
-                {
-                    ret |= static_cast<uint64_t>(0x8000000000000000);
-                }
-                return ret;
+                return ZonedDate::EncodeUs(arg.time_since_epoch());
             }
+#if SYSCOMMON_DATE
+#   if SYSCOMMON_DATE == 1
+            else if constexpr (is_specialization<U, std::chrono::zoned_time>::value)
+#   elif SYSCOMMON_DATE == 2
+            else if constexpr (is_specialization<U, ::date::zoned_time>::value)
+#   endif
+            {
+                return ZonedDate(arg);
+            }
+#endif
             else if constexpr (CheckColorType<U>())
             {
                 return arg;
@@ -1831,8 +1954,8 @@ public:
     SYSCOMMONAPI virtual void PutFloat(StrType& ret, float  val, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutFloat(StrType& ret, double val, const FormatSpec* spec);
     SYSCOMMONAPI virtual void PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec);
-    SYSCOMMONAPI virtual void PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date, uint32_t us = UINT32_MAX);
-    SYSCOMMONAPI virtual void PutDateBase(StrType& ret, std::string_view fmtStr, const std::tm& date, uint32_t us = UINT32_MAX);
+    SYSCOMMONAPI virtual void PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const DateStructure& date);
+    SYSCOMMONAPI virtual void PutDateBase(StrType& ret, std::string_view fmtStr, const DateStructure& date);
     template<typename T, typename... Args>
     forceinline void FormatToStatic(std::basic_string<Char>& dst, const T&, Args&&... args)
     {

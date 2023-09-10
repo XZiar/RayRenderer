@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CommonRely.hpp"
-#include <boost/predef/other/endian.h>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -278,13 +277,8 @@ enum class Encoding
     UTF16BE, 
     UTF32LE, 
     UTF32BE,
-#if BOOST_ENDIAN_LITTLE_BYTE
-    UTF16 = UTF16LE,
-    UTF32 = UTF32LE,
-#elif BOOST_ENDIAN_BIG_BYTE
-    UTF16 = UTF16BE,
-    UTF32 = UTF32BE,
-#endif
+    UTF16 = UTF16LE + static_cast<int>(common::detail::is_big_endian),
+    UTF32 = UTF32LE + static_cast<int>(common::detail::is_big_endian),
 };
 
 
@@ -305,7 +299,6 @@ template<> struct DefEncoding<char8_t>
     static constexpr Encoding Val = Encoding::UTF8;
 };
 #endif
-#if BOOST_ENDIAN_LITTLE_BYTE || BOOST_ENDIAN_BIG_BYTE
 template<> struct DefEncoding<char16_t>
 {
     static constexpr Encoding Val = Encoding::UTF16;
@@ -314,18 +307,10 @@ template<> struct DefEncoding<char32_t>
 {
     static constexpr Encoding Val = Encoding::UTF32;
 };
-#endif
-#if COMMON_COMPILER_MSVC
-template<> struct DefEncoding<wchar_t>
-{
-    static constexpr Encoding Val = Encoding::UTF16LE;
-};
-#elif BOOST_ENDIAN_LITTLE_BYTE || BOOST_ENDIAN_BIG_BYTE
 template<> struct DefEncoding<wchar_t>
 {
     static constexpr Encoding Val = sizeof(wchar_t) == 4 ? Encoding::UTF32 : Encoding::UTF16;
 };
-#endif
 }
 template<typename T>
 inline constexpr Encoding DefaultEncoding = detail::DefEncoding<std::decay_t<T>>::Val;

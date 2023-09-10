@@ -129,21 +129,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "uchardet", "3rdParty\Projec
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FreeType", "3rdParty\Projects\FreeType\FreeType.vcxproj", "{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "date", "date", "{D36D1F7F-4D13-4944-9024-CC703F56FB75}"
-	ProjectSection(SolutionItems) = preProject
-		3rdParty\date\chrono_io.h = 3rdParty\date\chrono_io.h
-		3rdParty\date\date.h = 3rdParty\date\date.h
-		3rdParty\date\islamic.h = 3rdParty\date\islamic.h
-		3rdParty\date\iso_week.h = 3rdParty\date\iso_week.h
-		3rdParty\date\julian.h = 3rdParty\date\julian.h
-		3rdParty\date\license.txt = 3rdParty\date\license.txt
-		3rdParty\date\ptz.h = 3rdParty\date\ptz.h
-		3rdParty\date\README.md = 3rdParty\date\README.md
-		3rdParty\date\tz.cpp = 3rdParty\date\tz.cpp
-		3rdParty\date\tz.h = 3rdParty\date\tz.h
-		3rdParty\date\tz_private.h = 3rdParty\date\tz_private.h
-	EndProjectSection
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImageUtil", "ImageUtil\ImageUtil.vcxproj", "{45660991-51C4-4972-916F-9F2D2227BC4A}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libpng", "3rdParty\Projects\libpng\libpng.vcxproj", "{506A3438-E8EE-47F6-A4C8-FDF475EBAC1E}"
@@ -414,6 +399,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libjpeg-turbo-12", "3rdParty\Projects\libjpeg-turbo-12\libjpeg-turbo-12.vcxproj", "{3797BA95-6625-4483-B66E-3B3F9B845DAB}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libjpeg-turbo-16", "3rdParty\Projects\libjpeg-turbo-16\libjpeg-turbo-16.vcxproj", "{3797BA95-6625-4483-B96E-3B3F9B845DAB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "date", "3rdParty\Projects\date\date.vcxproj", "{7BE97D3D-F242-4AB9-8EEE-05B974E7515E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -778,6 +765,14 @@ Global
 		{3797BA95-6625-4483-B96E-3B3F9B845DAB}.Release|ARM64.Build.0 = Release|ARM64
 		{3797BA95-6625-4483-B96E-3B3F9B845DAB}.Release|x64.ActiveCfg = Release|x64
 		{3797BA95-6625-4483-B96E-3B3F9B845DAB}.Release|x64.Build.0 = Release|x64
+		{7BE97D3D-F242-4AB9-8EEE-05B974E7515E}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{7BE97D3D-F242-4AB9-8EEE-05B974E7515E}.Debug|ARM64.Build.0 = Debug|ARM64
+		{7BE97D3D-F242-4AB9-8EEE-05B974E7515E}.Debug|x64.ActiveCfg = Debug|x64
+		{7BE97D3D-F242-4AB9-8EEE-05B974E7515E}.Debug|x64.Build.0 = Debug|x64
+		{7BE97D3D-F242-4AB9-8EEE-05B974E7515E}.Release|ARM64.ActiveCfg = Release|ARM64
+		{7BE97D3D-F242-4AB9-8EEE-05B974E7515E}.Release|ARM64.Build.0 = Release|ARM64
+		{7BE97D3D-F242-4AB9-8EEE-05B974E7515E}.Release|x64.ActiveCfg = Release|x64
+		{7BE97D3D-F242-4AB9-8EEE-05B974E7515E}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -797,7 +792,6 @@ Global
 		{E05720DB-A5FB-4A0C-9552-F3777E66FE29} = {ECC412A1-998E-4715-BA83-E8C12C9BAB39}
 		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
-		{D36D1F7F-4D13-4944-9024-CC703F56FB75} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{45660991-51C4-4972-916F-9F2D2227BC4A} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
 		{506A3438-E8EE-47F6-A4C8-FDF475EBAC1E} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{3797BA95-6625-4483-B63E-3B3F9B845DAB} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
@@ -848,6 +842,7 @@ Global
 		{43B6E40D-793D-4224-897C-74CF6489619E} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 		{3797BA95-6625-4483-B66E-3B3F9B845DAB} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{3797BA95-6625-4483-B96E-3B3F9B845DAB} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{7BE97D3D-F242-4AB9-8EEE-05B974E7515E} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

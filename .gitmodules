@@ -69,11 +69,21 @@
 	path = 3rdParty/boost.context
 	url = https://github.com/boostorg/context.git
 [submodule "3rdParty/EGL-Headers"]
+	shallow = true
 	path = 3rdParty/EGL-Headers
 	url = https://github.com/XZiar/EGL-Headers.git
 [submodule "3rdParty/angle-Headers"]
+	shallow = true
 	path = 3rdParty/angle-Headers
 	url = https://github.com/XZiar/angle-Headers.git
 [submodule "3rdParty/ISPCTextureCompressor"]
+	shallow = true
 	path = 3rdParty/ISPCTextureCompressor
 	url = https://github.com/GameTechDev/ISPCTextureCompressor.git
+[submodule "3rdParty/date"]
+	shallow = true
+	path = 3rdParty/date
+	url = https://github.com/XZiar/date.git
+[submodule "3rdParty/tzdata"]
+	path = 3rdParty/tzdata
+	url = https://github.com/eggert/tz.git

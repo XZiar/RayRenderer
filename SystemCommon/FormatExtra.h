@@ -303,7 +303,7 @@ struct CombinedExecutor : public FormatterExecutor, protected Fmter
         auto& context = static_cast<Context&>(ctx);
         Fmter::PutPointer(context.Dst, val, spec);
     }
-    void PutDate   (CTX& ctx, std::string_view fmtStr, const std::tm& date) override
+    void PutDate   (CTX& ctx, std::string_view fmtStr, const DateStructure& date) override
     {
         auto& context = static_cast<Context&>(ctx);
         Fmter::PutDateBase(context.Dst, fmtStr, date);

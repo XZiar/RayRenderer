@@ -2,7 +2,7 @@
     "name": "SystemCommonTest",
     "type": "executable",
     "description": "test for SystemCommon",
-    "dependency": ["googletest", "SystemCommon"],
+    "dependency": ["googletest", "SystemCommon", "date"],
     "library": 
     {
         "static": [],

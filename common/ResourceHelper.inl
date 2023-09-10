@@ -1,5 +1,5 @@
 #include "ResourceHelper.h"
-#include "SystemCommon/Exceptions.h"
+#include <stdexcept>
 
 #if defined(_WIN32)
 #   define WIN32_LEAN_AND_MEAN 1
@@ -20,16 +20,16 @@ common::span<const std::byte> ResourceHelper::GetData(const wchar_t *type, const
     HMODULE hdll = ThisDll();
     const auto hRsrc = FindResource(hdll, (wchar_t*)intptr_t(id), type);
     if (NULL == hRsrc)
-        COMMON_THROW(BaseException, u"Failed to find resource");
+        throw std::runtime_error("Failed to find resource");
     DWORD dwSize = SizeofResource(hdll, hRsrc);
     if (0 == dwSize)
-        COMMON_THROW(BaseException, u"Resource has zero size");
+        throw std::runtime_error("Resource has zero size");
     HGLOBAL hGlobal = LoadResource(hdll, hRsrc);
     if (NULL == hGlobal)
-        COMMON_THROW(BaseException, u"Failed to load resource");
+        throw std::runtime_error("Failed to load resource");
     LPVOID pBuffer = LockResource(hGlobal);
     if (NULL == pBuffer)
-        COMMON_THROW(BaseException, u"Failed to lock resource");
+        throw std::runtime_error("Failed to lock resource");
     return common::span<const std::byte>(reinterpret_cast<const std::byte*>(pBuffer), dwSize);
 }
 }
@@ -57,11 +57,11 @@ common::span<const std::byte> ResourceHelper::GetData(const wchar_t *, const int
     const auto& resMap = RES_MAP();
     const auto res = resMap.find(id);
     if (res == resMap.cend())
-        COMMON_THROW(BaseException, u"Failed to find resource");
+        throw std::runtime_error("Failed to find resource");
     const auto ptr = res->second.first;
     const size_t size = res->second.second;
     if (0 == size)
-        COMMON_THROW(BaseException, u"Resource has zero size");
+        throw std::runtime_error("Resource has zero size");
     return common::span<const std::byte>(reinterpret_cast<const std::byte*>(ptr), size);
 }
 }

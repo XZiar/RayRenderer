@@ -1,0 +1,42 @@
+{
+    "name": "date",
+    "type": "dynamic",
+    "kvSource": 
+    [
+        {
+            "type": "regex", 
+            "file": "CMakeLists.txt", 
+            "regex": "^\\s*project\\s*\\(\\s*\\w+\\s+(\\w+)\\s+(.*)\\)", 
+            "targets":["VERSION"]
+        },
+        {
+            "type": "regex", 
+            "file": "../tzdata/NEWS", 
+            "regex": "^(Release)\\s(\\w+)", 
+            "targets":["Release"]
+        }
+    ],
+    "version": {"targets":["VERSION"]},
+    "description": "A date and time library based on the C++11/14/17 <chrono> header",
+    "dependency": [],
+    "srcPath": "../../date",
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "incpath": ["include"],
+            "sources": ["src/*.cpp", {"+": "*.cpp", "dir": "$(BuildDir)"}],
+            "defines": ["DATE_BUILD_DLL", "HAS_REMOTE_API=0", "USE_SHELL_API=0", "HAS_DEDUCTION_GUIDES=1", "TZDATA_VERSION=${Release}"],
+            "flags": ["-Wno-unused-function"]
+        },
+        "rc":
+        {
+            "sources": [{"+": "*.rc", "dir": "$(BuildDir)"}]
+        }
+    }
+}

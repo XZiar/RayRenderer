@@ -31,7 +31,7 @@ enum class ArgRealType : uint8_t
 {
     Error = 0x0, SInt = 0x1, UInt = 0x2, Char = 0x3, Float = 0x4, String = 0x5, Bool = 0x6, Ptr = 0x7, 
     Date = 0x8, Color = 0x9, Custom = 0xf,
-    SpanBit = 0x80, EmptyBit = 0x00, StrPtrBit = 0x40, PtrVoidBit = 0x10, DateDeltaBit = 0x10,
+    SpanBit = 0x80, EmptyBit = 0x00, StrPtrBit = 0x40, PtrVoidBit = 0x10, DateDeltaBit = 0x10, DateZoneBit = 0x20,
     BaseTypeMask = 0x0f, TypeSizeMask = 0x70,
 };
 MAKE_ENUM_BITFIELD(ArgRealType)
@@ -73,6 +73,29 @@ struct OpaqueFormatSpec
 };
 
 
+namespace detail
+{
+template<typename T>
+using HasGMTOffCheck = decltype(T::tm_gmtoff);
+template<typename T>
+using HasZoneCheck = decltype(T::tm_zone);
+template<typename T>
+inline constexpr bool has_gmtoff_v = is_detected_v<HasGMTOffCheck, T>;
+template<typename T>
+inline constexpr bool has_zone_v = is_detected_v<HasZoneCheck, T>;
+inline constexpr bool tm_has_zone_info = has_gmtoff_v<std::tm> || has_gmtoff_v<std::tm>;
+inline constexpr bool tm_has_all_zone_info = has_gmtoff_v<std::tm> && has_gmtoff_v<std::tm>;
+}
+
+struct DateStructure
+{
+    std::string Zone;
+    std::tm Base;
+    uint32_t MicroSeconds = UINT32_MAX;
+    int32_t GMTOffset = 0;
+};
+
+
 struct FormatterBase;
 struct SpecReader;
 struct SYSCOMMONAPI FormatterExecutor
@@ -100,7 +123,7 @@ public:
     virtual void PutFloat  (Context& context, float  val, const FormatSpec* spec) = 0;
     virtual void PutFloat  (Context& context, double val, const FormatSpec* spec) = 0;
     virtual void PutPointer(Context& context, uintptr_t val, const FormatSpec* spec) = 0;
-    virtual void PutDate   (Context& context, ::std::string_view fmtStr, const ::std::tm& date) = 0;
+    virtual void PutDate   (Context& context, ::std::string_view fmtStr, const DateStructure& date) = 0;
 
     forceinline void PutString(Context& context, ::std::wstring_view str, const OpaqueFormatSpec& spec)
     {

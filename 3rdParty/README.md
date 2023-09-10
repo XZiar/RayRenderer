@@ -10,9 +10,6 @@ Due to historic reasons and build toolchian issue, some libs are included with s
 
 Some libraries are previously used but still remian in the repo:
 
-* [date](https://howardhinnant.github.io/date/date.html) 2.4.1
-
-  [MIT License](./date/LICENSE.txt)
 
 ## Libraries for test
 

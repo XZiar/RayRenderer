@@ -4,7 +4,7 @@
     "description": "common library for some system-level utilities",
     "dependency": 
     [
-        "uchardet", "boost.context",
+        "uchardet", "boost.context", "date",
         {"ifneq": {"arch": "arm"}, "+": "cpuid"}
     ],
     "library": 

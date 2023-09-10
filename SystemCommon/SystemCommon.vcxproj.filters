@@ -179,6 +179,9 @@
     <ClInclude Include="UnInterface.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Date.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

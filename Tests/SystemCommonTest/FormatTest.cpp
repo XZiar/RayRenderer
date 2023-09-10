@@ -499,9 +499,11 @@ TEST(Format, ParseArg)
         EXPECT_EQ(ret.IdxArgCount, static_cast<uint8_t>(0));
         EXPECT_EQ(ret.NamedArgCount, static_cast<uint8_t>(0));
     }
+    constexpr auto TmExtra = common::str::detail::tm_has_zone_info ? 0x20 : 0x00;
     {
+        using ZonedTime = common::date::zoned_time<std::chrono::seconds>;
         constexpr auto ret = ArgInfo::ParseArgs<int, uint64_t, void*, char*, double, char32_t, std::string_view, 
-            TypeA, TypeB, TypeC, TypeD, std::tm>();
+            TypeA, TypeB, TypeC, TypeD, std::tm, ZonedTime>();
         EXPECT_EQ(ret.NamedArgCount, static_cast<uint8_t>(0));
         {
             uint8_t idx = 0;
@@ -516,7 +518,8 @@ TEST(Format, ParseArg)
             CheckArg(Idx, TypeB,        Float,  0x20);
             CheckArg(Idx, TypeC,        Custom, 0x00);
             CheckArg(Idx, TypeD,        Custom, 0x00);
-            CheckArg(Idx, std::tm,      Date,   0x00);
+            CheckArg(Idx, std::tm,      Date,   TmExtra);
+            CheckArg(Idx, ZonedTime,    Date,   0x30);
             CheckArgFinish(Idx);
         }
     }
@@ -538,7 +541,7 @@ TEST(Format, ParseArg)
             CheckArg(Idx, TypeB,        Float,  0x20);
             CheckArg(Idx, TypeC,        Custom, 0x00);
             CheckArg(Idx, TypeD,        Custom, 0x00);
-            CheckArg(Idx, std::tm,      Date,   0x00);
+            CheckArg(Idx, std::tm,      Date,   TmExtra);
             CheckArg(Idx, time_point,   Date,   0x10);
             CheckArgFinish(Idx);
         }
@@ -735,9 +738,14 @@ TEST(Format, Formating)
     {
         const auto t1 = common::SimpleTimer::getCurLocalTime();
         const auto t2 = std::chrono::time_point_cast<std::chrono::microseconds>(std::chrono::system_clock::now());
-        const auto t3 = std::chrono::current_zone()->to_local(t2);
-        const auto ref = fmt::format("{0:%Y-%m-%dT%H:%M:%S}|{0:%Y-%m-%dT%H:%M:%S}|{1:%Y-%m-%d %H:%M:%S}|{1:%Y-%m-%d %H:%M:%S}"sv, t1, t2, t3);
-        const auto ret = ToString(FmtString("{}|{0:T}|{1:T%Y-%m-%d %H:%M:%S}|{1:T%Y-%m-%d %H:%M:%S}"sv), t1, t2, t3);
+        constexpr auto GetFmtTime = [](const common::date::zoned_time<std::chrono::microseconds>& t)
+            {
+                const auto ticks = t.get_local_time().time_since_epoch();
+                return std::chrono::sys_time<std::chrono::microseconds>{ ticks };
+            };
+        const auto t3 = common::date::zoned_time<std::chrono::microseconds>{ common::date::current_zone(), t2 }; 
+        const auto ref = fmt::format(std::locale::classic(), "{0:%Y-%m-%dT%H:%M:%S}|{0:%Y-%m-%dT%H:%M:%S}|{1:%Y-%m-%d %H:%M:%S}|{2:%Y-%m-%d %j=%b %U-%w %a %H:%M:%S}"sv, t1, t2, GetFmtTime(t3));
+        const auto ret = ToString(FmtString("{}|{0:T}|{1:T%Y-%m-%d %H:%M:%S}|{2:T%Y-%m-%d %j=%b %U-%w %a %H:%M:%S}"sv), t1, t2, t3);
         EXPECT_EQ(ret, ref);
     }
 }

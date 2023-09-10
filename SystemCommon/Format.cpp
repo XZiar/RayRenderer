@@ -891,21 +891,90 @@ constexpr auto GetDateStr() noexcept
 }
 
 template<typename Char>
-inline void PutDate_(std::basic_string<Char>& ret, std::basic_string_view<Char> fmtStr, const std::tm& date, uint32_t us)
+struct DateWriter : public fmt::detail::tm_writer<std::back_insert_iterator<std::basic_string<Char>>, Char, std::chrono::microseconds>
 {
-    auto ins = std::back_inserter(ret);
-    if (fmtStr.empty())
-        fmtStr = GetDateStr<Char>();
-    std::chrono::microseconds duration { us };
-    const auto subdesc = us != UINT32_MAX ? &duration : nullptr;
-    fmt::detail::tm_writer<decltype(ins), Char, std::chrono::microseconds> writer({}, ins, date, subdesc);
-    fmt::detail::parse_chrono_format(fmtStr.data(), fmtStr.data() + fmtStr.size(), writer);
-}
+    using TMT = fmt::detail::tm_writer<std::back_insert_iterator<std::basic_string<Char>>, Char, std::chrono::microseconds>;
+    const DateStructure& Date;
+    std::basic_string<Char>& Str;
+    DateWriter(const DateStructure& date, const std::chrono::microseconds* subsec, std::basic_string<Char>& ret) noexcept :
+        TMT({}, std::back_inserter(ret), date.Base, subsec), Date(date), Str(ret)
+    { }
+
+    void Write2(int32_t value) 
+    {
+        const char* d = fmt::detail::digits2(static_cast<uint32_t>(value) % 100);
+        Str.append(d, d + 2);
+    }
+    /*template<typename T>
+    static constexpr int32_t GetOffset(const T& date) noexcept
+    {
+        if constexpr (detail::tm_has_all_zone_info)
+            return gsl::narrow_cast<int32_t>(date.Base.tm_gmtoff);
+        else
+            return date.GMTOffset;
+    }*/
+    void on_utc_offset(fmt::detail::numeric_system ns)
+    {
+        auto offset = Date.GMTOffset;
+        if (offset < 0) 
+        {
+            Str.push_back('-');
+            offset = -offset;
+        }
+        else 
+        {
+            Str.push_back('+');
+        }
+        offset /= 60;
+        Write2(offset / 60);
+        if (ns != fmt::detail::numeric_system::standard)
+            Str.push_back(':'); 
+        Write2(offset % 60);
+    }
+
+    /*template<typename T>
+    static std::string_view GetTimeZone(const T& date) noexcept
+    {
+        if constexpr (detail::tm_has_all_zone_info)
+            return date.Base.tm_zone ? date.Base.tm_zone : {};
+        else
+            return date.Zone;
+    }*/
+    void on_tz_name()
+    {
+        if (Date.Zone.empty())
+            Str.push_back('Z');
+        else
+            Str.append(Date.Zone.begin(), Date.Zone.end());
+    }
+    
+    static void Format(std::basic_string<Char>& ret, std::basic_string_view<Char> fmtStr, const DateStructure& date)
+    {
+        if (fmtStr.empty())
+            fmtStr = GetDateStr<Char>();
+        std::chrono::microseconds duration{ date.MicroSeconds };
+        const auto subsec = date.MicroSeconds != UINT32_MAX ? &duration : nullptr;
+        DateWriter writer(date, subsec, ret);
+        fmt::detail::parse_chrono_format(fmtStr.data(), fmtStr.data() + fmtStr.size(), writer);
+    }
+};
+
+//template<typename Char>
+//inline void PutDate_(std::basic_string<Char>& ret, std::basic_string_view<Char> fmtStr, const std::tm& date, uint32_t us)
+//{
+//    auto ins = std::back_inserter(ret);
+//    if (fmtStr.empty())
+//        fmtStr = GetDateStr<Char>();
+//    std::chrono::microseconds duration { us };
+//    const auto subsec = us != UINT32_MAX ? &duration : nullptr;
+//    fmt::detail::tm_writer<decltype(ins), Char, std::chrono::microseconds> writer({}, ins, date, subsec);
+//    fmt::detail::parse_chrono_format(fmtStr.data(), fmtStr.data() + fmtStr.size(), writer);
+//}
 
 template<typename Char>
-void Formatter<Char>::PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const std::tm& date, uint32_t us)
+void Formatter<Char>::PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const DateStructure& date)
 {
-#if COMMON_OS_ANDROID || COMMON_OS_IOS // android's std::put_time is limited to char/wchar_t
+#if 0 // COMMON_OS_ANDROID || COMMON_OS_IOS // android's std::put_time is limited to char/wchar_t
     if constexpr (std::is_same_v<Char, char> || std::is_same_v<Char, wchar_t>)
     {
         PutDate_(ret, fmtStr, date, us);
@@ -929,20 +998,22 @@ void Formatter<Char>::PutDate(StrType& ret, std::basic_string_view<Char> fmtStr,
             ret.append(to_u32string(tmp, Encoding::UTF8));
     }
 #else
-    PutDate_(ret, fmtStr, date, us);
+    DateWriter<Char>::Format(ret, fmtStr, date);
 #endif
 }
 template<typename Char>
-void Formatter<Char>::PutDateBase(StrType& ret, std::string_view fmtStr, const std::tm& date, uint32_t us)
+void Formatter<Char>::PutDateBase(StrType& ret, std::string_view fmtStr, const DateStructure& date)
 {
     if constexpr (sizeof(Char) == sizeof(char))
     {
-        PutDate_(*reinterpret_cast<std::string*>(&ret), fmtStr, date, us);
+        DateWriter<char>::Format(*reinterpret_cast<std::string*>(&ret), fmtStr, date);
+        //PutDate_(*reinterpret_cast<std::string*>(&ret), fmtStr, date);
     }
     else
     {
         std::string tmp;
-        PutDate_<char>(tmp, fmtStr, date, us);
+        DateWriter<char>::Format(tmp, fmtStr, date);
+        //PutDate_<char>(tmp, fmtStr, date);
         if constexpr (sizeof(Char) == sizeof(char16_t))
         {
             const auto tmp2 = to_u16string(tmp, Encoding::UTF8);
@@ -1254,7 +1325,7 @@ public:
         auto& context = static_cast<Context&>(ctx);
         Fmter.PutPointer(context.Dst, val, spec);
     }
-    void PutDate(CTX& ctx, std::string_view fmtStr, const std::tm& date) final
+    void PutDate(CTX& ctx, std::string_view fmtStr, const DateStructure& date) final
     {
         auto& context = static_cast<Context&>(ctx);
         Fmter.PutDateBase(context.Dst, fmtStr, date);
@@ -1293,6 +1364,85 @@ forceinline static std::basic_string_view<T> BuildStr(uintptr_t ptr, size_t len)
         len = std::char_traits<T>::length(arg);
     return { arg, len };
 }
+
+template<typename T>
+forceinline std::chrono::sys_time<std::chrono::microseconds> SetZoneInfo(const date::time_zone& zone, std::chrono::time_point<date::local_t, std::chrono::microseconds> ltime, T& date) noexcept
+{
+    static_assert(std::is_same_v<T, DateStructure>);
+    const auto systime = zone.to_sys(ltime);
+    const auto info = zone.get_info(systime);
+    date.Base.tm_isdst = info.save == std::chrono::minutes::zero() ? 0 : 1;
+    date.Zone = info.abbrev;
+    date.GMTOffset = gsl::narrow_cast<int32_t>(info.offset.count());
+    if constexpr (detail::tm_has_all_zone_info)
+    {
+        date.Base.tm_zone = date.Zone.c_str();
+        date.Base.tm_gmtoff = date.GMTOffset;
+    }
+    return systime;
+}
+
+static void FillTime(const date::time_zone* timezone, uint64_t encodedUs, DateStructure& date) noexcept
+{
+    constexpr auto MonthDaysAcc = []()
+        {
+            uint32_t mdays[] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
+            std::array<uint32_t, 12> days;
+            uint32_t day = 0;
+            for (uint32_t i = 0; i < 12; ++i)
+            {
+                days[i] = day;
+                day += mdays[i];
+            }
+            return days;
+        }();
+    const auto microseconds = (static_cast<uint64_t>(0x8000000000000000) & (encodedUs << 1)) | (static_cast<uint64_t>(0x7fffffffffffffff) & encodedUs);
+    const std::chrono::microseconds timeUs{ static_cast<int64_t>(microseconds) };
+    const std::chrono::time_point<std::chrono::system_clock, std::chrono::microseconds> tp{ timeUs };
+    // const auto gmtm = fmt::gmtime(std::chrono::system_clock::to_time_t(tp));
+    const auto tpday = std::chrono::floor<std::chrono::days>(tp);
+    date::year_month_weekday ymwd{ tpday };
+    date.Base.tm_year = static_cast<int>(ymwd.year()) - 1900;
+    date.Base.tm_mon = static_cast<int>(static_cast<unsigned>(ymwd.month()) - 1);
+    date.Base.tm_wday = static_cast<int>(ymwd.weekday().c_encoding());
+    date::year_month_day ymd{ tpday };
+    date.Base.tm_mday = static_cast<int>(static_cast<unsigned>(ymd.day()));
+    date.Base.tm_yday = static_cast<int>(MonthDaysAcc[date.Base.tm_mon] + date.Base.tm_mday - 1);
+    if (date.Base.tm_mon > 1 && ymd.year().is_leap())
+        date.Base.tm_yday++;
+    date::hh_mm_ss<std::chrono::microseconds> hms{ tp - tpday };
+    date.Base.tm_hour = hms.hours().count();
+    date.Base.tm_min = hms.minutes().count();
+    date.Base.tm_sec = static_cast<int>(hms.seconds().count());
+    date.MicroSeconds = gsl::narrow_cast<uint32_t>(hms.subseconds().count());
+    if (timezone)
+    {
+        // const auto systime = 
+        SetZoneInfo(*timezone, std::chrono::time_point<date::local_t, std::chrono::microseconds>(timeUs), date);
+//        const auto localtm = fmt::localtime(std::chrono::system_clock::to_time_t(systime));
+//#if COMMON_OS_LINUX
+//        printf("[%s]vs[%s],[%ld]vs[%d],[%d]vs[%d]\n", localtm.tm_zone, date.Zone.c_str(), localtm.tm_gmtoff, date.GMTOffset, localtm.tm_isdst, date.Base.tm_isdst);
+//#else
+//        printf("[%s]vs[%s],[%d]vs[%d],[%d]vs[%d]\n", "", date.Zone.c_str(), 0, date.GMTOffset, localtm.tm_isdst, date.Base.tm_isdst);
+//#endif
+    }
+    else
+    {
+        date.Base.tm_isdst = -1;
+    }
+}
+void ZonedDate::ConvertToDate(const common::date::time_zone* zone, uint64_t encodedUS, DateStructure& date) noexcept
+{
+    FillTime(zone, encodedUS, date);
+}
+
+//static const auto pop = []() 
+//    {
+//        DateStructure date;
+//        FillTime(date::current_zone(), ZonedDate::EncodeUs(std::chrono::microseconds{ -199 }), date);
+//        FillTime(date::current_zone(), ZonedDate::EncodeUs(std::chrono::microseconds{ 7793 }), date);
+//        return -1;
+//    }();
 
 template<typename Char, typename Host, typename Context, typename Spec>
 forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_string_view<Char> fmtString, ArgDispType fmtType, const uint16_t* argPtr, ArgRealType argType, const Spec& spec)
@@ -1362,38 +1512,31 @@ forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_
             std::basic_string_view<Char> fmtStr{};
             if (spec && spec->FmtLen)
                 fmtStr = fmtString.substr(spec->FmtOffset, spec->FmtLen);
-            std::tm date{};
-            uint32_t extraUs = UINT32_MAX;
+            DateStructure date;
             if (HAS_FIELD(argType, ArgRealType::DateDeltaBit))
             {
-                using Us = std::chrono::microseconds;
-                const auto val = *reinterpret_cast<const uint64_t*>(argPtr);
-                const Us timeUs{ static_cast<int64_t>(val << 1) };
-                auto timeS = std::chrono::duration_cast<std::chrono::seconds>(timeUs);
-                if (val & static_cast<uint64_t>(0x8000000000000000))
+                const date::time_zone* timezone = nullptr;
+                uint64_t us = 0;
+                if (HAS_FIELD(argType, ArgRealType::DateZoneBit))
                 {
-                    const auto delta = timeUs - timeS;
-                    static_assert(std::is_same_v<decltype(delta)::period, std::chrono::microseconds::period>);
-                    if (delta.count() < 0)
-                    {
-                        constexpr std::chrono::seconds us1{ 1 };
-                        extraUs = static_cast<uint32_t>((us1 - delta).count());
-                        timeS -= us1;
-                    }
-                    else
-                    {
-                        extraUs = static_cast<uint32_t>(delta.count());
-                    }
+                    const auto& val = *reinterpret_cast<const ZonedDate*>(argPtr);
+                    us = val.Microseconds;
+                    timezone = val.TimeZone;
                 }
-                const std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds> tp{ timeS };
-                const auto time = std::chrono::system_clock::to_time_t(tp);
-                //date = fmt::localtime(time);
-                // format of chrono will be UTC time instead of local time
-                date = fmt::gmtime(time);
+                else
+                {
+                    us = *reinterpret_cast<const uint64_t*>(argPtr);
+                }
+                FillTime(timezone, us, date);
             }
             else
-                date = *reinterpret_cast<const CompactDate*>(argPtr);
-            host.PutDate(context, fmtStr, date, extraUs);
+            {
+                if (HAS_FIELD(argType, ArgRealType::DateZoneBit))
+                    reinterpret_cast<const CompactDateEx*>(argPtr)->FillInto(date);
+                else
+                    reinterpret_cast<const CompactDate*>(argPtr)->FillInto(date);
+            }
+            host.PutDate(context, fmtStr, date);
         }
         else
         {

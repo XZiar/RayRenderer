@@ -225,6 +225,53 @@ using u8ch_t = char;
 
 
 
+/* endian detection */
+
+#if defined(__cpp_lib_endian) && __cpp_lib_endian >= 201907L
+#   include <bit>
+namespace common::detail
+{
+inline constexpr bool is_big_endian = std::endian::native == std::endian::big;
+inline constexpr bool is_little_endian = std::endian::native == std::endian::little;
+}
+#elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
+namespace common::detail
+{
+#   if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+inline constexpr bool is_little_endian = true;
+#   else
+inline constexpr bool is_little_endian = false;
+#   endif
+#   if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+inline constexpr bool is_big_endian = true;
+#   else
+inline constexpr bool is_big_endian = false;
+#   endif
+}
+#else
+#   include <boost/predef/other/endian.h>
+namespace common::detail
+{
+#   if BOOST_ENDIAN_LITTLE_BYTE
+inline constexpr bool is_little_endian = true;
+#   else
+inline constexpr bool is_little_endian = false;
+#   endif
+#   if BOOST_ENDIAN_BIG_BYTE
+inline constexpr bool is_big_endian = true;
+#   else
+inline constexpr bool is_big_endian = false;
+#   endif
+}
+#endif
+namespace common::detail
+{
+static_assert(is_big_endian || is_little_endian);
+static_assert(is_big_endian != is_little_endian);
+}
+
+
+
 /* c++ version compatible defines */
 
 

@@ -47,9 +47,12 @@ if __name__ == "__main__":
     compiler = findApp("c++", "g++", "clang++")
 
     rcfile = sys.argv[1]
+    rcDir = os.path.dirname(rcfile)
     plat = sys.argv[2]
     objdir = sys.argv[3]
-    print(f"{COLOR.green}Compiling Resource File{COLOR.clear} [{COLOR.Magenta(rcfile)}] for [{COLOR.Magenta(plat)}] to [{objdir}]")
+    common = os.path.relpath(os.path.commonpath([os.path.abspath(rcfile), os.path.abspath(os.path.curdir)]))
+    rcrelfile = os.path.relpath(rcfile, common)
+    print(f"{COLOR.green}Compiling Resource File{COLOR.clear} [{COLOR.Magenta(rcfile)}] for [{COLOR.Magenta(plat)}] to [{objdir}] as [{rcrelfile}.o]")
     with open(rcfile, "rb") as fp:
         rawdata = fp.read()
     enc = chardet.detect(rawdata)["encoding"]
@@ -79,17 +82,17 @@ INCHEADER
     reg = """
 REGHEADER
 """
-
-    objfpath = os.path.join(objdir, rcfile + '.o')
-    cppfpath = os.path.join(objdir, rcfile + ".cpp")
-    depfpath = os.path.join(objdir, rcfile + ".d")
+    objfpath = os.path.join(objdir, rcrelfile + '.o')
+    cppfpath = os.path.join(objdir, rcrelfile + ".cpp")
+    depfpath = os.path.join(objdir, rcrelfile + ".d")
     dep = f"{objfpath}: {cppfpath} {os.path.join(CurDir, 'RCInclude.h')} "
    
     for r in ress:
         print(f"[{COLOR.Magenta(r.define)}]@[{COLOR.Cyan(r.fpath)}]")
         cpp += f"INCDATA({r.idr}, \"{r.fpath}\")\r\n"
         reg += f"REGDATA({r.idr})\r\n"
-        dep += f" {r.fpath}"
+        frelpath = os.path.normpath(os.path.join(rcDir, r.fpath))
+        dep += f" {frelpath}"
     cpp += "INCFOOTER\r\n"
     reg += "REGFOOTER\r\n"
     cpp += reg
@@ -100,7 +103,8 @@ REGHEADER
         fp.write(dep)
     
     #compile rc-cpp
-    cmd = f"{compiler} -fPIC -std=c++11 -fvisibility=hidden -I. -I{CurDir} -c {cppfpath} -o {objfpath}"
+    rcInclude = f"-I. -I{rcDir}" if rcDir else "-I."
+    cmd = f"{compiler} -fPIC -std=c++11 -fvisibility=hidden {rcInclude} -I{CurDir} -c {cppfpath} -o {objfpath}"
     print(cmd)
     retcode = call(cmd, shell=True)
     sys.exit(retcode)
