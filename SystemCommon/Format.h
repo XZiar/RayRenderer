@@ -1284,6 +1284,24 @@ struct CompactDate
 
 struct CompactDateEx
 {
+private:
+    template<typename T>
+    constexpr void SetFrom([[maybe_unused]] const T& date) noexcept 
+    {
+        if constexpr (detail::has_gmtoff_v<std::tm>)
+            GMTOffset = gsl::narrow_cast<int32_t>(date.tm_gmtoff);
+        if constexpr (detail::has_zone_v<std::tm>)
+            Zone = date.tm_zone;
+    }
+    template<typename T>
+    constexpr void SetTo([[maybe_unused]] T& date) const noexcept
+    {
+        if constexpr (detail::has_gmtoff_v<std::tm>)
+            date.tm_gmtoff = GMTOffset;
+        if constexpr (detail::has_zone_v<std::tm>)
+            date.tm_zone = Zone;
+    }
+public:
     const char* Zone = nullptr;
     int32_t GMTOffset = 0;
     uint32_t MicroSeconds = UINT32_MAX;
@@ -1317,23 +1335,6 @@ struct CompactDateEx
             dst.Base.tm_gmtoff = GMTOffset;
             dst.Base.tm_zone = Zone;
         }
-    }
-private:
-    template<typename T>
-    constexpr void SetFrom([[maybe_unused]] const T& date) noexcept 
-    {
-        if constexpr (detail::has_gmtoff_v<std::tm>)
-            GMTOffset = gsl::narrow_cast<int32_t>(date.tm_gmtoff);
-        if constexpr (detail::has_zone_v<std::tm>)
-            Zone = date.tm_zone;
-    }
-    template<typename T>
-    constexpr void SetTo([[maybe_unused]] T& date) const noexcept
-    {
-        if constexpr (detail::has_gmtoff_v<std::tm>)
-            date.tm_gmtoff = GMTOffset;
-        if constexpr (detail::has_zone_v<std::tm>)
-            date.tm_zone = Zone;
     }
 };
 

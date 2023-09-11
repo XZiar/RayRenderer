@@ -18,7 +18,8 @@
             "sources": ["LangModels/*.cpp", "*.cpp"],
             "flags":
             [
-                {"ifeq":{"arch": "x86"}, "+":["-mfpmath=sse"]}
+                {"ifeq":{"arch": "x86"}, "+":["-mfpmath=sse"]},
+                {"ifeq": {"compiler": "clang"}, "+": "-Wno-unused-const-variable"}
             ], 
             "defines":  ["VERSION=\"${version}\""]
         }

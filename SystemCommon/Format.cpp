@@ -905,14 +905,7 @@ struct DateWriter : public fmt::detail::tm_writer<std::back_insert_iterator<std:
         const char* d = fmt::detail::digits2(static_cast<uint32_t>(value) % 100);
         Str.append(d, d + 2);
     }
-    /*template<typename T>
-    static constexpr int32_t GetOffset(const T& date) noexcept
-    {
-        if constexpr (detail::tm_has_all_zone_info)
-            return gsl::narrow_cast<int32_t>(date.Base.tm_gmtoff);
-        else
-            return date.GMTOffset;
-    }*/
+
     void on_utc_offset(fmt::detail::numeric_system ns)
     {
         auto offset = Date.GMTOffset;
@@ -932,14 +925,6 @@ struct DateWriter : public fmt::detail::tm_writer<std::back_insert_iterator<std:
         Write2(offset % 60);
     }
 
-    /*template<typename T>
-    static std::string_view GetTimeZone(const T& date) noexcept
-    {
-        if constexpr (detail::tm_has_all_zone_info)
-            return date.Base.tm_zone ? date.Base.tm_zone : {};
-        else
-            return date.Zone;
-    }*/
     void on_tz_name()
     {
         if (Date.Zone.empty())
@@ -959,39 +944,27 @@ struct DateWriter : public fmt::detail::tm_writer<std::back_insert_iterator<std:
     }
 };
 
-//template<typename Char>
-//inline void PutDate_(std::basic_string<Char>& ret, std::basic_string_view<Char> fmtStr, const std::tm& date, uint32_t us)
-//{
-//    auto ins = std::back_inserter(ret);
-//    if (fmtStr.empty())
-//        fmtStr = GetDateStr<Char>();
-//    std::chrono::microseconds duration { us };
-//    const auto subsec = us != UINT32_MAX ? &duration : nullptr;
-//    fmt::detail::tm_writer<decltype(ins), Char, std::chrono::microseconds> writer({}, ins, date, subsec);
-//    fmt::detail::parse_chrono_format(fmtStr.data(), fmtStr.data() + fmtStr.size(), writer);
-//}
-
 template<typename Char>
 void Formatter<Char>::PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const DateStructure& date)
 {
-#if 0 // COMMON_OS_ANDROID || COMMON_OS_IOS // android's std::put_time is limited to char/wchar_t
+#if COMMON_OS_ANDROID || COMMON_OS_IOS // android's std::time_put is limited to char/wchar_t
     if constexpr (std::is_same_v<Char, char> || std::is_same_v<Char, wchar_t>)
     {
-        PutDate_(ret, fmtStr, date, us);
+        DateWriter<Char>::Format(ret, fmtStr, date);
     }
     else if constexpr (sizeof(Char) == sizeof(wchar_t))
     {
-        PutDate_(*reinterpret_cast<std::wstring*>(&ret), *reinterpret_cast<std::wstring_view*>(&fmtStr), date, us);
+        DateWriter<wchar_t>::Format(*reinterpret_cast<std::wstring*>(&ret), *reinterpret_cast<std::wstring_view*>(&fmtStr), date);
     }
     else if constexpr (sizeof(Char) == sizeof(char))
     {
-        PutDate_(*reinterpret_cast<std::string*>(&ret), *reinterpret_cast<std::string_view*>(&fmtStr), date, us);
+        DateWriter<char>::Format(*reinterpret_cast<std::string*>(&ret), *reinterpret_cast<std::string_view*>(&fmtStr), date);
     }
     else
     {
         const auto fmtStr_ = to_string(fmtStr, Encoding::UTF8);
         std::string tmp;
-        PutDate_<char>(tmp, fmtStr_, date, us);
+        DateWriter<char>::Format(tmp, fmtStr_, date);
         if constexpr (std::is_same_v<Char, char16_t>)
             ret.append(to_u16string(tmp, Encoding::UTF8));
         else
@@ -1007,13 +980,11 @@ void Formatter<Char>::PutDateBase(StrType& ret, std::string_view fmtStr, const D
     if constexpr (sizeof(Char) == sizeof(char))
     {
         DateWriter<char>::Format(*reinterpret_cast<std::string*>(&ret), fmtStr, date);
-        //PutDate_(*reinterpret_cast<std::string*>(&ret), fmtStr, date);
     }
     else
     {
         std::string tmp;
         DateWriter<char>::Format(tmp, fmtStr, date);
-        //PutDate_<char>(tmp, fmtStr, date);
         if constexpr (sizeof(Char) == sizeof(char16_t))
         {
             const auto tmp2 = to_u16string(tmp, Encoding::UTF8);
@@ -1387,7 +1358,7 @@ static void FillTime(const date::time_zone* timezone, uint64_t encodedUs, DateSt
     constexpr auto MonthDaysAcc = []()
         {
             uint32_t mdays[] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
-            std::array<uint32_t, 12> days;
+            std::array<uint32_t, 12> days = {};
             uint32_t day = 0;
             for (uint32_t i = 0; i < 12; ++i)
             {
@@ -1399,7 +1370,6 @@ static void FillTime(const date::time_zone* timezone, uint64_t encodedUs, DateSt
     const auto microseconds = (static_cast<uint64_t>(0x8000000000000000) & (encodedUs << 1)) | (static_cast<uint64_t>(0x7fffffffffffffff) & encodedUs);
     const std::chrono::microseconds timeUs{ static_cast<int64_t>(microseconds) };
     const std::chrono::time_point<std::chrono::system_clock, std::chrono::microseconds> tp{ timeUs };
-    // const auto gmtm = fmt::gmtime(std::chrono::system_clock::to_time_t(tp));
     const auto tpday = std::chrono::floor<std::chrono::days>(tp);
     date::year_month_weekday ymwd{ tpday };
     date.Base.tm_year = static_cast<int>(ymwd.year()) - 1900;
@@ -1417,14 +1387,7 @@ static void FillTime(const date::time_zone* timezone, uint64_t encodedUs, DateSt
     date.MicroSeconds = gsl::narrow_cast<uint32_t>(hms.subseconds().count());
     if (timezone)
     {
-        // const auto systime = 
         SetZoneInfo(*timezone, std::chrono::time_point<date::local_t, std::chrono::microseconds>(timeUs), date);
-//        const auto localtm = fmt::localtime(std::chrono::system_clock::to_time_t(systime));
-//#if COMMON_OS_LINUX
-//        printf("[%s]vs[%s],[%ld]vs[%d],[%d]vs[%d]\n", localtm.tm_zone, date.Zone.c_str(), localtm.tm_gmtoff, date.GMTOffset, localtm.tm_isdst, date.Base.tm_isdst);
-//#else
-//        printf("[%s]vs[%s],[%d]vs[%d],[%d]vs[%d]\n", "", date.Zone.c_str(), 0, date.GMTOffset, localtm.tm_isdst, date.Base.tm_isdst);
-//#endif
     }
     else
     {
@@ -1436,13 +1399,6 @@ void ZonedDate::ConvertToDate(const common::date::time_zone* zone, uint64_t enco
     FillTime(zone, encodedUS, date);
 }
 
-//static const auto pop = []() 
-//    {
-//        DateStructure date;
-//        FillTime(date::current_zone(), ZonedDate::EncodeUs(std::chrono::microseconds{ -199 }), date);
-//        FillTime(date::current_zone(), ZonedDate::EncodeUs(std::chrono::microseconds{ 7793 }), date);
-//        return -1;
-//    }();
 
 template<typename Char, typename Host, typename Context, typename Spec>
 forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_string_view<Char> fmtString, ArgDispType fmtType, const uint16_t* argPtr, ArgRealType argType, const Spec& spec)
