@@ -50,8 +50,8 @@
     - [ ] Make r-value arg packing use deep copy 
   * MiniLogger
     - [x] Use Pascal naming
-    - [x] Use new formating strategy, disable color on file output
-    - [ ] Handle formating on worker thread, with argpack and opcode conversion
+    - [x] Use new formatting strategy, disable color on file output
+    - [ ] Handle formatting on worker thread, with argpack and opcode conversion
   * AsyncExecutor
     - [x] Add support for returning value
     - [ ] Add passive executor, provide a way to handle task by outsider

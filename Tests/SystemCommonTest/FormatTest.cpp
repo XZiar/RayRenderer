@@ -690,7 +690,7 @@ auto ToString(T&& res, Args&&... args)
     Formatter<Char> formatter;
     return formatter.FormatStatic(res, std::forward<Args>(args)...);
 }
-TEST(Format, Formating)
+TEST(Format, Formatting)
 {
     {
         const auto ref = fmt::format("{},{x},{:>6},{:_^7}", "hello", "Hello", "World"sv, fmt::arg("x", "world"));
@@ -741,7 +741,7 @@ TEST(Format, Formating)
         constexpr auto GetFmtTime = [](const common::date::zoned_time<std::chrono::microseconds>& t)
             {
                 const auto ticks = t.get_local_time().time_since_epoch();
-                return std::chrono::sys_time<std::chrono::microseconds>{ ticks };
+                return std::chrono::time_point<std::chrono::system_clock, std::chrono::microseconds>{ ticks };
             };
         const auto t3 = common::date::zoned_time<std::chrono::microseconds>{ common::date::current_zone(), t2 }; 
         const auto ref = fmt::format(std::locale::classic(), "{0:%Y-%m-%dT%H:%M:%S}|{0:%Y-%m-%dT%H:%M:%S}|{1:%Y-%m-%d %H:%M:%S}|{2:%Y-%m-%d %j=%b %U-%w %a %H:%M:%S}"sv, t1, t2, GetFmtTime(t3));

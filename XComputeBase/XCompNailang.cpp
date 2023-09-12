@@ -45,7 +45,6 @@ MAKE_ENABLER_IMPL(XCNLProgram)
 #define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 #define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
     .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
-//fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 #define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 
 
@@ -1111,7 +1110,7 @@ std::optional<Arg> XCNLRuntime::CommonFunc(const std::u32string_view name, FuncE
             }
             catch (const xziar::nailang::NailangFormatException& nfe)
             {
-                Logger.Error(u"Error when formating inner log: {}\n", nfe.Message());
+                Logger.Error(u"Error when formatting inner log: {}\n", nfe.Message());
             }
         }
         return Arg{};

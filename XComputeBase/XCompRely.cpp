@@ -2,7 +2,7 @@
 #include "common/StaticLookup.hpp"
 #include "SystemCommon/ConsoleEx.h"
 #include "SystemCommon/Format.h"
-#include "SystemCommon/StringFormat.h"
+#include "SystemCommon/FormatExtra.h"
 #include "SystemCommon/MiscIntrins.h"
 
 #pragma message("Compiling miniBLAS with " STRINGIZE(COMMON_SIMD_INTRIN) )
@@ -30,12 +30,12 @@ void PCI_BDF::FormatWith(common::str::FormatterExecutor& executor, common::str::
     executor.PutInteger(context, Bus(), false, specCache[0]);
     executor.PutString(context, ":"sv, nullptr);
     executor.PutInteger(context, Device(), false, specCache[0]);
-    executor.PutString(context, ":"sv, nullptr);
+    executor.PutString(context, "."sv, nullptr);
     executor.PutInteger(context, Function(), false, specCache[1]);
 }
 std::string PCI_BDF::ToString() const noexcept
 {
-    return FMTSTR("{:02X}:{:02X}.{:1X}", Bus(), Device(), Function());
+    return common::str::Formatter<char>{}.DirectFormat(*this);
 }
 
 

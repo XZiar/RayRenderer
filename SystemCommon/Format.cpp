@@ -4,6 +4,7 @@
 #include "StringFormat.h"
 #include "StringConvert.h"
 #include "StrEncodingBase.hpp"
+#include "StackTrace.h"
 #define HALF_ENABLE_F16C_INTRINSICS 0 // avoid platform compatibility
 #include "3rdParty/half/half.hpp"
 #include "3rdParty/fmt/src/format.cc"
@@ -81,6 +82,12 @@ ArgMismatchException::ExceptionInfo::ExceptionInfo(const std::u16string_view msg
     MismatchName(std::move(name))
 { }
 COMMON_EXCEPTION_IMPL(ArgMismatchException)
+
+ArgFormatException::ExceptionInfo::ExceptionInfo(const std::u16string_view msg, int16_t index,
+    ArgDispType dispType, ArgRealType realType) noexcept
+    : TPInfo(TYPENAME, msg), ArgIndex(index), ArgType{ dispType, realType }
+{ }
+COMMON_EXCEPTION_IMPL(ArgFormatException)
 
 
 void ParseResultBase::CheckErrorRuntime(uint16_t errorPos, uint16_t errorNum)
@@ -1337,7 +1344,7 @@ forceinline static std::basic_string_view<T> BuildStr(uintptr_t ptr, size_t len)
 }
 
 template<typename T>
-forceinline std::chrono::sys_time<std::chrono::microseconds> SetZoneInfo(const date::time_zone& zone, std::chrono::time_point<date::local_t, std::chrono::microseconds> ltime, T& date) noexcept
+forceinline std::chrono::time_point<std::chrono::system_clock, std::chrono::microseconds> SetZoneInfo(const date::time_zone& zone, std::chrono::time_point<date::local_t, std::chrono::microseconds> ltime, T& date) noexcept
 {
     static_assert(std::is_same_v<T, DateStructure>);
     const auto systime = zone.to_sys(ltime);
@@ -1399,9 +1406,31 @@ void ZonedDate::ConvertToDate(const common::date::time_zone* zone, uint64_t enco
     FillTime(zone, encodedUS, date);
 }
 
+struct FormatCookie
+{
+    const ParseResultCommon::NamedArgType* NamedArg = nullptr;
+    int16_t ArgIdx = 0;
+};
 
-template<typename Char, typename Host, typename Context, typename Spec>
-forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_string_view<Char> fmtString, ArgDispType fmtType, const uint16_t* argPtr, ArgRealType argType, const Spec& spec)
+
+template<typename Char, typename Host>
+forceinline static void OnCustomArg(Host& host, std::basic_string<Char>& dst, const detail::FmtWithPair& fmtPair, const FormatSpec* spec)
+{
+    WrapExecutor<Char> executor{ host };
+    typename WrapExecutor<Char>::Context context{ dst };
+    fmtPair.Executor(fmtPair.Data, executor, context, spec);
+}
+
+
+template<typename Char>
+void Formatter<Char>::DirectFormatTo_(std::basic_string<Char>& dst, const detail::FmtWithPair& fmtPair, const FormatSpec* spec)
+{
+    OnCustomArg<Char>(*this, dst, fmtPair, spec);
+}
+
+
+template<typename Char, typename Host, typename Spec>
+forceinline static void UniversalOnArg(Host& host, std::basic_string<Char>& dst, std::basic_string_view<Char> fmtString, ArgDispType fmtType, const uint16_t* argPtr, ArgRealType argType, const Spec& spec, const FormatCookie& cookie) try
 {
     const auto realType = argType & ArgRealType::BaseTypeMask;
     const auto intSize = static_cast<RealSizeInfo>(enum_cast(argType & ArgRealType::TypeSizeMask) >> 4);
@@ -1417,16 +1446,16 @@ forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_
             std::tie(ptr, len) = *reinterpret_cast<const std::pair<uintptr_t, size_t>*>(argPtr);
         IF_UNLIKELY(fmtType == ArgDispType::Pointer)
         {
-            host.PutPointer(context, ptr, spec);
+            host.PutPointer(dst, ptr, spec);
         }
         else
         {
             ABORT_CHECK(fmtType == ArgDispType::String || fmtType == ArgDispType::Any);
             switch (static_cast<RealSizeInfo>(enum_cast(intSize) & 0x3)) // remove StrPtrBit
             {
-            case RealSizeInfo::Byte1: host.PutString(context, BuildStr<char    >(ptr, len), spec); break;
-            case RealSizeInfo::Byte2: host.PutString(context, BuildStr<char16_t>(ptr, len), spec); break;
-            case RealSizeInfo::Byte4: host.PutString(context, BuildStr<char32_t>(ptr, len), spec); break;
+            case RealSizeInfo::Byte1: host.PutString(dst, BuildStr<char    >(ptr, len), spec); break;
+            case RealSizeInfo::Byte2: host.PutString(dst, BuildStr<char16_t>(ptr, len), spec); break;
+            case RealSizeInfo::Byte4: host.PutString(dst, BuildStr<char32_t>(ptr, len), spec); break;
             default: break;
             }
         }
@@ -1437,29 +1466,29 @@ forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_
         if (fmtType == ArgDispType::Char)
         {
             if constexpr (sizeof(Char) == 1)
-                host.PutString(context, val ? "Y"sv : "N"sv, spec);
+                host.PutString(dst, val ? "Y"sv : "N"sv, spec);
             else if constexpr (sizeof(Char) == 2)
-                host.PutString(context, val ? u"Y"sv : u"N"sv, spec);
+                host.PutString(dst, val ? u"Y"sv : u"N"sv, spec);
             else if constexpr (sizeof(Char) == 4)
-                host.PutString(context, val ? U"Y"sv : U"N"sv, spec);
+                host.PutString(dst, val ? U"Y"sv : U"N"sv, spec);
             else
                 static_assert(!AlwaysTrue<Char>, "unsupported char size");
         }
         else IF_UNLIKELY(fmtType == ArgDispType::Integer || fmtType == ArgDispType::Numeric)
         {
-            host.PutInteger(context, val ? 1u : 0u, false, spec);
+            host.PutInteger(dst, val ? 1u : 0u, false, spec);
         }
         ELSE_LIKELY
         {
             ABORT_CHECK(fmtType == ArgDispType::String || fmtType == ArgDispType::Any);
-            host.PutString(context, GetStrTrueFalse<SimChar<Char>>(val), nullptr);
+            host.PutString(dst, GetStrTrueFalse<SimChar<Char>>(val), nullptr);
         }
     } return;
     case ArgRealType::Ptr:
     {
         ABORT_CHECK(fmtType == ArgDispType::Pointer || fmtType == ArgDispType::Any);
         const auto val = *reinterpret_cast<const uintptr_t*>(argPtr);
-        host.PutPointer(context, val, spec);
+        host.PutPointer(dst, val, spec);
     } return;
     case ArgRealType::Date:
         if constexpr (std::is_same_v<Spec, const FormatSpec*>)
@@ -1492,7 +1521,7 @@ forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_
                 else
                     reinterpret_cast<const CompactDate*>(argPtr)->FillInto(date);
             }
-            host.PutDate(context, fmtStr, date);
+            host.PutDate(dst, fmtStr, date);
         }
         else
         {
@@ -1504,8 +1533,8 @@ forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_
             ABORT_CHECK(fmtType == ArgDispType::Color || fmtType == ArgDispType::Any);
             switch (intSize)
             {
-            case RealSizeInfo::Byte1: host.PutColorArg(context, { false, *reinterpret_cast<const CommonColor*>(argPtr) }, spec); break;
-            case RealSizeInfo::Byte4: host.PutColorArg(context,          *reinterpret_cast<const ScreenColor*>(argPtr)  , spec); break;
+            case RealSizeInfo::Byte1: host.PutColorArg(dst, { false, *reinterpret_cast<const CommonColor*>(argPtr) }, spec); break;
+            case RealSizeInfo::Byte4: host.PutColorArg(dst,          *reinterpret_cast<const ScreenColor*>(argPtr)  , spec); break;
             default: break;
             }
         }
@@ -1518,7 +1547,7 @@ forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_
         {
             const auto& pair = *reinterpret_cast<const detail::FmtWithPair*>(argPtr);
             WrapExecutor<Char> executor{ host };
-            typename WrapExecutor<Char>::Context context2{ context };
+            typename WrapExecutor<Char>::Context context2{ dst };
             pair.Executor(pair.Data, executor, context2, spec);
         }
         else
@@ -1529,9 +1558,9 @@ forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_
     {
         switch (intSize)
         {
-        case RealSizeInfo::Byte2: host.PutFloat(context, static_cast<float>(*reinterpret_cast<const half_float::half*>(argPtr)), spec); break;
-        case RealSizeInfo::Byte4: host.PutFloat(context,                    *reinterpret_cast<const            float*>(argPtr) , spec); break;
-        case RealSizeInfo::Byte8: host.PutFloat(context,                    *reinterpret_cast<const           double*>(argPtr) , spec); break;
+        case RealSizeInfo::Byte2: host.PutFloat(dst, static_cast<float>(*reinterpret_cast<const half_float::half*>(argPtr)), spec); break;
+        case RealSizeInfo::Byte4: host.PutFloat(dst,                    *reinterpret_cast<const            float*>(argPtr) , spec); break;
+        case RealSizeInfo::Byte8: host.PutFloat(dst,                    *reinterpret_cast<const           double*>(argPtr) , spec); break;
         default: break;
         }
     } return;
@@ -1542,9 +1571,9 @@ forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_
         {
             switch (intSize)
             {
-            case RealSizeInfo::Byte1: host.PutString(context, std::   string_view{ reinterpret_cast<const char    *>(argPtr), 1 }, spec); break;
-            case RealSizeInfo::Byte2: host.PutString(context, std::u16string_view{ reinterpret_cast<const char16_t*>(argPtr), 1 }, spec); break;
-            case RealSizeInfo::Byte4: host.PutString(context, std::u32string_view{ reinterpret_cast<const char32_t*>(argPtr), 1 }, spec); break;
+            case RealSizeInfo::Byte1: host.PutString(dst, std::   string_view{ reinterpret_cast<const char    *>(argPtr), 1 }, spec); break;
+            case RealSizeInfo::Byte2: host.PutString(dst, std::u16string_view{ reinterpret_cast<const char16_t*>(argPtr), 1 }, spec); break;
+            case RealSizeInfo::Byte4: host.PutString(dst, std::u32string_view{ reinterpret_cast<const char32_t*>(argPtr), 1 }, spec); break;
             default: break;
             }
             return;
@@ -1558,16 +1587,35 @@ forceinline static void UniversalOnArg(Host& host, Context& context, std::basic_
         const auto isSigned = realType == ArgRealType::SInt;
         switch (intSize)
         {
-        case RealSizeInfo::Byte1: host.PutInteger(context, static_cast<uint32_t>(*reinterpret_cast<const uint8_t *>(argPtr)), isSigned, spec); break;
-        case RealSizeInfo::Byte2: host.PutInteger(context, static_cast<uint32_t>(*reinterpret_cast<const uint16_t*>(argPtr)), isSigned, spec); break;
-        case RealSizeInfo::Byte4: host.PutInteger(context, static_cast<uint32_t>(*reinterpret_cast<const uint32_t*>(argPtr)), isSigned, spec); break;
-        case RealSizeInfo::Byte8: host.PutInteger(context, static_cast<uint64_t>(*reinterpret_cast<const uint64_t*>(argPtr)), isSigned, spec); break;
+        case RealSizeInfo::Byte1: host.PutInteger(dst, static_cast<uint32_t>(*reinterpret_cast<const uint8_t *>(argPtr)), isSigned, spec); break;
+        case RealSizeInfo::Byte2: host.PutInteger(dst, static_cast<uint32_t>(*reinterpret_cast<const uint16_t*>(argPtr)), isSigned, spec); break;
+        case RealSizeInfo::Byte4: host.PutInteger(dst, static_cast<uint32_t>(*reinterpret_cast<const uint32_t*>(argPtr)), isSigned, spec); break;
+        case RealSizeInfo::Byte8: host.PutInteger(dst, static_cast<uint64_t>(*reinterpret_cast<const uint64_t*>(argPtr)), isSigned, spec); break;
         default: break;
         }
     } return;
     default:
         return;
     }
+}
+catch (const fmt::format_error& err)
+{
+    std::u16string argName;
+    if (cookie.ArgIdx < 0 && cookie.NamedArg)
+    {
+        argName = to_u16string(fmtString.substr(cookie.NamedArg->Offset, cookie.NamedArg->Length));
+    }
+    else
+    {
+        const auto idxtxt = std::to_string(cookie.ArgIdx);
+        argName.assign(idxtxt.begin(), idxtxt.end());
+    }
+    std::u16string msg = u"Error when formatting [" + argName + u"]: ";
+    const auto fmtMsg = err.what();
+    msg.append(fmtMsg, fmtMsg + std::char_traits<char>::length(fmtMsg));
+    auto ex = CREATE_EXCEPTIONEX(ArgFormatException, msg, cookie.ArgIdx, fmtType, argType);
+    ex.Attach("argName", argName);
+    throw ex;
 }
 
 template<typename Char>
@@ -1576,9 +1624,12 @@ forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, ui
     ArgDispType fmtType = ArgDispType::Any;
     const uint16_t* argPtr = nullptr;
     ArgRealType argType = ArgRealType::Error;
+    FormatCookie cookie;
     if (isNamed)
     {
-        fmtType = context.StrInfo.NamedTypes[argIdx].Type;
+        cookie.ArgIdx = static_cast<int16_t>(-argIdx);
+        cookie.NamedArg = &context.StrInfo.NamedTypes[argIdx];
+        fmtType = cookie.NamedArg->Type;
         const auto mapIdx = context.Mapping[argIdx];
         argType = context.TheArgInfo.NamedTypes[mapIdx];
         const auto argSlot = mapIdx + context.TheArgInfo.IdxArgCount;
@@ -1586,13 +1637,14 @@ forceinline void FormatterBase::StaticExecutor<Char>::OnArg(Context& context, ui
     }
     else
     {
+        cookie.ArgIdx = argIdx;
         fmtType = context.StrInfo.IndexTypes[argIdx];
         argType = context.TheArgInfo.IndexTypes[argIdx];
         const auto argSlot = argIdx;
         argPtr = context.ArgStore.data() + context.ArgStore[argSlot];
     }
     const auto spec = reader.ReadSpec();
-    UniversalOnArg<Char>(Fmter, context.Dst, context.StrInfo.FormatString, fmtType, argPtr, argType, spec);
+    UniversalOnArg<Char>(Fmter, context.Dst, context.StrInfo.FormatString, fmtType, argPtr, argType, spec, cookie);
 }
 template SYSCOMMONTPL void FormatterBase::StaticExecutor<char>    ::OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
 template SYSCOMMONTPL void FormatterBase::StaticExecutor<wchar_t> ::OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
@@ -1720,9 +1772,12 @@ void FormatSpecCacherCh<Char>::FormatTo(std::basic_string<Char>& dst, span<const
             ArgDispType fmtType = ArgDispType::Any;
             const uint16_t* argPtr = nullptr;
             ArgRealType argType = ArgRealType::Error;
+            FormatCookie cookie;
             if (isNamed)
             {
-                fmtType = Cache.StrInfo.NamedTypes[argIdx].Type;
+                cookie.ArgIdx = static_cast<int16_t>(-argIdx);
+                cookie.NamedArg = &Cache.StrInfo.NamedTypes[argIdx];
+                fmtType = cookie.NamedArg->Type;
                 const auto mapIdx = Cache.Mapping[argIdx];
                 argType = Cache.TheArgInfo.NamedTypes[mapIdx];
                 const auto argSlot = mapIdx + Cache.TheArgInfo.IdxArgCount;
@@ -1730,6 +1785,7 @@ void FormatSpecCacherCh<Char>::FormatTo(std::basic_string<Char>& dst, span<const
             }
             else
             {
+                cookie.ArgIdx = argIdx;
                 fmtType = Cache.StrInfo.IndexTypes[argIdx];
                 argType = Cache.TheArgInfo.IndexTypes[argIdx];
                 const auto argSlot = argIdx;
@@ -1739,12 +1795,12 @@ void FormatSpecCacherCh<Char>::FormatTo(std::basic_string<Char>& dst, span<const
             if (Cache.CachedBitMap.Get(bitIndex))
             {
                 auto& target = isNamed ? Cache.NamedSpec : Cache.IndexSpec;
-                UniversalOnArg<Char>(*this, context.Dst, Cache.StrInfo.FormatString, fmtType, argPtr, argType, target[argIdx]);
+                UniversalOnArg<Char>(*this, context.Dst, Cache.StrInfo.FormatString, fmtType, argPtr, argType, target[argIdx], cookie);
             }
             else
             {
                 const auto spec = reader.ReadSpec();
-                UniversalOnArg<Char>(*this, context.Dst, Cache.StrInfo.FormatString, fmtType, argPtr, argType, spec);
+                UniversalOnArg<Char>(*this, context.Dst, Cache.StrInfo.FormatString, fmtType, argPtr, argType, spec, cookie);
             }
         }
 

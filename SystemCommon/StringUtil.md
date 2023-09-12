@@ -16,13 +16,13 @@ StringUtil wraps [StrEncoding](StrEncoding.hpp) to provide charset conversion, r
 
 Since `codecvt` is marked deprecated in C++17 and some conversion seems to be locale-dependent.
 
-## [Formating](Format.h)
+## [Formatting](Format.h)
 
-StringUtil implements bytecode-based formating support, which can do **compile-time type check and syntax parsing**.
+StringUtil implements bytecode-based formatting support, which can do **compile-time type check and syntax parsing**.
 
 Format assumes UTF8 for `char` type, but also support `char8_t` when avaliable. Conversion between UTFs are provided by [Encoding Conversion](#encoding-conversion).
 
-Format uses [fmt](../3rdParty/fmt) as backend to provide fast styled arg formating. 
+Format uses [fmt](../3rdParty/fmt) as backend to provide fast styled arg formatting. 
 
 ### Restriction & Difference
 
@@ -40,7 +40,7 @@ Some difference comapre to fmt:
 
 ### Design
 
-Following explian the usually steps how formating happens:
+Following explian the usually steps how formatting happens:
 #### formatter to bytecode
 Formatetr string is being parsed into bytecode and metadata. Metadata includes display type request to be checked with actual arg.
 
@@ -51,7 +51,7 @@ Arg type is being packed into ArgInfo, which can be done at compile time so that
 Formatter's type request and real arg type is being checked, also named arg is being checked and return the mapping between named arg and index.
 
 #### arg packing
-Arg of formating is always being packed and copied, [boost's `small_vector`](https://www.boost.org/doc/libs/1_80_0/doc/html/boost/container/small_vector.html) is being used for optimization.
+Arg of formatting is always being packed and copied, [boost's `small_vector`](https://www.boost.org/doc/libs/1_80_0/doc/html/boost/container/small_vector.html) is being used for optimization.
 
 The minimal unit in the pack is 2byte, so some arg may not be fully aligned. **Unaligned read support is required**.
 

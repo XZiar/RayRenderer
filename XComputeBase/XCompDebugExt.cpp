@@ -1,6 +1,5 @@
 #include "XCompDebugExt.h"
 #include "Nailang/NailangRuntime.h"
-#include "SystemCommon/StringFormat.h"
 #include "common/math/VecBase.hpp"
 #include "common/math/VecSIMD.hpp"
 #include "common/math/MatBase.hpp"
@@ -12,7 +11,6 @@ using namespace std::string_literals;
 using namespace std::string_view_literals;
 
 #define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 #define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException, __VA_ARGS__))
 
 
@@ -131,7 +129,7 @@ void XCNLDebugExt::DefineMessage(XCNLExecutor& executor, const xziar::nailang::F
                 i, arg.GetTypeName()), func);
         argInfos.push_back(GenerateInput(runtime, arg.GetStr().value(), [&]()
             {
-                return FMTSTR(u"Arg[{}] of [DefineDebugString]"sv, i);
+                return FMTSTR2(u"Arg[{}] of [DefineDebugString]"sv, i);
             }));
     }
     if (!DebugInfos.try_emplace(std::u32string(id), formatter, std::move(argInfos)).second)
@@ -144,7 +142,7 @@ const XCNLDebugExt::DbgContent& XCNLDebugExt::DefineMessage(XCNLRawExecutor& exe
     auto& runtime = executor.GetRuntime();
     executor.ThrowByReplacerArgCount(func, args, 2, ArgLimits::AtLeast);
     if (args.size() % 2)
-        runtime.NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugStr] requires even number of args, which gives [{}]."sv, args.size()));
+        runtime.NLRT_THROW_EX(FMTSTR2(u"Repalcer-Func [DebugStr] requires even number of args, which gives [{}]."sv, args.size()));
     if (args[1].size() < 2 || args[1].front() != U'"' || args[1].back() != U'"')
         runtime.NLRT_THROW_EX(FMTSTR2(u"Repalcer-Func [DebugStr]'s arg[1] expects to a string with \", get [{}]", args[1]));
     const auto id = args[0], formatter = args[1].substr(1, args[1].size() - 2);
@@ -156,7 +154,7 @@ const XCNLDebugExt::DbgContent& XCNLDebugExt::DefineMessage(XCNLRawExecutor& exe
     {
         types.push_back(GenerateInput(runtime, args[i], [&]()
             {
-                return FMTSTR(u"Arg[{}] of [DebugStr]"sv, i);
+                return FMTSTR2(u"Arg[{}] of [DebugStr]"sv, i);
             }));
     }
     const auto [info, ret] = DebugInfos.try_emplace(std::u32string(id), formatter, std::move(types));

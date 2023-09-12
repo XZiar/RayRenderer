@@ -9,8 +9,6 @@
 #include <CoreFoundation/CFBundle.h>
 
 
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
-
 extern "C"
 {
     void EAGLGetVersion(unsigned int* major, unsigned int* minor);

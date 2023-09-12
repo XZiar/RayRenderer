@@ -189,7 +189,6 @@ struct CommonInfoHelper
                         if (GetDevProp(devinst, DEVPKEY_Device_BusNumber, bnum) && GetDevProp(devinst, DEVPKEY_Device_Address, addr))
                         {
                             const auto slot = (addr >> 16) & 0xFFFF, func = addr & 0xFFFF;
-                            //console.Print(common::CommonColor::BrightCyan, fmt::format(u"--{:0X}-{:0X}-{:0X}\n", bnum, slot, func));
                             address = PCI_BDF(bnum, slot, func);
                         }
                     }
@@ -458,6 +457,11 @@ struct Win32DeviceInfoContainer final : public CommonDeviceContainer, public D3D
 {
     const common::console::ConsoleEx& Console;
     std::vector<Win32DeviceInfo> Infos;
+    void PrintError(std::u16string msg, const common::BaseException& be) const noexcept
+    {
+        msg.append(u": ["sv).append(be.Message()).append(u"]\n"sv).append(be.GetDetailMessage()).append(u"\n"sv);
+        Console.Print(common::CommonColor::BrightRed, msg);
+    }
     Win32DeviceInfoContainer() : Console(common::console::ConsoleEx::Get())
     {
         try
@@ -506,7 +510,7 @@ struct Win32DeviceInfoContainer final : public CommonDeviceContainer, public D3D
             }
             catch (const common::BaseException& be)
             {
-                Console.Print(common::CommonColor::BrightRed, fmt::format(u"Failed when try using dxcore: [{}]\n{}\n", be.Message(), be.GetDetailMessage()));
+                PrintError(u"Failed when try using dxcore", be);
             }
 #endif
             try
@@ -537,12 +541,12 @@ struct Win32DeviceInfoContainer final : public CommonDeviceContainer, public D3D
             }
             catch (const common::BaseException& be)
             {
-                Console.Print(common::CommonColor::BrightRed, fmt::format(u"Failed when try using dxgi: [{}]\n{}\n", be.Message(), be.GetDetailMessage()));
+                PrintError(u"Failed when try using dxgi", be);
             }
         }
         catch (const common::BaseException& be)
         {
-            Console.Print(common::CommonColor::BrightRed, fmt::format(u"Failed when load D3DKMT: [{}]\n{}\n", be.Message(), be.GetDetailMessage()));
+            PrintError(u"Failed when load D3DKMT", be);
         }
     }
 

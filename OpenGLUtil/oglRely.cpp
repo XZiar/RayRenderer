@@ -20,9 +20,10 @@ MiniLogger<false>& oglLog()
 std::string ContextCapability::GenerateSupportLog() const
 {
     std::string text("Capability:\n");
-    auto backer = std::back_inserter(text);
 
-#define CHK_SUPPORT(x) fmt::format_to(backer, FMT_STRING("Support [{:^15}] : \t [{}]\n"), #x, PPCAT(Support,x) ? 'Y' : 'N')
+    constexpr auto syntax = FmtString2("Support [{:^15}] : \t [{}]\n"sv);
+    common::str::Formatter<char> fmter{};
+#define CHK_SUPPORT(x) fmter.FormatToStatic(text, syntax, #x, PPCAT(Support,x) ? 'Y' : 'N')
     CHK_SUPPORT(Debug);
     CHK_SUPPORT(SRGB);
     CHK_SUPPORT(SRGBFrameBuffer);

@@ -1988,7 +1988,23 @@ public:
         FormatToDynamic(ret, format, std::forward<Args>(args)...);
         return ret;
     }
+    template<typename T>
+    forceinline void DirectFormatTo(std::basic_string<Char>& dst, const T& target, const FormatSpec* spec = nullptr)
+    {
+        static_assert(ArgInfo::GetArgType<T>() == ArgRealType::Custom);
+        const auto fmtPair = ArgInfo::BoxAnArg(target);
+        static_assert(std::is_same_v<std::decay_t<decltype(fmtPair)>, detail::FmtWithPair>);
+        DirectFormatTo_(dst, fmtPair, spec);
+    }
+    template<typename T>
+    forceinline std::basic_string<Char> DirectFormat(const T& target, const FormatSpec* spec = nullptr)
+    {
+        std::basic_string<Char> ret;
+        DirectFormatTo(ret, target, spec);
+        return ret;
+    }
 private:
+    SYSCOMMONAPI void DirectFormatTo_(std::basic_string<Char>& dst, const detail::FmtWithPair& fmtPair, const FormatSpec* spec);
     SYSCOMMONAPI void FormatToDynamic_(std::basic_string<Char>& dst, std::basic_string_view<Char> format, const ArgInfo& argInfo, span<const uint16_t> argStore);
 };
 
@@ -1996,14 +2012,13 @@ private:
 #define FmtString2(str_) []()                                                   \
 {                                                                               \
     using FMT_P = common::str::FormatterParser;                                 \
+    using FMT_R = common::str::ParseResultBase;                                 \
     using FMT_C = std::decay_t<decltype(str_[0])>;                              \
     constexpr auto Data    = FMT_P::ParseString(str_);                          \
-    constexpr auto OpCount = Data.OpCount;                                      \
-    constexpr auto NACount = Data.NamedArgCount;                                \
-    constexpr auto IACount = Data.IdxArgCount;                                  \
     [[maybe_unused]] constexpr auto Check =                                     \
-        FMT_P::CheckErrorCompile<Data.ErrorPos, Data.ErrorNum>();               \
-    using FMT_T = common::str::TrimedResult<FMT_C, OpCount, NACount, IACount>;  \
+        FMT_R::CheckErrorCompile<Data.ErrorPos, Data.ErrorNum>();               \
+    using FMT_T = common::str::TrimedResult<FMT_C,                              \
+        Data.OpCount, Data.NamedArgCount, Data.IdxArgCount>;                    \
     struct FMT_Type : public FMT_T                                              \
     {                                                                           \
         using CharType = FMT_C;                                                 \

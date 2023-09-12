@@ -52,6 +52,23 @@ public:
     }
 };
 
+class SYSCOMMONAPI ArgFormatException : public BaseException
+{
+private:
+    COMMON_EXCEPTION_PREPARE(ArgFormatException, BaseException,
+        const int16_t ArgIndex;
+        const std::pair<ArgDispType, ArgRealType> ArgType;
+        ExceptionInfo(const std::u16string_view msg, int16_t index, ArgDispType dispType, ArgRealType realType) noexcept;
+    );
+public:
+    ArgFormatException(const std::u16string_view msg, int16_t index, ArgDispType dispType, ArgRealType realType)
+        : BaseException(T_<ExceptionInfo>{}, msg, index, dispType, realType)
+    { }
+    [[nodiscard]] ArgDispType GetArgDisplayType() const noexcept { return GetInfo().ArgType.first; }
+    [[nodiscard]] ArgRealType GetArgRealType() const noexcept { return GetInfo().ArgType.second; }
+    [[nodiscard]] int16_t GetArgIndex() const noexcept { return GetInfo().ArgIndex; }
+};
+
 
 class COMMON_EMPTY_BASES DynamicTrimedResult : public FixedLenRefHolder<DynamicTrimedResult, uint32_t>
 {

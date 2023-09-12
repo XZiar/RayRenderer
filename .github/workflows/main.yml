@@ -155,7 +155,7 @@ jobs:
             env_clang_ver: 12
             pkg: "clang-12 lld-12 llvm-12"
           - cxx: clang13
-            os: ubuntu-22.04
+            os: ubuntu-latest
             env_cc: "clang-13"
             env_asm: "clang++-13"
             env_cpp: "clang++-13"
@@ -166,6 +166,30 @@ jobs:
             env_clang: true
             env_clang_ver: 13
             pkg: "clang-13 lld-13 llvm-13"
+          - cxx: clang14
+            os: ubuntu-latest
+            env_cc: "clang-14"
+            env_asm: "clang++-14"
+            env_cpp: "clang++-14"
+            env_stalink: "llvm-ar-14"
+            env_dynlink: "clang++-14"
+            env_applink: "clang++-14"
+            env_module: "all"
+            env_clang: true
+            env_clang_ver: 14
+            pkg: "clang-14 lld-14 llvm-14"
+          - cxx: clang15
+            os: ubuntu-latest
+            env_cc: "clang-15"
+            env_asm: "clang++-15"
+            env_cpp: "clang++-15"
+            env_stalink: "llvm-ar-15"
+            env_dynlink: "clang++-15"
+            env_applink: "clang++-15"
+            env_module: "all"
+            env_clang: true
+            env_clang_ver: 15
+            pkg: "clang-15 lld-15 llvm-15"
     
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -236,15 +260,16 @@ jobs:
           nasm -v
           lscpu
 
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
       - name: Build Debug modules
         run: |
           python3 xzbuild rebuild "${{matrix.env_module}},-curl,-libressl,-BasicsTest,-SystemCommonTest,-NailangTest,-NullTest,-Blur" /threads=x1.5 /dsymlv=0
 
-      - name: Get current date
-        id: date
-        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
-
       - uses: actions/upload-artifact@v3
+        if: ${{ always() }}
         with:
           name: debug-${{matrix.cxx}}-${{steps.date.outputs.date}}
           path: x64/Debug
@@ -261,6 +286,7 @@ jobs:
           ./x64/Release/NailangTest
 
       - uses: actions/upload-artifact@v3
+        if: ${{ always() }}
         with:
           name: release-${{matrix.cxx}}-${{steps.date.outputs.date}}
           path: x64/Release

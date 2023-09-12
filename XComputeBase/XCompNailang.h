@@ -605,7 +605,7 @@ private:
 public:
     ~XCNLRuntime() override;
     COMMON_NO_COPY(XCNLRuntime)
-    void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
+    [[noreturn]] void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
     void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
     virtual void PrintStruct(const XCNLStruct& target) const;
     [[nodiscard]] virtual VTypeInfo TryParseVecType(const std::u32string_view type, bool allowMinBits = true) const noexcept = 0;

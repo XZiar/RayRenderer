@@ -4,7 +4,6 @@
 #include "common/Linq2.hpp"
 #include "common/StrParsePack.hpp"
 #include "common/CharConvs.hpp"
-#include "3rdParty/fmt/include/fmt/format.h"
 #include <cmath>
 #include <cassert>
 
@@ -28,10 +27,10 @@ static std::u16string AppendString(std::u16string_view base, std::string_view ad
 
 COMMON_EXCEPTION_IMPL(NailangFormatException)
 NailangFormatException::NailangFormatException(const std::u32string_view formatter, const std::runtime_error& err)
-    : NailangRuntimeException(T_<ExceptionInfo>{}, AppendString(u"Error when formating string: {}"sv, err.what()), formatter)
+    : NailangRuntimeException(T_<ExceptionInfo>{}, AppendString(u"Error when formatting string: {}"sv, err.what()), formatter)
 { }
 NailangFormatException::NailangFormatException(const std::u32string_view formatter, const Arg* arg, const std::u16string_view reason)
-    : NailangRuntimeException(T_<ExceptionInfo>{}, u"Error when formating string: {}"s.append(reason), formatter, 
+    : NailangRuntimeException(T_<ExceptionInfo>{}, u"Error when formatting string: {}"s.append(reason), formatter, 
         arg ? *arg : detail::ExceptionTarget{})
 { }
 
@@ -605,10 +604,6 @@ std::u32string NailangBase::FormatString(const std::u32string_view formatter, co
     catch (const common::BaseException& be)
     {
         HandleException(CREATE_EXCEPTIONEX(NailangFormatException, formatter, nullptr, be.Message()));
-    }
-    catch (const fmt::format_error& err)
-    {
-        HandleException(CREATE_EXCEPTIONEX(NailangFormatException, formatter, err));
     }
     return {};
 }

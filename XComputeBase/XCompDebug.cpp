@@ -1,6 +1,6 @@
 #include "XCompDebug.h"
 #include "SystemCommon/FormatExtra.h"
-#include "SystemCommon/StringFormat.h"
+#include "SystemCommon/Format.h"
 #include "SystemCommon/StringConvert.h"
 #include <ctime>
 #include <algorithm>
@@ -15,8 +15,9 @@ using common::simd::VecDataInfo;
 using common::BaseException;
 using common::str::Encoding;
 
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
-
+#define FMTSTR(syntax, ...) common::str::Formatter<char>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
+#define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
+    .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
 
 ArgsLayout::ArgsLayout(common::span<const NamedVecPair> infos, const uint16_t align) :
     Args(std::make_unique<ArgsLayout::ArgItem[]>(infos.size())), ArgLayout(std::make_unique<uint16_t[]>(infos.size())),
@@ -132,6 +133,55 @@ struct MessageFormatExecutor final : public common::str::CombinedExecutor<char, 
         auto& context = static_cast<Context&>(ctx);
         PutColor(context.Dst, color);
     }
+
+    template<typename P = void>
+    static void FormatVecArray(std::string& txt, const std::byte* data, common::simd::VecDataInfo vinfo, const common::str::OpaqueFormatSpec& spec)
+    {
+        using F = common::str::CommonFormatter<char>;
+        using half_float::half;
+        for (uint32_t i = 0; i < vinfo.Dim0; ++i)
+        {
+            if constexpr (!std::is_same_v<P, void>)
+            {
+                P::Before(txt, i);
+            }
+            switch (vinfo.Type)
+            {
+            case VecDataInfo::DataTypes::Float:
+                switch (vinfo.Bit)
+                {
+                case 16: F::PutFloat(txt, static_cast<float>(reinterpret_cast<const   half*>(data)[i]), spec); break;
+                case 32: F::PutFloat(txt,                    reinterpret_cast<const  float*>(data)[i] , spec); break;
+                case 64: F::PutFloat(txt,                    reinterpret_cast<const double*>(data)[i] , spec); break;
+                default: break;
+                } break;
+            case VecDataInfo::DataTypes::Unsigned:
+                switch (vinfo.Bit)
+                {
+                case  8: F::PutInteger(txt, static_cast<uint32_t>(reinterpret_cast<const  uint8_t*>(data)[i]), false, spec); break;
+                case 16: F::PutInteger(txt, static_cast<uint32_t>(reinterpret_cast<const uint16_t*>(data)[i]), false, spec); break;
+                case 32: F::PutInteger(txt,                       reinterpret_cast<const uint32_t*>(data)[i] , false, spec); break;
+                case 64: F::PutInteger(txt,                       reinterpret_cast<const uint64_t*>(data)[i] , false, spec); break;
+                default: break;
+                } break;
+            case VecDataInfo::DataTypes::Signed:
+                switch (vinfo.Bit)
+                {
+                case  8: F::PutInteger(txt, static_cast<uint32_t>(reinterpret_cast<const  int8_t*>(data)[i]), true, spec); break;
+                case 16: F::PutInteger(txt, static_cast<uint32_t>(reinterpret_cast<const int16_t*>(data)[i]), true, spec); break;
+                case 32: F::PutInteger(txt, static_cast<uint32_t>(reinterpret_cast<const int32_t*>(data)[i]), true, spec); break;
+                case 64: F::PutInteger(txt, static_cast<uint64_t>(reinterpret_cast<const int64_t*>(data)[i]), true, spec); break;
+                default: break;
+                } break;
+            default: break;
+            }
+            if constexpr (!std::is_same_v<P, void>)
+            {
+                P::After(txt, i);
+            }
+        }
+    }
+
     void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, common::str::SpecReader&) final
     {
         using F = common::str::CommonFormatter<char>;
@@ -145,44 +195,18 @@ struct MessageFormatExecutor final : public common::str::CombinedExecutor<char, 
         {
             context.Dst.append("{ "sv);
         }
-        for (uint32_t i = 0; i < item.Info.Dim0; ++i)
+
+        struct FMid
         {
-            if (i > 0)
-                context.Dst.append(", "sv);
-            switch (item.Info.Type)
+            forceinline static void Before(std::string& txt, uint32_t i) noexcept
             {
-            case VecDataInfo::DataTypes::Float:
-                switch (item.Info.Bit)
-                {
-                case 16: F::PutFloat(context.Dst, static_cast<float>(reinterpret_cast<const half_float::half*>(data)[i]), spec); break;
-                case 32: F::PutFloat(context.Dst, reinterpret_cast<const float *>(data)[i], spec); break;
-                case 64: F::PutFloat(context.Dst, reinterpret_cast<const double*>(data)[i], spec); break;
-                default: break;
-                }
-                break;
-            case VecDataInfo::DataTypes::Unsigned:
-                switch (item.Info.Bit)
-                {
-                case  8: F::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const uint8_t *>(data)[i]), false, spec); break;
-                case 16: F::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const uint16_t*>(data)[i]), false, spec); break;
-                case 32: F::PutInteger(context.Dst, reinterpret_cast<const uint32_t*>(data)[i], false, spec); break;
-                case 64: F::PutInteger(context.Dst, reinterpret_cast<const uint64_t*>(data)[i], false, spec); break;
-                default: break;
-                }
-                break;
-            case VecDataInfo::DataTypes::Signed:
-                switch (item.Info.Bit)
-                {
-                case  8: F::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int8_t *>(data)[i]), true, spec); break;
-                case 16: F::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int16_t*>(data)[i]), true, spec); break;
-                case 32: F::PutInteger(context.Dst, static_cast<uint32_t>(reinterpret_cast<const int32_t*>(data)[i]), true, spec); break;
-                case 64: F::PutInteger(context.Dst, static_cast<uint64_t>(reinterpret_cast<const int64_t*>(data)[i]), true, spec); break;
-                default: break;
-                }
-                break;
-            default: break;
+                if (i > 0)
+                    txt.append(", "sv);
             }
-        }
+            forceinline static void After(std::string&, uint32_t) noexcept
+            { }
+        };
+        FormatVecArray<FMid>(context.Dst, data, item.Info, spec);
         if (item.Info.Dim0 > 1)
         {
             context.Dst.append(" }"sv);
@@ -534,19 +558,6 @@ std::vector<std::pair<ExcelXmlPrinter::SheetPackage*, const MessageBlock*>> Exce
 }
 
 
-//template<typename T>
-//static forceinline void Print(std::string& output, const ArgsLayout::VecItem<T>& data)
-//{
-//    const auto& cellb = data.Count > 1 ? StrCellBegin : NumCellBegin;
-//    const auto& celle = CellEnd;
-//    output.append(cellb);
-//    output.append(fmt::to_string(data));
-//    output.append(celle);
-//}
-//static forceinline void Print(std::string& output, std::nullopt_t)
-//{
-//    output.append(R"(    <Cell><Data ss:Type="String">ERROR</Data></Cell>)"sv);
-//}
 void ExcelXmlPrinter::AddItem(SheetPackage& sheet, std::string_view info, common::str::u8string_view msg, const common::span<const std::byte> dat)
 {
     sheet.Contents.append(RowBegin);
@@ -630,47 +641,27 @@ void ExcelXmlPrinter::Output(common::io::OutputStream& stream)
 
 common::StringPiece<char> ExcelXmlPrinter::InfoCache::GenerateThreadInfo(const WorkItemInfo& info)
 {
+    common::str::OpaqueFormatSpec intFmt, fpFmt;
+    common::str::FormatterExecutor::ConvertSpec(intFmt, nullptr, common::str::ArgRealType::UInt, common::str::ArgDispType::Integer);
+    common::str::FormatterExecutor::ConvertSpec(fpFmt, nullptr, common::str::ArgRealType::Float, common::str::ArgDispType::Float);
+    using Fmter = common::str::CommonFormatter<char>;
     using half_float::half;
     const auto space = InfoProv.GetFullInfoSpace(info);
     std::string txt;
     for (const auto& field : Fields)
     {
-        const auto sp = space.subspan(field.Offset);
-        for (uint32_t i = 0; i < field.VecType.Dim0; ++i)
+        struct FMid
         {
-            txt.append(NumCellBegin);
-            switch (field.VecType.Type)
+            forceinline static void Before(std::string& txt, uint32_t) noexcept
             {
-            case VecDataInfo::DataTypes::Float:
-                switch (field.VecType.Bit)
-                {
-                case 16: txt += fmt::to_string(static_cast<float>(reinterpret_cast<const   half*>(sp.data())[i])); break;
-                case 32: txt += fmt::to_string(                   reinterpret_cast<const  float*>(sp.data())[i]);  break;
-                case 64: txt += fmt::to_string(                   reinterpret_cast<const double*>(sp.data())[i]);  break;
-                default: break;
-                } break;
-            case VecDataInfo::DataTypes::Unsigned:
-                switch (field.VecType.Bit)
-                {
-                case  8: txt += fmt::to_string(reinterpret_cast<const  uint8_t*>(sp.data())[i]); break;
-                case 16: txt += fmt::to_string(reinterpret_cast<const uint16_t*>(sp.data())[i]); break;
-                case 32: txt += fmt::to_string(reinterpret_cast<const uint32_t*>(sp.data())[i]); break;
-                case 64: txt += fmt::to_string(reinterpret_cast<const uint64_t*>(sp.data())[i]); break;
-                default: break;
-                } break;
-            case VecDataInfo::DataTypes::Signed:
-                switch (field.VecType.Bit)
-                {
-                case  8: txt += fmt::to_string(reinterpret_cast<const  int8_t*>(sp.data())[i]); break;
-                case 16: txt += fmt::to_string(reinterpret_cast<const int16_t*>(sp.data())[i]); break;
-                case 32: txt += fmt::to_string(reinterpret_cast<const int32_t*>(sp.data())[i]); break;
-                case 64: txt += fmt::to_string(reinterpret_cast<const int64_t*>(sp.data())[i]); break;
-                default: break;
-                } break;
-            default: break;
+                txt.append(NumCellBegin);
             }
-            txt.append(CellEnd);
-        }
+            forceinline static void After(std::string& txt, uint32_t) noexcept
+            {
+                txt.append(CellEnd);
+            }
+        };
+        MessageFormatExecutor::FormatVecArray<FMid>(txt, space.data() + field.Offset, field.VecType, field.VecType.Type == VecDataInfo::DataTypes::Float ? fpFmt : intFmt);
     }
     return InfoTexts.AllocateString(txt);
 }
@@ -692,10 +683,8 @@ R"(<?xml version="1.0" encoding="UTF-8"?>
   <Created>)"sv;
     WriteTo(Header1);
     {
-        const auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        const auto tm = fmt::gmtime(t);
         //<Created>1970-01-01T00:00:00Z</Created>
-        const auto tstr = fmt::format("{:%Y-%m-%dT%H:%M:%SZ}", tm);
+        const auto tstr = common::str::Formatter<char>{}.FormatStatic(FmtString("{:T%Y-%m-%dT%H:%M:%SZ}"sv), std::chrono::system_clock::now());
         WriteTo(tstr);
     }
     constexpr std::string_view Header2 =
