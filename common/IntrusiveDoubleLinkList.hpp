@@ -10,12 +10,12 @@ namespace common::container
 
 
 template<typename NodeType>
-class IntrusiveDoubleLinkList;
+class IntrusiveDoubleLinkListBase;
 
 template<typename NodeType>
 struct IntrusiveDoubleLinkListNodeBase
 {
-    friend class IntrusiveDoubleLinkList<NodeType>;
+    friend class IntrusiveDoubleLinkListBase<NodeType>;
 private:
     NodeType *Prev, *Next; //spin-locker's memory_order_seq_cst promise their order
 protected:
@@ -25,17 +25,15 @@ protected:
 };
 
 template<typename NodeType>
-class IntrusiveDoubleLinkList
+class IntrusiveDoubleLinkListBase
 {
 public:
-    static_assert(std::is_base_of_v<IntrusiveDoubleLinkListNodeBase<NodeType>, NodeType>, "NodeType should deriver from BiDirLinkedListNodeBase");
+    static_assert(std::is_base_of_v<IntrusiveDoubleLinkListNodeBase<NodeType>, NodeType>, "NodeType should deriver from IntrusiveDoubleLinkListNodeBase");
 private:
     std::atomic<NodeType*> Head{ nullptr }, Tail{ nullptr };
-    mutable WRSpinLock ModifyLock;
-public:
-    bool AppendNode(NodeType* node) noexcept
+protected:
+    bool AppendNode_(NodeType* node) noexcept
     {
-        const auto lock = ModifyLock.ReadScope();
         NodeType* tail = Tail;
         while(true)
         {
@@ -55,9 +53,8 @@ public:
         }
     }
 
-    NodeType* PopNode(NodeType* node, bool returnNext = true) noexcept
+    NodeType* PopNode_(NodeType* node, bool returnNext = true) noexcept
     {
-        const auto lock = ModifyLock.WriteScope();
         auto prev = node->Prev, next = node->Next;
         if (prev)
             prev->Next = next;
@@ -70,20 +67,14 @@ public:
         return returnNext ? next : prev;
     }
 
-    NodeType* ToNext(const NodeType* node) noexcept
+    NodeType* ToNext_(const NodeType* node) noexcept
     {
-        const auto lock = ModifyLock.WriteScope();
         return node->Next;
     }
 
-    bool IsEmpty() const noexcept { return Tail == nullptr; }
-    NodeType* Begin() const noexcept { return Head; }
-    NodeType* End() const noexcept { return Tail; }
-
     template<typename Func>
-    void ForEachRead(Func&& func) const
+    void ForEachRead_(Func&& func) const
     {
-        const auto lock = ModifyLock.ReadScope();
         for (NodeType* current = Head; current != nullptr;)
         {
             func(current);
@@ -92,9 +83,8 @@ public:
     }
 
     template<typename Func>
-    void ForEach(Func&& func, bool cleanup = false)
+    void ForEach_(Func&& func, bool cleanup = false)
     {
-        const auto lock = ModifyLock.WriteScope();
         for (NodeType* current = Head; current != nullptr;)
         {
             const auto next = current->Next;
@@ -105,22 +95,77 @@ public:
             Head = nullptr, Tail = nullptr;
     }
 
+    NodeType* Clear_() noexcept
+    {
+        NodeType* current = nullptr;
+        current = Head.exchange(nullptr);
+        Tail = nullptr;
+        return current;
+    }
+
+    static void ReleaseAll_(NodeType* current) noexcept
+    {
+        while (current != nullptr)
+        {
+            const auto next = current->Next;
+            delete current;
+            current = next;
+        }
+    }
+public:
+    bool IsEmpty() const noexcept { return Tail == nullptr; }
+    NodeType* Begin() const noexcept { return Head; }
+    NodeType* End() const noexcept { return Tail; }
+};
+
+template<typename NodeType, typename Locker = WRSpinLock>
+class IntrusiveDoubleLinkList : public IntrusiveDoubleLinkListBase<NodeType>
+{
+private:
+    mutable Locker ModifyLock;
+public:
+    bool AppendNode(NodeType* node) noexcept
+    {
+        const auto lock = ModifyLock.ReadScope();
+        return this->AppendNode_(node);
+    }
+
+    NodeType* PopNode(NodeType* node, bool returnNext = true) noexcept
+    {
+        const auto lock = ModifyLock.WriteScope();
+        return this->PopNode_(node, returnNext);
+    }
+
+    NodeType* ToNext(const NodeType* node) noexcept
+    {
+        const auto lock = ModifyLock.WriteScope();
+        return this->ToNext_(node);
+    }
+
+    template<typename Func>
+    void ForEachRead(Func&& func) const
+    {
+        const auto lock = ModifyLock.ReadScope();
+        this->ForEachRead_(std::forward<Func>(func));
+    }
+
+    template<typename Func>
+    void ForEach(Func&& func, bool cleanup = false)
+    {
+        const auto lock = ModifyLock.WriteScope();
+        this->ForEach_(std::forward<Func>(func), cleanup);
+    }
+
     void Clear(bool needToRelease = true) noexcept
     {
         NodeType* current = nullptr;
         {
             const auto lock = ModifyLock.WriteScope();
-            current = Head.exchange(nullptr);
-            Tail = nullptr;
+            current = this->Clear_();
         }
         if (needToRelease)
         {
-            while (current != nullptr)
-            {
-                const auto next = current->Next;
-                delete current;
-                current = next;
-            }
+            this->ReleaseAll_(current);
         }
     }
 };

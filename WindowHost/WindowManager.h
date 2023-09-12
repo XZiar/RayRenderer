@@ -6,6 +6,7 @@
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/LoopBase.h"
 #include "SystemCommon/PromiseTask.h"
+#include "SystemCommon/SpinLock.h"
 #include <map>
 #include <thread>
 #include <future>
@@ -104,7 +105,7 @@ private:
     };
 
     std::vector<std::pair<uintptr_t, WindowHost>> WindowList;
-    common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
+    common::container::IntrusiveDoubleLinkList<InvokeNode, common::spinlock::WRSpinLock> InvokeList;
 protected:
     WindowManager();
 

@@ -15,10 +15,19 @@
 #       define COMMON_PAUSE() asm volatile ("pause")
 #   endif
 #elif COMMON_ARCH_ARM
-#   if COMMON_COMPILER_MSVC
-#       define COMMON_PAUSE() __yield()
+#   if COMMON_OSBIT == 64
+#       if COMMON_COMPILER_MSVC
+#           define COMMON_PAUSE() __isb(_ARM64_BARRIER_SY)
+#       else
+#           include <arm_acle.h>
+#           define COMMON_PAUSE() __isb(0xf)
+#       endif
 #   else
-#       define COMMON_PAUSE() asm volatile ("yield")
+#       if COMMON_COMPILER_MSVC
+#           define COMMON_PAUSE() __yield()
+#       else
+#           define COMMON_PAUSE() asm volatile ("yield")
+#       endif
 #   endif
 #else
 #   define COMMON_PAUSE() do{} while(0)

@@ -22,7 +22,6 @@
 #include "common/EasyIterator.hpp"
 #include "common/FrozenDenseSet.hpp"
 #include "common/FileBase.hpp"
-#include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/CommonRely.hpp"
 

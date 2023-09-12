@@ -184,26 +184,8 @@ for (uint32_t i = 0; i <= cycles; i += 32)  \
 
 DEFINE_FASTPATH_METHOD(PauseCycles, COMPILER)
 {
-#if COMMON_ARCH_X86
-#   if (COMMON_COMPILER_CLANG && COMMON_CLANG_VER >= 30800) || (COMMON_COMPILER_GCC && COMMON_GCC_VER >= 40701)
-#       define PAUSE_FUNC __builtin_ia32_pause();
-#   elif COMMON_COMPILER_MSVC
-#       define PAUSE_FUNC __nop();
-#   else
-#       define PAUSE_FUNC asm volatile ("pause");
-#   endif
-#elif COMMON_ARCH_ARM
-#   if COMMON_COMPILER_MSVC
-#       define PAUSE_FUNC __yield();
-#   else
-#       define PAUSE_FUNC asm volatile ("yield");
-#   endif
-#else
-#   define PAUSE_FUNC asm do{} while(0);
-#endif
-    PauseCycleLoop(PAUSE_FUNC)
+    PauseCycleLoop(COMMON_PAUSE();)
     return true;
-#undef PAUSE_FUNC
 }
 
 #if COMMON_ARCH_X86

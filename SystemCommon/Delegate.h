@@ -1,7 +1,7 @@
 #pragma once
-#include "CommonRely.hpp"
-#include "SpinLock.hpp"
-#include "IntrusiveDoubleLinkList.hpp"
+#include "SpinLock.h"
+#include "common/CommonRely.hpp"
+#include "common/IntrusiveDoubleLinkList.hpp"
 #include <functional>
 #include <random>
 
@@ -57,9 +57,9 @@ private:
         }
     };
 
-    container::IntrusiveDoubleLinkList<CallbackNode> CallbackList;
+    container::IntrusiveDoubleLinkList<CallbackNode, spinlock::WRSpinLock> CallbackList;
     std::atomic_uint32_t Indexer;
-    mutable RWSpinLock Lock;
+    mutable spinlock::RWSpinLock Lock;
     uint32_t UID;
     template<typename T>
     CallbackNode* CreateNode(const uint32_t id, T&& callback) const

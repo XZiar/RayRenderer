@@ -2,6 +2,7 @@
 #include "PromiseTask.h"
 #include "LoopBase.h"
 #include "ThreadEx.h"
+#include "SpinLock.h"
 #include <future>
 
 
@@ -23,7 +24,7 @@ private:
         { }
     };
 
-    common::container::IntrusiveDoubleLinkList<ProxyNode> TaskList;
+    common::container::IntrusiveDoubleLinkList<ProxyNode, spinlock::WRSpinLock> TaskList;
     std::atomic_uint32_t TaskUid{ 0 };
 
     PromiseActiveProxy() : LoopBase(LoopBase::GetThreadedExecutor)

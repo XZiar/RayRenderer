@@ -15,7 +15,6 @@
 
 #include "common/FileBase.hpp"
 #include "common/Linq2.hpp"
-#include "common/SpinLock.hpp"
 #include "common/StringEx.hpp"
 #include "common/TimeUtil.hpp"
 

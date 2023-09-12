@@ -2,12 +2,12 @@
 #include "SystemCommonRely.h"
 #include "Format.h"
 #include "StringConvert.h"
+#include "Delegate.h"
+#include "SpinLock.h"
 #include "common/StrBase.hpp"
 #include "common/FileBase.hpp"
 #include "common/EnumEx.hpp"
-#include "common/Delegate.hpp"
 #include "common/SharedString.hpp"
-#include "common/SpinLock.hpp"
 #include <set>
 #include <memory>
 
@@ -204,7 +204,7 @@ template<bool DynamicBackend>
 class MiniLogger : public detail::MiniLoggerBase
 {
 protected:
-    common::WRSpinLock WRLock;
+    common::spinlock::WRSpinLock WRLock;
 public:
     using detail::MiniLoggerBase::MiniLoggerBase;
     template<bool T>

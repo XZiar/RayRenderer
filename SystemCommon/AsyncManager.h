@@ -3,8 +3,8 @@
 #include "AsyncAgent.h"
 #include "Exceptions.h"
 #include "LoopBase.h"
-#include "MiniLogger.h"
 #include "PromiseTask.h"
+#include "SpinLock.h"
 #include "common/IntrusiveDoubleLinkList.hpp"
 #include "common/TimeUtil.hpp"
 #include <atomic>
@@ -166,20 +166,18 @@ struct RetTypeGetter<F, false>
 }
 
 
-
 class AsyncManager final : private common::loop::LoopBase
 {
     friend class AsyncAgent;
 private:
     using Injector = std::function<void(void)>;
-    struct FiberContext;
-    common::container::IntrusiveDoubleLinkList<detail::AsyncTaskNodeBase> TaskList;
-    std::unique_ptr<FiberContext> Context;
+    struct ManagerContext;
+    std::unique_ptr<ManagerContext> Context;
+    common::container::IntrusiveDoubleLinkList<detail::AsyncTaskNodeBase, spinlock::WRSpinLock> TaskList;
     Injector ExitCallback = nullptr;
-    detail::AsyncTaskNodeBase*Current = nullptr;
+    detail::AsyncTaskNodeBase* Current = nullptr;
     const std::u16string Name;
     const AsyncAgent Agent;
-    common::mlog::MiniLogger<false> Logger;
     uint32_t TimeYieldSleep, TimeSensitive;
     std::atomic_uint32_t TaskUid{ 0 };
     bool AllowStopAdd;
@@ -191,7 +189,7 @@ private:
     LoopAction OnLoop() override;
     bool OnStart(std::any& cookie) noexcept override;
     void OnStop() noexcept override;
-    bool SleepCheck() noexcept override; // double check if shoul sleep
+    bool SleepCheck() noexcept override; // double check if should sleep
 public:
     SYSCOMMONAPI AsyncManager(const bool isthreaded, const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);
     SYSCOMMONAPI AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);

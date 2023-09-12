@@ -38,7 +38,7 @@
   </Type>
 
   
-  <Type Name="common::container::IntrusiveDoubleLinkList&lt;*&gt;">
+  <Type Name="common::container::IntrusiveDoubleLinkList&lt;*,*&gt;">
     <Expand>
       <LinkedListItems>
         <HeadPointer>*($T1 **)&amp;Head</HeadPointer>

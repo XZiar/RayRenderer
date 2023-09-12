@@ -1,6 +1,7 @@
 #include "SystemCommonPch.h"
 #include "AsyncAgent.h"
 #include "AsyncManager.h"
+#include "MiniLogger.h"
 #define BOOST_CONTEXT_STATIC_LINK 1
 #define BOOST_CONTEXT_NO_LIB 1
 #include "3rdParty/boost.context/include/boost/context/continuation.hpp"
@@ -138,8 +139,14 @@ const common::asyexe::AsyncAgent* AsyncAgent::GetAsyncAgent()
 }
 
 
-struct AsyncManager::FiberContext : public boost::context::continuation
-{};
+struct AsyncManager::ManagerContext
+{
+    boost::context::continuation Stack;
+    common::mlog::MiniLogger<false> Logger;
+    ManagerContext(const std::u16string& name) :
+        Logger(u"Asy-" + name, { common::mlog::GetConsoleBackend() })
+    { }
+};
 boost::context::continuation& ToContext(void* ptr) noexcept
 {
     return *reinterpret_cast<boost::context::continuation*>(ptr);
@@ -156,7 +163,7 @@ uint32_t AsyncManager::PreCheckTask(std::u16string& taskName)
     }
     if (!AllowStopAdd && !IsRunning()) //has stopped
     {
-        Logger.Warning(u"New task cancelled due to termination [{}] [{}]\n"sv, tuid, taskName);
+        Context->Logger.Warning(u"New task cancelled due to termination [{}] [{}]\n"sv, tuid, taskName);
         COMMON_THROW(AsyncTaskException, AsyncTaskException::Reasons::Cancelled, u"Executor was terminated when adding task.");
     }
     return tuid;
@@ -166,7 +173,7 @@ bool AsyncManager::AddNode(detail::AsyncTaskNodeBase* node)
 {
     if (TaskList.AppendNode(node)) // need to notify worker
         Wakeup();
-    Logger.Debug(FmtString(u"Add new task [{}] [{}]\n"sv), node->TaskUid, node->Name);
+    Context->Logger.Debug(FmtString(u"Add new task [{}] [{}]\n"sv), node->TaskUid, node->Name);
     return true;
 }
 
@@ -174,7 +181,7 @@ void AsyncManager::Resume(detail::AsyncTaskStatus status)
 {
     Current->SumPartialTime();
     Current->Status = status;
-    ToContext(Context.get()) = ToContext(Context.get()).resume();
+    Context->Stack = Context->Stack.resume();
     if (!IsRunning())
         COMMON_THROW(AsyncTaskException, AsyncTaskException::Reasons::Terminated, u"Task was terminated, due to executor was terminated.");
 }
@@ -223,7 +230,7 @@ common::loop::LoopBase::LoopAction AsyncManager::OnLoop()
         }
         else //has returned
         {
-            Logger.Debug(FmtString(u"Task [{}] finished, reported executed {}us\n"sv), Current->Name, Current->ElapseTime / 1000);
+            Context->Logger.Debug(FmtString(u"Task [{}] finished, reported executed {}us\n"sv), Current->Name, Current->ElapseTime / 1000);
             auto tmp = Current;
             Current = TaskList.PopNode(Current);
             detail::AsyncTaskNodeBase::ReleaseNode(tmp);
@@ -242,7 +249,7 @@ bool AsyncManager::SleepCheck() noexcept
 bool AsyncManager::OnStart(std::any& cookie) noexcept
 {
     AsyncAgent::GetRawAsyncAgent() = &Agent;
-    Logger.Info(u"AsyncProxy started\n");
+    Context->Logger.Info(u"AsyncProxy started\n");
     Injector initer;
     std::tie(initer, ExitCallback) = std::any_cast<std::pair<Injector, Injector>>(std::move(cookie));
     if (initer)
@@ -252,7 +259,7 @@ bool AsyncManager::OnStart(std::any& cookie) noexcept
 
 void AsyncManager::OnStop() noexcept
 {
-    Logger.Verbose(u"AsyncExecutor [{}] begin to exit\n", Name);
+    Context->Logger.Verbose(u"AsyncExecutor [{}] begin to exit\n", Name);
     Current = nullptr;
     //destroy all task
     TaskList.ForEach([&](detail::AsyncTaskNodeBase* node)
@@ -260,7 +267,7 @@ void AsyncManager::OnStop() noexcept
             switch (node->Status)
             {
             case detail::AsyncTaskStatus::New:
-                Logger.Warning(u"Task [{}] cancelled due to termination.\n", node->Name);
+                Context->Logger.Warning(u"Task [{}] cancelled due to termination.\n", node->Name);
                 try
                 {
                     COMMON_THROW(AsyncTaskException, AsyncTaskException::Reasons::Cancelled, u"Task was cancelled and not executed, due to executor was terminated.");
@@ -309,8 +316,7 @@ common::loop::LoopExecutor& AsyncManager::GetHost()
 
 AsyncManager::AsyncManager(const bool isthreaded, const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd) :
     LoopBase(isthreaded ? LoopBase::GetThreadedExecutor : LoopBase::GetInplaceExecutor),
-    Context(std::make_unique<FiberContext>()), Name(name), Agent(*this), 
-    Logger(u"Asy-" + Name, { common::mlog::GetConsoleBackend() }),
+    Context(std::make_unique<ManagerContext>(name)), Name(name), Agent(*this),
     TimeYieldSleep(timeYieldSleep), TimeSensitive(timeSensitive), AllowStopAdd(allowStopAdd)
     { }
 AsyncManager::AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd)

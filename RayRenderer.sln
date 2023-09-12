@@ -51,7 +51,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\Controllable.hpp = common\Controllable.hpp
 		common\DelayLoader.h = common\DelayLoader.h
 		common\DelayLoader.inl = common\DelayLoader.inl
-		common\Delegate.hpp = common\Delegate.hpp
 		common\EasierJson.hpp = common\EasierJson.hpp
 		common\EasierJson.natvis = common\EasierJson.natvis
 		common\EasyIterator.hpp = common\EasyIterator.hpp
@@ -747,8 +746,6 @@ Global
 		{43B6E40D-793D-4224-897C-74CF6489619E}.Release|ARM64.Build.0 = Release|ARM64
 		{43B6E40D-793D-4224-897C-74CF6489619E}.Release|x64.ActiveCfg = Release|x64
 		{43B6E40D-793D-4224-897C-74CF6489619E}.Release|x64.Build.0 = Release|x64
-		{43B6E40D-793D-4224-897C-74CF6489619E}.Release|x86.ActiveCfg = Release|x64
-		{43B6E40D-793D-4224-897C-74CF6489619E}.Release|x86.Build.0 = Release|x64
 		{3797BA95-6625-4483-B66E-3B3F9B845DAB}.Debug|ARM64.ActiveCfg = Debug|ARM64
 		{3797BA95-6625-4483-B66E-3B3F9B845DAB}.Debug|ARM64.Build.0 = Debug|ARM64
 		{3797BA95-6625-4483-B66E-3B3F9B845DAB}.Debug|x64.ActiveCfg = Debug|x64

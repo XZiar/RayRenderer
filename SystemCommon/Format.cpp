@@ -1016,15 +1016,6 @@ void Formatter<Char>::FormatToDynamic_(std::basic_string<Char>& dst, std::basic_
 }
 
 
-template struct Formatter<char>;
-template struct Formatter<wchar_t>;
-template struct Formatter<char16_t>;
-template struct Formatter<char32_t>;
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-template struct Formatter<char8_t>;
-#endif
-
-
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
 template<typename Char>
 using SimChar = std::conditional_t<std::is_same_v<Char, char8_t>, char, Char>;
@@ -1377,7 +1368,13 @@ static void FillTime(const date::time_zone* timezone, uint64_t encodedUs, DateSt
     const auto microseconds = (static_cast<uint64_t>(0x8000000000000000) & (encodedUs << 1)) | (static_cast<uint64_t>(0x7fffffffffffffff) & encodedUs);
     const std::chrono::microseconds timeUs{ static_cast<int64_t>(microseconds) };
     const std::chrono::time_point<std::chrono::system_clock, std::chrono::microseconds> tp{ timeUs };
-    const auto tpday = std::chrono::floor<std::chrono::days>(tp);
+    const auto tpday = std::chrono::floor<
+#if SYSCOMMON_DATE == 1
+        std::chrono::days
+#else
+        std::chrono::duration<int, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>
+#endif
+    >(tp);
     date::year_month_weekday ymwd{ tpday };
     date.Base.tm_year = static_cast<int>(ymwd.year()) - 1900;
     date.Base.tm_mon = static_cast<int>(static_cast<unsigned>(ymwd.month()) - 1);
@@ -1427,6 +1424,13 @@ void Formatter<Char>::DirectFormatTo_(std::basic_string<Char>& dst, const detail
 {
     OnCustomArg<Char>(*this, dst, fmtPair, spec);
 }
+template struct Formatter<char>;
+template struct Formatter<wchar_t>;
+template struct Formatter<char16_t>;
+template struct Formatter<char32_t>;
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+template struct Formatter<char8_t>;
+#endif
 
 
 template<typename Char, typename Host, typename Spec>

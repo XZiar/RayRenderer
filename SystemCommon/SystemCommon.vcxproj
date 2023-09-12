@@ -253,6 +253,7 @@
     <ClInclude Include="ConsoleEx.h" />
     <ClInclude Include="CopyEx.h" />
     <ClInclude Include="Date.h" />
+    <ClInclude Include="Delegate.h" />
     <ClInclude Include="DynamicLibrary.h" />
     <ClInclude Include="Exceptions.h" />
     <ClInclude Include="FileEx.h" />

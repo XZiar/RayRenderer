@@ -1,7 +1,8 @@
 #include "WindowHost.h"
 #include "WindowManager.h"
 #include "SystemCommon/StringConvert.h"
-#include "common/Delegate.hpp"
+#include "SystemCommon/Delegate.h"
+#include "SystemCommon/SpinLock.h"
 #include "common/TrunckedContainer.hpp"
 
 #include <boost/preprocessor/seq/for_each.hpp>
@@ -52,7 +53,7 @@ struct alignas(uint64_t) WindowHost_::Pimpl
         COMMON_NO_COPY(InvokeNode)
         COMMON_NO_MOVE(InvokeNode)
     };
-    common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
+    common::container::IntrusiveDoubleLinkList<InvokeNode, common::spinlock::WRSpinLock> InvokeList;
     common::container::ResourceDict Data;
     common::SimpleTimer DrawTimer;
     common::AtomicBitfield<WindowFlag> Flags;

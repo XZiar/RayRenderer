@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SystemCommonRely.h"
-#include "common/Delegate.hpp"
+#include "Delegate.h"
 #include "common/EnumEx.hpp"
 #include "common/AtomicUtil.hpp"
 #include "common/TimeUtil.hpp"
