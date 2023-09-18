@@ -176,6 +176,24 @@
 
 
 
+/* debug detection */
+
+#if COMMON_COMPILER_MSVC
+#   if defined(_DEBUG)
+#       define CM_DEBUG 1
+#   else
+#       define CM_DEBUG 0
+#   endif
+#else
+#   if defined(NDEBUG)
+#       define CM_DEBUG 0
+#   else
+#       define CM_DEBUG 1
+#   endif
+#endif
+
+
+
 /* builtin check */
 
 #if defined(__has_builtin)

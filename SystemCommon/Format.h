@@ -198,7 +198,7 @@ struct FormatterParser
                     Type = ArgDispType::Date;
                     Extra = 0x00;
                 }
-                else if (typeidx == 18) // T
+                else if (typeidx == 18) // @
                 {
                     Type = ArgDispType::Color;
                     Extra = 0x00;
@@ -1136,7 +1136,7 @@ struct OpHolder<Char, 0>
 struct CompileTimeFormatter {};
 
 template<typename Char, uint16_t OpCount_, uint8_t NamedArgCount_, uint8_t IdxArgCount_>
-struct COMMON_EMPTY_BASES TrimedResult : public CompileTimeFormatter, public OpHolder<Char, OpCount_>, NamedArgLimiter<NamedArgCount_>, IdxArgLimiter<IdxArgCount_>
+struct COMMON_EMPTY_BASES TrimedResult : public CompileTimeFormatter, public OpHolder<Char, OpCount_>, public NamedArgLimiter<NamedArgCount_>, public IdxArgLimiter<IdxArgCount_>
 {
     using CharType = Char;
     static constexpr uint16_t OpCount = OpCount_;
@@ -1162,6 +1162,7 @@ struct COMMON_EMPTY_BASES TrimedResult : public CompileTimeFormatter, public OpH
     {
         return *this;
     }
+    constexpr std::basic_string_view<Char> GetNameSource() const noexcept { return this->FormatString; }
 };
 
 
@@ -1180,7 +1181,7 @@ inline constexpr auto WithName(std::string_view name, T&& arg) noexcept -> Named
 {
     return { name, std::forward<T>(arg) };
 }
-#define NAMEARG(name) [](auto&& arg)                \
+#define NAMEARG(name) [](auto&& arg) noexcept       \
 {                                                   \
     using T = decltype(arg);                        \
     using U = std::decay_t<T>;                      \
@@ -1205,14 +1206,15 @@ struct StaticArgPack
     std::array<uint16_t, N == 0 ? uint16_t(1) : N> ArgStore = { 0 };
     uint16_t CurrentSlot = 0;
     template<typename T>
-    forceinline void Put(T arg, uint16_t idx) noexcept
+    forceinline void Put(const T& arg, uint16_t idx) noexcept
     {
         constexpr auto NeedSize = sizeof(T);
         constexpr auto NeedSlot = (NeedSize + 1) / 2;
-#if !defined(NDEBUG)
+#if CM_DEBUG
         Expects(CurrentSlot + NeedSlot <= N);
 #endif
-        *reinterpret_cast<T*>(&ArgStore[CurrentSlot]) = arg;
+        memcpy(&ArgStore[CurrentSlot], &arg, sizeof(T));
+        //*reinterpret_cast<T*>(&ArgStore[CurrentSlot]) = arg;
         ArgStore[idx] = CurrentSlot;
         CurrentSlot += NeedSlot;
     }
@@ -1732,7 +1734,7 @@ struct ArgChecker
         NamedCheckResult ret;
         for (uint8_t i = 0; i < askCount; ++i)
         {
-            CM_ASSUME(ask[i].Offset + ask[i].Length < fmtStr.size());
+            //CM_ASSUME(ask[i].Offset + ask[i].Length < fmtStr.size());
             const auto askName = fmtStr.substr(ask[i].Offset, ask[i].Length);
             bool found = false, match = false;
             uint8_t j = 0;
@@ -1815,7 +1817,7 @@ struct ArgChecker
         }
         if constexpr (StrInfo.NamedArgCount > 0)
         {
-            constexpr auto NamedRet = GetNamedArgMismatch(StrInfo.NamedTypes, StrInfo.FormatString, StrInfo.NamedArgCount,
+            constexpr auto NamedRet = GetNamedArgMismatch(StrInfo.NamedTypes, StrInfo.GetNameSource(), StrInfo.NamedArgCount,
                 ArgsInfo.NamedTypes, ArgsInfo.Names, ArgsInfo.NamedArgCount);
             CheckNamedArgMismatch<NamedRet.AskIndex ? *NamedRet.AskIndex : ParseResultCommon::NamedArgSlots,
                 NamedRet.GiveIndex ? *NamedRet.GiveIndex : ParseResultCommon::NamedArgSlots>();
@@ -2009,15 +2011,15 @@ private:
 };
 
 
-#define FmtString2(str_) []()                                                   \
+#define FmtString2(str_) []() noexcept                                          \
 {                                                                               \
-    using FMT_P = common::str::FormatterParser;                                 \
-    using FMT_R = common::str::ParseResultBase;                                 \
+    using FMT_P = ::common::str::FormatterParser;                               \
+    using FMT_R = ::common::str::ParseResultBase;                               \
     using FMT_C = std::decay_t<decltype(str_[0])>;                              \
     constexpr auto Data    = FMT_P::ParseString(str_);                          \
     [[maybe_unused]] constexpr auto Check =                                     \
         FMT_R::CheckErrorCompile<Data.ErrorPos, Data.ErrorNum>();               \
-    using FMT_T = common::str::TrimedResult<FMT_C,                              \
+    using FMT_T = ::common::str::TrimedResult<FMT_C,                            \
         Data.OpCount, Data.NamedArgCount, Data.IdxArgCount>;                    \
     struct FMT_Type : public FMT_T                                              \
     {                                                                           \
@@ -2028,15 +2030,15 @@ private:
     return Dummy;                                                               \
 }()
 
-#define FmtString(str_) *[]()                                       \
+#define FmtString(str_) *[]() noexcept                              \
 {                                                                   \
-    using FMT_P = common::str::FormatterParser;                     \
-    using FMT_R = common::str::ParseResultBase;                     \
+    using FMT_P = ::common::str::FormatterParser;                   \
+    using FMT_R = ::common::str::ParseResultBase;                   \
     using FMT_C = std::decay_t<decltype(str_[0])>;                  \
     static constexpr auto Data = FMT_P::ParseString(str_);          \
     [[maybe_unused]] constexpr auto Check =                         \
         FMT_R::CheckErrorCompile<Data.ErrorPos, Data.ErrorNum>();   \
-    using FMT_T = common::str::TrimedResult<FMT_C,                  \
+    using FMT_T = ::common::str::TrimedResult<FMT_C,                \
         Data.OpCount, Data.NamedArgCount, Data.IdxArgCount>;        \
     struct FMT_Type : public FMT_T                                  \
     {                                                               \

@@ -750,8 +750,36 @@ TEST(Format, Formatting)
     }
 }
 
+TEST(Format, MultiFormat)
+{
+    Formatter<char> fmter{};
+    {
+        const auto& syntax = FormatterCombiner::Combine(FmtString("{0},{1}"sv), FmtString("{1},{0}"sv));
+        const auto ret0 = syntax(0)(fmter, 1, 2);
+        EXPECT_EQ(ret0, "1,2");
+        const auto ret1 = syntax(1)(fmter, 1, 2);
+        EXPECT_EQ(ret1, "2,1");
+    }
+    {
+        const auto& syntax = FormatterCombiner::Combine(FmtString("{t1}"sv), FmtString("{t2}"sv));
+        const auto ret0 = syntax(0)(fmter, NAMEARG("t1")("t1"), NAMEARG("t2")("t2"));
+        EXPECT_EQ(ret0, "t1");
+        const auto ret1 = syntax(1)(fmter, NAMEARG("t1")("t1"), NAMEARG("t2")("t2"));
+        EXPECT_EQ(ret1, "t2");
+    }
+    {
+        const auto& syntax = FormatterCombiner::Combine(FmtString("{0:d},{t1}"sv), FmtString("{1:s},{t2}"sv), FmtString("{},{},{t1:s},{t2}"sv));
+        const auto ret0 = syntax(0)(fmter, 1, "2", NAMEARG("t1")("t1"), NAMEARG("t2")("t2"));
+        EXPECT_EQ(ret0, "1,t1");
+        const auto ret1 = syntax(1)(fmter, 1, "2", NAMEARG("t1")("t1"), NAMEARG("t2")("t2"));
+        EXPECT_EQ(ret1, "2,t2");
+        const auto ret2 = syntax(2)(fmter, 1, "2", NAMEARG("t1")("t1"), NAMEARG("t2")("t2"));
+        EXPECT_EQ(ret2, "1,2,t1,t2");
+    }
+}
 
-#if defined(NDEBUG)
+
+#if CM_DEBUG == 0
 TEST(Format, Perf)
 {
     constexpr uint32_t times = 100000;
