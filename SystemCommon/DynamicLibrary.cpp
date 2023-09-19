@@ -73,5 +73,20 @@ void* DynLib::TryGetFunction(std::string_view name) const noexcept
 #endif
 }
 
+void* DynLib::FindLoaded(const fs::path& path) noexcept
+{
+    auto dllpath = path.lexically_normal();
+    if (dllpath.has_parent_path())
+    {
+        dllpath = std::filesystem::canonical(dllpath);
+    }
+    dllpath.make_preferred();
+#if COMMON_OS_WIN
+    return GetModuleHandleW(dllpath.c_str());
+#else
+    return dlopen(path.c_str(), RTLD_NOLOAD);
+#endif
+}
+
 
 }

@@ -27,7 +27,10 @@ public:
     template<typename T>
     DynLib(const T& path) : Handle(TryOpen(path))
     {
-        Name = str::to_u16string(path);
+        if constexpr (std::is_same_v<T, fs::path>)
+            Name = path.u16string();
+        else
+            Name = str::to_u16string(path);
         Validate();
     }
 	SYSCOMMONAPI ~DynLib();
@@ -38,6 +41,9 @@ public:
     }
 	DynLib& operator=(const DynLib&) = delete;
 	DynLib& operator=(DynLib&&) = delete;
+
+    constexpr bool operator==(const DynLib& other) const noexcept { return Handle == other.Handle; }
+    constexpr bool operator==(const void* handle) const noexcept { return Handle == handle; }
 
 	constexpr explicit operator bool() const noexcept { return Handle; }
 	template<typename T>
@@ -54,5 +60,6 @@ public:
 	{
         return DynLib{ TryOpen(path), path.u16string() };
 	}
+    SYSCOMMONAPI static void* FindLoaded(const fs::path& path) noexcept;
 };
 }

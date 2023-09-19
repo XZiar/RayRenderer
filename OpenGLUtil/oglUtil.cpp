@@ -53,7 +53,9 @@ common::span<const std::unique_ptr<oglLoader>> oglLoader::GetLoaders() noexcept
         {
             try
             {
-                loaders.emplace_back(creator());
+                auto loader = creator();
+                if (loader)
+                    loaders.emplace_back(std::move(loader));
             }
             catch (const common::BaseException& be)
             {

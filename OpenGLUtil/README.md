@@ -66,11 +66,11 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 ## Dependency
 
-* [OpenGL Header](https://github.com/KhronosGroup/OpenGL-Registry/tree/master/api/GL) [`submodule`](https://github.com/XZiar/OpenGL-Headers) 220530
+* [OpenGL Header](https://github.com/KhronosGroup/OpenGL-Registry/tree/master/api) [`submodule`](https://github.com/XZiar/OpenGL-Headers) 230705
 
-* [EGL Header](https://github.com/KhronosGroup/EGL-Registry/tree/master/api/EGL) [`submodule`](https://github.com/XZiar/EGL-Headers) 220525
+* [EGL Header](https://github.com/KhronosGroup/EGL-Registry/tree/master/api) [`submodule`](https://github.com/XZiar/EGL-Headers) 230622
 
-* [KHR API Header](https://github.com/KhronosGroup/EGL-Registry/tree/master/api/KHR) 
+* [angle Header](https://github.com/google/angle/tree/main/include/EGL) [`submodule`](https://github.com/XZiar/angle-Headers) 230622
 
 * [common](../common)
   * [math](../common/math) -- providing basic 3d data structure

@@ -167,7 +167,7 @@ const CommonDeviceInfo* CommonDeviceContainer::LocateExactDevice(const std::arra
             }
         }
     }
-    if (!ret)
+    if (!ret && !devPath.empty())
         ret = LocateByDevicePath(devPath);
     if (ret)
     {

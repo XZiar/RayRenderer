@@ -21,7 +21,7 @@ std::string ContextCapability::GenerateSupportLog() const
 {
     std::string text("Capability:\n");
 
-    constexpr auto syntax = FmtString2("Support [{:^15}] : \t [{}]\n"sv);
+    const auto& syntax = FmtString("Support [{:^15}] : \t [{}]\n"sv);
     common::str::Formatter<char> fmter{};
 #define CHK_SUPPORT(x) fmter.FormatToStatic(text, syntax, #x, PPCAT(Support,x) ? 'Y' : 'N')
     CHK_SUPPORT(Debug);

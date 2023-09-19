@@ -76,11 +76,11 @@ public:
 };
 
 void RegisterLoader(std::string_view name, std::function<std::unique_ptr<oglLoader>()> creator) noexcept;
-template<typename T>
-inline bool RegisterLoader() noexcept
+template<typename T, typename... Ts>
+inline bool RegisterLoader(Ts&&... args) noexcept
 {
     static_assert(std::is_base_of_v<oglLoader, T>);
-    RegisterLoader(T::LoaderName, []() {return std::make_unique<T>(); });
+    RegisterLoader(T::LoaderName, [=]() { return std::make_unique<T>(std::forward<Ts>(args)...); });
     return true;
 }
 

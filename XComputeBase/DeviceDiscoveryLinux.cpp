@@ -168,34 +168,38 @@ struct DrmI915 final : public DrmHelper
         	.num_items = 1,
         	.items_ptr = (uintptr_t)&item,
         };
+        const auto queryI915 = [&]() -> common::ErrnoHolder
+        {
+            common::ErrnoHolder errret = ioctl(fd, DRM_IOCTL_I915_QUERY, &query);
+            if (errret && item.length < 0)
+            {
+                errret = -item.length;
+            }
+            return errret;
+        };
         common::ErrnoHolder errret;
-        errret = ioctl(fd, DRM_IOCTL_I915_QUERY, &query);
+        errret = queryI915();
         if (errret)
         {
-            if (item.length < 0)
-                errret = -item.length;
-            else
+            std::unique_ptr<std::byte[]> data(new std::byte[item.length]);
+            item.data_ptr = reinterpret_cast<uintptr_t>(&data[0]);
+            errret = queryI915();
+            if (errret)
             {
-                std::unique_ptr<std::byte[]> data(new std::byte[item.length]);
-                item.data_ptr = reinterpret_cast<uintptr_t>(&data[0]);
-                errret = ioctl(fd, DRM_IOCTL_I915_QUERY, &query);
-                if (errret)
+                const auto& regions = *reinterpret_cast<const drm_i915_query_memory_regions*>(&data[0]);
+                for (uint32_t i = 0; i < regions.num_regions; i++)
                 {
-                    const auto& regions = *reinterpret_cast<const drm_i915_query_memory_regions*>(&data[0]);
-                    for (uint32_t i = 0; i < regions.num_regions; i++) 
+                    const auto& region = regions.regions[i];
+                    if (region.probed_size == UINT64_MAX) continue;
+                    switch (region.region.memory_class)
                     {
-                        const auto& region = regions.regions[i];
-                        if (region.probed_size == UINT64_MAX) continue;
-                        switch (region.region.memory_class)
-                        {
-                        case I915_MEMORY_CLASS_SYSTEM:
-                            info.DedicatedSysRAM = static_cast<uint32_t>(region.probed_size / 1048576u);
-                            break;
-                        case I915_MEMORY_CLASS_DEVICE:
-                            info.DedicatedVRAM   = static_cast<uint32_t>(region.probed_size / 1048576u);
-                            break;
-                        default: break;
-                        }
+                    case I915_MEMORY_CLASS_SYSTEM:
+                        info.DedicatedSysRAM = static_cast<uint32_t>(region.probed_size / 1048576u);
+                        break;
+                    case I915_MEMORY_CLASS_DEVICE:
+                        info.DedicatedVRAM = static_cast<uint32_t>(region.probed_size / 1048576u);
+                        break;
+                    default: break;
                     }
                 }
             }

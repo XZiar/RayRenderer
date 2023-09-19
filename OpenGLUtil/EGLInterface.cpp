@@ -1,6 +1,6 @@
 #include "oglPch.h"
 #include "oglUtil.h"
-
+#include "SystemCommon/StringDetect.h"
 
 #undef APIENTRY
 #include "EGL/egl.h"
@@ -89,6 +89,12 @@ struct EnumBitfield
 class EGLLoader_ final : public EGLLoader
 {
 private:
+    struct FBConfig
+    {
+        EGLConfig Config = nullptr;
+        EGLint VisualId = 0;
+        constexpr explicit operator bool() const noexcept { return Config != nullptr; }
+    };
     static constexpr std::u16string_view GetErrorString(EGLint err) noexcept;
     struct EGLHost final : public EGLLoader::EGLHost
     {
@@ -98,9 +104,8 @@ private:
         EGLLoader::DeviceHolder SelfDevice;
         std::u16string Vendor;
         std::u16string VersionString;
-        EGLConfig Config = nullptr;
+        FBConfig CommonConfig, GLConfig, GLESConfig;
         EGLSurface Surface = nullptr;
-        EGLint VisualId = 0;
         uint16_t Version = 0;
         bool IsOffscreen;
         EGLHost(EGLLoader_& loader, EGLDisplay dc, bool isOffscreen) : EGLLoader::EGLHost(loader), DeviceContext(dc), IsOffscreen(isOffscreen)
@@ -158,17 +163,25 @@ private:
                 loader.DestroySurface(DeviceContext, Surface);
             loader.Terminate(DeviceContext);
         }
+        const FBConfig& GetConfig(std::optional<GLType> type) const
+        {
+            if (CommonConfig)
+                return CommonConfig;
+            if (type)
+                return *type == GLType::Desktop ? GLConfig : GLESConfig;
+            return GLConfig ? GLConfig : GLESConfig;
+        }
         void InitSurface(uintptr_t surface) final
         {
             auto& loader = static_cast<EGLLoader_&>(Loader);
             if (IsOffscreen)
             {
                 //Surface = loader.CreatePixmapSurface(DeviceContext, Config, (EGLNativePixmapType)surface, nullptr);
-                Surface = loader.CreatePbufferSurface(DeviceContext, Config, nullptr);
+                Surface = loader.CreatePbufferSurface(DeviceContext, GetConfig({}).Config, nullptr);
             }
             else
             {
-                Surface = loader.CreateWindowSurface(DeviceContext, Config, (EGLNativeWindowType)surface, nullptr);
+                Surface = loader.CreateWindowSurface(DeviceContext, GetConfig({}).Config, (EGLNativeWindowType)surface, nullptr);
             }
         }
         void* CreateContext_(const CreateInfo& cinfo, void* sharedCtx) noexcept final
@@ -196,7 +209,7 @@ private:
                 attrib.Set(EGL_CONTEXT_RELEASE_BEHAVIOR_KHR, cinfo.FlushWhenSwapContext.value() ?
                     EGL_CONTEXT_RELEASE_BEHAVIOR_FLUSH_KHR : EGL_CONTEXT_RELEASE_BEHAVIOR_NONE_KHR);
             }
-            return loader.CreateContext(DeviceContext, Config, reinterpret_cast<EGLContext>(sharedCtx), attrib.Data());
+            return loader.CreateContext(DeviceContext, GetConfig(cinfo.Type).Config, reinterpret_cast<EGLContext>(sharedCtx), attrib.Data());
         }
         bool MakeGLContextCurrent_(void* hRC) const final
         {
@@ -228,7 +241,7 @@ private:
                 loader.MakeCurrent(oldHdc, oldSurfW, oldSurfR, oldHrc);
             }
         }
-        const int& GetVisualId() const noexcept final { return VisualId; }
+        const int& GetVisualId() const noexcept final { return GetConfig({}).VisualId; }
         uint32_t GetVersion() const noexcept final { return Version; }
         const xcomp::CommonDeviceInfo* GetCommonDevice() const noexcept final 
         { 
@@ -287,16 +300,9 @@ private:
     EGLType Type = EGLType::Unknown;
 public:
     static constexpr std::string_view LoaderName = "EGL"sv;
-    EGLLoader_() :
-#if COMMON_OS_WIN
-        LibEGL("libEGL.dll"),
-#elif COMMON_OS_DARWIN
-        LibEGL("libEGL.dylib"),
-#else
-        LibEGL("libEGL.so"),
-#endif
-        XCompDevs(xcomp::ProbeDevice())
+    EGLLoader_(const common::fs::path& dllpath) : LibEGL(dllpath), XCompDevs(xcomp::ProbeDevice())
     {
+        GetLoadedDlls().emplace_back(&LibEGL);
         LOAD_FUNC(EGL, GetError);
         LOAD_FUNC(EGL, GetDisplay);
         TrLd_FUNC(EGL, GetPlatformDisplay);
@@ -463,6 +469,23 @@ private:
 
     /*void Init() override
     { }*/
+
+    bool TryChooseConfig(FBConfig& ret, EGLDisplay display, const detail::AttribList<int32_t>& cfgAttrib) const
+    {
+        common::str::Formatter<char16_t> fmt16{};
+        int cfgCount = 0;
+        if (EGL_TRUE != ChooseConfig(display, cfgAttrib.Data(), &ret.Config, 1, &cfgCount))
+            COMMON_THROWEX(common::BaseException, fmt16.FormatStatic(FmtString(u"Unable to choose EGL Config: [{}]"sv), GetCurErrStr()));
+        if (cfgCount == 0)
+        {
+            ret.Config = nullptr;
+            return false;
+        }
+        if (EGL_TRUE != GetConfigAttrib(display, ret.Config, EGL_NATIVE_VISUAL_ID, &ret.VisualId))
+            COMMON_THROWEX(common::BaseException, fmt16.FormatStatic(FmtString(u"Unable to get EGL VisualId: [{}]"sv), GetCurErrStr()));
+        return true;
+    }
+
     std::shared_ptr<EGLLoader::EGLHost> CreateFromDisplay(EGLDisplay display, bool useOffscreen)
     {
         common::str::Formatter<char16_t> fmt16{};
@@ -477,15 +500,49 @@ private:
         cfgAttrib.Set(EGL_ALPHA_SIZE,   8);
         cfgAttrib.Set(EGL_STENCIL_SIZE, 8);
         cfgAttrib.Set(EGL_DEPTH_SIZE,   24);
-        EGLint rdBit = 0;
-        if (host->SupportDesktop) rdBit |= EGL_OPENGL_BIT;
-        if (host->SupportES)      rdBit |= EGL_OPENGL_ES2_BIT;
-        if (host->Version >= 15)  rdBit |= EGL_OPENGL_ES3_BIT;
-        cfgAttrib.Set(EGL_RENDERABLE_TYPE, rdBit);
-        int cfgCount = 0;
-        if (EGL_TRUE != ChooseConfig(display, cfgAttrib.Data(), &host->Config, 1, &cfgCount))
-            COMMON_THROWEX(common::BaseException, fmt16.FormatStatic(FmtString(u"Unable to choose EGL Config: [{}]"sv), GetCurErrStr()));
-        if (cfgCount == 0)
+
+        EGLint renderableGL = 0, renderableGLES = 0;
+        if (host->SupportDesktop) renderableGL   |= EGL_OPENGL_BIT;
+        if (host->SupportES)      renderableGLES |= EGL_OPENGL_ES2_BIT;
+        if (host->Version >= 15)  renderableGLES |= EGL_OPENGL_ES3_BIT;
+        Ensures(renderableGL || renderableGLES);
+        if (renderableGL && renderableGLES) // try both support type
+        {
+            cfgAttrib.Set(EGL_RENDERABLE_TYPE, renderableGL | renderableGLES);
+            TryChooseConfig(host->CommonConfig, display, cfgAttrib);
+        }
+        if (renderableGL)
+        {
+            cfgAttrib.Set(EGL_RENDERABLE_TYPE, renderableGL);
+            TryChooseConfig(host->GLConfig, display, cfgAttrib);
+        }
+        if (renderableGLES)
+        {
+            cfgAttrib.Set(EGL_RENDERABLE_TYPE, renderableGLES);
+            TryChooseConfig(host->GLESConfig, display, cfgAttrib);
+        }
+        if (renderableGL && renderableGLES && !host->CommonConfig)
+        {
+            if (host->GLConfig && host->GLESConfig)
+            {
+                if (host->GLConfig.VisualId != host->GLESConfig.VisualId)
+                    oglLog().Warning(u"GL&GLES with different visaul id: [{}} vs [{}].\n", host->GLConfig.VisualId, host->GLESConfig.VisualId);
+            }
+            else
+            {
+                if (host->SupportDesktop && !host->GLConfig)
+                {
+                    host->SupportDesktop = false;
+                    oglLog().Warning(u"Disable GL support due to no compatible config.\n");
+                }
+                if (host->SupportES && !host->GLESConfig)
+                {
+                    host->SupportES = false;
+                    oglLog().Warning(u"Disable GLES support due to no compatible config.\n");
+                }
+            }
+        }
+        if (!host->CommonConfig && !host->GLConfig && !host->GLESConfig)
         {
             EGLint cfgTotal = 0;
             if (EGL_TRUE != GetConfigs(display, nullptr, 0, &cfgTotal))
@@ -494,18 +551,26 @@ private:
             std::vector<EGLConfig> configs; 
             configs.resize(cfgTotal);
             GetConfigs(display, configs.data(), cfgTotal, &cfgTotal);
+            cfgAttrib.Set(EGL_RENDERABLE_TYPE, renderableGLES);
             for (EGLint i = 0; i < cfgTotal; ++i)
             {
                 const auto& cfg = configs[i];
                 fmt16.FormatToStatic(result, FmtString(u"cfg[{}]: "sv), i);
-                for (const auto& [k, v] : cfgAttrib)
+                for (const auto [k, v] : cfgAttrib)
                 {
                     EGLint v2 = 0;
                     if (EGL_TRUE == GetConfigAttrib(display, cfg, k, &v2))
                     {
-                        const auto match = (k == EGL_RENDERABLE_TYPE || k == EGL_SURFACE_TYPE) ? (v & v2) == v : v == v2;
-                        if (!match)
-                            fmt16.FormatToStatic(result, FmtString(u"[{:04X}]:[{:04X}]vs[{:04X}], "sv), k, v, v2);
+                        if (k == EGL_RENDERABLE_TYPE)
+                        {
+                            fmt16.FormatToStatic(result, FmtString(u"[RdType]:[{:04X}|{:04X}]vs[{:04X}], "sv), renderableGL, renderableGLES, v2);
+                        }
+                        else
+                        {
+                            const auto match = (k == EGL_RENDERABLE_TYPE || k == EGL_SURFACE_TYPE) ? (v & v2) == v : v == v2;
+                            if (!match)
+                                fmt16.FormatToStatic(result, FmtString(u"[{:04X}]:[{:04X}]vs[{:04X}], "sv), k, v, v2);
+                        }
                     }
                 }
                 result.append(u"\n");
@@ -513,8 +578,6 @@ private:
             oglLog().Debug(u"Totally [{}] configs avaliable:\n{}\n", cfgTotal, result);
             COMMON_THROWEX(common::BaseException, u"Unable to choose EGL Config"sv);
         }
-        if (EGL_TRUE != GetConfigAttrib(display, host->Config, EGL_NATIVE_VISUAL_ID, &host->VisualId))
-            COMMON_THROWEX(common::BaseException, fmt16.FormatStatic(FmtString(u"Unable to get EGL VisualId: [{}]"sv), GetCurErrStr()));
         return host;
     }
 
@@ -665,7 +728,55 @@ private:
         return {};
     }
 
-    static inline const auto Dummy = detail::RegisterLoader<EGLLoader_>();
+    static std::vector<const common::DynLib*>& GetLoadedDlls() noexcept
+    {
+        static std::vector<const common::DynLib*> container;
+        return container;
+    }
+
+    static inline const auto Dummy = []() 
+        {
+            std::vector<common::fs::path> dllpaths;
+#if COMMON_OS_WIN
+            dllpaths.emplace_back("libEGL.dll");
+#elif COMMON_OS_DARWIN
+            dllpaths.emplace_back("libEGL.dylib");
+#else
+            dllpaths.emplace_back("libEGL.so");
+#endif
+#if COMMON_OS_ANDROID
+#   if COMMON_OSBIT == 64
+            dllpaths.emplace_back("/system/lib64/libEGL.so");
+#   else
+            dllpaths.emplace_back("/system/lib/libEGL.so");
+#   endif
+#endif
+            const auto envstrs = common::GetEnvVar("OGLU_EGL_PATH");
+            const auto envpaths = common::str::to_u16string(envstrs, common::str::DetectEncoding(envstrs));
+            for (const common::fs::path p : common::str::SplitStream(envpaths, u';', false))
+            {
+                if (p.is_absolute() && common::fs::exists(p))
+                {
+                    dllpaths.emplace_back(p);
+                }
+            }
+            for (const auto& p : dllpaths)
+            {
+                detail::RegisterLoader(EGLLoader_::LoaderName, [=]() -> std::unique_ptr<oglLoader> 
+                    {
+                        if (const auto dll = common::DynLib::FindLoaded(p); dll)
+                        {
+                            for (const auto target : GetLoadedDlls())
+                            {
+                                if (*target == dll) // already loaded
+                                    return {};
+                            }
+                        }
+                        return std::make_unique<EGLLoader_>(p);
+                    });
+            }
+            return true;
+        }();
 };
 
 
