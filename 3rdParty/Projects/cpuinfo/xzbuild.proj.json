@@ -1,0 +1,36 @@
+{
+    "name": "cpuinfo",
+    "type": "static",
+    "description": "CPU INFOrmation library (x86/x86-64/ARM/ARM64, Linux/Windows/Android/macOS/iOS)",
+    "dependency": [],
+    "srcPath": "../../cpuinfo",
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "c":
+        {
+            "defines": ["CPUINFO_LOG_LEVEL=3", {"ifeq": {"osname": "Linux"}, "+": "_GNU_SOURCE=1"}],
+            "incpath": ["$(SolutionDir)/3rdParty/cpuinfo/src/", "$(SolutionDir)/3rdParty/cpuinfo/include/"],
+            "sources": 
+            [
+                {"dir": "src", "+": ["api.c", "cache.c", "init.c"]},
+                {"dir": "src/linux", "ifeq": {"osname": "Linux"}, "+": "*.c", "-": "mockfile.c"},
+                {"dir": "src/mach", "ifeq": {"osname": "Darwin"}, "+": "*.c"},
+                {"dir": "src/x86", "ifeq": {"arch": "x86"}, "+": "*.c", "-": "mockcpuid.c"},
+                {"dir": "src/x86/cache", "ifeq": {"arch": "x86"}, "+": "*.c"},
+                {"dir": "src/x86/linux", "ifeq": {"arch": "x86", "osname": "Linux"}, "+": "*.c"},
+                {"dir": "src/x86/mach", "ifeq": {"arch": "x86", "osname": "Darwin"}, "+": "*.c"},
+                {"dir": "src/arm", "ifeq": {"arch": "arm"}, "+": ["cache.c", "uarch.c"]},
+                {"dir": "src/arm/linux", "ifeq": {"arch": "arm", "osname": "Linux"}, "+": "*.c"},
+                {"dir": "src/arm/linux", "ifeq": {"arch": "arm", "osname": "Linux", "bits": 64}, "-": "aarch32-isa.c"},
+                {"dir": "src/arm/linux", "ifeq": {"arch": "arm", "osname": "Linux", "bits": 32}, "-": "aarch64-isa.c"},
+                {"dir": "src/arm/mach", "ifeq": {"arch": "arm", "osname": "Darwin"}, "+": "*.c"},
+                {"dir": "src/arm/android", "ifeq": {"arch": "arm"}, "ifhas": "android", "+": ["properties.c"]}
+            ]
+        }
+    }
+}

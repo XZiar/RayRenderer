@@ -4,7 +4,9 @@
 #include "common/FrozenDenseSet.hpp"
 #include "common/simd/SIMD.hpp"
 #include "common/StringLinq.hpp"
+#include "3rdParty/cpuinfo/include/cpuinfo.h"
 #if COMMON_ARCH_X86
+#   include "3rdParty/cpuinfo/src/x86/cpuid.h"
 #   include "3rdParty/libcpuid/libcpuid/libcpuid.h"
 #endif
 #if COMMON_OS_LINUX && COMMON_ARCH_ARM
@@ -35,7 +37,8 @@
 #   include <sys/utsname.h>
 #endif
 
-
+#include <cstdarg>
+#include <deque>
 #include <mutex>
 #include <shared_mutex>
 #include <forward_list>
@@ -195,6 +198,69 @@ void DebugErrorOutput(std::string_view str) noexcept
     fprintf(stderr, "%s", str.data());
 }
 #endif
+
+
+struct InitMessageHost
+{
+    common::SpinLocker Lock;
+    std::unique_ptr<InitMessage::Handler> Handler;
+    std::deque<InitMessage> Messages;
+    static std::pair<InitMessageHost*, bool*> Get() noexcept
+    {
+        static thread_local bool beInLock = false;
+        static InitMessageHost host;
+        return { &host, &beInLock };
+    }
+    // expects beInLock = true
+    void ConsumeAll()
+    {
+        while (!Messages.empty())
+        {
+            const auto& tmp = Messages.front();
+            Handler->Handle(tmp.Level, tmp.Host, tmp.Message);
+            Messages.pop_front();
+        }
+    }
+};
+
+InitMessage::Handler::~Handler() {}
+
+void InitMessage::Enqueue(mlog::LogLevel level, std::string_view host, std::string_view msg) noexcept
+{
+    const auto [man, beInLock] = InitMessageHost::Get();
+    if (!*beInLock)
+    {
+        const auto locker = man->Lock.LockScope();
+        *beInLock = true;
+        if (man->Handler)
+        {
+            if (!man->Messages.empty())
+                man->ConsumeAll();
+            man->Handler->Handle(level, host, msg);
+            man->ConsumeAll();
+        }
+        else
+            man->Messages.push_back(InitMessage{ std::string(host), std::string(msg), level });
+        *beInLock = false;
+    }
+    else
+    {
+        Ensures(!man->Lock.TryLock());
+        man->Messages.push_back(InitMessage{ std::string(host), std::string(msg), level });
+    }
+}
+void InitMessage::Consume(std::unique_ptr<Handler> handler) noexcept
+{
+    const auto [man, beInLock] = InitMessageHost::Get();
+    Ensures(!*beInLock);
+    const auto locker = man->Lock.LockScope();
+    *beInLock = true;
+    Ensures(!man->Handler);
+    man->Handler = std::move(handler);
+    man->ConsumeAll();
+    *beInLock = false;
+}
+
 }
 
 
@@ -239,6 +305,48 @@ std::string GetEnvVar(const char* name) noexcept
 }
 
 #endif
+
+
+static void LogCpuinfoMsg(mlog::LogLevel level, const char* format, va_list args) noexcept
+{
+    constexpr auto Log = [](mlog::LogLevel level, const char* str, size_t len) 
+        {
+            if (level > mlog::LogLevel::Error)
+            {
+                std::string msg = "[cpuinfo]";
+                msg.append(str, len);
+                detail::DebugErrorOutput(msg);
+            }
+            detail::InitMessage::Enqueue(level, "cpuinfo", { str, len });
+        };
+    constexpr uint32_t Len = 1020;
+    char tmp[Len + 1] = { '\0' };
+    va_list args_copy;
+    va_copy(args_copy, args);
+    const auto len = vsnprintf(tmp, Len, format, args);
+    if (len > 0)
+    {
+        std::string_view str;
+        if (static_cast<uint32_t>(len) > Len)
+        {
+            std::string tmp2;
+            tmp2.resize(len + 1);
+            const auto len2 = vsnprintf(tmp2.data(), len, format, args_copy);
+            if (len2 > 0)
+            {
+                tmp2.resize(std::min(len, len2));
+                tmp2.push_back('\n');
+                Log(level, tmp2.data(), tmp2.size());
+            }
+        }
+        else
+        {
+            tmp[len] = '\n';
+            Log(level, tmp, len + 1);
+        }
+    }
+    va_end(args_copy);
+}
 
 
 struct CleanerData
@@ -361,6 +469,61 @@ struct CPUFeature
 {
     std::vector<std::string_view> FeatureText;
     container::FrozenDenseStringSet<char, false> FeatureLookup;
+    void TryCPUInfo() noexcept
+    {
+        if (!FeatureText.empty()) return;
+        cpuinfo_initialize();
+        detail::InitMessage::Enqueue(mlog::LogLevel::Verbose, "cpuinfo", std::string("detected cpu: ") + cpuinfo_get_package(0)->name + "\n");
+#if COMMON_ARCH_X86
+        const uint32_t max_base_index = cpuid(0).eax;
+        if (max_base_index >= 7)
+        {
+            const auto reg70 = cpuidex(7, 0);
+            if (reg70.ecx & (1u << 5))
+                FeatureText.push_back("waitpkg"sv);
+        }
+# define CHECK_FEATURE(en, name) if (cpuinfo_has_x86_##en()) FeatureText.push_back(#name""sv)
+        CHECK_FEATURE(sse,          sse);
+        CHECK_FEATURE(sse2,         sse2);
+        CHECK_FEATURE(sse3,         sse3);
+        CHECK_FEATURE(ssse3,        ssse3);
+        CHECK_FEATURE(sse4_1,       sse4_1);
+        CHECK_FEATURE(sse4_2,       sse4_2);
+        CHECK_FEATURE(avx,          avx);
+        CHECK_FEATURE(fma3,         fma);
+        CHECK_FEATURE(avx2,         avx2);
+        CHECK_FEATURE(avx512f,      avx512f);
+        CHECK_FEATURE(avx512dq,     avx512dq);
+        CHECK_FEATURE(avx512pf,     avx512pf);
+        CHECK_FEATURE(avx512er,     avx512er);
+        CHECK_FEATURE(avx512cd,     avx512cd);
+        CHECK_FEATURE(avx512bw,     avx512bw);
+        CHECK_FEATURE(avx512vl,     avx512vl);
+        CHECK_FEATURE(avx512vnni,   avx512vnni);
+        CHECK_FEATURE(avx512vbmi,   avx512vbmi);
+        CHECK_FEATURE(avx512vbmi2,  avx512vbmi2);
+        CHECK_FEATURE(pclmulqdq,    pclmul);
+        CHECK_FEATURE(popcnt,       popcnt);
+        CHECK_FEATURE(aes,          aes);
+        CHECK_FEATURE(lzcnt,        lzcnt);
+        CHECK_FEATURE(f16c,         f16c);
+        CHECK_FEATURE(bmi,          bmi1);
+        CHECK_FEATURE(bmi2,         bmi2);
+        CHECK_FEATURE(sha,          sha);
+        CHECK_FEATURE(adx,          adx);
+# undef CHECK_FEATURE
+#elif COMMON_ARCH_ARM
+# define CHECK_FEATURE(en, name) if (cpuinfo_has_arm_##en()) FeatureText.push_back(#name""sv)
+        CHECK_FEATURE(neon,         asimd);
+        CHECK_FEATURE(aes,          aes);
+        CHECK_FEATURE(pmull,        pmull);
+        CHECK_FEATURE(sha1,         sha1);
+        CHECK_FEATURE(sha2,         sha2);
+        CHECK_FEATURE(crc32,        crc32);
+# undef CHECK_FEATURE
+#endif
+        return;
+    }
     void TryCPUID() noexcept
     {
         if (!FeatureText.empty()) return;
@@ -378,6 +541,7 @@ struct CPUFeature
                 cpu_id_t data;
                 if (cpu_identify(&raw, &data) >= 0)
                 {
+                    detail::InitMessage::Enqueue(mlog::LogLevel::Verbose, "cpuid", std::string("detected cpu: ") + data.brand_str + "\n");
 # define CHECK_FEATURE(en, name) if (data.flags[CPU_FEATURE_##en]) FeatureText.push_back(#name""sv)
                     CHECK_FEATURE(SSE,          sse);
                     CHECK_FEATURE(SSE2,         sse2);
@@ -474,6 +638,7 @@ struct CPUFeature
 
     CPUFeature() noexcept
     {
+        TryCPUInfo();
         TryCPUID();
         TryAUXVal();
         TrySysCtl();
@@ -543,3 +708,18 @@ void FastPathBase::Init(common::span<const PathInfo> info, common::span<const Va
 }
 
 
+extern "C"
+{
+void cpuinfo_vlog_fatal(const char* format, va_list args)
+{
+    common::LogCpuinfoMsg(common::mlog::LogLevel::None, format, args);
+}
+void cpuinfo_vlog_error(const char* format, va_list args)
+{
+    common::LogCpuinfoMsg(common::mlog::LogLevel::Error, format, args);
+}
+void cpuinfo_vlog_warning(const char* format, va_list args)
+{
+    common::LogCpuinfoMsg(common::mlog::LogLevel::Warning, format, args);
+}
+}

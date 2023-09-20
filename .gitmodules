@@ -87,3 +87,6 @@
 [submodule "3rdParty/tzdata"]
 	path = 3rdParty/tzdata
 	url = https://github.com/eggert/tz.git
+[submodule "3rdParty/cpuinfo"]
+	path = 3rdParty/cpuinfo
+	url = https://github.com/pytorch/cpuinfo.git

@@ -65,6 +65,13 @@ public:
 };
 
 
+namespace mlog
+{
+enum class LogLevel : uint8_t { Debug = 20, Verbose = 40, Info = 60, Success = 70, Warning = 85, Error = 100, None = 120 };
+MAKE_ENUM_RANGE(LogLevel)
+}
+
+
 SYSCOMMONAPI std::string GetEnvVar(const char* name) noexcept;
 // don't add SetEnv since it's rare?
 

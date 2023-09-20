@@ -535,30 +535,26 @@ public:
     { }
 };
 
-const ConsoleEx& ConsoleEx::Get() noexcept
+static std::unique_ptr<ConsoleEx> CreateConsole() noexcept
 {
-    static auto console = []() -> std::unique_ptr<ConsoleEx>
+    // no need to close
+    // see https://docs.microsoft.com/en-us/windows/console/getstdhandle#handle-disposal
+    const auto handle = ::GetStdHandle(STD_OUTPUT_HANDLE);
+    if (handle != INVALID_HANDLE_VALUE)
     {
-        // no need to close
-        // see https://docs.microsoft.com/en-us/windows/console/getstdhandle#handle-disposal
-        const auto handle = ::GetStdHandle(STD_OUTPUT_HANDLE);
-        if (handle != INVALID_HANDLE_VALUE)
+        DWORD mode;
+        if (::GetConsoleMode(handle, &mode) != 0)
         {
-            DWORD mode;
-            if (::GetConsoleMode(handle, &mode) != 0)
+            if (GetWinBuildNumber() >= 10586) // since win10 1511(th2)
             {
-                if (GetWinBuildNumber() >= 10586) // since win10 1511(th2)
-                {
-                    mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-                    ::SetConsoleMode(handle, mode);
-                    return std::make_unique<VTConsole>(handle);
-                }
-                return std::make_unique<ClassicConsole>(handle);
+                mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+                ::SetConsoleMode(handle, mode);
+                return std::make_unique<VTConsole>(handle);
             }
+            return std::make_unique<ClassicConsole>(handle);
         }
-        return std::make_unique<NormalConsole>();
-    }();
-    return *console;
+    }
+    return std::make_unique<NormalConsole>();
 }
 
 #elif COMMON_OS_UNIX || 1
@@ -672,33 +668,59 @@ class DirectConsole final : public NormalConsole
     }
 };
 
-const ConsoleEx& ConsoleEx::Get() noexcept
+static std::unique_ptr<ConsoleEx> CreateConsole() noexcept
 {
-    static auto console = []() -> std::unique_ptr<ConsoleEx>
+    const auto fd = fileno(stdout);
+    const auto isAtty = isatty(fd);
+    if (isAtty)
     {
-        const auto fd = fileno(stdout);
-        const auto isAtty = isatty(fd);
-        if (isAtty)
+        const auto str = GetEnvVar("TERM");
+        constexpr std::string_view ColorTerms[] =
         {
-            const auto str = GetEnvVar("TERM");
-            constexpr std::string_view ColorTerms[] =
+            "xterm", "xterm-color", "xterm-256color", "screen", "screen-256color", "tmux", "tmux-256color", "rxvt-unicode", "rxvt-unicode-256color", "linux", "cygwin"
+        };
+        for (const auto t : ColorTerms)
+        {
+            if (str == t)
             {
-                "xterm", "xterm-color", "xterm-256color", "screen", "screen-256color", "tmux", "tmux-256color", "rxvt-unicode", "rxvt-unicode-256color", "linux", "cygwin"
-            };
-            for (const auto t : ColorTerms)
-            {
-                if (str == t)
-                {
-                    return std::make_unique<DirectConsole>();
-                }
+                return std::make_unique<DirectConsole>();
             }
         }
-        return std::make_unique<NormalConsole>();
-    }();
-    return *console;
+    }
+    return std::make_unique<NormalConsole>();
 }
 
 #endif
+
+struct InitMessageHandler final : detail::InitMessage::Handler
+{
+    ConsoleEx* Console = nullptr;
+    constexpr InitMessageHandler(ConsoleEx* console) noexcept : Console(console) {}
+    ~InitMessageHandler() final {}
+    void Handle(mlog::LogLevel level, std::string_view host, std::string_view msg) noexcept final
+    {
+        std::u16string txt;
+        txt.reserve(host.size() + msg.size() + 2);
+        if (!host.empty())
+        {
+            txt.append(u"[").append(host.begin(), host.end()).append(u"]");
+        }
+        txt.append(msg.begin(), msg.end());
+        Console->Print(common::detail::GetLogColor(level), txt);
+    }
+};
+
+const ConsoleEx& ConsoleEx::Get() noexcept
+{
+    static auto theConsole = []()
+        {
+            auto console = CreateConsole();
+            auto handler = std::make_unique<InitMessageHandler>(console.get());
+            detail::InitMessage::Consume(std::move(handler));
+            return console;
+        }();
+        return *theConsole;
+}
 
 
 char ConsoleEx::ReadCharImmediate(bool ShouldEcho) noexcept

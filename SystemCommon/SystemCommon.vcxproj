@@ -83,7 +83,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty;$(SolutionDir)3rdParty/fmt/include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty;$(SolutionDir)3rdParty/fmt/include;$(SolutionDir)3rdParty/cpuinfo/src;$(SolutionDir)3rdParty/cpuinfo/include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -287,6 +287,9 @@
   <ItemGroup>
     <ProjectReference Include="..\3rdParty\Projects\boost.context\boost.context.vcxproj">
       <Project>{e308a1b2-da99-4d69-a2e5-ff5b57e6efc7}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\3rdParty\Projects\cpuinfo\cpuinfo.vcxproj">
+      <Project>{03ab567f-05ff-3782-be15-d7bcb3dd0fe5}</Project>
     </ProjectReference>
     <ProjectReference Include="..\3rdParty\Projects\date\date.vcxproj">
       <Project>{7be97d3d-f242-4ab9-8eee-05b974e7515e}</Project>

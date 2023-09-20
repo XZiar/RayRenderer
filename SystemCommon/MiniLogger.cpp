@@ -443,19 +443,6 @@ private:
     std::u16string PrefixCacheU16;
     bool UseFastU8Path;
     bool SupportColor;
-    static constexpr CommonColor ToColor(const LogLevel lv) noexcept
-    {
-        switch (lv)
-        {
-        case LogLevel::Error:   return CommonColor::BrightRed;
-        case LogLevel::Warning: return CommonColor::BrightYellow;
-        case LogLevel::Success: return CommonColor::BrightGreen;
-        case LogLevel::Info:    return CommonColor::BrightWhite;
-        case LogLevel::Verbose: return CommonColor::BrightMagenta;
-        case LogLevel::Debug:   return CommonColor::BrightCyan;
-        default:                return CommonColor::White;
-        }
-    }
     bool OnStart(std::any& cookie) noexcept final
     {
         common::SetThreadName(u"Console-MLogger-Backend");
@@ -483,7 +470,7 @@ public:
     {
         auto printer = Console.PrintSegments();
         if (SupportColor)
-            printer.SetColor({ false, ToColor(msg.Level) });
+            printer.SetColor({ false, common::detail::GetLogColor(msg.Level) });
         if (UseFastU8Path)
         {
             PrefixCacheU8.resize(1);

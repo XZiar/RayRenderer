@@ -75,6 +75,36 @@ namespace common
 
 namespace detail
 {
+
+inline constexpr CommonColor GetLogColor(const mlog::LogLevel lv) noexcept
+{
+    switch (lv)
+    {
+    case mlog::LogLevel::Error:     return CommonColor::BrightRed;
+    case mlog::LogLevel::Warning:   return CommonColor::BrightYellow;
+    case mlog::LogLevel::Success:   return CommonColor::BrightGreen;
+    case mlog::LogLevel::Info:      return CommonColor::BrightWhite;
+    case mlog::LogLevel::Verbose:   return CommonColor::BrightMagenta;
+    case mlog::LogLevel::Debug:     return CommonColor::BrightCyan;
+    default:                        return CommonColor::White;
+    }
+}
+
+struct InitMessage
+{
+    struct Handler
+    {
+        virtual void Handle(mlog::LogLevel level, std::string_view host, std::string_view msg) noexcept = 0;
+        virtual ~Handler();
+    };
+
+    std::string Host;
+    std::string Message;
+    mlog::LogLevel Level = mlog::LogLevel::None;
+    static void Enqueue(mlog::LogLevel level, std::string_view host, std::string_view msg) noexcept;
+    static void Consume(std::unique_ptr<Handler> handler) noexcept;
+};
+
 void DebugErrorOutput(std::string_view str) noexcept;
 }
 
