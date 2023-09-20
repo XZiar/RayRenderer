@@ -1,7 +1,6 @@
 #pragma once
 #include "DxRely.h"
 #include "SystemCommon/Format.h"
-#include "SystemCommon/StringFormat.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/ThreadEx.h"

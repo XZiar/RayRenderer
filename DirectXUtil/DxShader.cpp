@@ -70,7 +70,7 @@ private:
         while (true)
         {
             const auto smVer = maxVer + 1;
-            const auto targetProfile = FMTSTR(L"vs_{}_{}", smVer / 10, smVer % 10);
+            const auto targetProfile = common::str::Formatter<wchar_t>{}.FormatStatic(FmtString(L"vs_{}_{}"), smVer / 10, smVer % 10);
             ComPtr<IDxcOperationResult> result;
             common::HResultHolder hr = Compiler->Compile(srcBlob.Get(), L"hlsl",
                 L"main",
@@ -131,7 +131,7 @@ public:
                     if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>)
                         defstrs.back().second.assign(val.begin(), val.end());
                     else if constexpr (!std::is_same_v<T, std::monostate>)
-                        defstrs.back().second = FMTSTR(u"{}", val);
+                        defstrs.back().second = FMTSTR2(u"{}", val);
                 }, v);
         }
         std::vector<DxcDefine> defs;
@@ -161,7 +161,7 @@ public:
             default:                    COMMON_THROW(DxException, u"unrecoginized shadertype");
             }
         }(type);
-        const auto targetProfile = FMTSTR(u"{}s_{}_{}", tCh, smVer / 10, smVer % 10);
+        const auto targetProfile = FMTSTR2(u"{}s_{}_{}", tCh, smVer / 10, smVer % 10);
 
         common::HResultHolder hr = Compiler->Compile(srcBlob.Get(), L"hlsl",
             config.EntryPoint.empty() ? L"main" : WStr(config.EntryPoint.data()),

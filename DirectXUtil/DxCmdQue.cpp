@@ -14,8 +14,8 @@ MAKE_ENABLER_IMPL(DxDirectCmdQue_);
 struct DxCmdList_::BarrierType : public D3D12_RESOURCE_BARRIER {};
 using namespace std::string_view_literals;
 using common::enum_cast;
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
-
+#define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
+    .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
 
 
 void ResStateList::AddState(const DxResource_* res, ResourceState state)
@@ -71,18 +71,18 @@ void DxCmdList_::ResStateRecord::ThrowOnTransit(ResourceState newState, const bo
     if (Status == RecordStatus::Begin)
     {
         if (!isBegin)
-            COMMON_THROW(DxException, FMTSTR(u"Resource [{}] has not finish transition from [{:0X}] to [{:0X}], now try to begin transit to [{:0X}]",
+            COMMON_THROW(DxException, FMTSTR2(u"Resource [{}] has not finish transition from [{:0X}] to [{:0X}], now try to begin transit to [{:0X}]",
                 Resource->GetName(), enum_cast(FromState), enum_cast(State), enum_cast(newState)));
         else if (isCommitted)
-            COMMON_THROW(DxException, FMTSTR(u"Resource [{}] transit to unexpected state [{:0X}], expect from [{:0X}] to [{:0X}]",
+            COMMON_THROW(DxException, FMTSTR2(u"Resource [{}] transit to unexpected state [{:0X}], expect from [{:0X}] to [{:0X}]",
                 Resource->GetName(), enum_cast(newState), enum_cast(FromState), enum_cast(State)));
         else
-            COMMON_THROW(DxException, FMTSTR(u"Resource [{}] has been requested to begin transit from [{:0X}] to [{:0X}], now try to begin transit to [{:0X}]",
+            COMMON_THROW(DxException, FMTSTR2(u"Resource [{}] has been requested to begin transit from [{:0X}] to [{:0X}], now try to begin transit to [{:0X}]",
                 Resource->GetName(), enum_cast(FromState), enum_cast(State), enum_cast(newState)));
     }
     else
     {
-        COMMON_THROW(DxException, FMTSTR(u"Resource [{}] has been requested to {}transit from [{:0X}] to [{:0X}], now try to {}transit to [{:0X}]",
+        COMMON_THROW(DxException, FMTSTR2(u"Resource [{}] has been requested to {}transit from [{:0X}] to [{:0X}], now try to {}transit to [{:0X}]",
             Resource->GetName(), Status == RecordStatus::End ? u"end "sv : u""sv,
             enum_cast(FromState), enum_cast(State), isBegin ? u"begin "sv : u""sv, enum_cast(newState)));
     }
@@ -175,11 +175,11 @@ bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newS
     {
     case ListType::Copy:
         if (HAS_FIELD(newState, ~CopyAllowState))
-            COMMON_THROW(DxException, FMTSTR(u"Unsupported type [{}] for Copy List", common::enum_cast(newState)));
+            COMMON_THROW(DxException, FMTSTR2(u"Unsupported type [{}] for Copy List", common::enum_cast(newState)));
         break;
     case ListType::Compute:
         if (HAS_FIELD(newState, ~ComputeAllowState))
-            COMMON_THROW(DxException, FMTSTR(u"Unsupported type [{}] for Compute List", common::enum_cast(newState)));
+            COMMON_THROW(DxException, FMTSTR2(u"Unsupported type [{}] for Compute List", common::enum_cast(newState)));
         break;
     default:
         break;

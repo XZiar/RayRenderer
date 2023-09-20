@@ -112,7 +112,7 @@ private:
         {
             int verMajor = 0, verMinor = 0;
             if (loader.Initialize(DeviceContext, &verMajor, &verMinor) != EGL_TRUE)
-                COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to initialize EGL: [{}]"sv, loader.GetCurErrStr()));
+                COMMON_THROWEX(common::BaseException, FMTSTR2(u"Unable to initialize EGL: [{}]"sv, loader.GetCurErrStr()));
             Version = gsl::narrow_cast<uint16_t>(verMajor * 10 + verMinor);
             
             const auto clientAPIs = loader.QueryString(DeviceContext, EGL_CLIENT_APIS);

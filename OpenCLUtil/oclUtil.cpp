@@ -35,11 +35,12 @@ bool LogCLError(cl_int err, std::u16string_view msg)
 
 void oclUtil::LogCLInfo()
 {
+    common::str::Formatter<char16_t> fmter;
     for (const auto& plat : oclPlatform_::GetPlatforms())
     {
-        auto strBuf = FMTSTR(u"\nPlatform {} --- {}\n", plat->Name, plat->Ver);
+        auto strBuf = fmter.FormatStatic(FmtString(u"\nPlatform {} --- {}\n"), plat->Name, plat->Ver);
         for (const auto dev : plat->GetDevices())
-            fmt::format_to(std::back_inserter(strBuf), u"--Device {}: {} -- {} -- {}\n", dev->GetTypeName(),
+            fmter.FormatToStatic(strBuf, FmtString(u"--Device {}: {} -- {} -- {}\n"), dev->GetTypeName(),
                 dev->Name, dev->Vendor, dev->Ver);
         oclLog().Verbose(strBuf);
     }

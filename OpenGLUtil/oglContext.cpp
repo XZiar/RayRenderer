@@ -230,7 +230,7 @@ bool oglContext_::UseContext(const bool force)
     }
     if (!Host->MakeGLContextCurrent(Hrc))
     {
-        Host->ReportFailure(fmt::format(FMT_STRING(u"use context[{}]"sv), Hrc));
+        Host->ReportFailure(FMTSTR2(u"use context[{}]"sv, Hrc));
         return false;
     }
     InnerCurCtx = shared_from_this();
@@ -244,7 +244,7 @@ bool oglContext_::UnloadContext()
         InnerCurCtx.reset();
         if (!Host->MakeGLContextCurrent(nullptr))
         {
-            Host->ReportFailure(fmt::format(FMT_STRING(u"unload context[{}]"sv), Hrc));
+            Host->ReportFailure(FMTSTR2(u"unload context[{}]"sv, Hrc));
             return false;
         }
     }

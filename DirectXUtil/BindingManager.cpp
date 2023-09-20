@@ -156,7 +156,7 @@ DxUniqueBindingManager::DxUniqueBindingManager(size_t bufCount, size_t texCount,
 uint16_t DxUniqueBindingManager::SetBuf(DxBuffer_::BufferView<DxBufferConst> bufview, uint16_t offset)
 {
     if (offset >= BindBuffer.size())
-        COMMON_THROW(DxException, FMTSTR(u"Bind buffer [{}] to offset [{}] overflow of total [{}] desc",
+        COMMON_THROW(DxException, FMTSTR2(u"Bind buffer [{}] to offset [{}] overflow of total [{}] desc",
             bufview.Buffer->GetName(), offset, BindBuffer.size()));
     BindBuffer[offset].Item = std::move(bufview);
     return offset;

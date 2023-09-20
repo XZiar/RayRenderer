@@ -3,7 +3,6 @@
 #include "SystemCommon/ErrorCodeHelper.h"
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/Exceptions.h"
-#include "SystemCommon/StringFormat.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "common/AlignedBuffer.hpp"
 #include "common/StringEx.hpp"

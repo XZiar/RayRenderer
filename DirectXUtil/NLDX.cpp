@@ -36,9 +36,9 @@ using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
-//#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 #define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
     .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
+#define FMTSTR4(syntax, ...) common::str::Formatter<char32_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 
 
 std::string_view NLDXStruct::GetLayoutName() const noexcept
@@ -186,7 +186,7 @@ Arg NLDXConfigurator::EvaluateFunc(FuncEvalPack& func)
         HashCase(subName, U"Enable16Bit")
         {
             if (runtime.Context.Device->SMVer < 62)
-                NLRT_THROW_EX(FMTSTR(u"16Bit support requires SM6.2, but Device [{}] only support [SM{}].", 
+                NLRT_THROW_EX(FMTSTR2(u"16Bit support requires SM6.2, but Device [{}] only support [SM{}].", 
                     runtime.Context.Device->AdapterName, runtime.Context.Device->SMVer / 10.f), func);
             runtime.Context.MinSMVer = std::max(runtime.Context.MinSMVer, 62u);
             runtime.Context.Enable16Bit = true;
@@ -301,7 +301,7 @@ bool NLDXRawExecutor::HandleInstanceMeta(FuncPack& meta)
                 y = meta.Params[1].GetUint().value_or(1),
                 z = meta.Params[2].GetUint().value_or(1);
             kerCtx.WorkgroupSize = gsl::narrow_cast<uint32_t>(x * y * z);
-            kerCtx.AddAttribute(U"ReqWGSize"sv, FMTSTR(U"[numthreads({}, {}, {})]"sv, x, y, z));
+            kerCtx.AddAttribute(U"ReqWGSize"sv, FMTSTR4(U"[numthreads({}, {}, {})]"sv, x, y, z));
         } return true;
         HashCase(subName, U"UseGroupId")
         {

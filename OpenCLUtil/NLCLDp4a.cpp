@@ -1,5 +1,6 @@
 #include "oclPch.h"
 #include "NLCLDp4a.h"
+#include "SystemCommon/FormatExtra.h"
 
 
 using namespace std::string_view_literals;
@@ -12,27 +13,37 @@ struct ConvB4Arg
     bool NeedConv;
     constexpr ConvB4Arg(std::u32string_view arg, char32_t pfx, bool isPacked, bool wantPacked) :
         Arg(arg), IsUnsigned(pfx == U'u'), IsToPacked(wantPacked), NeedConv(wantPacked != isPacked) { }
+
+    void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec*) const
+    {
+        if (!NeedConv)
+            executor.PutString(context, Arg, nullptr);
+        else
+            executor.PutString(context, common::str::Formatter<char32_t>{}.FormatStatic(FmtString(U"as_{}({})"),
+                IsToPacked ? (IsUnsigned ? U"uint"sv : U"int"sv) : (IsUnsigned ? U"uchar4"sv : U"char4"sv), Arg),
+            nullptr);
+    }
 };
 
-template<typename Char>
-struct fmt::formatter<ConvB4Arg, Char>
-{
-    template<typename ParseContext>
-    constexpr auto parse(ParseContext& ctx) const
-    {
-        return ctx.begin();
-    }
-    template<typename FormatContext>
-    auto format(const ConvB4Arg& arg, FormatContext& ctx) const
-    {
-        if (!arg.NeedConv)
-            return fmt::format_to(ctx.out(), FMT_STRING(U"{}"), arg.Arg);
-        else
-            return fmt::format_to(ctx.out(), FMT_STRING(U"as_{}({})"), 
-                arg.IsToPacked ? (arg.IsUnsigned ? U"uint"sv : U"int"sv) : (arg.IsUnsigned ? U"uchar4"sv : U"char4"sv), 
-                arg.Arg);
-    }
-};
+//template<typename Char>
+//struct fmt::formatter<ConvB4Arg, Char>
+//{
+//    template<typename ParseContext>
+//    constexpr auto parse(ParseContext& ctx) const
+//    {
+//        return ctx.begin();
+//    }
+//    template<typename FormatContext>
+//    auto format(const ConvB4Arg& arg, FormatContext& ctx) const
+//    {
+//        if (!arg.NeedConv)
+//            return fmt::format_to(ctx.out(), FMT_STRING(U"{}"), arg.Arg);
+//        else
+//            return fmt::format_to(ctx.out(), FMT_STRING(U"as_{}({})"), 
+//                arg.IsToPacked ? (arg.IsUnsigned ? U"uint"sv : U"int"sv) : (arg.IsUnsigned ? U"uchar4"sv : U"char4"sv), 
+//                arg.Arg);
+//    }
+//};
 
 namespace oclu
 {
@@ -51,7 +62,7 @@ using common::str::Encoding;
 
 
 #define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
+#define FMTSTR4(syntax, ...) Fmter.FormatStatic(FmtString(syntax), __VA_ARGS__)
 #define RET_FAIL(func) return {U"No proper ["## #func ##"]"sv, false}
 
 
@@ -218,7 +229,7 @@ xcomp::ReplaceResult Dp4aProvider::DP4ASat(Dp4aType type, const common::span<con
     Expects(type.IsSat());
     std::u32string_view newArgs[] = { U"0"sv, args[1], args[2] };
     const auto ret = DP4A({ type.GetSignedness(), false, type.IsPacked() }, newArgs);
-    return { FMTSTR(U"add_sat({}, {})"sv, ret.GetStr(), args[0]), ret.GetDepends()};
+    return { FMTSTR4(U"add_sat({}, {})"sv, ret.GetStr(), args[0]), ret.GetDepends()};
 }
 
 
@@ -278,7 +289,7 @@ ReplaceResult NLCLDp4aPlain::DP4A(const Dp4aType type, const common::span<const 
     auto dep = Context.AddPatchedBlock(funcName, [&]()
         {
             const auto [pfxC, pfxA, pfxB] = GetSignPrefix(type.GetSignedness());
-            std::u32string func = FMTSTR(U"inline {1}int {0}({1}int acc, const {2}char4 a, const {3}char4 b)",
+            std::u32string func = FMTSTR4(U"inline {1}int {0}({1}int acc, const {2}char4 a, const {3}char4 b)",
                 funcName, pfxC, pfxA, pfxB);
             func.append(UR"(
 {
@@ -287,7 +298,7 @@ ReplaceResult NLCLDp4aPlain::DP4A(const Dp4aType type, const common::span<const 
             return func;
         });
     const auto [argA, argB] = GetDP4Arg(type, args, false);
-    return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], argA, argB), dep };
+    return { FMTSTR4(U"{}({}, {}, {})"sv, funcName, args[0], argA, argB), dep };
 }
 
 
@@ -300,14 +311,19 @@ ReplaceResult NLCLDp4aKhr::DP4A(const Dp4aType type, const common::span<const st
     const auto signedness = type.GetSignedness();
     const auto [pfxC, pfxA, pfxB] = GetSignPrefix(signedness);
     const auto sfx = GetSignSuffix(signedness);
+    const auto& satSyntax = FmtString(U"dot_acc_sat{}({},{},{})"sv);
+    const auto& notsatSyntax = FmtString(U"(dot{}({2}, {3}) + {1})"sv);
+    const auto& syntax = common::str::FormatterCombiner::Combine(satSyntax, notsatSyntax);
+
     std::u32string ret = type.IsSat() ? U"dot_acc_sat"s : U"(dot"s;
     const auto usePacked = type.IsPacked() || !SupportUnpacked;
-    if (usePacked)
-        APPEND_FMT(ret, U"_4x8packed_{}_{}int"sv, sfx, pfxC);
+    const auto packedSfx = usePacked ? Fmter.FormatStatic(FmtString(U"_4x8packed_{}_{}int"sv), sfx, pfxC) : std::u32string{};
     const auto [argA, argB] = GetDP4Arg(type, args, usePacked);
-    fmt::format_to(std::back_inserter(ret), type.IsSat() ? U"({}, {}, {})"sv : U"({1}, {2}) + {0})"sv,
+    
+    return syntax(type.IsSat() ? 0 : 1)(Fmter, packedSfx, args[0], argA, argB);
+    /*fmt::format_to(std::back_inserter(ret), type.IsSat() ? U"({}, {}, {})"sv : U"({1}, {2}) + {0})"sv,
         args[0], argA, argB, usePacked);
-    return ret;
+    return ret;*/
 }
 
 
@@ -328,15 +344,15 @@ ReplaceResult NLCLDp4aIntel::DP4A(const Dp4aType type, const common::span<const 
         {
             const auto [pfxC, pfxA, pfxB] = GetSignPrefix(type.GetSignedness());
             const auto sfx = GetSignSuffix(type.GetSignedness());
-            static constexpr auto syntax = UR"(int __builtin_IB_dp4a_{0}(int c, int a, int b) __attribute__((const));
+            const auto& syntax = FmtString(UR"(int __builtin_IB_dp4a_{0}(int c, int a, int b) __attribute__((const));
 inline {2}int {1}({2}int acc, const {3}char4 a, const {4}char4 b)
 {{
     return __builtin_IB_dp4a_{0}(as_int(acc), as_int(a), as_int(b));
-}})"sv;
-            return FMTSTR(syntax, sfx, funcName, pfxC, pfxA, pfxB);
+}})"sv);
+            return Fmter.FormatStatic(syntax, sfx, funcName, pfxC, pfxA, pfxB);
         });
     const auto [argA, argB] = GetDP4Arg(type, args, false);
-    return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], argA, argB), dep };
+    return { FMTSTR4(U"{}({}, {}, {})"sv, funcName, args[0], argA, argB), dep };
 }
 
 
@@ -359,17 +375,17 @@ ReplaceResult NLCLDp4aArm::DP4A(const Dp4aType type, const common::span<const st
     if (type.IsSat()) // SupportDPA8S
     {
         EnableDPA8S = true;
-        return FMTSTR(U"arm_dot_acc_sat({}, {}, {})"sv, argA, argB, args[0]);
+        return FMTSTR4(U"arm_dot_acc_sat({}, {}, {})"sv, argA, argB, args[0]);
     }
     if (SupportDPA8)
     {
         EnableDPA8 = true;
-        return FMTSTR(U"arm_dot_acc({}, {}, {})"sv, argA, argB, args[0]);
+        return FMTSTR4(U"arm_dot_acc({}, {}, {})"sv, argA, argB, args[0]);
     }
     else // SupportDP8
     {
         EnableDP8 = true;
-        return FMTSTR(U"(arm_dot({}, {}) + {})"sv, argA, argB, args[0]);
+        return FMTSTR4(U"(arm_dot({}, {}) + {})"sv, argA, argB, args[0]);
     }
 }
 
@@ -403,16 +419,16 @@ ReplaceResult NLCLDp4aPtx::DP4A(const Dp4aType type, const common::span<const st
             const auto [pfxC, pfxA, pfxB] = GetSignPrefix(type.GetSignedness());
             const char32_t typePfxA = pfxA == U' ' ? U's' : U'u';
             const char32_t typePfxB = pfxB == U' ' ? U's' : U'u';
-            static constexpr auto syntax = UR"(inline {1}int {0}({1}int acc, const {2}int a, const {3}int b)
+            const auto& syntax = FmtString(UR"(inline {1}int {0}({1}int acc, const {2}int a, const {3}int b)
 {{
     {1}int ret;
     asm volatile("dp4a.{4}32.{5}32 %0, %1, %2, %3;" : "=r"(ret) : "r"(a), "r"(b), "r"(acc));
     return ret;
-}})"sv;
-            return FMTSTR(syntax, funcName, pfxC, pfxA, pfxB, typePfxA, typePfxB);
+}})"sv);
+            return Fmter.FormatStatic(syntax, funcName, pfxC, pfxA, pfxB, typePfxA, typePfxB);
         });
     const auto [argA, argB] = GetDP4Arg(type, args, true);
-    return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], argA, argB), dep };
+    return { FMTSTR4(U"{}({}, {}, {})"sv, funcName, args[0], argA, argB), dep };
 }
 
 

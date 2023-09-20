@@ -148,12 +148,12 @@ bool DxProgram_::DxProgramPrepareBase::SetBuf(HashedStrView<char> name, const Dx
     {
     case BoundedResourceType::UAVs:
         if (!HAS_FIELD(buf.ResFlags, ResourceFlags::AllowUnorderAccess))
-            COMMON_THROW(DxException, FMTSTR(u"Bufview of [{}] cannot be UAV, flags[{}]",
+            COMMON_THROW(DxException, FMTSTR2(u"Bufview of [{}] cannot be UAV, flags[{}]",
                 buf.GetName(), common::enum_cast(buf.ResFlags)));
         break;
     case BoundedResourceType::SRVs:
         if (HAS_FIELD(buf.ResFlags, ResourceFlags::DenyShaderResource))
-            COMMON_THROW(DxException, FMTSTR(u"Bufview of [{}] cannot be SRV, flags[{}]",
+            COMMON_THROW(DxException, FMTSTR2(u"Bufview of [{}] cannot be SRV, flags[{}]",
                 buf.GetName(), common::enum_cast(buf.ResFlags)));
         break;
     default:

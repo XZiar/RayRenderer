@@ -37,6 +37,7 @@ using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 #define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 #define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
     .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
+#define FMTSTR4(syntax, ...) common::str::Formatter<char32_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 
 
 NLCLExtension::NLCLExtension(NLCLContext& context) : xcomp::XCNLExtension(context), Context(context)
@@ -380,7 +381,7 @@ bool NLCLRawExecutor::HandleInstanceMeta(FuncPack& meta)
                 y = meta.Params[1].GetUint().value_or(1),
                 z = meta.Params[2].GetUint().value_or(1);
             kerCtx.WorkgroupSize = gsl::narrow_cast<uint32_t>(x * y * z);
-            kerCtx.AddAttribute(U"ReqWGSize"sv, FMTSTR(U"__attribute__((reqd_work_group_size({}, {}, {})))"sv, x, y, z));
+            kerCtx.AddAttribute(U"ReqWGSize"sv, FMTSTR4(U"__attribute__((reqd_work_group_size({}, {}, {})))"sv, x, y, z));
         } return true;
         HashCase(subName, U"SimpleArg")
         {

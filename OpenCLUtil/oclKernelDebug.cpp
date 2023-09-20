@@ -2,6 +2,7 @@
 #include "oclKernelDebug.h"
 #include "oclNLCLRely.h"
 #include "XComputeBase/XCompDebugExt.h"
+#include "SystemCommon/FormatExtra.h"
 
 
 template<> OCLUAPI common::span<const xcomp::debug::WorkItemInfo::InfoField> xcomp::debug::WGInfoHelper::Fields<oclu::debug::SubgroupWgInfo>() noexcept
@@ -21,7 +22,6 @@ using xziar::nailang::NailangRuntimeException;
 using common::simd::VecDataInfo;
 
 #define FMTSTR32(syntax, ...) common::str::Formatter<char32_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
 struct NonSubgroupInfoProvider final : public xcomp::debug::InfoProviderT<xcomp::debug::WorkItemInfo>
@@ -355,110 +355,113 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
     std::pair<std::u32string, std::u32string_view> DebugStringPatch(NLCLRawExecutor& executor, const std::u32string_view dbgId,
         const std::u32string_view formatter, common::span<const xcomp::debug::NamedVecPair> args) noexcept
     {
-        auto& runtime = executor.GetRuntime();
-        // prepare arg layout
-        const auto& dbgBlock = AppendBlock(dbgId, formatter, args);
-        const auto& dbgData = dbgBlock.Layout;
-        // test format
+        common::str::Formatter<char32_t> fmter;
         try
         {
-            std::vector<std::byte> test(dbgData.TotalSize);
-            GetLogger(runtime).Debug(FmtString(u"DebugString:[{}]\n{}\ntest output:\n{}\n"sv), dbgId, formatter, dbgBlock.GetString(test));
-        }
-        catch (const fmt::format_error& fe)
-        {
-            executor.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangFormatException, formatter, fe));
-            return { U"// Formatter not match the datatype provided\r\n", {} };
-        }
+            // prepare arg layout
+            const auto& dbgBlock = AppendBlock(dbgId, formatter, args);
+            const auto& dbgData = dbgBlock.Layout;
+            // test format
+            {
+                std::vector<std::byte> test(dbgData.TotalSize);
+                auto& runtime = executor.GetRuntime();
+                GetLogger(runtime).Debug(FmtString(u"DebugString:[{}]\n{}\ntest output:\n{}\n"sv), dbgId, formatter, dbgBlock.GetString(test));
+            }
 
-        std::u32string func = FMTSTR32(U"inline void oclu_debug_{}("sv, dbgId);
-        func.append(U"\r\n    const  uint           total,"sv)
-            .append(U"\r\n    global uint* restrict counter,"sv)
-            .append(U"\r\n    global uint* restrict data,"sv);
-        for (size_t i = 0; i < args.size(); ++i)
-        {
-            APPEND_FMT(func, U"\r\n    const  {:7} arg{},"sv, NLCLRuntime::GetCLTypeName(args[i].second), i);
-        }
-        func.pop_back();
-        func.append(U")\r\n{"sv);
-        static constexpr auto syntax = UR"(
+            std::u32string func = fmter.FormatStatic(FmtString(U"inline void oclu_debug_{}("sv), dbgId);
+            func.append(U"\r\n    const  uint           total,"sv)
+                .append(U"\r\n    global uint* restrict counter,"sv)
+                .append(U"\r\n    global uint* restrict data,"sv);
+            for (size_t i = 0; i < args.size(); ++i)
+            {
+                fmter.FormatToStatic(func, FmtString(U"\r\n    const  {:7} arg{},"sv), NLCLRuntime::GetCLTypeName(args[i].second), i);
+            }
+            func.pop_back();
+            func.append(U")\r\n{"sv);
+            const auto& syntax = FmtString(UR"(
     global uint* const restrict ptr = oclu_debug({}, {}, total, counter, data);
-    if (ptr == 0) return;)"sv;
-        APPEND_FMT(func, syntax, dbgBlock.DebugId, dbgData.TotalSize / 4);
-        const auto WriteOne = [&](uint32_t offset, uint16_t argIdx, uint8_t vsize, uint8_t eleBit, std::u32string_view argAccess, bool needConv)
-        {
-            const auto eleByte = eleBit / 8;
-            const VecDataInfo dtype{ VecDataInfo::DataTypes::Unsigned, eleBit,     1, 0 };
-            const auto dstTypeStr = NLCLRuntime::GetCLTypeName(dtype);
-            std::u32string getData;
-            if (needConv)
-            {
-                const VecDataInfo vtype{ VecDataInfo::DataTypes::Unsigned, eleBit, vsize, 0 };
-                getData = FMTSTR32(U"as_{}(arg{}{})"sv, NLCLRuntime::GetCLTypeName(vtype), argIdx, argAccess);
-            }
-            else
-                getData = FMTSTR32(U"arg{}{}"sv, argIdx, argAccess);
-            if (vsize == 1)
-            {
-                APPEND_FMT(func, U"\r\n    ((global {}*)(ptr))[{}] = {};"sv, dstTypeStr, offset / eleByte, getData);
-            }
-            else
-            {
-                APPEND_FMT(func, U"\r\n    vstore{}({}, 0, (global {}*)(ptr) + {});"sv, vsize, getData, dstTypeStr, offset / eleByte);
-            }
-        };
-        for (const auto& blk : dbgData.ByLayout())
-        {
-            const auto& [info, name, offset, idx] = blk;
-            const auto size = info.Bit * info.Dim0;
-            APPEND_FMT(func, U"\r\n    // arg[{:3}], offset[{:3}], size[{:3}], type[{:6}], name[{}]"sv,
-                idx, offset, size / 8, xcomp::StringifyVDataType(info), dbgData.GetName(blk));
-            for (const auto eleBit : std::array<uint8_t, 3>{ 32u, 16u, 8u })
-            {
-                const auto eleByte = eleBit / 8;
-                if (size % eleBit == 0)
+    if (ptr == 0) return;)"sv);
+            fmter.FormatToStatic(func, syntax, dbgBlock.DebugId, dbgData.TotalSize / 4);
+            const auto WriteOne = [&](uint32_t offset, uint16_t argIdx, uint8_t vsize, uint8_t eleBit, std::u32string_view argAccess, bool needConv)
                 {
-                    const bool needConv = info.Bit != eleBit || info.Type != VecDataInfo::DataTypes::Unsigned;
-                    const auto cnt = gsl::narrow_cast<uint8_t>(size / eleBit);
-                    // For 32bit:
-                    // 64bit: 1,2,3,4,8,16 -> 2,4,6(4+2),8,16,32
-                    // 32bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
-                    // 16bit: 2,4,8,16     -> 1,2,4,8
-                    //  8bit: 4,8,16       -> 1,2,4
-                    // For 16bit:
-                    // 16bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
-                    //  8bit: 2,4,8,16     -> 1,2,4,8
-                    // For 8bit:
-                    //  8bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
-                    if (cnt == 32u)
+                    const auto eleByte = eleBit / 8;
+                    const VecDataInfo dtype{ VecDataInfo::DataTypes::Unsigned, eleBit,     1, 0 };
+                    const auto dstTypeStr = NLCLRuntime::GetCLTypeName(dtype);
+                    std::u32string getData;
+                    if (needConv)
                     {
-                        Expects(info.Bit == 64 && info.Dim0 == 16);
-                        WriteOne(offset + eleByte *  0, idx, 16, eleBit, U".s01234567"sv, needConv);
-                        WriteOne(offset + eleByte * 16, idx, 16, eleBit, U".s89abcdef"sv, needConv);
+                        const VecDataInfo vtype{ VecDataInfo::DataTypes::Unsigned, eleBit, vsize, 0 };
+                        getData = FMTSTR32(U"as_{}(arg{}{})"sv, NLCLRuntime::GetCLTypeName(vtype), argIdx, argAccess);
                     }
-                    else if (cnt == 6u)
+                    else
+                        getData = FMTSTR32(U"arg{}{}"sv, argIdx, argAccess);
+                    if (vsize == 1)
                     {
-                        Expects(info.Bit == 64 && info.Dim0 == 3);
-                        WriteOne(offset + eleByte * 0, idx, 4, eleBit, U".s01"sv, needConv);
-                        WriteOne(offset + eleByte * 4, idx, 2, eleBit, U".s2"sv,  needConv);
-                    }
-                    else if (cnt == 3u)
-                    {
-                        Expects(info.Bit == eleBit && info.Dim0 == 3);
-                        WriteOne(offset + eleByte * 0, idx, 2, eleBit, U".s01"sv, needConv);
-                        WriteOne(offset + eleByte * 2, idx, 1, eleBit, U".s2"sv,  needConv);
+                        fmter.FormatToStatic(func, FmtString(U"\r\n    ((global {}*)(ptr))[{}] = {};"sv), dstTypeStr, offset / eleByte, getData);
                     }
                     else
                     {
-                        Expects(cnt == 1 || cnt == 2 || cnt == 4 || cnt == 8 || cnt == 16);
-                        WriteOne(offset, idx, cnt, eleBit, {}, needConv);
+                        fmter.FormatToStatic(func, FmtString(U"\r\n    vstore{}({}, 0, (global {}*)(ptr) + {});"sv), vsize, getData, dstTypeStr, offset / eleByte);
                     }
-                    break;
+                };
+            for (const auto& blk : dbgData.ByLayout())
+            {
+                const auto& [info, name, offset, idx] = blk;
+                const auto size = info.Bit * info.Dim0;
+                fmter.FormatToStatic(func, FmtString(U"\r\n    // arg[{:3}], offset[{:3}], size[{:3}], type[{:6}], name[{}]"sv),
+                    idx, offset, size / 8, xcomp::StringifyVDataType(info), dbgData.GetName(blk));
+                for (const auto eleBit : std::array<uint8_t, 3>{ 32u, 16u, 8u })
+                {
+                    const auto eleByte = eleBit / 8;
+                    if (size % eleBit == 0)
+                    {
+                        const bool needConv = info.Bit != eleBit || info.Type != VecDataInfo::DataTypes::Unsigned;
+                        const auto cnt = gsl::narrow_cast<uint8_t>(size / eleBit);
+                        // For 32bit:
+                        // 64bit: 1,2,3,4,8,16 -> 2,4,6(4+2),8,16,32
+                        // 32bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
+                        // 16bit: 2,4,8,16     -> 1,2,4,8
+                        //  8bit: 4,8,16       -> 1,2,4
+                        // For 16bit:
+                        // 16bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
+                        //  8bit: 2,4,8,16     -> 1,2,4,8
+                        // For 8bit:
+                        //  8bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
+                        if (cnt == 32u)
+                        {
+                            Expects(info.Bit == 64 && info.Dim0 == 16);
+                            WriteOne(offset + eleByte * 0, idx, 16, eleBit, U".s01234567"sv, needConv);
+                            WriteOne(offset + eleByte * 16, idx, 16, eleBit, U".s89abcdef"sv, needConv);
+                        }
+                        else if (cnt == 6u)
+                        {
+                            Expects(info.Bit == 64 && info.Dim0 == 3);
+                            WriteOne(offset + eleByte * 0, idx, 4, eleBit, U".s01"sv, needConv);
+                            WriteOne(offset + eleByte * 4, idx, 2, eleBit, U".s2"sv, needConv);
+                        }
+                        else if (cnt == 3u)
+                        {
+                            Expects(info.Bit == eleBit && info.Dim0 == 3);
+                            WriteOne(offset + eleByte * 0, idx, 2, eleBit, U".s01"sv, needConv);
+                            WriteOne(offset + eleByte * 2, idx, 1, eleBit, U".s2"sv, needConv);
+                        }
+                        else
+                        {
+                            Expects(cnt == 1 || cnt == 2 || cnt == 4 || cnt == 8 || cnt == 16);
+                            WriteOne(offset, idx, cnt, eleBit, {}, needConv);
+                        }
+                        break;
+                    }
                 }
             }
+            func.append(U"\r\n}\r\n"sv);
+            return { func, Depend_DebugBase };
         }
-        func.append(U"\r\n}\r\n"sv);
-        return { func, Depend_DebugBase };
+        catch (const common::str::ArgMismatchException& be)
+        {
+            executor.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangFormatException, formatter, nullptr, be.GetDetailMessage()));
+            return { U"// Formatter not match the datatype provided\r\n", {} };
+        }
     }
 
     xcomp::ReplaceResult GenerateDebugFunc(NLCLRawExecutor& executor, const std::u32string_view id,

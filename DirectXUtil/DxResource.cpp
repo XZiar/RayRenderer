@@ -113,7 +113,7 @@ bool DxResource_::TransitStateCheck(ResourceState newState) const
     }
     const bool isBufOrSATex = IsBufOrSATex();
     if (isBufOrSATex && HAS_FIELD(newState, ResourceState::DepthWrite | ResourceState::DepthRead))
-        COMMON_THROW(DxException, FMTSTR(u"Buffer and Simultaneous-Access Texture can not set to type [DepthWrite|DepthRead], get[{}]",
+        COMMON_THROW(DxException, FMTSTR2(u"Buffer and Simultaneous-Access Texture can not set to type [DepthWrite|DepthRead], get[{}]",
             common::enum_cast(newState)));
     return true;
 }

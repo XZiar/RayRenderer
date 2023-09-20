@@ -1,7 +1,6 @@
 #include "XCompNailang.h"
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/StringConvert.h"
-#include "SystemCommon/StringFormat.h"
 #include "common/StrParsePack.hpp"
 #include "common/StaticLookup.hpp"
 #include <shared_mutex>
@@ -46,6 +45,7 @@ MAKE_ENABLER_IMPL(XCNLProgram)
 #define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
     .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
 #define FMTSTR2(syntax, ...) common::str::Formatter<char16_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
+#define FMTSTR4(syntax, ...) common::str::Formatter<char32_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 
 
 
@@ -318,10 +318,10 @@ struct InstanceArgCustomVar : public xziar::nailang::CustomVar::Handler
             return U"{ Empty }";
         switch (obj->ArgInfo.Type)
         {
-        case InstanceArgInfo::Types::RawBuf:    return FMTSTR(U"{{ Raw Buf Arg [{}] }}",    obj->ArgInfo.Name);
-        case InstanceArgInfo::Types::TypedBuf:  return FMTSTR(U"{{ Typed Buf Arg [{}] }}",  obj->ArgInfo.Name);
-        case InstanceArgInfo::Types::Texture:   return FMTSTR(U"{{ Texture Arg [{}] }}",    obj->ArgInfo.Name);
-        case InstanceArgInfo::Types::Simple:    return FMTSTR(U"{{ Simple Arg [{}] }}",     obj->ArgInfo.Name);
+        case InstanceArgInfo::Types::RawBuf:    return FMTSTR4(U"{{ Raw Buf Arg [{}] }}",    obj->ArgInfo.Name);
+        case InstanceArgInfo::Types::TypedBuf:  return FMTSTR4(U"{{ Typed Buf Arg [{}] }}",  obj->ArgInfo.Name);
+        case InstanceArgInfo::Types::Texture:   return FMTSTR4(U"{{ Texture Arg [{}] }}",    obj->ArgInfo.Name);
+        case InstanceArgInfo::Types::Simple:    return FMTSTR4(U"{{ Simple Arg [{}] }}",     obj->ArgInfo.Name);
         default:                                return U"{ Unknown Arg }";
         }
     };
@@ -625,7 +625,7 @@ std::optional<common::str::StrVariant<char32_t>> XCNLRawExecutor::CommonReplaceF
                 }
             }
             auto frame = PushFrame(*block, std::move(ctx), nullptr);
-            auto output = FMTSTR(U"// template block [{}]\r\n"sv, args[0]);
+            auto output = FMTSTR4(U"// template block [{}]\r\n"sv, args[0]);
             DirectOutput(*block, output);
             return output;
         }
@@ -670,7 +670,7 @@ ReplaceResult XCNLRawExecutor::ExtensionReplaceFunc(std::u32string_view func, U3
         }
         return ret;
     }
-    return { FMTSTR(U"[{}] with [{}]args not resolved", func, args.size()), false };
+    return { FMTSTR4(U"[{}] with [{}]args not resolved", func, args.size()), false };
 }
 
 void XCNLRawExecutor::OnReplaceOptBlock(std::u32string& output, void*, std::u32string_view cond, std::u32string_view content)
@@ -1127,10 +1127,10 @@ Arg XCNLRuntime::CreateGVec(const std::u32string_view type, FuncEvalPack& func)
     Expects(!info.IsCustomType());
     const auto dim0 = info.Dim0();
     if (dim0 < 2 || dim0 > 4)
-        NLRT_THROW_EX(FMTSTR(u"Vec only support [2~4] as length, get [{}]."sv, dim0), func);
+        NLRT_THROW_EX(FMTSTR2(u"Vec only support [2~4] as length, get [{}]."sv, dim0), func);
     const auto argc = func.Args.size();
     if (argc != 0 && argc != 1 && argc != dim0)
-        NLRT_THROW_EX(FMTSTR(u"Vec{0} expects [0,1,{0}] args, get [{1}]."sv, dim0, argc), func);
+        NLRT_THROW_EX(FMTSTR2(u"Vec{0} expects [0,1,{0}] args, get [{1}]."sv, dim0, argc), func);
 
 #define GENV(vtype, bit, at) { static_cast<uint32_t>(VTypeInfo{VTypeInfo::DataTypes::vtype, 1, 0, bit}), ArrayRef::Type::at }
     static constexpr auto VType2ATypeLookup = BuildStaticLookup(uint32_t, ArrayRef::Type,
@@ -1474,7 +1474,7 @@ CustomVar GeneralVecRef::Create(ArrayRef arr)
     case 3: flag = GVecRefFlags::Vec3; break;
     case 4: flag = GVecRefFlags::Vec4; break;
     default:
-        COMMON_THROWEX(common::BaseException, FMTSTR(u"Vec ref only support [2~4] as length, get [{}].", arr.Length));
+        COMMON_THROWEX(common::BaseException, FMTSTR2(u"Vec ref only support [2~4] as length, get [{}].", arr.Length));
     }
     if (arr.IsReadOnly)
         flag |= GVecRefFlags::ReadOnly;
@@ -1581,7 +1581,7 @@ common::str::StrVariant<char32_t> GeneralVecRef::ToString(const CustomVar& var) 
 }
 std::u32string GeneralVecRef::GetExactType(const xziar::nailang::ArrayRef& arr) noexcept
 {
-    return FMTSTR(U"xcomp::vecref<{},{}>"sv, arr.GetElementTypeName(), arr.Length);
+    return FMTSTR4(U"xcomp::vecref<{},{}>"sv, arr.GetElementTypeName(), arr.Length);
 }
 std::u32string_view GeneralVecRef::GetTypeName(const xziar::nailang::CustomVar&) noexcept
 {
@@ -1630,7 +1630,7 @@ CustomVar GeneralVec::Create(ArrayRef::Type type, size_t len)
     case 3: flag = GVecRefFlags::Vec3; break;
     case 4: flag = GVecRefFlags::Vec4; break;
     default:
-        COMMON_THROWEX(common::BaseException, FMTSTR(u"Vec only support [2~4] as length, get [{}].", len));
+        COMMON_THROWEX(common::BaseException, FMTSTR2(u"Vec only support [2~4] as length, get [{}].", len));
     }
     uint64_t ptr = 0;
 #define RET(tenum, type) case ArrayRef::Type::tenum: { VecArray<type> vec(len); vec.Increase(); ptr = vec.GetDataPtr(); break; }
@@ -1658,7 +1658,7 @@ static void CallOnVecArray(const CustomVar& var, F&& func) noexcept
     const auto type = static_cast<ArrayRef::Type>(var.Meta2);
     const uint8_t length = (var.Meta1 & 0xfu);
 #define COVA(tenum, type)                                                       \
-    case ArrayRef::Type::tenum:                                               \
+    case ArrayRef::Type::tenum:                                                 \
     {                                                                           \
         static_assert(sizeof(VecArray<type>) == sizeof(common::span<type>));    \
         common::span<type> sp(reinterpret_cast<type*>(var.Meta0), length);      \
@@ -1699,7 +1699,7 @@ void GeneralVec::DecreaseRef(CustomVar& var) noexcept
 common::str::StrVariant<char32_t> GeneralVec::ToString(const CustomVar& var) noexcept
 {
     const auto arr = ToArray(var);
-    return FMTSTR(U"xcomp::vec<{},{}>"sv, arr.GetElementTypeName(), arr.Length);
+    return FMTSTR4(U"xcomp::vec<{},{}>"sv, arr.GetElementTypeName(), arr.Length);
 }
 std::u32string_view GeneralVec::GetTypeName(const xziar::nailang::CustomVar&) noexcept
 {

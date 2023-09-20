@@ -6,7 +6,6 @@
 #include "Nailang/NailangParser.h"
 #include "Nailang/NailangRuntime.h"
 #include "SystemCommon/StringConvert.h"
-#include "SystemCommon/StringFormat.h"
 #include "SystemCommon/Format.h"
 
 #include "common/Linq2.hpp"

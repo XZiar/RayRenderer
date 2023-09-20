@@ -26,6 +26,7 @@ public:
     };
 protected:
     NLCLContext& Context;
+    common::str::Formatter<char32_t> Fmter;
     Dp4aProvider(NLCLContext& context);
     xcomp::ReplaceResult DP4ASat(Dp4aType, const common::span<const std::u32string_view>);
 public:

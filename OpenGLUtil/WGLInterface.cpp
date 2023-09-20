@@ -38,11 +38,6 @@ typedef struct _D3DKMT_OPENADAPTERFROMHDC {
 typedef _Check_return_ NTSTATUS(APIENTRY* PFN_D3DKMTOpenAdapterFromHdc)(const D3DKMT_OPENADAPTERFROMHDC* unnamedParam1);
 
 
-
-#define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
-    .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
-//fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
-
 namespace oglu
 {
 using namespace std::string_view_literals;
@@ -213,7 +208,7 @@ private:
     std::string_view Name() const noexcept final { return LoaderName; }
     std::u16string Description() const noexcept final
     {
-        return fmt::format(u"Windows [{}]", common::GetWinBuildNumber());
+        return FMTSTR2(u"Windows [{}]", common::GetWinBuildNumber());
     }
 
     /*void Init() override

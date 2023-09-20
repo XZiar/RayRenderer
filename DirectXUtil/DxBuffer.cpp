@@ -60,7 +60,7 @@ public:
             { flag == MapFlags::WriteOnly ? CPUPageProps::WriteCombine : CPUPageProps::WriteBack , MemPrefer::PreferCPU },
             HeapFlags::Empty, size, ResourceFlags::Empty);
         auto cmdList = que->CreateList();
-        cmdList->SetName(FMTSTR(u"CopyList for mapping [{}]", res->GetName()));
+        cmdList->SetName(FMTSTR2(u"CopyList for mapping [{}]", res->GetName()));
         if (HAS_FIELD(flag, MapFlags::ReadOnly))
         {
             /*res->TransitState(cmdList, ResourceState::CopySrc);
@@ -163,7 +163,7 @@ common::PromiseResult<void> DxBuffer_::ReadSpan_(const DxCmdQue& que, common::sp
         auto mapped = DxBuffer_::Create(Device, HeapType::Readback,
             HeapFlags::Empty, buf.size(), ResourceFlags::Empty);
         auto cmdList = que->CreateList();
-        cmdList->SetName(FMTSTR(u"CopyList for readback [{}]", GetName()));
+        cmdList->SetName(FMTSTR2(u"CopyList for readback [{}]", GetName()));
         //TransitState(cmdList, ResourceState::CopySrc);
         //mapped->TransitState(cmdList, ResourceState::CopyDst, true); // should be skipped
         //cmdList->FlushResourceState();
@@ -195,14 +195,14 @@ common::PromiseResult<void> DxBuffer_::WriteSpan_(const DxCmdQue& que, common::s
     {
         auto tmpBuf = DxBuffer_::Create(Device, HeapType::Upload,
             HeapFlags::Empty, buf.size(), ResourceFlags::Empty);
-        tmpBuf->SetName(FMTSTR(u"CopyList for write [{}]", GetName()));
+        tmpBuf->SetName(FMTSTR2(u"CopyList for write [{}]", GetName()));
         {
             const auto mapptr = tmpBuf->Map(0, buf.size());
             const auto src = mapptr.Get();
             memcpy_s(src.data(), src.size(), buf.data(), buf.size());
         }
         auto cmdList = que->CreateList();
-        cmdList->SetName(FMTSTR(u"CopyList for write [{}]", GetName()));
+        cmdList->SetName(FMTSTR2(u"CopyList for write [{}]", GetName()));
         CopyFrom_(cmdList, offset, *tmpBuf, 0, buf.size(), false, true);
         cmdList->Close();
         const auto pms = que->ExecuteAnyList(cmdList);

@@ -1,6 +1,7 @@
 #include "oclPch.h"
 #include "NLCLSubgroup.h"
 #include "oclPlatform.h"
+#include "SystemCommon/FormatExtra.h"
 
 
 using namespace std::string_view_literals;
@@ -9,27 +10,44 @@ template<bool IsPrefix>
 struct OptionalArg
 {
     std::u32string_view Arg;
+
+    void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec*) const
+    {
+        if (!Arg.empty())
+        {
+            if constexpr (IsPrefix)
+            {
+                executor.PutString(context, Arg, nullptr);
+                executor.PutString(context, U", "sv, nullptr);
+            }
+            else
+            {
+                executor.PutString(context, U", "sv, nullptr);
+                executor.PutString(context, Arg, nullptr);
+            }
+        }
+    }
 };
 
-template<typename Char, bool IsPrefix>
-struct fmt::formatter<OptionalArg<IsPrefix>, Char>
-{
-    template<typename ParseContext>
-    constexpr auto parse(ParseContext& ctx) const
-    {
-        return ctx.begin();
-    }
-    template<typename FormatContext>
-    auto format(const OptionalArg<IsPrefix>& arg, FormatContext& ctx) const
-    {
-        if (arg.Arg.empty())
-            return ctx.out();
-        if constexpr (IsPrefix)
-            return fmt::format_to(ctx.out(), FMT_STRING(U"{}, "), arg.Arg);
-        else
-            return fmt::format_to(ctx.out(), FMT_STRING(U", {}"), arg.Arg);
-    }
-};
+//template<typename Char, bool IsPrefix>
+//struct fmt::formatter<OptionalArg<IsPrefix>, Char>
+//{
+//    template<typename ParseContext>
+//    constexpr auto parse(ParseContext& ctx) const
+//    {
+//        return ctx.begin();
+//    }
+//    template<typename FormatContext>
+//    auto format(const OptionalArg<IsPrefix>& arg, FormatContext& ctx) const
+//    {
+//        if (arg.Arg.empty())
+//            return ctx.out();
+//        if constexpr (IsPrefix)
+//            return fmt::format_to(ctx.out(), FMT_STRING(U"{}, "), arg.Arg);
+//        else
+//            return fmt::format_to(ctx.out(), FMT_STRING(U", {}"), arg.Arg);
+//    }
+//};
 
 namespace oclu
 {
@@ -49,7 +67,9 @@ using common::str::Encoding;
 constexpr char32_t Idx16Names[] = U"0123456789abcdef";
 
 #define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
+#define APPEND_FMT(dst, syntax, ...) common::str::Formatter<typename std::decay_t<decltype(dst)>::value_type>{}\
+    .FormatToStatic(dst, FmtString(syntax), __VA_ARGS__)
+#define FMTSTR4(syntax, ...) common::str::Formatter<char32_t>{}.FormatStatic(FmtString(syntax), __VA_ARGS__)
 #define RET_FAIL(func) return {U"No proper [" STRINGIZE(func) "]"sv, false}
 
 
@@ -98,7 +118,7 @@ static forceinline ReplaceResult HandleResult(ReplaceResult result, std::u32stri
         if constexpr (sizeof...(Args) == 0)
             result.SetStr(std::move(msg));
         else
-            result.SetStr(fmt::format(msg, std::forward<Args>(args)...));
+            result.SetStr(common::str::Formatter<char32_t>{}.FormatDynamic(msg, std::forward<Args>(args)...));
     }
     return result;
 }
@@ -542,7 +562,7 @@ void SubgroupProvider::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtensio
 
 std::u32string SubgroupProvider::GenerateFuncName(std::u32string_view op, std::u32string_view suffix, common::simd::VecDataInfo vtype) noexcept
 {
-    return FMTSTR(U"oclu_subgroup_{}_{}_{}", op, suffix, xcomp::StringifyVDataType(vtype));
+    return FMTSTR4(U"oclu_subgroup_{}_{}_{}", op, suffix, xcomp::StringifyVDataType(vtype));
 }
 
 std::u32string SubgroupProvider::VectorPatchText(const std::u32string_view name, const std::u32string_view baseFunc,
@@ -555,13 +575,17 @@ std::u32string SubgroupProvider::VectorPatchText(const std::u32string_view name,
     const auto scalarName = NLCLRuntime::GetCLTypeName(scalarType);
     const auto castedName = NLCLRuntime::GetCLTypeName(castType);
     const auto vectorName = NLCLRuntime::GetCLTypeName(vtype);
-    std::u32string func = FMTSTR(U"inline {0} {1}({2}{3}const {0} val{4}{5})\r\n{{\r\n    {0} ret;", vectorName, name,
+    std::u32string func = FMTSTR4(U"inline {0} {1}({2}{3}const {0} val{4}{5})\r\n{{\r\n    {0} ret;", vectorName, name,
         pfxParam, pfxParam.empty() ? U""sv : U", "sv, sfxParam.empty() ? U""sv : U", "sv, sfxParam);
-    const auto formatter = scalarType == castType ? U"\r\n    ret.s{0} = {1}({4}{5}val.s{0}{6}{7});"sv : 
-        U"\r\n    ret.s{0} = as_{2}({1}({4}{5}as_{3}(val.s{0}){6}{7}));"sv;
+
+    const auto& syntax = common::str::FormatterCombiner::Combine(
+        FmtString(U"\r\n    ret.s{0} = {1}({4}{5}val.s{0}{6}{7});"sv),
+        FmtString(U"\r\n    ret.s{0} = as_{2}({1}({4}{5}as_{3}(val.s{0}){6}{7}));"sv));
+    const auto formatter = syntax(scalarType == castType);
+    common::str::Formatter<char32_t> fmter;
     for (uint8_t i = 0; i < vtype.Dim0; ++i)
     {
-        fmt::format_to(std::back_inserter(func), formatter, 
+        formatter.To(func, fmter, 
             Idx16Names[i], baseFunc, scalarName, castedName,
             pfxArg, pfxArg.empty() ? U""sv : U", "sv, sfxArg.empty() ? U""sv : U", "sv, sfxArg);
     }
@@ -613,7 +637,7 @@ template<typename Op, typename... Args>
             case SubgroupReduceOp::Xor: optxt = U"x ^ "sv; break;
             default: break;
             }
-            auto func = FMTSTR(U"inline {0} {1}({2}{0} x)"sv, scalarName, wrapped.GetFuncName(), OptionalArg<true>{shufResult.Extra.Param});
+            auto func = FMTSTR4(U"inline {0} {1}({2}{0} x)"sv, scalarName, wrapped.GetFuncName(), OptionalArg<true>{shufResult.Extra.Param});
             func.append(UR"(
 {
     for (uint mask = )"sv).append(sgSizeResult.GetStr()).append(UR"(; mask > 0; mask /= 2)
@@ -960,7 +984,7 @@ void NLCLSubgroupKHR::WarnFP(VecDataInfo vtype, const std::u16string_view func)
             type = u"f64";
         
         if (type.empty())
-            AddWarning(FMTSTR(u"Potential use of unsupported type[{}] with [{}]."sv, type, func));
+            AddWarning(FMTSTR2(u"Potential use of unsupported type[{}] with [{}]."sv, type, func));
     }
 }
 
@@ -1076,12 +1100,12 @@ ReplaceResult NLCLSubgroupKHR::FuncGetLocalId()
 ReplaceResult NLCLSubgroupKHR::FuncAll(const std::u32string_view predicate)
 {
     EnableKHRBasic = true;
-    return FMTSTR(U"sub_group_all({})"sv, predicate);
+    return FMTSTR4(U"sub_group_all({})"sv, predicate);
 }
 ReplaceResult NLCLSubgroupKHR::FuncAny(const std::u32string_view predicate)
 {
     EnableKHRBasic = true;
-    return FMTSTR(U"sub_group_any({})"sv, predicate);
+    return FMTSTR4(U"sub_group_any({})"sv, predicate);
 }
 
 
@@ -1199,7 +1223,7 @@ void NLCLSubgroupIntel::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtensi
     {
         if (runtime.EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv))
             kernel.AddAttribute(U"reqd_sub_group_size",
-                FMTSTR(U"__attribute__((intel_reqd_sub_group_size({})))", ext.SubgroupSize));
+                FMTSTR4(U"__attribute__((intel_reqd_sub_group_size({})))", ext.SubgroupSize));
     }
     NLCLSubgroupKHR::OnFinish(runtime, ext, kernel);
 }
@@ -1295,20 +1319,20 @@ void NLCLSubgroupLocal::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtensi
         if (sgSize == 0)
             runtime.NLRT_THROW_EX(u"Subgroup mimic [local] need to define GetWorkgroupSize() when under fully mimic");
         if (ext.SubgroupSize && kernel.GetWorkgroupSize() != ext.SubgroupSize)
-            runtime.NLRT_THROW_EX(FMTSTR(u"Subgroup mimic [local] requires only 1 subgroup for the whole workgroup, now have subgroup[{}] and workgroup[{}].",
+            runtime.NLRT_THROW_EX(FMTSTR2(u"Subgroup mimic [local] requires only 1 subgroup for the whole workgroup, now have subgroup[{}] and workgroup[{}].",
                 ext.SubgroupSize, kernel.GetWorkgroupSize()));
 
         const auto blkId = GenerateKID(U"sgsize"sv);
         Context.AddPatchedBlock(blkId, [&]()
             {
-                return FMTSTR(U"#define _{} {}"sv, blkId, sgSize);
+                return FMTSTR4(U"#define _{} {}"sv, blkId, sgSize);
             });
     }
     if (NeedLocalTemp)
     {
         const auto sgSize = kernel.GetWorkgroupSize();
         kernel.AddBodyPrefix(U"oclu_subgroup_mimic_local_slm"sv,
-            FMTSTR(U"    local ulong _oclu_subgroup_local[{}];\r\n", std::max<uint32_t>(sgSize, 16)));
+            FMTSTR4(U"    local ulong _oclu_subgroup_local[{}];\r\n", std::max<uint32_t>(sgSize, 16)));
         Logger.Debug(u"Subgroup mimic [local] is enabled with size [{}].\n", sgSize);
     }
     KernelName = {};
@@ -1317,7 +1341,7 @@ void NLCLSubgroupLocal::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtensi
 
 std::u32string NLCLSubgroupLocal::GenerateKID(std::u32string_view type) const noexcept
 {
-    return FMTSTR(U"oclu_local_{}_{}"sv, type, KernelName);
+    return FMTSTR4(U"oclu_local_{}_{}"sv, type, KernelName);
 }
 
 SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::BroadcastPatch(const VecDataInfo vtype) noexcept
@@ -1331,7 +1355,7 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::BroadcastPatch(const VecDat
         {
             const auto vecName = NLCLRuntime::GetCLTypeName(vtype);
             const auto scalarName = NLCLRuntime::GetCLTypeName(vtype.Scalar(1));
-            std::u32string func = FMTSTR(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)", vecName, wrapped.GetFuncName());
+            std::u32string func = FMTSTR4(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)", vecName, wrapped.GetFuncName());
             func.append(UR"(
 {
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -1376,7 +1400,7 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::ShufflePatch(const VecDataI
         {
             const auto vecName = NLCLRuntime::GetCLTypeName(vtype);
             const auto scalarName = NLCLRuntime::GetCLTypeName(vtype.Scalar(1));
-            std::u32string func = FMTSTR(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)"sv, vecName, wrapped.GetFuncName());
+            std::u32string func = FMTSTR4(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)"sv, vecName, wrapped.GetFuncName());
             func.append(UR"(
 {
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -1428,7 +1452,7 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::ShuffleXorPatch(const VecDa
             const std::u32string_view shufArgs[] = { U"val"sv, lidText };
             const auto shufText = Shuffle::GenerateText(shufResult, vtype, shufArgs, SubgroupShuffleOp::ShuffleXor);
             const auto vecName = NLCLRuntime::GetCLTypeName(vtype);
-            std::u32string func = FMTSTR(U"inline {0} {1}({2}const {0} val, const uint mask)\r\n{{\r\n    return {3};\r\n}}"sv, vecName, wrapped.GetFuncName(),
+            std::u32string func = FMTSTR4(U"inline {0} {1}({2}const {0} val, const uint mask)\r\n{{\r\n    return {3};\r\n}}"sv, vecName, wrapped.GetFuncName(),
                 OptionalArg<true>{shufResult.Extra.Param}, shufText);
             session.Commit(std::move(func), depends);
         });
@@ -1458,7 +1482,7 @@ ReplaceResult NLCLSubgroupLocal::FuncGetMaxSize()
     
     NeedSubgroupSize = true;
     const auto kid = GenerateKID(U"sgsize"sv);
-    return { FMTSTR(U"_{}"sv, kid), kid };
+    return { FMTSTR4(U"_{}"sv, kid), kid };
 }
 ReplaceResult NLCLSubgroupLocal::FuncGetCount()
 {
@@ -1593,7 +1617,7 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupPtx::ShufflePatch(const VecDataInf
     Context.AddPatchedBlock(wrapped.GetFuncName(), [&]()
         {
             const auto shflMode = op == SubgroupShuffleOp::ShuffleXor ? U"bfly"sv : U"idx"sv;
-            auto func = FMTSTR(U"inline {0} {1}(const {0} val, const uint sgId)\r\n{{"sv,
+            auto func = FMTSTR4(U"inline {0} {1}(const {0} val, const uint sgId)\r\n{{"sv,
                 NLCLRuntime::GetCLTypeName(vtype), wrapped.GetFuncName());
             if (vtype.Bit == 32)
             {
@@ -1633,13 +1657,13 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupPtx::ReduceSM80Patch(SubgroupReduc
             const auto scalarType = VecDataInfo{ vtype.Type, 32, 1, 0 };
             const auto scalarName = NLCLRuntime::GetCLTypeName(scalarType);
             const auto regType = isArith ? (vtype.Type == VecDataInfo::DataTypes::Unsigned ? U'u' : U's') : U'b';
-            static constexpr auto syntax = UR"(inline {0} {1}({0} x)
+            const auto& syntax = FmtString(UR"(inline {0} {1}({0} x)
 {{
     {0} ret;
     asm volatile("redux.sync.{2}.{3}32 %0, %1{4};" : "=r"(ret) : "r"(x));
     return ret;
-}})"sv;
-            return FMTSTR(syntax, scalarName, wrapped.GetFuncName(), opname, regType, ExtraMask);
+}})"sv);
+            return common::str::Formatter<char32_t>{}.FormatStatic(syntax, scalarName, wrapped.GetFuncName(), opname, regType, ExtraMask);
         });
     return wrapped;
 }
@@ -1725,7 +1749,7 @@ ReplaceResult NLCLSubgroupPtx::FuncAll(const std::u32string_view predicate)
 })"sv);
             return ret;
         });
-    return { FMTSTR(U"oclu_subgroup_ptx_all({})", predicate), id };
+    return { FMTSTR4(U"oclu_subgroup_ptx_all({})", predicate), id };
 }
 ReplaceResult NLCLSubgroupPtx::FuncAny(const std::u32string_view predicate)
 {
@@ -1747,7 +1771,7 @@ ReplaceResult NLCLSubgroupPtx::FuncAny(const std::u32string_view predicate)
 })"sv);
             return ret;
         });
-    return { FMTSTR(U"oclu_subgroup_ptx_any({})", predicate), id };
+    return { FMTSTR4(U"oclu_subgroup_ptx_any({})", predicate), id };
 }
 
 

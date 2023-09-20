@@ -499,6 +499,7 @@ oclProgStub::~oclProgStub()
 
 void oclProgStub::Build(const CLProgConfig& config)
 {
+    common::str::Formatter<char> fmter;
     const auto minVer = std::min(Device->CVersion, Device->Version);
     const auto cver = config.Version == 0 ? minVer : config.Version;
     if (cver > minVer)
@@ -531,11 +532,11 @@ void oclProgStub::Build(const CLProgConfig& config)
     {
         uint64_t lSize = Device->LocalMemSize;
         lSize = (lSize == UINT64_MAX) ? 0 : lSize; //default as zero
-        fmt::format_to(std::back_inserter(options), "-DOCLU_LOCAL_MEM_SIZE={} ", lSize);
+        fmter.FormatToStatic(options, FmtString("-DOCLU_LOCAL_MEM_SIZE={} "), lSize);
     }
     for (const auto& flag : config.Flags)
         options.append(flag).append(" "sv);
-    fmt::format_to(std::back_inserter(options), "-cl-std=CL{}.{} ", cver / 10, cver % 10);
+    fmter.FormatToStatic(options, FmtString("-cl-std=CL{}.{} "), cver / 10, cver % 10);
     
     const cl_device_id devid = *Device->DeviceID;
     cl_int ret = Context->Funcs->clBuildProgram(*Program, 1, &devid, options.c_str(), nullptr, nullptr);
