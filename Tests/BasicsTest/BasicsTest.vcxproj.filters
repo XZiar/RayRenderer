@@ -46,6 +46,9 @@
     <ClCompile Include="TestARMv7.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="cpuinfolog.c">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">

@@ -3,6 +3,7 @@
 #include "CommonRely.hpp"
 #include "StrBase.hpp"
 #include "StringPool.hpp"
+#include "EasyIterator.hpp"
 #include <string>
 #include <string_view>
 #include <vector>
@@ -67,10 +68,10 @@ template<typename Ch>
 class FrozenDenseStringSetBase
 {
 protected:
-    struct NoOpTag {};
     using SVType = std::basic_string_view<Ch>;
     StringPool<Ch> Pool;
     std::vector<HashedStringPiece<Ch>> Pieces;
+    std::vector<StringPiece<Ch>> OrderedView;
 
     forceinline constexpr bool InnerSearch(SVType element, uint64_t hash) const noexcept
     {
@@ -89,8 +90,8 @@ protected:
         return false;
     }
 
-    template<typename C, typename F>
-    forceinline void FillFrom(const C& data, F beforeSort = NoOpTag{})
+    template<typename C, typename B = void>
+    forceinline void FillFrom(const C& data, B* backupBeforeSort = nullptr)
     {
         Expects(Pieces.empty());
         Expects(Pool.IsEmpty());
@@ -111,9 +112,12 @@ protected:
                 Pieces.emplace_back(Pool.AllocateString(dat), hash);
             }
         }
-        if constexpr (!std::is_same_v<F, NoOpTag>)
+        if constexpr (!std::is_same_v<B, void>)
         {
-            beforeSort();
+            if (backupBeforeSort)
+            {
+                backupBeforeSort->assign(Pieces.cbegin(), Pieces.cend());
+            }
         }
         std::sort(Pieces.begin(), Pieces.end());
     }
@@ -151,70 +155,71 @@ public:
     }
 };
 
-template<typename Ch, bool SortStr = true, typename Compare = std::less<>>
+template<typename Ch>
+class FrozenDenseStringSetSimple : public FrozenDenseStringSetBase<Ch>
+{
+private:
+    using SVType = typename FrozenDenseStringSetBase<Ch>::SVType;
+public:
+    FrozenDenseStringSetSimple() noexcept {}
+    template<typename C>
+    FrozenDenseStringSetSimple(const C& data)
+    {
+        using T = typename C::value_type;
+        static_assert(std::is_constructible_v<SVType, const T&>, "element should be able to construct string_view");
+        this->FillFrom(data);
+    }
+    template<typename C, typename S>
+    FrozenDenseStringSetSimple(const C& data, S sortCompare)
+    {
+        using T = typename C::value_type;
+        static_assert(std::is_constructible_v<SVType, const T&>, "element should be able to construct string_view");
+        std::vector<SVType> tmp;
+        tmp.reserve(data.size());
+        tmp.assign(data.begin(), data.end());
+        std::sort(tmp.begin(), tmp.end(), sortCompare);
+        this->FillFrom(tmp);
+    }
+};
+
+template<typename Ch, typename Compare = std::less<>>
 class FrozenDenseStringSet : public FrozenDenseStringSetBase<Ch>
 {
 private:
     using SVType = typename FrozenDenseStringSetBase<Ch>::SVType;
     std::vector<StringPiece<Ch>> OrderedView;
-    class OrderedIterator
+    constexpr SVType GetAt(size_t idx) const noexcept
     {
-        using HostType = FrozenDenseStringSet<Ch, SortStr, Compare>;
-        const HostType* Host;
-        size_t Idx;
-    public:
-        using value_type = SVType;
-        constexpr OrderedIterator(const HostType* host, size_t idx) :
-            Host(host), Idx(idx) { }
-        constexpr bool operator==(const OrderedIterator& other) const noexcept
-        {
-            return Host == other.Host && Idx == other.Idx;
-        }
-        constexpr bool operator!=(const OrderedIterator& other) const noexcept
-        {
-            return Host != other.Host || Idx != other.Idx;
-        }
-        constexpr value_type operator*() const noexcept
-        {
-            return (*Host)[Idx];
-        }
-        constexpr OrderedIterator& operator++()
-        {
-            Idx++;
-            return *this;
-        }
-        constexpr OrderedIterator& operator+=(size_t n)
-        {
-            Idx += n;
-            return *this;
-        }
-    };
+        return this->Pool.GetStringView(OrderedView[idx]);
+    }
+    using Self = FrozenDenseStringSet<Ch, Compare>;
+    using ItType = common::container::IndirectIterator<const Self, SVType, &Self::GetAt>;
+    friend ItType;
 public:
     FrozenDenseStringSet() noexcept {}
     template<typename T, typename Alloc>
     FrozenDenseStringSet(const std::set<T, Compare, Alloc>& data)
     {
         static_assert(std::is_constructible_v<SVType, const T&>, "element should be able to construct string_view");
-        this->FillFrom(data, [&]() 
-            {
-                this->OrderedView.assign(this->Pieces.cbegin(), this->Pieces.cend());
-            });
+        this->FillFrom(data, &this->OrderedView);
     }
     template<typename C>
     FrozenDenseStringSet(const C& data)
     {
         using T = typename C::value_type;
         static_assert(std::is_constructible_v<SVType, const T&>, "element should be able to construct string_view");
-        std::vector<SVType> tmp;
-        tmp.reserve(data.size());
-        for (const auto& dat : data)
-            tmp.emplace_back(dat);
-        if constexpr (SortStr)
+        //if (sort)
+        {
+            std::vector<SVType> tmp;
+            tmp.reserve(data.size());
+            tmp.assign(data.begin(), data.end());
             std::sort(tmp.begin(), tmp.end(), Compare());
-        this->FillFrom(tmp, [&]()
-            {
-                this->OrderedView.assign(this->Pieces.cbegin(), this->Pieces.cend());
-            });
+            this->FillFrom(tmp, &this->OrderedView);
+        }
+        /*else
+        {
+            this->FillFrom(data, &this->OrderedView);
+        }*/
     }
     template<typename E>
     constexpr size_t GetIndex(E&& element) const noexcept
@@ -231,63 +236,18 @@ public:
     }
     constexpr SVType operator[](size_t idx) const noexcept
     {
-        return this->Pool.GetStringView(OrderedView[idx]);
+        return this->GetAt(idx);
     }
-    forceinline OrderedIterator begin() const noexcept { return { this, 0 }; }
-    forceinline OrderedIterator end()   const noexcept { return { this, this->Pieces.size() }; }
+    [[nodiscard]] constexpr ItType begin() const noexcept
+    {
+        return { this, 0 };
+    }
+    [[nodiscard]] constexpr ItType end() const noexcept
+    {
+        return { this, this->Pieces.size() };
+    }
 };
 
-//template<typename Ch>
-//class FrozenDenseStringSet<Ch, void> : public FrozenDenseStringSetBase<Ch>
-//{
-//private:
-//    using SVType = typename FrozenDenseStringSetBase<Ch>::SVType;
-//    class Iterator
-//    {
-//        using HostType = FrozenDenseStringSet<Ch, Hasher, void>;
-//        const HostType* Host;
-//        size_t Idx;
-//    public:
-//        using value_type = SVType;
-//        constexpr Iterator(const HostType* host, size_t idx) :
-//            Host(host), Idx(idx) { }
-//        constexpr bool operator==(const Iterator& other) const noexcept
-//        {
-//            return Host == other.Host && Idx == other.Idx;
-//        }
-//        constexpr bool operator!=(const Iterator& other) const noexcept
-//        {
-//            return Host != other.Host || Idx != other.Idx;
-//        }
-//        constexpr value_type operator*() const noexcept
-//        {
-//            const auto& piece = Host->Pieces[Idx];
-//            return { Host->Pool.data() + piece.Offset, piece.Size };
-//        }
-//        constexpr Iterator& operator++()
-//        {
-//            Idx++;
-//            return *this;
-//        }
-//        constexpr Iterator& operator+=(size_t n)
-//        {
-//            Idx += n;
-//            return *this;
-//        }
-//    };
-//public:
-//    FrozenDenseStringSet() noexcept {}
-//    template<typename C>
-//    FrozenDenseStringSet(const C& data)
-//    {
-//        using T = typename C::value_type;
-//        static_assert(std::is_constructible_v<SVType, const T&>, "element should be able to construct string_view");
-//        this->FillFrom(data);
-//    }
-//
-//    forceinline Iterator begin() const noexcept { return { this, 0 }; }
-//    forceinline Iterator end()   const noexcept { return { this, this->Pieces.size() }; }
-//};
 
 
 }

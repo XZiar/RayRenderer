@@ -4,12 +4,8 @@
 //
 
 #include "pch.h"
-#if COMMON_ARCH_X86
-#   include "3rdParty/libcpuid/libcpuid/libcpuid.h"
-//#elif COMMON_OS_LINUX
-//#   include <sys/auxv.h>
-//#   include <asm/hwcap.h>
-#endif
+#include "3rdParty/cpuinfo/include/cpuinfo.h"
+
 
 template<size_t N>
 std::vector<std::array<uint8_t, N>> GenerateAllPoses() noexcept
@@ -74,44 +70,50 @@ alignas(32) const std::array<double, RandValBytes / 8> RandValsF64 = []()
 
 static uint32_t GetSIMDLevel_()
 {
-#if COMMON_ARCH_X86
-    if (!cpuid_present())               return 0;
-    struct cpu_raw_data_t raw;
-    if (cpuid_get_raw_data(&raw) < 0)   return 0;
-    struct cpu_id_t data;
-    if (cpu_identify(&raw, &data) < 0)  return 0;
+    cpuinfo_initialize();
 
-    if (data.flags[CPU_FEATURE_AVX512BW] && data.flags[CPU_FEATURE_AVX512DQ] && data.flags[CPU_FEATURE_AVX512VL])
+#if COMMON_ARCH_X86
+    if (cpuinfo_has_x86_avx512bw() && cpuinfo_has_x86_avx512dq() && cpuinfo_has_x86_avx512vl())
         return 320;
-    if (data.flags[CPU_FEATURE_AVX512F] && data.flags[CPU_FEATURE_AVX512CD])
+    if (cpuinfo_has_x86_avx512f() && cpuinfo_has_x86_avx512cd())
         return 310;
-    if (data.flags[CPU_FEATURE_AVX2])   return 200;
-    if (data.flags[CPU_FEATURE_FMA3])   return 150;
-    if (data.flags[CPU_FEATURE_AVX])    return 100;
-    if (data.flags[CPU_FEATURE_SSE4_2]) return 42;
-    if (data.flags[CPU_FEATURE_SSE4_1]) return 41;
-    if (data.flags[CPU_FEATURE_SSSE3])  return 31;
-    if (data.flags[CPU_FEATURE_PNI])    return 30;
-    if (data.flags[CPU_FEATURE_SSE2])   return 20;
-    if (data.flags[CPU_FEATURE_SSE])    return 10;
-    return 0;
+    if (cpuinfo_has_x86_avx2())
+        return 200;
+    if (cpuinfo_has_x86_fma3())
+        return 150;
+    if (cpuinfo_has_x86_avx())
+        return 100;
+    if (cpuinfo_has_x86_sse4_2())
+        return 42;
+    if (cpuinfo_has_x86_sse4_1())
+        return 41;
+    if (cpuinfo_has_x86_ssse3())
+        return 31;
+    if (cpuinfo_has_x86_sse3())
+        return 30;
+    if (cpuinfo_has_x86_sse2())
+        return 20;
+    if (cpuinfo_has_x86_sse())
+        return 10;
 #else
-# if defined(_M_ARM64) || defined(__aarch64__) || defined(__ARM_ARCH_ISA_A64)
-    return 200;
-# elif defined(__ARM_ARCH) && __ARM_ARCH >= 8
-    return 100;
-# elif defined(__ARM_VFPV5__)
-    return 50;
-# elif defined(__ARM_VFPV4__)
-    return 40;
-# elif defined(__ARM_VFPV3__)
-    return 30;
-# elif defined(__ARM_VFPV2__)
-    return 20;
-# else
-    return 10;
+# if COMMON_OSBIT == 64
+    if (cpuinfo_has_arm_neon())
+        return 200;
 # endif
+    if (cpuinfo_has_arm_neon_v8())
+        return 100;
+    if (cpuinfo_has_arm_neon())
+    {
+        if (cpuinfo_has_arm_vfpv4())
+            return 40;
+        if (cpuinfo_has_arm_vfpv3())
+            return 30;
+        if (cpuinfo_has_arm_vfpv2())
+            return 20;
+        return 10;
+    }
 #endif
+    return 0;
 }
 
 uint32_t SIMDFixture::GetSIMDLevel()

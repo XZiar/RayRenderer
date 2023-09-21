@@ -124,9 +124,9 @@ python3 xzbuild buildall UtilTest
   
   [MIT License](./3rdParty/half/LICENSE.txt)
 
-* [libcpuid](http://libcpuid.sourceforge.net/) `submodule` 0.5.1
+* [cpuinfo](https://github.com/pytorch/cpuinfo) `submodule`
 
-  [BSD License](https://github.com/anrieff/libcpuid/blob/master/COPYING)
+  [BSD 2-Clause  License](https://github.com/pytorch/cpuinfo/blob/main/LICENSE)
 
 ## License
 

@@ -297,9 +297,6 @@
     <ProjectReference Include="..\3rdParty\Projects\uchardet\uchardet.vcxproj">
       <Project>{7be97d3d-f242-4ab9-8eee-05b974e0e15e}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\3rdParty\Projects\cpuid\cpuid.vcxproj">
-      <Project>{8f5adf15-4807-4ec9-888e-290c1a3169a4}</Project>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="AsyncExecutor.md" />

@@ -17,10 +17,13 @@
 #elif COMMON_ARCH_ARM
 #   if COMMON_OSBIT == 64
 #       if COMMON_COMPILER_MSVC
+#           include <arm64intr.h>
 #           define COMMON_PAUSE() __isb(_ARM64_BARRIER_SY)
-#       else
+#       elif defined(__ARM_ACLE)
 #           include <arm_acle.h>
 #           define COMMON_PAUSE() __isb(0xf)
+#       else
+#           define COMMON_PAUSE() asm volatile ("yield")
 #       endif
 #   else
 #       if COMMON_COMPILER_MSVC

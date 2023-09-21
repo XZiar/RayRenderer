@@ -2,7 +2,7 @@
     "name": "BasicsTest",
     "type": "executable",
     "description": "Basics test",
-    "dependency": ["googletest", {"ifeq": {"arch": "x86"}, "+": "cpuid"}],
+    "dependency": ["googletest", "cpuinfo"],
     "library": 
     {
         "static": [],
@@ -20,6 +20,11 @@
                 {"ifeq": {"arch": "arm"}, "-": ["TestSSE42.cpp", "TestAVX.cpp", "TestAVX2.cpp", "TestAVX512.cpp"]}
             ],
             "pch": "pch.h"
+        },
+        "c":
+        {
+            "incpath": ["$(SolutionDir)/3rdParty/cpuinfo/src"],
+            "sources": ["cpuinfolog.c"]
         }
     }
 }

@@ -28,7 +28,7 @@
   - [x] Maybe move StringUtil into SystemCommon, enable OS-specific path
   - [x] Maybe move MiniLigger into SystemCommon, since commonlly used
   - [x] Maybe move AsyncExecutor into SystemCommon, since OS-related
-  - [ ] Maybe move SpinLock into SystemCommon, enable HW&OS-specific waiting strategy
+  - [x] Maybe move SpinLock into SystemCommon, enable HW&OS-specific waiting strategy
   - [x] Move common's exception into SystemCommon
   - [ ] Add high precision waitable condition varaible (WaitableTimer and nanosleep?)
   - [ ] Desgin common waitable, with native support of multi-wait

@@ -532,7 +532,6 @@ struct FormatterCombiner
         static_assert((... && std::is_base_of_v<CompileTimeFormatter, Ts>), "Need to be CompileTimeFormatter");
         static_assert(CheckSameChar<Ts...>(), "Need to be same Char type");
         constexpr uint32_t NamedMapCount = (... + Ts::NamedArgCount);
-        constexpr std::tuple<Ts...> StrInfos;
         ParseResultCombine<NamedMapCount> result;
         {
             uint32_t infoIdx = 0;

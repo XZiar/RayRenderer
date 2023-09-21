@@ -7,7 +7,6 @@
 #include "3rdParty/cpuinfo/include/cpuinfo.h"
 #if COMMON_ARCH_X86
 #   include "3rdParty/cpuinfo/src/x86/cpuid.h"
-#   include "3rdParty/libcpuid/libcpuid/libcpuid.h"
 #endif
 #if COMMON_OS_LINUX && COMMON_ARCH_ARM
 #   include <sys/auxv.h>
@@ -468,10 +467,17 @@ ScreenColor Expend256ColorToRGB(uint8_t color) noexcept
 struct CPUFeature
 {
     std::vector<std::string_view> FeatureText;
-    container::FrozenDenseStringSet<char, false> FeatureLookup;
+    container::FrozenDenseStringSetSimple<char> FeatureLookup;
+    void AppendFeature(std::string_view txt) noexcept
+    {
+        for (const auto& feat : FeatureText)
+        {
+            if (feat == txt) return;
+        }
+        FeatureText.push_back(txt);
+    }
     void TryCPUInfo() noexcept
     {
-        if (!FeatureText.empty()) return;
         cpuinfo_initialize();
         detail::InitMessage::Enqueue(mlog::LogLevel::Verbose, "cpuinfo", std::string("detected cpu: ") + cpuinfo_get_package(0)->name + "\n");
 #if COMMON_ARCH_X86
@@ -480,9 +486,9 @@ struct CPUFeature
         {
             const auto reg70 = cpuidex(7, 0);
             if (reg70.ecx & (1u << 5))
-                FeatureText.push_back("waitpkg"sv);
+                AppendFeature("waitpkg"sv);
         }
-# define CHECK_FEATURE(en, name) if (cpuinfo_has_x86_##en()) FeatureText.push_back(#name""sv)
+# define CHECK_FEATURE(en, name) if (cpuinfo_has_x86_##en()) AppendFeature(#name""sv)
         CHECK_FEATURE(sse,          sse);
         CHECK_FEATURE(sse2,         sse2);
         CHECK_FEATURE(sse3,         sse3);
@@ -513,7 +519,8 @@ struct CPUFeature
         CHECK_FEATURE(adx,          adx);
 # undef CHECK_FEATURE
 #elif COMMON_ARCH_ARM
-# define CHECK_FEATURE(en, name) if (cpuinfo_has_arm_##en()) FeatureText.push_back(#name""sv)
+        cpuinfo_has_arm_sha2();
+# define CHECK_FEATURE(en, name) if (cpuinfo_has_arm_##en()) AppendFeature(#name""sv)
         CHECK_FEATURE(neon,         asimd);
         CHECK_FEATURE(aes,          aes);
         CHECK_FEATURE(pmull,        pmull);
@@ -524,68 +531,14 @@ struct CPUFeature
 #endif
         return;
     }
-    void TryCPUID() noexcept
-    {
-        if (!FeatureText.empty()) return;
-#if COMMON_ARCH_X86
-        if (cpuid_present())
-        {
-            struct cpu_raw_data_t raw;
-            if (cpuid_get_raw_data(&raw) >= 0)
-            {
-                if (raw.basic_cpuid[0][EAX] >= 7) 
-                {
-                    if (const auto reg = raw.basic_cpuid[7][ECX]; reg & (1u << 5))
-                        FeatureText.push_back("waitpkg"sv);
-                }
-                cpu_id_t data;
-                if (cpu_identify(&raw, &data) >= 0)
-                {
-                    detail::InitMessage::Enqueue(mlog::LogLevel::Verbose, "cpuid", std::string("detected cpu: ") + data.brand_str + "\n");
-# define CHECK_FEATURE(en, name) if (data.flags[CPU_FEATURE_##en]) FeatureText.push_back(#name""sv)
-                    CHECK_FEATURE(SSE,          sse);
-                    CHECK_FEATURE(SSE2,         sse2);
-                    CHECK_FEATURE(PNI,          sse3);
-                    CHECK_FEATURE(SSSE3,        ssse3);
-                    CHECK_FEATURE(SSE4_1,       sse4_1);
-                    CHECK_FEATURE(SSE4_2,       sse4_2);
-                    CHECK_FEATURE(AVX,          avx);
-                    CHECK_FEATURE(FMA3,         fma);
-                    CHECK_FEATURE(AVX2,         avx2);
-                    CHECK_FEATURE(AVX512F,      avx512f);
-                    CHECK_FEATURE(AVX512DQ,     avx512dq);
-                    CHECK_FEATURE(AVX512PF,     avx512pf);
-                    CHECK_FEATURE(AVX512ER,     avx512er);
-                    CHECK_FEATURE(AVX512CD,     avx512cd);
-                    CHECK_FEATURE(AVX512BW,     avx512bw);
-                    CHECK_FEATURE(AVX512VL,     avx512vl);
-                    CHECK_FEATURE(AVX512VNNI,   avx512vnni);
-                    CHECK_FEATURE(AVX512VBMI,   avx512vbmi);
-                    CHECK_FEATURE(AVX512VBMI2,  avx512vbmi2);
-                    CHECK_FEATURE(PCLMUL,       pclmul);
-                    CHECK_FEATURE(POPCNT,       popcnt);
-                    CHECK_FEATURE(AES,          aes);
-                    CHECK_FEATURE(ABM,          lzcnt);
-                    CHECK_FEATURE(F16C,         f16c);
-                    CHECK_FEATURE(BMI1,         bmi1);
-                    CHECK_FEATURE(BMI2,         bmi2);
-                    CHECK_FEATURE(SHA_NI,       sha);
-                    CHECK_FEATURE(ADX,          adx);
-# undef CHECK_FEATURE
-                }
-            }
-        }
-#endif
-    }
     void TryAUXVal() noexcept
     {
-        if (!FeatureText.empty()) return;
 #if COMMON_OS_LINUX && COMMON_ARCH_ARM && (!COMMON_OS_ANDROID || __NDK_MAJOR__ >= 18)
         [[maybe_unused]] const auto cap1 = getauxval(AT_HWCAP), cap2 = getauxval(AT_HWCAP2);
         //printf("cap1&2: [%lx][%lx]\n", cap1, cap2);
 # define PFX1(en) PPCAT(HWCAP_,  en)
 # define PFX2(en) PPCAT(HWCAP2_, en)
-# define CHECK_FEATURE(n, en, name) if (PPCAT(cap, n) & PPCAT(PFX, n)(en)) FeatureText.emplace_back(#name""sv)
+# define CHECK_FEATURE(n, en, name) if (PPCAT(cap, n) & PPCAT(PFX, n)(en)) AppendFeature(#name""sv)
 # if COMMON_ARCH_ARM
 #   if defined(__aarch64__)
 #     define CAPNUM 1
@@ -609,7 +562,6 @@ struct CPUFeature
     }
     void TrySysCtl() noexcept
     {
-        if (!FeatureText.empty()) return;
 #if COMMON_OS_DARWIN && COMMON_ARCH_ARM
         constexpr auto SysCtl = [](const std::string_view name) -> bool 
         {
@@ -618,14 +570,14 @@ struct CPUFeature
             if (sysctlbyname(name.data(), &buf, &len, nullptr, 0)) return false;
             return len >= 1 && buf[0] == 1;
         };
-# define CHECK_FEATURE(name, feat) if (SysCtl("hw.optional."#name""sv)) FeatureText.emplace_back(#feat""sv)
+# define CHECK_FEATURE(name, feat) if (SysCtl("hw.optional."#name""sv)) AppendFeature(#feat""sv)
         CHECK_FEATURE(floatingpoint, fp);
 #   if COMMON_OSBIT == 64
-        FeatureText.emplace_back("asimd"sv);
-        FeatureText.emplace_back("aes"sv);
-        FeatureText.emplace_back("pmull"sv);
-        FeatureText.emplace_back("sha1"sv);
-        FeatureText.emplace_back("sha2"sv);
+        AppendFeature("asimd"sv);
+        AppendFeature("aes"sv);
+        AppendFeature("pmull"sv);
+        AppendFeature("sha1"sv);
+        AppendFeature("sha2"sv);
 #   else
         CHECK_FEATURE(neon, asimd);
 #   endif
@@ -639,7 +591,6 @@ struct CPUFeature
     CPUFeature() noexcept
     {
         TryCPUInfo();
-        TryCPUID();
         TryAUXVal();
         TrySysCtl();
         FeatureLookup = FeatureText;
