@@ -13,6 +13,7 @@
 #include "common/Linq2.hpp"
 #include "common/StringEx.hpp"
 #include "common/StringLinq.hpp"
+#include "common/StringPool.hpp"
 
 #include <algorithm>
 

@@ -139,8 +139,8 @@ public:
             static_assert(std::is_constructible_v<SVType, const E&>, "element should be able to construct string_view");
             hash = DJBHash::HashC(tmp);
         }
-        
-        for (auto it = std::lower_bound(Pieces.cbegin(), Pieces.cend(), hash); 
+
+        for (auto it = std::lower_bound(Pieces.cbegin(), Pieces.cend(), hash);
             it != Pieces.cend() && it->GetHash() == hash; ++it)
         {
             if (const auto target = Pool.GetStringView(*it); tmp == target)
@@ -182,7 +182,7 @@ public:
     }
 };
 
-template<typename Ch, typename Compare = std::less<>>
+template<typename Ch>
 class FrozenDenseStringSet : public FrozenDenseStringSetBase<Ch>
 {
 private:
@@ -190,37 +190,31 @@ private:
     std::vector<StringPiece<Ch>> OrderedView;
     constexpr SVType GetAt(size_t idx) const noexcept
     {
-        return this->Pool.GetStringView(OrderedView[idx]);
+        return this->Pool.GetStringView(this->OrderedView[idx]);
     }
-    using Self = FrozenDenseStringSet<Ch, Compare>;
-    using ItType = common::container::IndirectIterator<const Self, SVType, &Self::GetAt>;
-    friend ItType;
+    using Self = const FrozenDenseStringSet<Ch>;
+    DEFINE_EASY_ITER(ItType, Self, SVType, Host->GetAt(Idx));
 public:
     FrozenDenseStringSet() noexcept {}
-    template<typename T, typename Alloc>
+    template<typename T, typename Compare, typename Alloc>
     FrozenDenseStringSet(const std::set<T, Compare, Alloc>& data)
     {
         static_assert(std::is_constructible_v<SVType, const T&>, "element should be able to construct string_view");
         this->FillFrom(data, &this->OrderedView);
     }
-    template<typename C>
-    FrozenDenseStringSet(const C& data)
+    template<typename C, typename Compare>
+    FrozenDenseStringSet(const C& data, Compare compare)
     {
         using T = typename C::value_type;
         static_assert(std::is_constructible_v<SVType, const T&>, "element should be able to construct string_view");
-        //if (sort)
-        {
-            std::vector<SVType> tmp;
-            tmp.reserve(data.size());
-            tmp.assign(data.begin(), data.end());
-            std::sort(tmp.begin(), tmp.end(), Compare());
-            this->FillFrom(tmp, &this->OrderedView);
-        }
-        /*else
-        {
-            this->FillFrom(data, &this->OrderedView);
-        }*/
+        std::vector<SVType> tmp;
+        tmp.reserve(data.size());
+        tmp.assign(data.begin(), data.end());
+        std::sort(tmp.begin(), tmp.end(), compare);
+        this->FillFrom(tmp, &this->OrderedView);
     }
+    template<typename C>
+    FrozenDenseStringSet(const C& data) : FrozenDenseStringSet(data, std::less{}) {}
     template<typename E>
     constexpr size_t GetIndex(E&& element) const noexcept
     {

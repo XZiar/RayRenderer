@@ -66,3 +66,10 @@ DEFINE_FASTPATH_PARTIAL(DigestFuncs, AVX2)
 {
     REGISTER_FASTPATH_VARIANTS(Sha256, SHANIAVX2, SHA2, SHANI, NAIVE);
 }
+
+
+#if COMMON_COMPILER_GCC
+#   pragma GCC pop_options
+#elif COMMON_COMPILER_CLANG
+#   pragma clang attribute pop
+#endif

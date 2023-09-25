@@ -80,3 +80,9 @@ RegisterSIMDTest(F32x4, 200, dottest::DotProdTest<F32x4>);
 
 #endif
 }
+
+#if COMMON_COMPILER_GCC
+#   pragma GCC pop_options
+#elif COMMON_COMPILER_CLANG
+#   pragma clang attribute pop
+#endif

@@ -300,10 +300,7 @@ struct Shuffle64Common
 template<typename T, typename SIMDType, typename E>
 struct alignas(16) Common64x2 : public Neon128Common<T, SIMDType, E, 2>, public Shuffle64Common<T, SIMDType>
 {
-private:
-    using Neon128CM = Neon128Common<T, SIMDType, E, 2>;
-public:
-    using Neon128CM::Neon128Common;
+    using Neon128Common<T, SIMDType, E, 2>::Neon128Common;
     forceinline T VECCALL SwapEndian() const
     {
         return AsType<SIMDType>(vrev64q_u8(AsType<uint8x16_t>(this->Data)));
@@ -536,10 +533,7 @@ struct Shuffle32Common
 template<typename T, typename SIMDType, typename E>
 struct alignas(16) Common32x4 : public Neon128Common<T, SIMDType, E, 4>, public Shuffle32Common<T, SIMDType>
 {
-private:
-    using Neon128CM = Neon128Common<T, SIMDType, E, 4>;
-public:
-    using Neon128CM::Neon128Common;
+    using Neon128Common<T, SIMDType, E, 4>::Neon128Common;
     forceinline T VECCALL SwapEndian() const
     {
         return AsType<SIMDType>(vrev32q_u8(AsType<uint8x16_t>(this->Data)));
@@ -622,10 +616,7 @@ public:
 template<typename T, typename SIMDType, typename E>
 struct alignas(16) Common16x8 : public Neon128Common<T, SIMDType, E, 8>
 {
-private:
-    using Neon128CM = Neon128Common<T, SIMDType, E, 8>;
-public:
-    using Neon128CM::Neon128Common;
+    using Neon128Common<T, SIMDType, E, 8>::Neon128Common;
     // shuffle operations
     template<uint8_t Idx>
     forceinline T VECCALL Broadcast() const
@@ -844,10 +835,7 @@ public:
 template<typename T, typename SIMDType, typename E>
 struct alignas(16) Common8x16 : public Neon128Common<T, SIMDType, E, 16>
 {
-private:
-    using Neon128CM = Neon128Common<T, SIMDType, E, 16>;
-public:
-    using Neon128CM::Neon128Common;
+    using Neon128Common<T, SIMDType, E, 16>::Neon128Common;
     // shuffle operations
     template<uint8_t Idx>
     forceinline T VECCALL Broadcast() const

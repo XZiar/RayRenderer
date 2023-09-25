@@ -66,3 +66,10 @@ DEFINE_FASTPATH_PARTIAL(CopyManager, AVX512)
 //{
 //    REGISTER_FASTPATH_VARIANTS(Sha256, );
 //}
+
+
+#if COMMON_COMPILER_GCC
+#   pragma GCC pop_options
+#elif COMMON_COMPILER_CLANG
+#   pragma clang attribute pop
+#endif

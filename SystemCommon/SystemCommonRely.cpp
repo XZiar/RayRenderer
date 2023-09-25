@@ -325,7 +325,6 @@ static void LogCpuinfoMsg(mlog::LogLevel level, const char* format, va_list args
     const auto len = vsnprintf(tmp, Len, format, args);
     if (len > 0)
     {
-        std::string_view str;
         if (static_cast<uint32_t>(len) > Len)
         {
             std::string tmp2;

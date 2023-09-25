@@ -66,3 +66,10 @@ DEFINE_FASTPATH_PARTIAL(DigestFuncs, A64)
 {
     REGISTER_FASTPATH_VARIANTS(Sha256, SHA2, NAIVE);
 }
+
+
+#if COMMON_COMPILER_GCC
+#   pragma GCC pop_options
+#elif COMMON_COMPILER_CLANG
+#   pragma clang attribute pop
+#endif
