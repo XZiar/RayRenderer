@@ -2,9 +2,9 @@
 #include "SystemCommon/SystemCommonRely.h"
 
 
-void TestIntrinComplete(common::span<const common::FastPathBase::PathInfo> supports, const common::FastPathBase& host)
+void TestIntrinComplete(common::span<const common::FastPathBase::PathInfo> supports, common::span<const common::FastPathBase::VarItem> intrinMap, bool isComplete)
 {
-    for (const auto& [inst, choice] : host.GetIntrinMap())
+    for (const auto& [inst, choice] : intrinMap)
     {
         std::string allvar = "";
         for (const auto& path : supports)
@@ -21,7 +21,7 @@ void TestIntrinComplete(common::span<const common::FastPathBase::PathInfo> suppo
         }
         TestCout() << "intrin [" << inst << "] use [" << choice << "] within [" << allvar << "]\n";
     }
-    EXPECT_TRUE(host.IsComplete());
+    EXPECT_TRUE(isComplete);
 }
 
 class CPUEnvironment : public ::testing::Environment 

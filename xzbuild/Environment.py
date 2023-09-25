@@ -155,7 +155,7 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
     else:
         is64Bits = plat in ["x64", "ARM64"]
         env["bits"] = 64 if is64Bits else 32
-        if plat in ["ARM64", "ARM64"]:
+        if plat in ["ARM", "ARM64"]:
             env["arch"] = "arm"
         elif plat in ["x64", "x86"]:
             env["arch"] = "x86"

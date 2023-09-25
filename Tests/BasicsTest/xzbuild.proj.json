@@ -17,7 +17,9 @@
             [
                 "*.cpp",
                 {"ifeq": {"arch": "x86"}, "-": ["TestARMv7.cpp", "TestARMA32.cpp", "TestARMA64.cpp"]},
-                {"ifeq": {"arch": "arm"}, "-": ["TestSSE42.cpp", "TestAVX.cpp", "TestAVX2.cpp", "TestAVX512.cpp"]}
+                {"ifeq": {"arch": "arm"}, "-": ["TestSSE42.cpp", "TestAVX.cpp", "TestAVX2.cpp", "TestAVX512.cpp"]},
+                {"ifeq": {"arch": "arm", "bits": 64}, "-": ["TestARMv7.cpp", "TestARMA32.cpp"]},
+                {"ifeq": {"arch": "arm", "bits": 32}, "-": ["TestARMA64.cpp"]}
             ],
             "pch": "pch.h"
         },

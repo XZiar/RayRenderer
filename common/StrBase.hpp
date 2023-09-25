@@ -187,6 +187,7 @@ struct HashedStrView : public PreHashed<DJBHash>
         PreHashed(DJBHash::HashC(std::basic_string_view<Ch>{})), View{} { }
     constexpr HashedStrView(std::basic_string_view<Ch> str) noexcept : 
         PreHashed(DJBHash::HashC(str)), View(str) { }
+    constexpr HashedStrView(const Ch* str) noexcept : HashedStrView(std::basic_string_view<Ch>(str)) {}
     constexpr explicit HashedStrView(const uint64_t hash, std::basic_string_view<Ch> str) noexcept :
         PreHashed(hash), View(str) { }
     constexpr operator std::basic_string_view<Ch>() const noexcept 
@@ -195,6 +196,10 @@ struct HashedStrView : public PreHashed<DJBHash>
     }
     constexpr bool operator==(const std::basic_string_view<Ch> other) const noexcept 
     { 
+        return View == other;
+    }
+    constexpr bool operator==(const Ch* other) const noexcept
+    {
         return View == other;
     }
     constexpr bool operator==(const HashedStrView<Ch>& other) const noexcept 

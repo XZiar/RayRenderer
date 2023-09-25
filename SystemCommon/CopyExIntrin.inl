@@ -1,23 +1,21 @@
-#include "SystemCommonPch.h"
+
+#include "FastPathCategory.h"
 #include "CopyEx.h"
-#include "RuntimeFastPath.h"
+#include "common/CommonRely.hpp"
 #include "common/simd/SIMD.hpp"
 #include "common/simd/SIMD128.hpp"
-#include "common/simd/SIMD256.hpp"
-#include <boost/predef/other/endian.h>
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
+#   include "common/simd/SIMD256.hpp"
+#endif
 #define HALF_ENABLE_F16C_INTRINSICS 0 // only use half as fallback
 #include "3rdParty/half/half.hpp"
-#if !BOOST_ENDIAN_LITTLE_BYTE
-#   error("unsupported std::byte order (non little endian)")
-#endif
 #if COMMON_ARCH_ARM && COMMON_COMPILER_MSVC
 using float16_t = uint16_t;
 #endif
 
+static_assert(common::detail::is_little_endian, "unsupported std::byte order (non little endian)");
 
-using namespace std::string_view_literals;
 using namespace common::simd;
-using common::CheckCPUFeature;
 using common::CopyManager;
 
 
@@ -87,92 +85,6 @@ DEFINE_FASTPATH(CopyManager, CvtF32F16);
 DEFINE_FASTPATH(CopyManager, CvtF16F32);
 DEFINE_FASTPATH(CopyManager, CvtF32F64);
 DEFINE_FASTPATH(CopyManager, CvtF64F32);
-
-
-namespace
-{
-using common::fastpath::FuncVarBase;
-
-struct LOOP : FuncVarBase {};
-struct SIMD128
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("sse2"sv);
-#else
-        return CheckCPUFeature("asimd"sv);
-#endif
-    }
-};
-struct SIMDSSSE3
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("ssse3"sv);
-#else
-        return false;
-#endif
-    }
-};
-struct SIMDSSE41
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("sse4_1"sv);
-#else
-        return false;
-#endif
-    }
-};
-struct SIMD256
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("avx"sv);
-#else
-        return false;
-#endif
-    }
-};
-struct SIMDAVX2
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("avx2"sv);
-#else
-        return false;
-#endif
-    }
-};
-struct F16C
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("f16c"sv);
-#else
-        return false;
-#endif
-    }
-};
-struct AVX512F
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("avx512f"sv);
-#else
-        return false;
-#endif
-    }
-};
-}
-
 
 
 DEFINE_FASTPATH_METHOD(Broadcast2, LOOP)
@@ -831,7 +743,7 @@ struct F3216Cast
     static constexpr size_t N = 8, M = 8;
     void operator()(uint16_t* dst, const float* src) const noexcept
     {
-        U16x8(_mm256_cvtps_ph(F32x8(src), _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC)).Save(dst);
+        U16x8(_mm256_cvtps_ph(F32x8(src), _MM_FROUND_TO_NEAREST_INT)).Save(dst);
     }
 };
 DEFINE_FASTPATH_METHOD(CvtF16F32, F16C)
@@ -901,7 +813,7 @@ DEFINE_FASTPATH_METHOD(CvtF32F16, SIMD128)
 }
 #endif
 
-#if COMMON_ARCH_X86 && (COMMON_SIMD_LV >= 310 || (COMMON_COMPILER_MSVC && COMMON_MSVC_VER >= 191000))
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 310 && (!COMMON_COMPILER_MSVC || COMMON_MSVC_VER >= 191000)
 struct F1632CastAVX512
 {
     using Src = uint16_t;
@@ -930,66 +842,3 @@ DEFINE_FASTPATH_METHOD(CvtF32F16, AVX512F)
 }
 #endif
 
-
-namespace common
-{
-
-common::span<const CopyManager::PathInfo> CopyManager::GetSupportMap() noexcept
-{
-    static auto list = []() 
-    {
-        std::vector<CopyManager::PathInfo> ret;
-        RegistFuncVars(CopyManager, Broadcast2, SIMD256, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, Broadcast4, SIMD256, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, ZExtCopy12, SIMDAVX2, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, ZExtCopy14, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, ZExtCopy24, SIMDAVX2, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, ZExtCopy28, SIMDAVX2, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, ZExtCopy48, SIMDAVX2, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, SExtCopy12, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, SExtCopy14, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, SExtCopy24, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, SExtCopy28, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, SExtCopy48, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, TruncCopy21, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, TruncCopy41, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, TruncCopy42, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, TruncCopy81, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, TruncCopy82, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, TruncCopy84, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtI32F32, SIMD256,  SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtI16F32, SIMDAVX2, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtI8F32,  SIMDAVX2, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtU32F32, SIMDAVX2, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtU16F32, SIMDAVX2, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtU8F32,  SIMDAVX2, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtF32I32, SIMD256,  SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtF32I16, SIMDAVX2, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtF32I8,  SIMDAVX2, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtF32U16, SIMDAVX2, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtF32U8,  SIMDAVX2, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtF16F32, AVX512F, F16C, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtF32F16, AVX512F, F16C, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtF32F64, SIMD256, SIMD128, LOOP);
-        RegistFuncVars(CopyManager, CvtF64F32, SIMD256, SIMD128, LOOP);
-        return ret;
-    }();
-    return list;
-}
-CopyManager::CopyManager(common::span<const VarItem> requests) noexcept { Init(requests); }
-CopyManager::~CopyManager() {}
-bool CopyManager::IsComplete() const noexcept
-{
-    return Broadcast2 && Broadcast4 &&
-        ZExtCopy12 && ZExtCopy14 && ZExtCopy24 && ZExtCopy28 && ZExtCopy48 &&
-        SExtCopy12 && SExtCopy14 && SExtCopy24 && SExtCopy28 && SExtCopy48 &&
-        TruncCopy21 && TruncCopy41 && TruncCopy42 && TruncCopy82 && TruncCopy84 &&
-        CvtI32F32 && CvtI16F32 && CvtI8F32 && CvtU32F32 && CvtU16F32 && CvtU8F32 &&
-        CvtF32I32 && CvtF32I16 && CvtF32I8 && CvtF32U16 && CvtF32U8 &&
-        CvtF16F32 && CvtF32F16 && CvtF32F64 && CvtF64F32;
-}
-const CopyManager CopyEx;
-
-
-
-}

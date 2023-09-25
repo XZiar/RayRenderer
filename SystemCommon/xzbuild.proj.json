@@ -30,7 +30,15 @@
         "cpp":
         {
             "incpath": ["$(SolutionDir)/3rdParty/fmt/include/", "$(SolutionDir)/3rdParty/cpuinfo/src/", "$(SolutionDir)/3rdParty/cpuinfo/include/"],
-            "sources": ["*.cpp", {"ifneq": {"osname": "Darwin"}, "-": "ObjCHelper.cpp"}],
+            "sources": 
+            [
+                "*.cpp", 
+                {"ifneq": {"osname": "Darwin"}, "-": "ObjCHelper.cpp"}, 
+                {"ifeq": {"arch": "x86"}, "-": ["FastPathARMv7.cpp", "FastPathARMA32.cpp", "FastPathARMA64.cpp"]},
+                {"ifeq": {"arch": "arm"}, "-": ["FastPathSSE42.cpp", "FastPathAVX2.cpp", "FastPathAVX512.cpp"]},
+                {"ifeq": {"arch": "arm", "bits": 64}, "-": ["FastPathARMv7.cpp", "FastPathARMA32.cpp"]},
+                {"ifeq": {"arch": "arm", "bits": 32}, "-": ["FastPathARMA64.cpp"]}
+            ],
             "defines":  ["SYSCOMMON_EXPORT"],
             "pch": "SystemCommonPch.h"
         }

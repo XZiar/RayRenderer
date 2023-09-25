@@ -137,10 +137,6 @@ forceinline __m128i _mm_loadu_si16_correct(const void* addr) noexcept
 # else
 #  error Unknown compiler, not supported by this header
 # endif
-# if !COMMON_COMPILER_MSVC
-#   define neon_moviqb(x) vdupq_n_u8(x)
-#   define neon_movib(x) vdup_n_u8(x)
-# endif
 #else
 #  error Unknown architecture, not supported by this header
 #endif

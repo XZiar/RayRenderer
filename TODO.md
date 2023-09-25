@@ -24,7 +24,7 @@
   - [ ] Add hugepage memory allocation
   - [x] Seperate PromiseTask's functionalities of task-info and ret-value
   - [x] Move SIMD copy into SystemCommon
-  - [ ] Seperate implementation of different SIMD into diff file with diff flags, try keep compatibility even with march=native
+  - [x] Seperate implementation of different SIMD into diff file with diff flags, try keep compatibility even with march=native
   - [x] Maybe move StringUtil into SystemCommon, enable OS-specific path
   - [x] Maybe move MiniLigger into SystemCommon, since commonlly used
   - [x] Maybe move AsyncExecutor into SystemCommon, since OS-related
@@ -44,6 +44,7 @@
     - [x] Add custom opcode-based compile-time parsing&format support 
     - [x] Make arg spec decoding delayed so cached spec can be helpful
     - [ ] Make parsing use template host, so runtime parsing can use fast-path, or directly store into dynamic storage
+    - [x] Add runtime selection with compile-time type check
     - [ ] Add support for custom type format spec check with allocated error code slot
     - [ ] Add support to use arg to specify spec width/precision
     - [ ] Add encoding conversion with segement info

@@ -15,6 +15,7 @@
         {
             "defines": ["CPUINFO_LOG_LEVEL=3", {"ifeq": {"osname": "Linux"}, "+": "_GNU_SOURCE=1"}],
             "incpath": ["$(SolutionDir)/3rdParty/cpuinfo/src/", "$(SolutionDir)/3rdParty/cpuinfo/include/"],
+            "flags": ["-Wno-unused-function"],
             "sources": 
             [
                 {"dir": "src", "+": ["api.c", "cache.c", "init.c"]},

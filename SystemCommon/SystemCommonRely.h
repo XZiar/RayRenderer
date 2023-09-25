@@ -150,6 +150,7 @@ public:
         str::HashedStrView<char> FuncName;
         std::vector<MethodInfo> Variants;
         PathInfo(std::string_view name, void*& (*access)(FastPathBase&) noexcept) noexcept : Access(access), FuncName(name) { }
+        PathInfo(std::string_view name) noexcept : FuncName(name) { }
     };
     using VarItem = std::pair<std::string_view, std::string_view>;
     COMMON_NO_COPY(FastPathBase)
@@ -159,6 +160,7 @@ public:
     {
         return VariantMap;
     }
+    SYSCOMMONAPI static void MergeInto(std::vector<PathInfo>& dst, common::span<const PathInfo> src) noexcept;
 protected:
     FastPathBase() noexcept {}
     SYSCOMMONAPI void Init(common::span<const PathInfo> info, common::span<const VarItem> requests) noexcept;
@@ -170,12 +172,15 @@ namespace fastpath
 struct PathHack;
 }
 template<typename T>
-class RuntimeFastPath : public FastPathBase
+class RuntimeFastPath : protected FastPathBase
 {
 private:
     using FastPathBase::Init;
 protected:
     void Init(common::span<const VarItem> requests) noexcept { Init(T::GetSupportMap(), requests); }
+public:
+    using FastPathBase::IsComplete;
+    using FastPathBase::GetIntrinMap;
 };
 
 

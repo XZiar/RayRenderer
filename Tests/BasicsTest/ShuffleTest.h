@@ -337,15 +337,17 @@ MATCHER_P2(FailSelect, mask, bits, GenerateSelectStr(mask, bits))
 template<typename T>
 class SelectTestBase
 {
-protected:
-    static inline const T Zero = T::AllZero(), One = []()
+private:
+    static T InitAll(uint8_t val) noexcept
     {
         T ret;
         using U = typename T::EleType;
         for (size_t i = 0; i < T::Count; ++i)
-            ret.Val[i] = static_cast<U>(1);
+            ret.Val[i] = static_cast<U>(val);
         return ret;
-    }();
+    }
+protected:
+    static inline const T Zero = InitAll(0), One = InitAll(1);
     static void CheckSelect(const T& obj, uint64_t mask)
     {
         const uint64_t mask_ = mask;

@@ -30,14 +30,13 @@ uint32_t RegisterIntrinTest(const char* testsuite, const char* fileName, const i
     return 0;
 }
 
-void TestIntrinComplete(common::span<const common::FastPathBase::PathInfo> supports, const common::FastPathBase& host);
-
-
-#define INTRIN_TESTSUITE(name, type, var)                                               \
-struct name : public testing::Test { using HostType = type; };                          \
-struct name ## Fixture : public name                                                    \
-{ void TestBody() override { TestIntrinComplete(HostType::GetSupportMap(), var); } };   \
-static testing::TestInfo* Dummy_ ## name = testing::RegisterTest(#name, "Complete",     \
+void TestIntrinComplete(common::span<const common::FastPathBase::PathInfo> supports, common::span<const common::FastPathBase::VarItem> intrinMap, bool isComplete);
+#define INTRIN_TESTSUITE(name, type, var)                                           \
+struct name : public testing::Test { using HostType = type; };                      \
+struct name ## Fixture : public name                                                \
+{ void TestBody() override { TestIntrinComplete(HostType::GetSupportMap(),          \
+    var.GetIntrinMap(), var.IsComplete()); } };                                     \
+static testing::TestInfo* Dummy_##name = testing::RegisterTest(#name, "Complete",   \
     nullptr, nullptr, __FILE__, __LINE__, []() -> name* { return new name ## Fixture(); })
 
 

@@ -1,9 +1,18 @@
 #include "pch.h"
+
+#if COMMON_COMPILER_GCC
+#   pragma GCC push_options
+#   pragma GCC target("arch=armv8.2-a+simd+crypto")
+#elif COMMON_COMPILER_CLANG
+#   pragma clang attribute push (__attribute__((target("arch=armv8.2-a+simd+crypto"))), apply_to=function)
+#endif
+
+#define COMMON_SIMD_LV 100
+#include "common/simd/SIMD.hpp"
 namespace
 {
 using namespace common;
-#define COMMON_SIMD_LV 100
-#include "common/simd/SIMD.hpp"
+using namespace common::simd;
 #if COMMON_SIMD_LV_ >= 100
 #   include "common/simd/SIMD128.hpp"
 using namespace common::simd;

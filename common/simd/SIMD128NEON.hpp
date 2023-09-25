@@ -200,7 +200,14 @@ struct Neon128Common : public CommonOperators<T>
         return AsType<SIMDType>(vdupq_lane_u64(AsType<uint64x2_t>(Data), 0));
     }
 
-    forceinline static T AllZero() noexcept { return AsType<SIMDType>(neon_moviqb(0)); }
+    forceinline static T AllZero() noexcept 
+    {
+        if constexpr (std::is_same_v<EleType, float>)
+            return vdupq_n_f32(0);
+        else if constexpr (std::is_same_v<EleType, double>)
+            return vdupq_n_f64(0);
+        return AsType<SIMDType>(vdupq_n_u8(0));
+    }
 };
 
 
@@ -294,9 +301,9 @@ template<typename T, typename SIMDType, typename E>
 struct alignas(16) Common64x2 : public Neon128Common<T, SIMDType, E, 2>, public Shuffle64Common<T, SIMDType>
 {
 private:
-    using Neon128Common = Neon128Common<T, SIMDType, E, 2>;
+    using Neon128CM = Neon128Common<T, SIMDType, E, 2>;
 public:
-    using Neon128Common::Neon128Common;
+    using Neon128CM::Neon128Common;
     forceinline T VECCALL SwapEndian() const
     {
         return AsType<SIMDType>(vrev64q_u8(AsType<uint8x16_t>(this->Data)));
@@ -530,9 +537,9 @@ template<typename T, typename SIMDType, typename E>
 struct alignas(16) Common32x4 : public Neon128Common<T, SIMDType, E, 4>, public Shuffle32Common<T, SIMDType>
 {
 private:
-    using Neon128Common = Neon128Common<T, SIMDType, E, 4>;
+    using Neon128CM = Neon128Common<T, SIMDType, E, 4>;
 public:
-    using Neon128Common::Neon128Common;
+    using Neon128CM::Neon128Common;
     forceinline T VECCALL SwapEndian() const
     {
         return AsType<SIMDType>(vrev32q_u8(AsType<uint8x16_t>(this->Data)));
@@ -616,9 +623,9 @@ template<typename T, typename SIMDType, typename E>
 struct alignas(16) Common16x8 : public Neon128Common<T, SIMDType, E, 8>
 {
 private:
-    using Neon128Common = Neon128Common<T, SIMDType, E, 8>;
+    using Neon128CM = Neon128Common<T, SIMDType, E, 8>;
 public:
-    using Neon128Common::Neon128Common; 
+    using Neon128CM::Neon128Common;
     // shuffle operations
     template<uint8_t Idx>
     forceinline T VECCALL Broadcast() const
@@ -838,9 +845,9 @@ template<typename T, typename SIMDType, typename E>
 struct alignas(16) Common8x16 : public Neon128Common<T, SIMDType, E, 16>
 {
 private:
-    using Neon128Common = Neon128Common<T, SIMDType, E, 16>;
+    using Neon128CM = Neon128Common<T, SIMDType, E, 16>;
 public:
-    using Neon128Common::Neon128Common;
+    using Neon128CM::Neon128Common;
     // shuffle operations
     template<uint8_t Idx>
     forceinline T VECCALL Broadcast() const
@@ -1238,7 +1245,7 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
             else
             {
                 alignas(16) const int32_t mask[4] = { MulEx0 ? 0 : -1, MulEx1 ? 0 : -1, MulEx2 ? 0 : -1, MulEx3 ? 0 : -1 };
-                prod = vandq_s32(vreinterpretq_s32_f32(prod), vld1q_s32(mask));
+                prod = vreinterpretq_f32_s32(vandq_s32(vreinterpretq_s32_f32(prod), vld1q_s32(mask)));
             }
 #if COMMON_SIMD_LV >= 200
             return vaddvq_f32(prod);
@@ -1271,12 +1278,12 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
             }
             else if constexpr (ResEx0 + ResEx1 + ResEx2 + ResEx3 == 3) // only need one
             {
-                return vsetq_lane_f32(sum, neon_moviqb(0), ResEx0 ? (ResEx1 ? (ResEx2 ? 3 : 2) : 1) : 0);
+                return vsetq_lane_f32(sum, vdupq_n_f32(0), ResEx0 ? (ResEx1 ? (ResEx2 ? 3 : 2) : 1) : 0);
             }
             else
             {
                 alignas(16) const int32_t mask[4] = { ResEx0 ? 0 : -1, ResEx1 ? 0 : -1, ResEx2 ? 0 : -1, ResEx3 ? 0 : -1 };
-                return vandq_s32(vreinterpretq_s32_f32(vdupq_n_f32(sum)), vld1q_s32(mask));
+                return vreinterpretq_f32_s32(vandq_s32(vreinterpretq_s32_f32(vdupq_n_f32(sum)), vld1q_s32(mask)));
             }
         }
     }
@@ -1591,7 +1598,7 @@ struct alignas(16) U32x4 : public detail::Common32x4<U32x4, uint32x4_t, uint32_t
 template<> forceinline Pack<U64x2, 2> VECCALL U32x4::Cast<U64x2, CastMode::RangeUndef>() const
 {
 #if COMMON_SIMD_LV >= 200
-    const auto zero = neon_moviqb(0);
+    const auto zero = vdupq_n_u32(0);
     return { vzip1q_u32(Data, zero), vzip2q_u32(Data, zero) };
 #else
     return { vmovl_u32(vget_low_u32(Data)), vmovl_u32(vget_high_u32(Data)) };
@@ -1745,7 +1752,7 @@ struct alignas(16) U16x8 : public detail::Common16x8<U16x8, uint16x8_t, uint16_t
 template<> forceinline Pack<U32x4, 2> VECCALL U16x8::Cast<U32x4, CastMode::RangeUndef>() const
 {
 #if COMMON_SIMD_LV >= 200
-    const auto zero = neon_moviqb(0);
+    const auto zero = vdupq_n_u16(0);
     return { vzip1q_u16(Data, zero), vzip2q_u16(Data, zero) };
 #else
     return { vmovl_u16(vget_low_u16(Data)), vmovl_u16(vget_high_u16(Data)) };
@@ -1941,7 +1948,7 @@ struct alignas(16) U8x16 : public detail::Common8x16<U8x16, uint8x16_t, uint8_t>
 template<> forceinline Pack<U16x8, 2> VECCALL U8x16::Cast<U16x8, CastMode::RangeUndef>() const
 {
 #if COMMON_SIMD_LV >= 200
-    const auto zero = neon_moviqb(0);
+    const auto zero = vdupq_n_u8(0);
     return { vzip1q_u8(Data, zero), vzip2q_u8(Data, zero) };
 #else
     return { vmovl_u8(vget_low_u8(Data)), vmovl_u8(vget_high_u8(Data)) };
@@ -2152,12 +2159,12 @@ template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4, CastMode::RangeSaturate>
     const F32x4 minVal = static_cast<float>(INT32_MIN), maxVal = static_cast<float>(INT32_MAX);
     const auto val = Cast<I32x4, CastMode::RangeUndef>();
     // INT32 loses precision, need maunally bit-select
-    const auto isLe = Compare<CompareType::LessEqual,    MaskType::FullEle>(minVal).As<U32x4>();
-    const auto isGe = Compare<CompareType::GreaterEqual, MaskType::FullEle>(maxVal).As<U32x4>();
+    const auto isLe = Compare<CompareType::LessEqual,    MaskType::FullEle>(minVal).As<I32x4>();
+    const auto isGe = Compare<CompareType::GreaterEqual, MaskType::FullEle>(maxVal).As<I32x4>();
     /*const auto isLe = vcleq_f32(Data, minVal);
     const auto isGe = vcgeq_f32(Data, maxVal);*/
-    const auto satMin = vbslq_f32(isLe, I32x4(INT32_MIN), val);
-    return vbslq_f32(isGe, I32x4(INT32_MAX), satMin);
+    const auto satMin = vbslq_s32(isLe, I32x4(INT32_MIN), val);
+    return vbslq_s32(isGe, I32x4(INT32_MAX), satMin);
 }
 template<> forceinline I16x8 VECCALL F32x4::Cast<I16x8, CastMode::RangeSaturate>(const F32x4& arg1) const
 {

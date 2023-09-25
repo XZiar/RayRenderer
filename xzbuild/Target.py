@@ -109,6 +109,8 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
     def solveTarget(self, targets:dict, proj, env:dict):
         self.flags += ["-Wall", "-pedantic", "-pthread", "-Wno-unknown-pragmas", "-Wno-ignored-attributes", "-Wno-unused-local-typedefs", "-fno-common"]
         self.flags += [env["archparam"]]
+        if env["arch"] == "arm":
+            self.flags += ["-flax-vector-conversions"]
         if env["gprof"] == True:
             self.flags += ["-pg"]
         if env["arch"] == "x86":

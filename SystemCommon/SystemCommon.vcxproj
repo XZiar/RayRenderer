@@ -215,10 +215,37 @@
   <ItemGroup>
     <ClCompile Include="AsyncManager.cpp" />
     <ClCompile Include="ConsoleEx.cpp" />
-    <ClCompile Include="CopyEx.cpp" />
     <ClCompile Include="DynamicLibrary.cpp" />
     <ClCompile Include="Exceptions.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="FastPathARMA32.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <EnableEnhancedInstructionSet>CPUExtensionRequirementsARMv80</EnableEnhancedInstructionSet>
+      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="FastPathARMA64.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <EnableEnhancedInstructionSet>CPUExtensionRequirementsARMv80</EnableEnhancedInstructionSet>
+      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="FastPathAVX2.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="FastPathAVX512.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions512</EnableEnhancedInstructionSet>
+      <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="FastPathIntrins.cpp" />
+    <ClCompile Include="FastPathSSE42.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="FileEx.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -229,7 +256,6 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="MiniLogger.cpp" />
-    <ClCompile Include="MiscIntrins.cpp" />
     <ClCompile Include="LoopBase.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -256,6 +282,7 @@
     <ClInclude Include="Delegate.h" />
     <ClInclude Include="DynamicLibrary.h" />
     <ClInclude Include="Exceptions.h" />
+    <ClInclude Include="FastPathCategory.h" />
     <ClInclude Include="FileEx.h" />
     <ClInclude Include="FileMapperEx.h" />
     <ClInclude Include="Format.h" />
@@ -300,7 +327,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="AsyncExecutor.md" />
+    <None Include="CopyExIntrin.inl" />
     <None Include="MiniLogger.md" />
+    <None Include="MiscIntrins.inl" />
     <None Include="README.md" />
     <None Include="StringUtil.md" />
     <None Include="xzbuild.proj.json" />

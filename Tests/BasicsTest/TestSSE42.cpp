@@ -1,13 +1,12 @@
 #include "pch.h"
 
+#define COMMON_SIMD_LV 42
+#include "common/simd/SIMD.hpp"
+
 namespace sse42
 {
 using namespace common;
-#define COMMON_SIMD_LV 42
-//#if COMMON_COMPILER_MSVC
-//#   define CMSIMD_LESS_SPACE 1
-//#endif
-#include "common/simd/SIMD.hpp"
+using namespace common::simd;
 #if COMMON_SIMD_LV_ >= 42 || COMMON_COMPILER_MSVC
 #   include "common/simd/SIMD128.hpp"
 using namespace common::simd;

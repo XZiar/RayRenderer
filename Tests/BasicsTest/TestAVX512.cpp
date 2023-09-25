@@ -7,11 +7,13 @@
 #   pragma clang attribute push (__attribute__((target("avx512f,avx512vl,avx512bw,avx512dq"))), apply_to=function)
 #endif
 
+#define COMMON_SIMD_LV 320
+#include "common/simd/SIMD.hpp"
+
 namespace avx512
 {
 using namespace common;
-#define COMMON_SIMD_LV 320
-#include "common/simd/SIMD.hpp"
+using namespace common::simd;
 #if COMMON_SIMD_LV_ >= 310
 #   include "common/simd/SIMD128.hpp"
 #   include "common/simd/SIMD256.hpp"

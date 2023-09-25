@@ -39,9 +39,6 @@
     <ClCompile Include="SystemCommonRely.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="MiscIntrins.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="PromiseTask.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -49,9 +46,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="StackTrace.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="CopyEx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="MiniLogger.cpp">
@@ -76,6 +70,24 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="UnInterface.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FastPathAVX2.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FastPathAVX512.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FastPathSSE42.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FastPathIntrins.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FastPathARMA32.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FastPathARMA64.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -185,6 +197,9 @@
     <ClInclude Include="Delegate.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FastPathCategory.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />
@@ -192,6 +207,12 @@
     <None Include="StringUtil.md" />
     <None Include="AsyncExecutor.md" />
     <None Include="MiniLogger.md" />
+    <None Include="CopyExIntrin.inl">
+      <Filter>头文件</Filter>
+    </None>
+    <None Include="MiscIntrins.inl">
+      <Filter>头文件</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="AsyncExecutor.natvis" />

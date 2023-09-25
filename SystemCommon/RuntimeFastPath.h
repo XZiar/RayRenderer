@@ -5,6 +5,7 @@
 #include <boost/preprocessor/tuple/enum.hpp>
 #include <boost/preprocessor/tuple/to_seq.hpp>
 #include <boost/preprocessor/variadic/to_seq.hpp>
+#include <boost/preprocessor/seq/fold_left.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/seq/for_each_i.hpp>
 #include <tuple>
@@ -26,6 +27,11 @@ struct PathHack
     static void*& Access(FastPathBase& base) noexcept { return *reinterpret_cast<void**>(&(static_cast<T&>(base).*F)); }
     template<typename T>
     static auto HackFunc() noexcept;
+    template<typename... Ts>
+    forceinline static bool CheckExixts(const Ts&... args) noexcept
+    {
+        return (... && args);
+    }
 };
 
 template <typename T> struct PathInfo;
@@ -63,16 +69,62 @@ template<> inline typename GET_FASTPATH_FUNC(func)::Ret GET_FASTPATH_FUNC(func):
 (BOOST_PP_SEQ_FOR_EACH_I(TYPE_NAME_ARG, GET_FASTPATH_FUNC(func), func##Args)) noexcept
 
 
-#define RegistFuncVar(r, func, var)                                         \
+#define REGISTER_FASTPATH_VARIANT(r, func, var)                             \
 if constexpr (GET_FASTPATH_FUNC(func)::MethodExist<var>())                  \
 {                                                                           \
     if (var::RuntimeCheck())                                                \
         path.Variants.emplace_back(STRINGIZE(var),                          \
             reinterpret_cast<void*>(&GET_FASTPATH_FUNC(func)::Func<var>));  \
 }
-#define RegistFuncVars(clz, func, ...) do                                                                   \
-{                                                                                                           \
-    auto& path = ret.emplace_back(STRINGIZE(func), &common::fastpath::PathHack::Access<clz, &clz::func>);   \
-    BOOST_PP_SEQ_FOR_EACH(RegistFuncVar, func, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))                       \
+#define REGISTER_FASTPATH_VARIANTS(func, ...) do                                                    \
+{                                                                                                   \
+    auto& path = ret.emplace_back(STRINGIZE(func));                                                 \
+    BOOST_PP_SEQ_FOR_EACH(REGISTER_FASTPATH_VARIANT, func, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))   \
 } while(0)
 
+
+#define DEFINE_FASTPATH_PARTIAL(clz, scope)                                                     \
+static void PushFuncs_##clz##_scope(std::vector<common::FastPathBase::PathInfo>& ret) noexcept; \
+::common::span<const ::common::FastPathBase::PathInfo> clz##_##scope() noexcept                 \
+{                                                                                               \
+    static auto list = []()                                                                     \
+        {                                                                                       \
+            std::vector<::common::FastPathBase::PathInfo> ret;                                  \
+            PushFuncs_##clz##_scope(ret);                                                       \
+            return ret;                                                                         \
+        }();                                                                                    \
+        return list;                                                                            \
+}                                                                                               \
+void PushFuncs_##clz##_scope(std::vector<::common::FastPathBase::PathInfo>&ret) noexcept
+
+
+#define DECLARE_FASTPATH_PARTIAL(r, clz, scope) ::common::span<const ::common::FastPathBase::PathInfo> PPCAT(PPCAT(clz,_),scope)() noexcept;
+#define MERGE_FASTPATH_PARTIAL(r, clz, scope) if (PPCAT(FastPathCheck_,scope)()) ::common::FastPathBase::MergeInto(ret, PPCAT(PPCAT(clz,_),scope)());
+#define DECLARE_FASTPATH_PARTIALS(clz, ...)                                                     \
+BOOST_PP_SEQ_FOR_EACH(DECLARE_FASTPATH_PARTIAL, clz, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))     \
+static void clz##_GatherSupportMap(std::vector<::common::FastPathBase::PathInfo>& ret) noexcept \
+{                                                                                               \
+    BOOST_PP_SEQ_FOR_EACH(MERGE_FASTPATH_PARTIAL, clz, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))   \
+}
+
+#define DEFINE_FASTPATH_SCOPE(scope) static bool PPCAT(FastPathCheck_,scope)() noexcept
+#define FASTPATH_ITEM(r, clz, func) ret.emplace_back(STRINGIZE(func), &::common::fastpath::PathHack::Access<clz, &clz::func>);
+#define CHECK_FASTPATH_FUNC(r, state, func) state && func
+#define DEFINE_FASTPATH_BASIC(clz, ...)                                                 \
+span<const clz::PathInfo> clz::GetSupportMap() noexcept                                 \
+{                                                                                       \
+    static auto list = []()                                                             \
+    {                                                                                   \
+        std::vector<::common::FastPathBase::PathInfo> ret;                              \
+        BOOST_PP_SEQ_FOR_EACH(FASTPATH_ITEM, clz, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))\
+        clz##_GatherSupportMap(ret);                                                    \
+        return ret;                                                                     \
+    }();                                                                                \
+    return list;                                                                        \
+}                                                                                       \
+clz::clz(span<const VarItem> requests) noexcept { Init(requests); }                     \
+clz::~clz() {}                                                                          \
+bool clz::IsComplete() const noexcept                                                   \
+{                                                                                       \
+    return ::common::fastpath::PathHack::CheckExixts(__VA_ARGS__);                      \
+}

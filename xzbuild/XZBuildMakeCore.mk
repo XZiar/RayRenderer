@@ -214,7 +214,7 @@ $(OBJDIR)/%.S.o: %.S $(DEP_MK)
 ###============================================================================
 ### rc targets
 $(OBJDIR)/%.rc.o: %.rc $(DEP_MK)
-	python3 $(SOLDIR)/$(xz_xzbuildPath)/ResourceCompiler.py $< $(xz_platform) $(OBJDIR)
+	python3 $(SOLDIR)/$(xz_xzbuildPath)/ResourceCompiler.py $< $(xz_platform) $(OBJDIR) $(CPPCOMPILER)
 
 
 ###============================================================================

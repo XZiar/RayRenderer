@@ -656,6 +656,36 @@ void FastPathBase::Init(common::span<const PathInfo> info, common::span<const Va
     }
 }
 
+void FastPathBase::MergeInto(std::vector<PathInfo>& dst, common::span<const PathInfo> src) noexcept
+{
+    for (const auto& info : src)
+    {
+        for (auto& path : dst)
+        {
+            if (info.FuncName == path.FuncName)
+            {
+                for (const auto& method : info.Variants)
+                {
+                    bool found = false;
+                    for (const auto& existing : path.Variants)
+                    {
+                        if (existing.MethodName == method.MethodName)
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found)
+                    {
+                        path.Variants.emplace_back(method);
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
 }
 
 

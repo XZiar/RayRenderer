@@ -13,7 +13,6 @@ if not __package__:
     sys.path.insert(0, path)
 
 from xzbuild import COLOR
-from xzbuild.Environment import findAppInPath
 
 OSName = platform.system()
 class Resource:
@@ -36,20 +35,13 @@ BinTypeMap = \
 }
 
 
-def findApp(*names) -> str:
-    for name in names:
-        paths = findAppInPath(name)
-        if len(paths) > 0: return name
-    print(COLOR.Yellow(f"Seems {names[0]} is not found"))
-    return None
-
 if __name__ == "__main__":
-    compiler = findApp("c++", "g++", "clang++")
 
     rcfile = sys.argv[1]
     rcDir = os.path.dirname(rcfile)
     plat = sys.argv[2]
     objdir = sys.argv[3]
+    compiler = sys.argv[4]
     common = os.path.relpath(os.path.commonpath([os.path.abspath(rcfile), os.path.abspath(os.path.curdir)]))
     rcrelfile = os.path.relpath(rcfile, common)
     print(f"{COLOR.green}Compiling Resource File{COLOR.clear} [{COLOR.Magenta(rcfile)}] for [{COLOR.Magenta(plat)}] to [{objdir}] as [{rcrelfile}.o]")

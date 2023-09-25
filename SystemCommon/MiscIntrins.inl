@@ -1,17 +1,20 @@
-#include "SystemCommonPch.h"
+
+#include "FastPathCategory.h"
 #include "MiscIntrins.h"
-#include "RuntimeFastPath.h"
-#include "SpinLock.h"
+#include "common/CommonRely.hpp"
 #include "common/simd/SIMD.hpp"
 #include "common/simd/SIMD128.hpp"
-#include "common/simd/SIMD256.hpp"
-#include "common/SpinLock.hpp"
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
+#   include "common/simd/SIMD256.hpp"
+#endif
+#include "SpinLock.h"
 #include "3rdParty/digestpp/algorithm/sha2.hpp"
 
-using namespace std::string_view_literals;
-using common::CheckCPUFeature;
+
+using namespace common::simd;
 using common::MiscIntrins;
 using common::DigestFuncs;
+
 
 #define LeadZero32Args  BOOST_PP_VARIADIC_TO_SEQ(num)
 #define LeadZero64Args  BOOST_PP_VARIADIC_TO_SEQ(num)
@@ -32,138 +35,6 @@ DEFINE_FASTPATH(MiscIntrins, PauseCycles);
 #define Sha256Args BOOST_PP_VARIADIC_TO_SEQ(data, size)
 DEFINE_FASTPATH(DigestFuncs, Sha256);
 
-
-namespace
-{
-using common::fastpath::FuncVarBase;
-
-struct NAIVE : FuncVarBase {};
-struct COMPILER : FuncVarBase {};
-struct OS : FuncVarBase {};
-struct SIMD128
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("sse2"sv);
-#else
-        return CheckCPUFeature("asimd"sv);
-#endif
-    }
-};
-struct SIMDSSSE3
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("ssse3"sv);
-#else
-        return false;
-#endif
-    }
-};
-struct LZCNT 
-{ 
-    static bool RuntimeCheck() noexcept 
-    { 
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("bmi1"sv) || CheckCPUFeature("lzcnt"sv);
-#else
-        return false;
-#endif
-    }
-};
-struct TZCNT
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("bmi1"sv);
-#else
-        return false;
-#endif
-    }
-};
-struct POPCNT
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("popcnt"sv);
-#else
-        return false;
-#endif
-    }
-};
-struct BMI1
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("bmi1"sv);
-#else
-        return false;
-#endif
-    }
-};
-struct SHANI
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("sha"sv);
-#else
-        return false;
-#endif
-    }
-};
-struct SHANIAVX2
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("sha"sv) && CheckCPUFeature("avx2"sv);
-#else
-        return false;
-#endif
-    }
-};
-struct SHA2
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return false;
-#else
-        return CheckCPUFeature("sha2"sv);
-#endif
-    }
-};
-struct SSE2
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("sse2"sv);
-#else
-        return false;
-#endif
-    }
-};
-struct WAITPKG
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("waitpkg"sv);
-#else
-        return false;
-#endif
-    }
-};
-}
-
-using namespace common::simd;
 
 #if COMMON_ARCH_X86
 #    define PauseCycleLoop(...) \
@@ -875,137 +746,3 @@ DEFINE_FASTPATH_METHOD(Sha256, SHANIAVX2)
 # endif
 #endif
 
-
-
-namespace common
-{
-
-common::span<const MiscIntrins::PathInfo> MiscIntrins::GetSupportMap() noexcept
-{
-    static auto list = []() 
-    {
-        std::vector<PathInfo> ret;
-        RegistFuncVars(MiscIntrins, LeadZero32, LZCNT, COMPILER);
-        RegistFuncVars(MiscIntrins, LeadZero64, LZCNT, COMPILER);
-        RegistFuncVars(MiscIntrins, TailZero32, TZCNT, COMPILER);
-        RegistFuncVars(MiscIntrins, TailZero64, TZCNT, COMPILER);
-        RegistFuncVars(MiscIntrins, PopCount32, POPCNT, COMPILER, NAIVE);
-        RegistFuncVars(MiscIntrins, PopCount64, POPCNT, COMPILER, NAIVE);
-        RegistFuncVars(MiscIntrins, Hex2Str, SIMDSSSE3, SIMD128, NAIVE);
-        RegistFuncVars(MiscIntrins, PauseCycles, WAITPKG, SSE2, COMPILER);
-        return ret;
-    }();
-    return list;
-}
-MiscIntrins::MiscIntrins(common::span<const VarItem> requests) noexcept { Init(requests); }
-MiscIntrins::~MiscIntrins() {}
-bool MiscIntrins::IsComplete() const noexcept
-{
-    return LeadZero32 && LeadZero64 && TailZero32 && TailZero64 && PopCount32 && PopCount64 && Hex2Str && PauseCycles;
-}
-
-const MiscIntrins MiscIntrin;
-
-
-common::span<const DigestFuncs::PathInfo> DigestFuncs::GetSupportMap() noexcept
-{
-    static auto list = []()
-    {
-        std::vector<PathInfo> ret;
-        RegistFuncVars(DigestFuncs, Sha256, SHANIAVX2, SHA2, SHANI, NAIVE);
-        return ret;
-    }();
-    return list;
-}
-DigestFuncs::DigestFuncs(common::span<const VarItem> requests) noexcept { Init(requests); }
-DigestFuncs::~DigestFuncs() {}
-bool DigestFuncs::IsComplete() const noexcept
-{
-    return Sha256;
-}
-const DigestFuncs DigestFunc;
-
-
-namespace spinlock
-{
-
-template<typename FL, typename FF> 
-forceinline void WaitFramework(FL&& lock, FF&& fix)
-{
-    for (uint32_t i = 0; i < 16; ++i)
-    {
-        IF_LIKELY(lock()) return;
-        fix();
-        COMMON_PAUSE();
-    }
-    while (true)
-    {
-        uint32_t delays[2] = { 512, 256 };
-        for (uint32_t i = 0; i < 8; ++i)
-        {
-            IF_LIKELY(lock()) return;
-            fix();
-            MiscIntrin.Pause(delays[0]);
-            delays[0] <<= 1;
-            IF_LIKELY(lock()) return;
-            fix();
-            MiscIntrin.Pause(delays[1]);
-            delays[1] <<= 1;
-        }
-        std::this_thread::yield();
-    }
-}
-
-void SpinLocker::Lock() noexcept
-{
-    WaitFramework([&]() { return !Flag.test_and_set(); }, []() {});
-}
-
-void PreferSpinLock::LockWeak() noexcept
-{
-    uint32_t expected = Flag.load() & 0x0000ffff; // assume no strong
-    WaitFramework([&]() { return Flag.load() == expected && Flag.compare_exchange_strong(expected, expected + 1); },
-        [&]() { expected &= 0x0000ffff; });
-}
-
-void PreferSpinLock::LockStrong() noexcept
-{
-    Flag.fetch_add(0x00010000);
-    // loop until no weak
-    WaitFramework([&]() { return (Flag.load() & 0x0000ffff) == 0; }, []() {});
-}
-
-void WRSpinLock::LockRead() noexcept
-{
-    uint32_t expected = Flag.load() & 0x7fffffffu; // assume no writer
-    WaitFramework([&]() { return Flag.load() == expected && Flag.compare_exchange_weak(expected, expected + 1); },
-        [&]() { expected &= 0x7fffffffu; });
-}
-
-void WRSpinLock::LockWrite() noexcept
-{
-    uint32_t expected = Flag.load() & 0x7fffffffu;
-    // assume no other writer
-    WaitFramework([&]() { return Flag.load() == expected && Flag.compare_exchange_weak(expected, expected + 0x80000000u); },
-        [&]() { expected &= 0x7fffffffu; });
-    // loop until no reader
-    WaitFramework([&]() { return (Flag.load() & 0x7fffffffu) == 0; }, []() {});
-}
-
-void RWSpinLock::LockRead() noexcept
-{
-    Flag++;
-    // loop until no writer
-    WaitFramework([&]() { return (Flag.load() & 0x80000000u) == 0; }, []() {});
-}
-
-void RWSpinLock::LockWrite() noexcept
-{
-    uint32_t expected = 0; // assume no other locker
-    WaitFramework([&]() { return Flag.load() == expected && Flag.compare_exchange_weak(expected, 0x80000000u); },
-        [&]() { expected = 0; });
-}
-
-}
-
-}
