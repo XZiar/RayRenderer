@@ -52,7 +52,6 @@ static void CompareSpans(const common::span<T> l, const common::span<T> r) noexc
 
 
 
-#if COMMON_COMPILER_MSVC
 inline namespace
 {
 template<typename From, typename To, typename CharIn>
@@ -135,7 +134,6 @@ TEST(StrChset, CompileTime)
     static_assert(CTConvCheck(UTF32, UTF32,  U,  U, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf32->utf32");
 
 }
-#endif
 
 
 TEST(StrChset, Upper)

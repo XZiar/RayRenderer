@@ -1,7 +1,7 @@
 #include "common/CommonRely.hpp"
 #if COMMON_COMPILER_GCC
 #   pragma GCC push_options
-#   pragma GCC target("avx512f", "avx512vl", "avx512bw", "avx512dq")
+#   pragma GCC target("avx512f,avx512vl,avx512bw,avx512dq")
 #elif COMMON_COMPILER_CLANG
 #   pragma clang attribute push (__attribute__((target("avx512f,avx512vl,avx512bw,avx512dq"))), apply_to=function)
 #endif

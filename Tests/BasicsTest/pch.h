@@ -64,6 +64,7 @@ std::vector<std::array<uint8_t, 8>> PosesHolder<8>::Poses;
 std::mt19937& GetRanEng();
 uint32_t GetARand();
 
+void MemCopy(void* dest, size_t destsz, const void* src, size_t count);
 
 
 constexpr size_t RandValBytes = 128;

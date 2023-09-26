@@ -13,25 +13,24 @@ namespace
 {
 using namespace common;
 using namespace common::simd;
-#if COMMON_SIMD_LV_ >= 30
-#   include "common/simd/SIMD128.hpp"
+#include "common/simd/SIMD128.hpp"
 using namespace common::simd;
-#   include "SIMDBaseTest.h"
-#   include "ShuffleTest.h"
-#   include "DotProdTest.h"
+#include "SIMDBaseTest.h"
+#include "ShuffleTest.h"
+#include "DotProdTest.h"
 
 using namespace common::simd;
 
 
 RegisterSIMDBaseTest(F32x4, 30,            SEL, Add, Sub,                        Mul, Div, Neg, Abs, Min, Max, FMA, Rnd);
-RegisterSIMDBaseTest(I64x2, 30, Load, SWE, SEL, Add, Sub, SatAdd, SatSub,                  Neg, Abs, Min, Max, SLL, SRL, SRA, And, Or, Xor, AndNot, Not);
-RegisterSIMDBaseTest(U64x2, 30,       SWE, SEL, Add, Sub, SatAdd, SatSub,                       Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(I32x4, 30, Load, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulX,     Neg, Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(U32x4, 30,       SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulX,          Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(I16x8, 30, Load, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulX,     Neg, Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(U16x8, 30,       SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulX,          Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(I8x16, 30,            SEL, Add, Sub, SatAdd, SatSub, MulLo, MulX,     Neg, Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(U8x16, 30,            SEL, Add, Sub, SatAdd, SatSub, MulLo, MulX,          Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(I64x2, 30, Load, SWE, SEL, Add, Sub, SatAdd, SatSub,                  Neg, Abs, Min, Max, SLL,       SRL, SRA, And, Or, Xor, AndNot, Not);
+RegisterSIMDBaseTest(U64x2, 30,       SWE, SEL, Add, Sub, SatAdd, SatSub,                       Abs, Min, Max, SLL,       SRL, SRA);
+RegisterSIMDBaseTest(I32x4, 30, Load, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulX,     Neg, Abs, Min, Max, SLL,       SRL, SRA);
+RegisterSIMDBaseTest(U32x4, 30,       SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulX,          Abs, Min, Max, SLL,       SRL, SRA);
+RegisterSIMDBaseTest(I16x8, 30, Load, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulX,     Neg, Abs, Min, Max, SLL, SLLV, SRL, SRA);
+RegisterSIMDBaseTest(U16x8, 30,       SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulX,          Abs, Min, Max, SLL, SLLV, SRL, SRA);
+RegisterSIMDBaseTest(I8x16, 30,            SEL, Add, Sub, SatAdd, SatSub, MulLo, MulX,     Neg, Abs, Min, Max, SLL,       SRL, SRA);
+RegisterSIMDBaseTest(U8x16, 30,            SEL, Add, Sub, SatAdd, SatSub, MulLo, MulX,          Abs, Min, Max, SLL,       SRL, SRA);
 
 
 RegisterSIMDCastTest(I64x2, 30, I8x16,        I16x8,        I32x4                            );
@@ -78,7 +77,6 @@ RegisterSIMDTest(U16x8, 30, shuftest::ShuffleVarTest<U16x8>);
 RegisterSIMDTest(F32x4, 30, dottest::DotProdTest<F32x4>);
 
 
-#endif
 }
 
 #if COMMON_COMPILER_GCC

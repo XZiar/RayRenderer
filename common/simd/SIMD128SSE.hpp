@@ -91,27 +91,35 @@ struct SSE128Common : public CommonOperators<T>
     forceinline constexpr operator const __m128i& () const noexcept { return Data; }
 
     // logic operations
-    forceinline T VECCALL And(const T& other) const
+    forceinline T VECCALL And(const T& other) const noexcept
     {
         return _mm_and_si128(Data, other);
     }
-    forceinline T VECCALL Or(const T& other) const
+    forceinline T VECCALL Or(const T& other) const noexcept
     {
         return _mm_or_si128(Data, other);
     }
-    forceinline T VECCALL Xor(const T& other) const
+    forceinline T VECCALL Xor(const T& other) const noexcept
     {
         return _mm_xor_si128(Data, other);
     }
-    forceinline T VECCALL AndNot(const T& other) const
+    forceinline T VECCALL AndNot(const T& other) const noexcept
     {
         return _mm_andnot_si128(Data, other);
     }
-    forceinline T VECCALL Not() const
+    forceinline T VECCALL Not() const noexcept
     {
         return _mm_xor_si128(Data, _mm_set1_epi8(-1));
     }
-    forceinline T VECCALL MoveHiToLo() const { return _mm_srli_si128(Data, 8); }
+    forceinline T VECCALL MoveHiToLo() const noexcept { return _mm_srli_si128(Data, 8); }
+    forceinline bool VECCALL IsAllZero() const noexcept
+    {
+#if COMMON_SIMD_LV >= 41
+        return _mm_testz_si128(Data, Data) != 0;
+#else
+        return _mm_movemask_epi8(_mm_cmpeq_epi8(Data, _mm_setzero_si128())) == 0xffff;
+#endif
+    }
 
     forceinline static T AllZero() noexcept { return _mm_setzero_si128(); }
 };
@@ -240,6 +248,17 @@ public:
     }
     forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic(bits); }
     forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
+    forceinline T VECCALL ShiftLeftLogic(const T bits) const
+    {
+#if COMMON_SIMD_LV >= 200
+        return _mm_sllv_epi64(this->Data, bits.Data);
+#else
+        const uint64_t datLo = _mm_extract_epi64(this->Data, 0), datHi = _mm_extract_epi64(this->Data, 1);
+        const uint64_t bitLo = _mm_extract_epi64(bits.Data, 0), bitHi = _mm_extract_epi64(bits.Data, 1);
+        uint64_t out[2] = { datLo << bitLo, datHi << bitHi };
+        return _mm_load_si128(reinterpret_cast<const __m128i*>(out));
+#endif
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftLeftLogic () const { return _mm_slli_epi64(this->Data, N); }
     template<uint8_t N>
@@ -376,6 +395,24 @@ public:
     }
     forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic (bits); }
     forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
+#if COMMON_SIMD_LV >= 41
+    forceinline T VECCALL ShiftLeftLogic(const T bits) const
+    {
+#   if COMMON_SIMD_LV >= 200
+        return _mm_sllv_epi32(this->Data, bits.Data);
+#   else
+        const auto bits64Lo = _mm_cvtepi32_epi64(bits.Data);
+        const auto bits64Hi = _mm_cvtepi32_epi64(_mm_shuffle_epi32(bits.Data, 0b00001110));
+        const auto shift0 = _mm_castsi128_ps(_mm_sll_epi32(this->Data, bits64Lo));
+        const auto shift1 = _mm_castsi128_ps(_mm_sll_epi32(this->Data, _mm_shuffle_epi32(bits64Lo, 0b00001110)));
+        const auto shift2 = _mm_castsi128_ps(_mm_sll_epi32(this->Data, bits64Hi));
+        const auto shift3 = _mm_castsi128_ps(_mm_sll_epi32(this->Data, _mm_shuffle_epi32(bits64Hi, 0b00001110)));
+        const auto shift01 = _mm_blend_ps(shift0, shift1, 0b0010);
+        const auto shift23 = _mm_blend_ps(shift2, shift3, 0b1000);
+        return _mm_castps_si128(_mm_blend_ps(shift01, shift23, 0b1100));
+#   endif
+    }
+#endif
     template<uint8_t N>
     forceinline T VECCALL ShiftLeftLogic () const { return _mm_slli_epi32(this->Data, N); }
     template<uint8_t N>
@@ -499,6 +536,29 @@ public:
     }
     forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic (bits); }
     forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
+    forceinline T VECCALL ShiftLeftLogic(const T bits) const
+    {
+#if COMMON_SIMD_LV >= 320
+        return _mm_sllv_epi16(this->Data, bits.Data);
+#elif COMMON_SIMD_LV >= 200
+        const auto loMask = _mm_set1_epi32(0x0000ffff);
+        const auto bitsLo = _mm_and_si128(bits.Data, loMask);
+        const auto lo = _mm_sllv_epi32(this->Data, bitsLo);
+        const auto dataHi = _mm_andnot_si128(loMask, this->Data);
+        const auto bitsHi = _mm_srli_epi32(bits.Data, 16);
+        const auto hi = _mm_sllv_epi32(dataHi, bitsHi);
+        return _mm_blend_epi16(lo, hi, 0xaa);
+#else
+        const auto shifterLo = _mm_setr_epi8(1 << 0, 1 << 1, 1 << 2, 1 << 3, 1 << 4, 1 << 5, 1 << 6, static_cast<char>(1 << 7),
+            0, 0, 0, 0, 0, 0, 0, 0);
+        const auto shifterHi = _mm_setr_epi8(0, 0, 0, 0, 0, 0, 0, 0,
+            1 << 0, 1 << 1, 1 << 2, 1 << 3, 1 << 4, 1 << 5, 1 << 6, static_cast<char>(1 << 7));
+        const auto shiftLo = _mm_shuffle_epi8(shifterLo, bits.Data);
+        const auto shiftHi = _mm_slli_epi16(_mm_shuffle_epi8(shifterHi, bits.Data), 8);
+        const auto shifter = _mm_blendv_epi8(shiftHi, shiftLo, _mm_set1_epi16(0x00ff));
+        return this->MulLo(shifter);
+#endif
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftLeftLogic () const { return _mm_slli_epi16(this->Data, N); }
     template<uint8_t N>
@@ -1545,7 +1605,7 @@ struct alignas(16) U16x8 : public detail::Common16x8<U16x8, uint16_t>
     Pack<U32x4, 2> MulX(const U16x8& other) const
     {
         const auto los = MulLo(other), his = MulHi(other);
-        return { _mm_unpacklo_epi16(los, his),_mm_unpackhi_epi16(los, his) };
+        return { _mm_unpacklo_epi16(los, his), _mm_unpackhi_epi16(los, his) };
     }
     template<typename T, CastMode Mode = detail::CstMode<U16x8, T>(), typename... Args>
     typename CastTyper<U16x8, T>::Type VECCALL Cast(const Args&... args) const;

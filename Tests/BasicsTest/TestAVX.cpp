@@ -14,12 +14,11 @@ namespace avx
 {
 using namespace common;
 using namespace common::simd;
-#if COMMON_SIMD_LV_ >= 100
-#   include "common/simd/SIMD128.hpp"
-#   include "common/simd/SIMD256.hpp"
+#include "common/simd/SIMD128.hpp"
+#include "common/simd/SIMD256.hpp"
 using namespace common::simd;
-#   include "SIMDBaseTest.h"
-#   include "ShuffleTest.h"
+#include "SIMDBaseTest.h"
+#include "ShuffleTest.h"
 
 
 RegisterSIMDBaseTest(F64x4, 100, SEL, Add, Sub, Mul, Div, Neg, Abs, Min, Max, FMA, Rnd);
@@ -62,7 +61,6 @@ RegisterSIMDTest(F32x4, 100, shuftest::ShuffleVarTest<F32x4>);
 RegisterSIMDTest(I32x4, 100, shuftest::ShuffleVarTest<I32x4>);
 
 
-#endif
 }
 
 #if COMMON_COMPILER_GCC

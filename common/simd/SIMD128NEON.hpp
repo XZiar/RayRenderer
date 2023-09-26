@@ -174,33 +174,42 @@ struct Neon128Common : public CommonOperators<T>
     forceinline constexpr operator const SIMDType& () const noexcept { return Data; }
 
     // logic operations
-    forceinline T VECCALL And(const T& other) const
+    forceinline T VECCALL And(const T& other) const noexcept
     {
         return AsType<SIMDType>(vandq_u32(AsType<uint32x4_t>(Data), AsType<uint32x4_t>(other.Data)));
     }
-    forceinline T VECCALL Or(const T& other) const
+    forceinline T VECCALL Or(const T& other) const noexcept
     {
         return AsType<SIMDType>(vorrq_u32(AsType<uint32x4_t>(Data), AsType<uint32x4_t>(other.Data)));
     }
-    forceinline T VECCALL Xor(const T& other) const
+    forceinline T VECCALL Xor(const T& other) const noexcept
     {
         return AsType<SIMDType>(veorq_u32(AsType<uint32x4_t>(Data), AsType<uint32x4_t>(other.Data)));
     }
-    forceinline T VECCALL AndNot(const T& other) const
+    forceinline T VECCALL AndNot(const T& other) const noexcept
     {
         // swap since NOT performed on src.b
         return AsType<SIMDType>(vbicq_u32(AsType<uint32x4_t>(other.Data), AsType<uint32x4_t>(Data)));
     }
-    forceinline T VECCALL Not() const
+    forceinline T VECCALL Not() const noexcept
     {
         return AsType<SIMDType>(vmvnq_u32(AsType<uint32x4_t>(Data)));
     }
-    forceinline T VECCALL MoveHiToLo() const
+    forceinline T VECCALL MoveHiToLo() const noexcept
     {
         return AsType<SIMDType>(vdupq_lane_u64(AsType<uint64x2_t>(Data), 0));
     }
+    forceinline bool VECCALL IsAllZero() const noexcept
+    {
+#if COMMON_SIMD_LV >= 200
+        return vmaxvq_u32(AsType<uint32x4_t>(Data)) == 0;
+#else
+        const auto tmp = vqmovn_u64(AsType<uint64x2_t>(Data));
+        return vget_lane_u32(vpmax_u32(tmp, tmp), 0) == 0;
+#endif
+    }
 
-    forceinline static T AllZero() noexcept 
+    forceinline static T AllZero() noexcept
     {
         if constexpr (std::is_same_v<EleType, float>)
             return vdupq_n_f32(0);
@@ -326,6 +335,11 @@ struct alignas(16) Common64x2 : public Neon128Common<T, SIMDType, E, 2>, public 
     }
     forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic (bits); }
     forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
+    forceinline T VECCALL ShiftLeftLogic(const T bits) const
+    {
+        const auto data = AsType<uint64x2_t>(this->Data);
+        return AsType<SIMDType>(vshlq_u64(data, AsType<int64x2_t>(bits.Data)));
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftLeftLogic () const
     {
@@ -559,6 +573,11 @@ struct alignas(16) Common32x4 : public Neon128Common<T, SIMDType, E, 4>, public 
     }
     forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic (bits); }
     forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
+    forceinline T VECCALL ShiftLeftLogic(const T bits) const
+    {
+        const auto data = AsType<uint32x4_t>(this->Data);
+        return AsType<SIMDType>(vshlq_u32(data, AsType<int32x4_t>(bits.Data)));
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftLeftLogic () const
     {
@@ -764,10 +783,21 @@ struct alignas(16) Common16x8 : public Neon128Common<T, SIMDType, E, 8>
         const auto data = AsType<uint16x8_t>(this->Data);
         return AsType<SIMDType>(vshlq_u16(data, vdupq_n_s16(bits)));
     }
+    forceinline T VECCALL ShiftLeftLogic(const T bits) const
+    {
+        const auto data = AsType<uint16x8_t>(this->Data);
+        return AsType<SIMDType>(vshlq_u16(data, AsType<int16x8_t>(bits.Data)));
+    }
     forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const
     {
         const auto data = AsType<uint16x8_t>(this->Data);
         return AsType<SIMDType>(vshlq_u16(data, vdupq_n_s16(-bits)));
+    }
+    forceinline T VECCALL ShiftRightLogic(const T bits) const
+    {
+        const auto data = AsType<uint16x8_t>(this->Data);
+        const auto bits_ = vnegq_s16(AsType<int16x8_t>(bits.Data));
+        return AsType<SIMDType>(vshlq_u16(data, bits_));
     }
     forceinline T VECCALL ShiftRightArith(const uint8_t bits) const
     { 

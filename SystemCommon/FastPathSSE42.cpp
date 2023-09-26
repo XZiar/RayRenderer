@@ -1,9 +1,9 @@
 #include "common/CommonRely.hpp"
 #if COMMON_COMPILER_GCC
 #   pragma GCC push_options
-#   pragma GCC target("avx2")
+#   pragma GCC target("sse4.2,waitpkg,lzcnt,popcnt,sha,f16c")
 #elif COMMON_COMPILER_CLANG
-#   pragma clang attribute push (__attribute__((target("avx2"))), apply_to=function)
+#   pragma clang attribute push (__attribute__((target("sse4_2,waitpkg,lzcnt,popcnt,sha,f16c"))), apply_to=function)
 #endif
 
 #define COMMON_SIMD_LV 42

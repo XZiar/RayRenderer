@@ -45,6 +45,12 @@ uint32_t GetARand()
 }
 
 
+void MemCopy(void* dest, size_t destsz, const void* src, size_t count)
+{
+    memcpy_s(dest, destsz, src, count);
+}
+
+
 alignas(32) const std::array<uint8_t, RandValBytes / 1> RandVals = []()
 {
     std::array<uint8_t, RandValBytes / 1> vals = {};

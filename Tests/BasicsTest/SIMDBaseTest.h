@@ -578,17 +578,18 @@ static void TestSLL(const T* ptr)
     constexpr uint8_t S = sizeof(U);
     ForKItem(1)
     {
-        constexpr uint8_t Bits[] = { 0, S * 2, S * 4, S * 6, S * 8 };
+        constexpr uint8_t Bits[] = { 0, S * 2, S * 3, S * 4, S * 5, S * 6, S * 8 };
         const auto data = ptr[k + 0];
-        const T output0[5] = 
+        const T output0[] = 
         { 
             data.template ShiftLeftLogic<Bits[0]>(), data.template ShiftLeftLogic<Bits[1]>(),
             data.template ShiftLeftLogic<Bits[2]>(), data.template ShiftLeftLogic<Bits[3]>(),
-            data.template ShiftLeftLogic<Bits[4]>(),
+            data.template ShiftLeftLogic<Bits[4]>(), data.template ShiftLeftLogic<Bits[5]>(),
+            data.template ShiftLeftLogic<Bits[6]>(),
         };
-        const T output1[5] = { data.ShiftLeftLogic(Bits[0]), data.ShiftLeftLogic(Bits[1]),
-            data.ShiftLeftLogic(Bits[2]), data.ShiftLeftLogic(Bits[3]), data.ShiftLeftLogic(Bits[4]) };
-        for (uint8_t j = 0; j < 4; ++j)
+        const T output1[] = { data.ShiftLeftLogic(Bits[0]), data.ShiftLeftLogic(Bits[1]), data.ShiftLeftLogic(Bits[2]), 
+            data.ShiftLeftLogic(Bits[3]), data.ShiftLeftLogic(Bits[4]), data.ShiftLeftLogic(Bits[5]), data.ShiftLeftLogic(Bits[6]) };
+        for (uint8_t j = 0; j < 6; ++j)
         {
             U ref[T::Count] = { 0 };
             for (uint8_t i = 0; i < T::Count; ++i)
@@ -596,8 +597,44 @@ static void TestSLL(const T* ptr)
             EXPECT_THAT(output0[j].Val, testing::ElementsAreArray(ref)) << "when shift-left [" << (int)Bits[j] << "] bits";
             EXPECT_THAT(output1[j].Val, testing::ElementsAreArray(ref)) << "when shift-left [" << (int)Bits[j] << "] bits";
         }
-        EXPECT_THAT(output0[4].Val, testing::Each(U(0))) << "when shift-left [" << (int)Bits[4] << "] bits";
-        EXPECT_THAT(output1[4].Val, testing::Each(U(0))) << "when shift-left [" << (int)Bits[4] << "] bits";
+        EXPECT_THAT(output0[6].Val, testing::Each(U(0))) << "when shift-left [" << (int)Bits[6] << "] bits";
+        EXPECT_THAT(output1[6].Val, testing::Each(U(0))) << "when shift-left [" << (int)Bits[6] << "] bits";
+    }
+}
+template<typename T>
+static void TestSLLV(const T* ptr)
+{
+    using U = typename T::EleType;
+    constexpr size_t S = sizeof(U);
+    constexpr size_t C = S * 8;
+    constexpr auto Bits = []() 
+        {
+            std::array<U, C> bits = { 0 };
+            for (uint8_t i = 0; i < C; ++i)
+                bits[i] = i;
+            return bits;
+        }();
+    std::string shifttxt;
+    shifttxt.reserve(T::Count * 4);
+    ForKItem(1)
+    {
+        const auto data = ptr[k + 0];
+        for (size_t j = 0; j < C; j += T::Count)
+        {
+            U shiftsRef[T::Count] = { 0 };
+            U ref[T::Count] = { 0 };
+            shifttxt.clear();
+            for (size_t i = 0; i < T::Count; ++i)
+            {
+                shiftsRef[i] = Bits[(j + i) % C];
+                ref[i] = static_cast<U>(data.Val[i] << shiftsRef[i]);
+                shifttxt.append(std::to_string(shiftsRef[i])).append(", ");
+            }
+            shifttxt.resize(shifttxt.size() - 2);
+            T shifts(shiftsRef);
+            const auto output = data.ShiftLeftLogic(shifts);
+            EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when shift-left-var [" << shifttxt << "] bits";
+        }
     }
 }
 template<typename T>
@@ -608,17 +645,18 @@ static void TestSRL(const T* ptr)
     constexpr uint8_t S = sizeof(U);
     ForKItem(1)
     {
-        constexpr uint8_t Bits[] = { 0, S * 2, S * 4, S * 6, S * 8 };
+        constexpr uint8_t Bits[] = { 0, S * 2, S * 3, S * 4, S * 5, S * 6, S * 8 };
         const auto data = ptr[k + 0];
-        const T output0[5] = 
-        { 
-            data.template ShiftRightLogic<Bits[0]>(), 
-            data.template ShiftRightLogic<Bits[1]>(), data.template ShiftRightLogic<Bits[2]>(), 
-            data.template ShiftRightLogic<Bits[3]>(), data.template ShiftRightLogic<Bits[4]>() 
+        const T output0[] = 
+        {
+            data.template ShiftRightLogic<Bits[0]>(), data.template ShiftRightLogic<Bits[1]>(),
+            data.template ShiftRightLogic<Bits[2]>(), data.template ShiftRightLogic<Bits[3]>(),
+            data.template ShiftRightLogic<Bits[4]>(), data.template ShiftRightLogic<Bits[5]>(),
+            data.template ShiftRightLogic<Bits[6]>(),
         };
-        const T output1[5] = { data.ShiftRightLogic(Bits[0]), data.ShiftRightLogic(Bits[1]),
-            data.ShiftRightLogic(Bits[2]), data.ShiftRightLogic(Bits[3]), data.ShiftRightLogic(Bits[4]) };
-        for (uint8_t j = 0; j < 4; ++j)
+        const T output1[] = { data.ShiftRightLogic(Bits[0]), data.ShiftRightLogic(Bits[1]), data.ShiftRightLogic(Bits[2]),
+            data.ShiftRightLogic(Bits[3]), data.ShiftRightLogic(Bits[4]), data.ShiftRightLogic(Bits[5]), data.ShiftRightLogic(Bits[6]) };
+        for (uint8_t j = 0; j < 6; ++j)
         {
             U ref[T::Count] = { 0 };
             for (uint8_t i = 0; i < T::Count; ++i)
@@ -626,8 +664,8 @@ static void TestSRL(const T* ptr)
             EXPECT_THAT(output0[j].Val, testing::ElementsAreArray(ref)) << "when shift-right-logic [" << (int)Bits[j] << "] bits";
             EXPECT_THAT(output1[j].Val, testing::ElementsAreArray(ref)) << "when shift-right-logic [" << (int)Bits[j] << "] bits";
         }
-        EXPECT_THAT(output0[4].Val, testing::Each(U(0))) << "when shift-right-logic [" << (int)Bits[4] << "] bits";
-        EXPECT_THAT(output1[4].Val, testing::Each(U(0))) << "when shift-right-logic [" << (int)Bits[4] << "] bits";
+        EXPECT_THAT(output0[6].Val, testing::Each(U(0))) << "when shift-right-logic [" << (int)Bits[6] << "] bits";
+        EXPECT_THAT(output1[6].Val, testing::Each(U(0))) << "when shift-right-logic [" << (int)Bits[6] << "] bits";
     }
 }
 template<typename T>
@@ -637,17 +675,18 @@ static void TestSRA(const T* ptr)
     constexpr uint8_t S = sizeof(U);
     ForKItem(1)
     {
-        constexpr uint8_t Bits[5] = { 0, S * 2, S * 4, S * 6, S * 8 };
+        constexpr uint8_t Bits[] = { 0, S * 2, S * 3, S * 4, S * 5, S * 6, S * 8 };
         const auto data = ptr[k + 0];
-        const T output0[5] = 
-        { 
-            data.template ShiftRightArith<Bits[0]>(),
-            data.template ShiftRightArith<Bits[1]>(), data.template ShiftRightArith<Bits[2]>(),
-            data.template ShiftRightArith<Bits[3]>(), data.template ShiftRightArith<Bits[4]>() 
+        const T output0[] =
+        {
+            data.template ShiftRightArith<Bits[0]>(), data.template ShiftRightArith<Bits[1]>(),
+            data.template ShiftRightArith<Bits[2]>(), data.template ShiftRightArith<Bits[3]>(),
+            data.template ShiftRightArith<Bits[4]>(), data.template ShiftRightArith<Bits[5]>(),
+            data.template ShiftRightArith<Bits[6]>(),
         };
-        const T output1[5] = { data.ShiftRightArith(Bits[0]), data.ShiftRightArith(Bits[1]),
-            data.ShiftRightArith(Bits[2]), data.ShiftRightArith(Bits[3]), data.ShiftRightArith(Bits[4]) };
-        for (uint8_t j = 0; j < 4; ++j)
+        const T output1[] = { data.ShiftRightArith(Bits[0]), data.ShiftRightArith(Bits[1]), data.ShiftRightArith(Bits[2]),
+            data.ShiftRightArith(Bits[3]), data.ShiftRightArith(Bits[4]), data.ShiftRightArith(Bits[5]), data.ShiftRightArith(Bits[6]) };
+        for (uint8_t j = 0; j < 6; ++j)
         {
             U ref[T::Count] = { 0 };
             for (uint8_t i = 0; i < T::Count; ++i)
@@ -657,16 +696,16 @@ static void TestSRA(const T* ptr)
         }
         if constexpr (std::is_unsigned_v<U>)
         {
-            EXPECT_THAT(output0[4].Val, testing::Each(U(0))) << "when shift-right-arith [" << (int)Bits[4] << "] bits";
-            EXPECT_THAT(output1[4].Val, testing::Each(U(0))) << "when shift-right-arith [" << (int)Bits[4] << "] bits";
+            EXPECT_THAT(output0[6].Val, testing::Each(U(0))) << "when shift-right-arith [" << (int)Bits[6] << "] bits";
+            EXPECT_THAT(output1[6].Val, testing::Each(U(0))) << "when shift-right-arith [" << (int)Bits[6] << "] bits";
         }
         else
         {
             U ref[T::Count] = { 0 };
             for (uint8_t i = 0; i < T::Count; ++i)
                 ref[i] = static_cast<U>(data.Val[i] >= 0 ? 0ull : UINT64_MAX);
-            EXPECT_THAT(output0[4].Val, testing::ElementsAreArray(ref)) << "when shift-right-arith [" << (int)Bits[4] << "] bits";
-            EXPECT_THAT(output1[4].Val, testing::ElementsAreArray(ref)) << "when shift-right-arith [" << (int)Bits[4] << "] bits";
+            EXPECT_THAT(output0[6].Val, testing::ElementsAreArray(ref)) << "when shift-right-arith [" << (int)Bits[6] << "] bits";
+            EXPECT_THAT(output1[6].Val, testing::ElementsAreArray(ref)) << "when shift-right-arith [" << (int)Bits[6] << "] bits";
         }
     }
 }
@@ -881,7 +920,7 @@ static void TestLoad(const T* ptr)
     ForKItem(1)
     {
         std::array<U, T::Count> ref = { 0 };
-        memcpy_s(ref.data(), sizeof(ref), &ptr[k], sizeof(T));
+        MemCopy(ref.data(), sizeof(ref), &ptr[k], sizeof(T));
         U data1[T::Count] = { 0 };
         U data2[T::Count] = { 0 };
         const auto ePtr = reinterpret_cast<const U*>(&ptr[k]);
@@ -901,8 +940,8 @@ static void TestLoad(const T* ptr)
 enum class TestItem : uint32_t
 {
     Add = 0x1, Sub = 0x2, SatAdd = 0x4, SatSub = 0x8, Mul = 0x10, MulLo = 0x20, MulHi = 0x40, MulX = 0x80, 
-    Div = 0x100, Neg = 0x200, Abs = 0x400, Min = 0x800, Max = 0x1000, SLL = 0x2000, SRL = 0x4000, SRA = 0x8000,
-    And = 0x10000, Or = 0x20000, Xor = 0x40000, AndNot = 0x80000, Not = 0x100000, FMA = 0x200000, Rnd = 0x400000,
+    Div = 0x100, Neg = 0x200, Abs = 0x400, Min = 0x800, Max = 0x1000, SLL = 0x2000, SLLV = 0x4000, SRL = 0x8000, SRA = 0x10000,
+    And = 0x100000, Or = 0x200000, Xor = 0x400000, AndNot = 0x800000, Not = 0x1000000, FMA = 0x2000000, Rnd = 0x4000000,
     SWE = 0x10000000, SEL = 0x20000000, Load = 0x40000000
 };
 MAKE_ENUM_BITFIELD(TestItem)
@@ -917,7 +956,7 @@ public:
 #define AddItem(r, data, x) if constexpr (HAS_FIELD(Items, TestItem::x)) \
     BOOST_PP_CAT(Test,x)<T>(GetRandPtr<T, typename T::EleType>());
 #define AddItems(...) BOOST_PP_SEQ_FOR_EACH(AddItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
-        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SRL, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL, FMA, Rnd, Load)
+        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SLLV, SRL, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL, FMA, Rnd, Load)
 #undef AddItems
 #undef AddItem
     }
