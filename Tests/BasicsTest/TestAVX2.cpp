@@ -2,21 +2,22 @@
 
 #if COMMON_COMPILER_GCC
 #   pragma GCC push_options
-#   pragma GCC target("avx2")
+#   pragma GCC target("avx2,fma,avx,sse4.2,sse2")
 #elif COMMON_COMPILER_CLANG
-#   pragma clang attribute push (__attribute__((target("avx2"))), apply_to=function)
+#   pragma clang attribute push (__attribute__((target("avx2,fma,avx,sse4.2,sse2"))), apply_to=function)
 #endif
 
+#define COMMON_SIMD_LV_NAMESPACE 1
 #define COMMON_SIMD_LV 200
 #include "common/simd/SIMD.hpp"
+#include "common/simd/SIMD128.hpp"
+#include "common/simd/SIMD256.hpp"
 
 namespace avx2
 {
 using namespace common;
 using namespace common::simd;
-#include "common/simd/SIMD128.hpp"
-#include "common/simd/SIMD256.hpp"
-using namespace common::simd;
+using namespace COMMON_SIMD_NAMESPACE;
 #include "SIMDBaseTest.h"
 #include "ShuffleTest.h"
 
@@ -25,20 +26,20 @@ RegisterSIMDBaseTest(F64x4,  150, FMA);
 RegisterSIMDBaseTest(F32x8,  150, FMA);
 RegisterSIMDBaseTest(F64x2,  150, FMA);
 RegisterSIMDBaseTest(F32x4,  150, FMA);
-RegisterSIMDBaseTest(I64x4,  200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,              Neg, Abs, Min, Max, SLL, SRL, SRA, And, Or, Xor, AndNot, Not);
-RegisterSIMDBaseTest(U64x4,  200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,                   Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(I64x2,  200, SLLV);
-RegisterSIMDBaseTest(U64x2,  200, SLLV);
-RegisterSIMDBaseTest(I32x8,  200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,        MulX, Neg, Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(U32x8,  200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,        MulX,      Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(I32x4,  200, SLLV);
-RegisterSIMDBaseTest(U32x4,  200, SLLV);
-RegisterSIMDBaseTest(I16x16, 200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX, Neg, Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(U16x16, 200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,      Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(I16x8,  200, SLLV);
-RegisterSIMDBaseTest(U16x8,  200, SLLV);
-RegisterSIMDBaseTest(I8x32,  200,      SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX, Neg, Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(U8x32,  200,      SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,      Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(I64x4,  200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,              Neg, Abs, Min, Max, SLL, SLLV, SRL, SRLV, SRA, And, Or, Xor, AndNot, Not);
+RegisterSIMDBaseTest(U64x4,  200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,                   Abs, Min, Max, SLL, SLLV, SRL, SRLV, SRA);
+RegisterSIMDBaseTest(I64x2,  200, SLLV, SRLV);
+RegisterSIMDBaseTest(U64x2,  200, SLLV, SRLV);
+RegisterSIMDBaseTest(I32x8,  200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,        MulX, Neg, Abs, Min, Max, SLL, SLLV, SRL, SRLV, SRA);
+RegisterSIMDBaseTest(U32x8,  200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,        MulX,      Abs, Min, Max, SLL, SLLV, SRL, SRLV, SRA);
+RegisterSIMDBaseTest(I32x4,  200, SLLV, SRLV);
+RegisterSIMDBaseTest(U32x4,  200, SLLV, SRLV);
+RegisterSIMDBaseTest(I16x16, 200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX, Neg, Abs, Min, Max, SLL, SLLV, SRL, SRLV, SRA);
+RegisterSIMDBaseTest(U16x16, 200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,      Abs, Min, Max, SLL, SLLV, SRL, SRLV, SRA);
+RegisterSIMDBaseTest(I16x8,  200, SLLV, SRLV);
+RegisterSIMDBaseTest(U16x8,  200, SLLV, SRLV);
+RegisterSIMDBaseTest(I8x32,  200,      SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX, Neg, Abs, Min, Max, SLL,       SRL,       SRA);
+RegisterSIMDBaseTest(U8x32,  200,      SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,      Abs, Min, Max, SLL,       SRL,       SRA);
 
 
 RegisterSIMDCastTest(F32x8,  200, F64x4);

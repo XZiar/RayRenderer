@@ -1,90 +1,73 @@
 
 #include "FastPathCategory.h"
 #include "CopyEx.h"
-#include "common/CommonRely.hpp"
 #include "common/simd/SIMD.hpp"
-#include "common/simd/SIMD128.hpp"
-#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
-#   include "common/simd/SIMD256.hpp"
-#endif
+
 #define HALF_ENABLE_F16C_INTRINSICS 0 // only use half as fallback
 #include "3rdParty/half/half.hpp"
+#include <bit>
+#if !defined(__cpp_lib_bitops) || __cpp_lib_bitops < 201907L
+#   error "need bitops support"
+#endif
+
+static_assert(::common::detail::is_little_endian, "unsupported std::byte order (non little endian)");
+
+
+#define Broadcast2Info  (void)(uint16_t* dest, const uint16_t src, size_t count)
+#define Broadcast4Info  (void)(uint32_t* dest, const uint32_t src, size_t count)
+#define ZExtCopy12Info  (void)(uint16_t* dest, const uint8_t* src, size_t count)
+#define ZExtCopy14Info  (void)(uint32_t* dest, const uint8_t* src, size_t count)
+#define ZExtCopy24Info  (void)(uint32_t* dest, const uint16_t* src, size_t count)
+#define ZExtCopy28Info  (void)(uint64_t* dest, const uint16_t* src, size_t count)
+#define ZExtCopy48Info  (void)(uint64_t* dest, const uint32_t* src, size_t count)
+#define SExtCopy12Info  (void)(int16_t* dest, const int8_t* src, size_t count)
+#define SExtCopy14Info  (void)(int32_t* dest, const int8_t* src, size_t count)
+#define SExtCopy24Info  (void)(int32_t* dest, const int16_t* src, size_t count)
+#define SExtCopy28Info  (void)(int64_t* dest, const int16_t* src, size_t count)
+#define SExtCopy48Info  (void)(int64_t* dest, const int32_t* src, size_t count)
+#define TruncCopy21Info (void)(uint8_t * dest, const uint16_t* src, size_t count)
+#define TruncCopy41Info (void)(uint8_t * dest, const uint32_t* src, size_t count)
+#define TruncCopy42Info (void)(uint16_t* dest, const uint32_t* src, size_t count)
+#define TruncCopy81Info (void)(uint8_t * dest, const uint64_t* src, size_t count)
+#define TruncCopy82Info (void)(uint16_t* dest, const uint64_t* src, size_t count)
+#define TruncCopy84Info (void)(uint32_t* dest, const uint64_t* src, size_t count)
+#define CvtI32F32Info   (void)(float* dest, const int32_t* src, size_t count, float mulVal)
+#define CvtI16F32Info   (void)(float* dest, const int16_t* src, size_t count, float mulVal)
+#define CvtI8F32Info    (void)(float* dest, const int8_t * src, size_t count, float mulVal)
+#define CvtU32F32Info   (void)(float* dest, const uint32_t* src, size_t count, float mulVal)
+#define CvtU16F32Info   (void)(float* dest, const uint16_t* src, size_t count, float mulVal)
+#define CvtU8F32Info    (void)(float* dest, const uint8_t * src, size_t count, float mulVal)
+#define CvtF32I32Info   (void)(int32_t* dest, const float* src, size_t count, float mulVal, bool saturate)
+#define CvtF32I16Info   (void)(int16_t* dest, const float* src, size_t count, float mulVal, bool saturate)
+#define CvtF32I8Info    (void)(int8_t * dest, const float* src, size_t count, float mulVal, bool saturate)
+#define CvtF32U16Info   (void)(uint16_t* dest, const float* src, size_t count, float mulVal, bool saturate)
+#define CvtF32U8Info    (void)(uint8_t * dest, const float* src, size_t count, float mulVal, bool saturate)
+#define CvtF16F32Info   (void)(float   * dest, const uint16_t* src, size_t count)
+#define CvtF32F16Info   (void)(uint16_t* dest, const float   * src, size_t count)
+#define CvtF32F64Info   (void)(double* dest, const float * src, size_t count)
+#define CvtF64F32Info   (void)(float * dest, const double* src, size_t count)
+
+
+namespace
+{
+using namespace common::simd;
+using namespace COMMON_SIMD_NAMESPACE;
+using ::common::CopyManager;
+
+
 #if COMMON_ARCH_ARM && COMMON_COMPILER_MSVC
 using float16_t = uint16_t;
 #endif
 
-static_assert(common::detail::is_little_endian, "unsupported std::byte order (non little endian)");
 
-using namespace common::simd;
-using common::CopyManager;
-
-
-#define Broadcast2Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define Broadcast4Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-DEFINE_FASTPATH(CopyManager, Broadcast2);
-DEFINE_FASTPATH(CopyManager, Broadcast4);
-#define ZExtCopy12Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define ZExtCopy14Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define ZExtCopy24Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define ZExtCopy28Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define ZExtCopy48Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-DEFINE_FASTPATH(CopyManager, ZExtCopy12);
-DEFINE_FASTPATH(CopyManager, ZExtCopy14);
-DEFINE_FASTPATH(CopyManager, ZExtCopy24);
-DEFINE_FASTPATH(CopyManager, ZExtCopy28);
-DEFINE_FASTPATH(CopyManager, ZExtCopy48);
-#define SExtCopy12Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define SExtCopy14Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define SExtCopy24Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define SExtCopy28Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define SExtCopy48Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-DEFINE_FASTPATH(CopyManager, SExtCopy12);
-DEFINE_FASTPATH(CopyManager, SExtCopy14);
-DEFINE_FASTPATH(CopyManager, SExtCopy24);
-DEFINE_FASTPATH(CopyManager, SExtCopy28);
-DEFINE_FASTPATH(CopyManager, SExtCopy48);
-#define TruncCopy21Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define TruncCopy41Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define TruncCopy42Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define TruncCopy81Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define TruncCopy82Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define TruncCopy84Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-DEFINE_FASTPATH(CopyManager, TruncCopy21);
-DEFINE_FASTPATH(CopyManager, TruncCopy41);
-DEFINE_FASTPATH(CopyManager, TruncCopy42);
-DEFINE_FASTPATH(CopyManager, TruncCopy81);
-DEFINE_FASTPATH(CopyManager, TruncCopy82);
-DEFINE_FASTPATH(CopyManager, TruncCopy84);
-#define CvtI32F32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal)
-#define CvtI16F32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal)
-#define CvtI8F32Args  BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal)
-#define CvtU32F32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal)
-#define CvtU16F32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal)
-#define CvtU8F32Args  BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal)
-DEFINE_FASTPATH(CopyManager, CvtI32F32);
-DEFINE_FASTPATH(CopyManager, CvtI16F32);
-DEFINE_FASTPATH(CopyManager, CvtI8F32 );
-DEFINE_FASTPATH(CopyManager, CvtU32F32);
-DEFINE_FASTPATH(CopyManager, CvtU16F32);
-DEFINE_FASTPATH(CopyManager, CvtU8F32 );
-#define CvtF32I32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal, sat)
-#define CvtF32I16Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal, sat)
-#define CvtF32I8Args  BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal, sat)
-#define CvtF32U16Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal, sat)
-#define CvtF32U8Args  BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal, sat)
-DEFINE_FASTPATH(CopyManager, CvtF32I32);
-DEFINE_FASTPATH(CopyManager, CvtF32I16);
-DEFINE_FASTPATH(CopyManager, CvtF32I8 );
-DEFINE_FASTPATH(CopyManager, CvtF32U16);
-DEFINE_FASTPATH(CopyManager, CvtF32U8 );
-#define CvtF32F16Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define CvtF16F32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define CvtF32F64Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-#define CvtF64F32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
-DEFINE_FASTPATH(CopyManager, CvtF32F16);
-DEFINE_FASTPATH(CopyManager, CvtF16F32);
-DEFINE_FASTPATH(CopyManager, CvtF32F64);
-DEFINE_FASTPATH(CopyManager, CvtF64F32);
+DEFINE_FASTPATHS(CopyManager,
+    Broadcast2, Broadcast4,
+    ZExtCopy12, ZExtCopy14, ZExtCopy24, ZExtCopy28, ZExtCopy48,
+    SExtCopy12, SExtCopy14, SExtCopy24, SExtCopy28, SExtCopy48,
+    TruncCopy21, TruncCopy41, TruncCopy42, TruncCopy81, TruncCopy82, TruncCopy84,
+    CvtI32F32, CvtI16F32, CvtI8F32, CvtU32F32, CvtU16F32, CvtU8F32,
+    CvtF32I32, CvtF32I16, CvtF32I8, CvtF32U16, CvtF32U8,
+    CvtF16F32, CvtF32F16, CvtF32F64, CvtF64F32)
 
 
 DEFINE_FASTPATH_METHOD(Broadcast2, LOOP)
@@ -282,14 +265,14 @@ DEFINE_CVTFP2I_LOOP(CvtU8F32)
 {                                                                       \
     if (mulVal == 0)                                                    \
     {                                                                   \
-        if (sat)                                                        \
+        if (saturate)                                                   \
             CastLoop<ScalarCast, true>(dest, src, count);               \
         else                                                            \
             CastLoop<ScalarCast>(dest, src, count);                     \
     }                                                                   \
     else                                                                \
     {                                                                   \
-        if (sat)                                                        \
+        if (saturate)                                                   \
             CastLoop<ScalarF2ICast, true>(dest, src, count, mulVal);    \
         else                                                            \
             CastLoop<ScalarF2ICast>(dest, src, count, mulVal);          \
@@ -382,7 +365,7 @@ struct LoadCastSave
         }
     }
 };
-template<typename TIn, typename TCast, CastMode Mode = detail::CstMode<TIn, TCast>()>
+template<typename TIn, typename TCast, CastMode Mode = ::common::simd::detail::CstMode<TIn, TCast>()>
 struct DefaultCast : public LoadCastSave<TIn, TCast, DefaultCast<TIn, TCast, Mode>, Mode>
 {
     template<typename... Args>
@@ -390,7 +373,7 @@ struct DefaultCast : public LoadCastSave<TIn, TCast, DefaultCast<TIn, TCast, Mod
     TIn Pre(TIn val) const noexcept { return val; }
     TCast Post(TCast val) const noexcept { return val; }
 };
-template<typename TIn, typename TCast, CastMode Mode = detail::CstMode<TIn, TCast>()>
+template<typename TIn, typename TCast, CastMode Mode = ::common::simd::detail::CstMode<TIn, TCast>()>
 struct I2FCast : public LoadCastSave<TIn, TCast, I2FCast<TIn, TCast, Mode>, Mode>
 {
     TCast Muler;
@@ -399,7 +382,7 @@ struct I2FCast : public LoadCastSave<TIn, TCast, I2FCast<TIn, TCast, Mode>, Mode
     TIn Pre(TIn val) const noexcept { return val; }
     TCast Post(TCast val) const noexcept { return val.Mul(Muler); }
 };
-template<typename TIn, typename TCast, CastMode Mode = detail::CstMode<TIn, TCast>()>
+template<typename TIn, typename TCast, CastMode Mode = ::common::simd::detail::CstMode<TIn, TCast>()>
 struct F2ICast : public LoadCastSave<TIn, TCast, F2ICast<TIn, TCast, Mode>, Mode>
 {
     TIn Muler;
@@ -425,11 +408,11 @@ forceinline void CastSIMD4(Dst* dest, const Src* src, size_t count, Args&&... ar
     switch (count / K)
     {
     case 3: cast(dest, src); src += K; dest += K;
-          [[fallthrough]];
+        [[fallthrough]];
     case 2: cast(dest, src); src += K; dest += K;
-          [[fallthrough]];
+        [[fallthrough]];
     case 1: cast(dest, src); src += K; dest += K;
-          [[fallthrough]];
+        [[fallthrough]];
     default: break;
     }
     count = count % K;
@@ -449,21 +432,21 @@ DEFINE_FASTPATH_METHOD(func, algo)                                      \
 {                                                                       \
     if (mulVal == 0)                                                    \
     {                                                                   \
-        if (sat)                                                        \
+        if (saturate)                                                   \
             CastSIMD4<DefaultCast<from, to, CastMode::RangeSaturate>,   \
-                &Func<prev>>(dest, src, count, mulVal, sat);            \
+                &Func<prev>>(dest, src, count, mulVal, saturate);       \
         else                                                            \
             CastSIMD4<DefaultCast<from, to>,                            \
-                &Func<prev>>(dest, src, count, mulVal, sat);            \
+                &Func<prev>>(dest, src, count, mulVal, saturate);       \
     }                                                                   \
     else                                                                \
     {                                                                   \
-        if (sat)                                                        \
+        if (saturate)                                                   \
             CastSIMD4<F2ICast<from, to, CastMode::RangeSaturate>,       \
-                &Func<prev>>(dest, src, count, mulVal, sat);            \
+                &Func<prev>>(dest, src, count, mulVal, saturate);       \
         else                                                            \
             CastSIMD4<F2ICast<from, to>,                                \
-                &Func<prev>>(dest, src, count, mulVal, sat);            \
+                &Func<prev>>(dest, src, count, mulVal, saturate);       \
     }                                                                   \
 }
 
@@ -756,7 +739,7 @@ DEFINE_FASTPATH_METHOD(CvtF32F16, F16C)
 }
 #endif
 
-#if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 10 && (__ARM_FP & 2)
+#if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 30
 struct F1632Cast1
 {
     using Src = uint16_t;
@@ -842,3 +825,4 @@ DEFINE_FASTPATH_METHOD(CvtF32F16, AVX512F)
 }
 #endif
 
+}

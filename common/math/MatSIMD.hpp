@@ -15,9 +15,9 @@ namespace simds
 
 #ifdef XCOMP_HAS_SIMD256
 template<typename T> struct V8SimdConv;
-template<> struct V8SimdConv<float>    { using T = common::simd::F32x8; };
-template<> struct V8SimdConv<int32_t>  { using T = common::simd::I32x8; };
-template<> struct V8SimdConv<uint32_t> { using T = common::simd::U32x8; };
+template<> struct V8SimdConv<float>    { using T = COMMON_SIMD_NAMESPACE::F32x8; };
+template<> struct V8SimdConv<int32_t>  { using T = COMMON_SIMD_NAMESPACE::I32x8; };
+template<> struct V8SimdConv<uint32_t> { using T = COMMON_SIMD_NAMESPACE::U32x8; };
 template<typename T> using V8SIMD = typename V8SimdConv<T>::T;
 #endif
 

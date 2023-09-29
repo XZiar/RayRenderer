@@ -1,12 +1,13 @@
 #pragma once
-#include "common/CommonRely.hpp"
 #include "SystemCommon/SystemCommonRely.h"
+#include "common/TimeUtil.hpp"
+#include "common/CommonRely.hpp"
 #include "3rdParty/Projects/googletest/gtest-enhanced.h"
 #include <type_traits>
 #include <tuple>
 #include <string>
 #include <string_view>
-
+#include <algorithm>
 
 
 template<typename T>
@@ -77,4 +78,29 @@ struct func ## Fixture : public FuncFixture<type>   \
 static uint32_t Dummy_ ## func = RegisterIntrinTest \
     <func ## Fixture>(#type, __FILE__, __LINE__);   \
 void func ## Fixture::InnerTest()
+
+
+template<typename F>
+static uint64_t RunPerfTest(F&& func, uint32_t limitUs = 300000/*0.3s*/)
+{
+    std::vector<uint64_t> timeRecords;
+    timeRecords.reserve(limitUs);
+    const auto firstTime = common::SimpleTimer::getCurTimeUS();
+    while (true)
+    {
+        common::SimpleTimer timer;
+        timer.Start();
+        func();
+        timer.Stop();
+        timeRecords.emplace_back(timer.ElapseNs());
+        const auto nowTime = common::SimpleTimer::getCurTimeUS();
+        if (nowTime - firstTime > limitUs)
+            break;
+    }
+    std::sort(timeRecords.begin(), timeRecords.end());
+    const auto keepCount = static_cast<size_t>(timeRecords.size() * 0.9);
+    timeRecords.resize(keepCount);
+    const auto totalNs = std::accumulate(timeRecords.begin(), timeRecords.end(), uint64_t(0));
+    return totalNs / keepCount;
+}
 

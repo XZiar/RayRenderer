@@ -1,39 +1,21 @@
 
 #include "FastPathCategory.h"
 #include "MiscIntrins.h"
-#include "common/CommonRely.hpp"
 #include "common/simd/SIMD.hpp"
-#include "common/simd/SIMD128.hpp"
-#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
-#   include "common/simd/SIMD256.hpp"
-#endif
-#include "SpinLock.h"
+#include "common/SpinLock.hpp"
+
 #include "3rdParty/digestpp/algorithm/sha2.hpp"
 
 
-using namespace common::simd;
-using common::MiscIntrins;
-using common::DigestFuncs;
-
-
-#define LeadZero32Args  BOOST_PP_VARIADIC_TO_SEQ(num)
-#define LeadZero64Args  BOOST_PP_VARIADIC_TO_SEQ(num)
-#define TailZero32Args  BOOST_PP_VARIADIC_TO_SEQ(num)
-#define TailZero64Args  BOOST_PP_VARIADIC_TO_SEQ(num)
-#define PopCount32Args  BOOST_PP_VARIADIC_TO_SEQ(num)
-#define PopCount64Args  BOOST_PP_VARIADIC_TO_SEQ(num)
-#define Hex2StrArgs     BOOST_PP_VARIADIC_TO_SEQ(data, size, isCapital)
-#define PauseCyclesArgs BOOST_PP_VARIADIC_TO_SEQ(cycles)
-DEFINE_FASTPATH(MiscIntrins, LeadZero32);
-DEFINE_FASTPATH(MiscIntrins, LeadZero64);
-DEFINE_FASTPATH(MiscIntrins, TailZero32);
-DEFINE_FASTPATH(MiscIntrins, TailZero64);
-DEFINE_FASTPATH(MiscIntrins, PopCount32);
-DEFINE_FASTPATH(MiscIntrins, PopCount64);
-DEFINE_FASTPATH(MiscIntrins, Hex2Str);
-DEFINE_FASTPATH(MiscIntrins, PauseCycles);
-#define Sha256Args BOOST_PP_VARIADIC_TO_SEQ(data, size)
-DEFINE_FASTPATH(DigestFuncs, Sha256);
+#define LeadZero32Info  (uint32_t)(const uint32_t num)
+#define LeadZero64Info  (uint32_t)(const uint64_t num)
+#define TailZero32Info  (uint32_t)(const uint32_t num)
+#define TailZero64Info  (uint32_t)(const uint64_t num)
+#define PopCount32Info  (uint32_t)(const uint32_t num)
+#define PopCount64Info  (uint32_t)(const uint64_t num)
+#define Hex2StrInfo     (::std::string)(const uint8_t* data, size_t size, bool isCapital)
+#define PauseCyclesInfo (bool)(uint32_t cycles)
+#define Sha256Info      (::std::array<std::byte, 32>)(const std::byte* data, const size_t size)
 
 
 #if COMMON_ARCH_X86
@@ -51,6 +33,20 @@ for (uint32_t i = 0; i <= cycles; i += 32)  \
     __VA_ARGS__                             \
 }
 #endif
+
+
+namespace
+{
+using namespace COMMON_SIMD_NAMESPACE;
+using ::common::MiscIntrins;
+using ::common::DigestFuncs;
+
+
+DEFINE_FASTPATHS(MiscIntrins,
+    LeadZero32, LeadZero64, TailZero32, TailZero64, PopCount32, PopCount64, Hex2Str, PauseCycles)
+
+
+DEFINE_FASTPATHS(DigestFuncs, Sha256)
 
 
 DEFINE_FASTPATH_METHOD(PauseCycles, COMPILER)
@@ -746,3 +742,4 @@ DEFINE_FASTPATH_METHOD(Sha256, SHANIAVX2)
 # endif
 #endif
 
+}

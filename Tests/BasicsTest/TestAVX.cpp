@@ -7,16 +7,17 @@
 #   pragma clang attribute push (__attribute__((target("avx"))), apply_to=function)
 #endif
 
+#define COMMON_SIMD_LV_NAMESPACE 1
 #define COMMON_SIMD_LV 100
 #include "common/simd/SIMD.hpp"
+#include "common/simd/SIMD128.hpp"
+#include "common/simd/SIMD256.hpp"
 
 namespace avx
 {
 using namespace common;
 using namespace common::simd;
-#include "common/simd/SIMD128.hpp"
-#include "common/simd/SIMD256.hpp"
-using namespace common::simd;
+using namespace COMMON_SIMD_NAMESPACE;
 #include "SIMDBaseTest.h"
 #include "ShuffleTest.h"
 

@@ -1,9 +1,9 @@
 #include "rely.h"
-#include <algorithm>
-#include <random>
 #include "SystemCommon/CopyEx.h"
 #include "SystemCommon/MiscIntrins.h"
 #include "3rdParty/half/half.hpp"
+#include <algorithm>
+#include <random>
 
 
 using namespace std::string_view_literals;
@@ -212,9 +212,36 @@ template<typename Src, typename Dst, typename TIn, typename TOut, typename Val>
 void F2FTest(const common::CopyManager& intrin)
 {
     const auto ptr = reinterpret_cast<const Val*>(RandVals.data());
-    static const auto src = CastRef<Src>(ptr);
-    static const auto ref = CastRef<Dst>(src.data());
-    CastTest(src.data(), ref, [&](auto dst, auto src, auto cnt)
+    static const auto src1 = CastRef<Src>(ptr);
+
+    static const auto src2 = CastRef<Src>(ptr, [](auto src) 
+        { 
+            using T = std::conditional_t<(sizeof(Src) > 4), double, float>;
+            return static_cast<T>(src * 2.0 / std::numeric_limits<Val>::max()); 
+        }); // fraction
+    static const auto src3 = CastRef<Src>(ptr, [](auto src) 
+        {
+            constexpr auto MantissaBits = std::numeric_limits<Src>::digits - 1;
+            constexpr auto MantissaMask = static_cast<Val>(UINT64_MAX >> (64 - MantissaBits));
+            src &= MantissaMask;
+            uint8_t dummy[sizeof(Src)] = { 0 };
+            memcpy_s(dummy, sizeof(Src), &src, sizeof(src));
+            Src ret{};
+            memcpy_s(&ret, sizeof(Src), dummy, sizeof(Src));
+            return ret; 
+        }); // denorm
+    static const auto ref1 = CastRef<Dst>(src1.data());
+    static const auto ref2 = CastRef<Dst>(src2.data());
+    static const auto ref3 = CastRef<Dst>(src3.data());
+    CastTest(src1.data(), ref1, [&](auto dst, auto src, auto cnt)
+        {
+            intrin.CopyFloat(reinterpret_cast<TOut*>(dst), reinterpret_cast<const TIn*>(src), cnt);
+        });
+    CastTest(src2.data(), ref2, [&](auto dst, auto src, auto cnt)
+        {
+            intrin.CopyFloat(reinterpret_cast<TOut*>(dst), reinterpret_cast<const TIn*>(src), cnt);
+        });
+    CastTest(src3.data(), ref3, [&](auto dst, auto src, auto cnt)
         {
             intrin.CopyFloat(reinterpret_cast<TOut*>(dst), reinterpret_cast<const TIn*>(src), cnt);
         });
@@ -341,3 +368,89 @@ INTRIN_TEST(DigestFuncs, Sha256)
             "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0");
     }
 }
+
+
+#if CM_DEBUG == 0 || 1
+
+template<typename T>
+static std::vector<std::unique_ptr<T>> GenerateIntrinHost(std::string_view funcName)
+{
+    std::vector<std::unique_ptr<T>> tests;
+    for (const auto& path : T::GetSupportMap())
+    {
+        if (path.FuncName == funcName)
+        {
+            for (const auto& var : path.Variants)
+            {
+                std::pair<std::string_view, std::string_view> info{ path.FuncName, var.MethodName };
+                tests.emplace_back(std::make_unique<T>(common::span<decltype(info)>{ &info, 1 }));
+            }
+        }
+    }
+    return tests;
+}
+
+template<typename T, typename F>
+static void RunPerfTestAll(std::string_view funcName, F&& func, size_t opPerRun, uint32_t limitUs = 400000/*0.4s*/)
+{
+    const auto tests = GenerateIntrinHost<T>(funcName);
+    for (const auto& test : tests)
+    {
+        const auto nsPerRun = RunPerfTest([&]() { func(*test); }, limitUs);
+        const auto nsPerOp = static_cast<double>(nsPerRun) / opPerRun;
+        const auto intrinMap = test->GetIntrinMap();
+        Ensures(intrinMap.size() == 1);
+        Ensures(intrinMap[0].first == funcName);
+        TestCout() << "[" << funcName << "]: [" << intrinMap[0].second << "] takes avg[" << nsPerOp << "]ns per operation\n";
+    }
+}
+
+TEST(IntrinPerf, F2F)
+{
+    std::vector<half_float::half> inputs;
+    inputs.reserve(512 * 512 * 4);
+    // 512*512*4 = 1M test cases
+    for (uint32_t i = 0; i < 512; ++i)
+    {
+        const auto srca = RandVals[i];
+        for (uint32_t j = 0; j < 512; ++j)
+        {
+            const auto srcb = RandVals[j];
+            const auto base = static_cast<float>(srca * srcb);
+            inputs.push_back(static_cast<half_float::half>(base));
+            const auto frac = base / (UINT16_MAX / 2);
+            inputs.push_back(static_cast<half_float::half>(frac));
+            const auto small1 = frac / UINT8_MAX;
+            inputs.push_back(static_cast<half_float::half>(small1));
+            const auto small2 = small1 / UINT8_MAX;
+            inputs.push_back(static_cast<half_float::half>(small2));
+        }
+    }
+    std::vector<float> outputs;
+    outputs.resize(inputs.size());
+    RunPerfTestAll<common::CopyManager>("CvtF16F32", [&](const common::CopyManager& host)
+        {
+            host.CopyFloat(outputs.data(), reinterpret_cast<const uint16_t*>(inputs.data()), inputs.size());
+        }, static_cast<uint32_t>(inputs.size()));
+}
+
+
+TEST(IntrinPerf, Hex2Str)
+{
+    RunPerfTestAll<common::MiscIntrins>("Hex2Str", [&](const common::MiscIntrins& host)
+        {
+            [[maybe_unused]] const auto ret = host.HexToStr(RandVals.data(), sizeof(RandVals));
+        }, static_cast<uint32_t>(sizeof(RandVals)));
+}
+
+
+TEST(IntrinPerf, Sha256)
+{
+    std::vector<std::byte> inputs(1024 * 1024);
+    RunPerfTestAll<common::DigestFuncs>("Sha256", [&](const common::DigestFuncs& host)
+        {
+            host.SHA256(common::to_span(inputs));
+        }, static_cast<uint32_t>(inputs.size()));
+}
+
+#endif

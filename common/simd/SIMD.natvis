@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
   <Type Name="common::simd::F64x2">
+	<AlternativeType Name="common::simd::lv320::F64x2"/>
+	<AlternativeType Name="common::simd::lv310::F64x2"/>
+	<AlternativeType Name="common::simd::lv200::F64x2"/>
+	<AlternativeType Name="common::simd::lv150::F64x2"/>
+	<AlternativeType Name="common::simd::lv100::F64x2"/>
+	<AlternativeType Name="common::simd::lv50 ::F64x2"/>
+	<AlternativeType Name="common::simd::lv42 ::F64x2"/>
+	<AlternativeType Name="common::simd::lv41 ::F64x2"/>
+	<AlternativeType Name="common::simd::lv31 ::F64x2"/>
+	<AlternativeType Name="common::simd::lv30 ::F64x2"/>
+	<AlternativeType Name="common::simd::lv20 ::F64x2"/>
+	<AlternativeType Name="common::simd::lv10 ::F64x2"/>
     <DisplayString>F64x2: {{{Val[0]}, {Val[1]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -24,6 +36,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::F32x4">
+	<AlternativeType Name="common::simd::lv320::F32x4"/>
+	<AlternativeType Name="common::simd::lv310::F32x4"/>
+	<AlternativeType Name="common::simd::lv200::F32x4"/>
+	<AlternativeType Name="common::simd::lv150::F32x4"/>
+	<AlternativeType Name="common::simd::lv100::F32x4"/>
+	<AlternativeType Name="common::simd::lv50 ::F32x4"/>
+	<AlternativeType Name="common::simd::lv42 ::F32x4"/>
+	<AlternativeType Name="common::simd::lv41 ::F32x4"/>
+	<AlternativeType Name="common::simd::lv31 ::F32x4"/>
+	<AlternativeType Name="common::simd::lv30 ::F32x4"/>
+	<AlternativeType Name="common::simd::lv20 ::F32x4"/>
+	<AlternativeType Name="common::simd::lv10 ::F32x4"/>
     <DisplayString>F32x4: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -47,6 +71,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::I64x2">
+	<AlternativeType Name="common::simd::lv320::I64x2"/>
+	<AlternativeType Name="common::simd::lv310::I64x2"/>
+	<AlternativeType Name="common::simd::lv200::I64x2"/>
+	<AlternativeType Name="common::simd::lv150::I64x2"/>
+	<AlternativeType Name="common::simd::lv100::I64x2"/>
+	<AlternativeType Name="common::simd::lv50 ::I64x2"/>
+	<AlternativeType Name="common::simd::lv42 ::I64x2"/>
+	<AlternativeType Name="common::simd::lv41 ::I64x2"/>
+	<AlternativeType Name="common::simd::lv31 ::I64x2"/>
+	<AlternativeType Name="common::simd::lv30 ::I64x2"/>
+	<AlternativeType Name="common::simd::lv20 ::I64x2"/>
+	<AlternativeType Name="common::simd::lv10 ::I64x2"/>
     <DisplayString>I64x2: {{{Val[0]}, {Val[1]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -70,6 +106,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::U64x2">
+	<AlternativeType Name="common::simd::lv320::U64x2"/>
+	<AlternativeType Name="common::simd::lv310::U64x2"/>
+	<AlternativeType Name="common::simd::lv200::U64x2"/>
+	<AlternativeType Name="common::simd::lv150::U64x2"/>
+	<AlternativeType Name="common::simd::lv100::U64x2"/>
+	<AlternativeType Name="common::simd::lv50 ::U64x2"/>
+	<AlternativeType Name="common::simd::lv42 ::U64x2"/>
+	<AlternativeType Name="common::simd::lv41 ::U64x2"/>
+	<AlternativeType Name="common::simd::lv31 ::U64x2"/>
+	<AlternativeType Name="common::simd::lv30 ::U64x2"/>
+	<AlternativeType Name="common::simd::lv20 ::U64x2"/>
+	<AlternativeType Name="common::simd::lv10 ::U64x2"/>
     <DisplayString>U64x2: {{{Val[0]}, {Val[1]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -93,6 +141,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::I32x4">
+	<AlternativeType Name="common::simd::lv320::I32x4"/>
+	<AlternativeType Name="common::simd::lv310::I32x4"/>
+	<AlternativeType Name="common::simd::lv200::I32x4"/>
+	<AlternativeType Name="common::simd::lv150::I32x4"/>
+	<AlternativeType Name="common::simd::lv100::I32x4"/>
+	<AlternativeType Name="common::simd::lv50 ::I32x4"/>
+	<AlternativeType Name="common::simd::lv42 ::I32x4"/>
+	<AlternativeType Name="common::simd::lv41 ::I32x4"/>
+	<AlternativeType Name="common::simd::lv31 ::I32x4"/>
+	<AlternativeType Name="common::simd::lv30 ::I32x4"/>
+	<AlternativeType Name="common::simd::lv20 ::I32x4"/>
+	<AlternativeType Name="common::simd::lv10 ::I32x4"/>
     <DisplayString>I32x4: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -116,6 +176,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::U32x4">
+	<AlternativeType Name="common::simd::lv320::U32x4"/>
+	<AlternativeType Name="common::simd::lv310::U32x4"/>
+	<AlternativeType Name="common::simd::lv200::U32x4"/>
+	<AlternativeType Name="common::simd::lv150::U32x4"/>
+	<AlternativeType Name="common::simd::lv100::U32x4"/>
+	<AlternativeType Name="common::simd::lv50 ::U32x4"/>
+	<AlternativeType Name="common::simd::lv42 ::U32x4"/>
+	<AlternativeType Name="common::simd::lv41 ::U32x4"/>
+	<AlternativeType Name="common::simd::lv31 ::U32x4"/>
+	<AlternativeType Name="common::simd::lv30 ::U32x4"/>
+	<AlternativeType Name="common::simd::lv20 ::U32x4"/>
+	<AlternativeType Name="common::simd::lv10 ::U32x4"/>
     <DisplayString>U32x4: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -139,6 +211,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::I16x8">
+	<AlternativeType Name="common::simd::lv320::I16x8"/>
+	<AlternativeType Name="common::simd::lv310::I16x8"/>
+	<AlternativeType Name="common::simd::lv200::I16x8"/>
+	<AlternativeType Name="common::simd::lv150::I16x8"/>
+	<AlternativeType Name="common::simd::lv100::I16x8"/>
+	<AlternativeType Name="common::simd::lv50 ::I16x8"/>
+	<AlternativeType Name="common::simd::lv42 ::I16x8"/>
+	<AlternativeType Name="common::simd::lv41 ::I16x8"/>
+	<AlternativeType Name="common::simd::lv31 ::I16x8"/>
+	<AlternativeType Name="common::simd::lv30 ::I16x8"/>
+	<AlternativeType Name="common::simd::lv20 ::I16x8"/>
+	<AlternativeType Name="common::simd::lv10 ::I16x8"/>
     <DisplayString>I16x8: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -162,6 +246,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::U16x8">
+	<AlternativeType Name="common::simd::lv320::U16x8"/>
+	<AlternativeType Name="common::simd::lv310::U16x8"/>
+	<AlternativeType Name="common::simd::lv200::U16x8"/>
+	<AlternativeType Name="common::simd::lv150::U16x8"/>
+	<AlternativeType Name="common::simd::lv100::U16x8"/>
+	<AlternativeType Name="common::simd::lv50 ::U16x8"/>
+	<AlternativeType Name="common::simd::lv42 ::U16x8"/>
+	<AlternativeType Name="common::simd::lv41 ::U16x8"/>
+	<AlternativeType Name="common::simd::lv31 ::U16x8"/>
+	<AlternativeType Name="common::simd::lv30 ::U16x8"/>
+	<AlternativeType Name="common::simd::lv20 ::U16x8"/>
+	<AlternativeType Name="common::simd::lv10 ::U16x8"/>
     <DisplayString>U16x8: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -185,6 +281,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::I8x16">
+	<AlternativeType Name="common::simd::lv320::I8x16"/>
+	<AlternativeType Name="common::simd::lv310::I8x16"/>
+	<AlternativeType Name="common::simd::lv200::I8x16"/>
+	<AlternativeType Name="common::simd::lv150::I8x16"/>
+	<AlternativeType Name="common::simd::lv100::I8x16"/>
+	<AlternativeType Name="common::simd::lv50 ::I8x16"/>
+	<AlternativeType Name="common::simd::lv42 ::I8x16"/>
+	<AlternativeType Name="common::simd::lv41 ::I8x16"/>
+	<AlternativeType Name="common::simd::lv31 ::I8x16"/>
+	<AlternativeType Name="common::simd::lv30 ::I8x16"/>
+	<AlternativeType Name="common::simd::lv20 ::I8x16"/>
+	<AlternativeType Name="common::simd::lv10 ::I8x16"/>
     <DisplayString>I8x16: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}, ...}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -208,6 +316,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::U8x16">
+	<AlternativeType Name="common::simd::lv320::U8x16"/>
+	<AlternativeType Name="common::simd::lv310::U8x16"/>
+	<AlternativeType Name="common::simd::lv200::U8x16"/>
+	<AlternativeType Name="common::simd::lv150::U8x16"/>
+	<AlternativeType Name="common::simd::lv100::U8x16"/>
+	<AlternativeType Name="common::simd::lv50 ::U8x16"/>
+	<AlternativeType Name="common::simd::lv42 ::U8x16"/>
+	<AlternativeType Name="common::simd::lv41 ::U8x16"/>
+	<AlternativeType Name="common::simd::lv31 ::U8x16"/>
+	<AlternativeType Name="common::simd::lv30 ::U8x16"/>
+	<AlternativeType Name="common::simd::lv20 ::U8x16"/>
+	<AlternativeType Name="common::simd::lv10 ::U8x16"/>
     <DisplayString>U8x16: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}, ...}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -232,6 +352,18 @@
   </Type>
 
   <Type Name="common::simd::F64x4">
+	<AlternativeType Name="common::simd::lv320::F64x4"/>
+	<AlternativeType Name="common::simd::lv310::F64x4"/>
+	<AlternativeType Name="common::simd::lv200::F64x4"/>
+	<AlternativeType Name="common::simd::lv150::F64x4"/>
+	<AlternativeType Name="common::simd::lv100::F64x4"/>
+	<AlternativeType Name="common::simd::lv50 ::F64x4"/>
+	<AlternativeType Name="common::simd::lv42 ::F64x4"/>
+	<AlternativeType Name="common::simd::lv41 ::F64x4"/>
+	<AlternativeType Name="common::simd::lv31 ::F64x4"/>
+	<AlternativeType Name="common::simd::lv30 ::F64x4"/>
+	<AlternativeType Name="common::simd::lv20 ::F64x4"/>
+	<AlternativeType Name="common::simd::lv10 ::F64x4"/>
     <DisplayString>F64x4: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -255,6 +387,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::F32x8">
+	<AlternativeType Name="common::simd::lv320::F32x8"/>
+	<AlternativeType Name="common::simd::lv310::F32x8"/>
+	<AlternativeType Name="common::simd::lv200::F32x8"/>
+	<AlternativeType Name="common::simd::lv150::F32x8"/>
+	<AlternativeType Name="common::simd::lv100::F32x8"/>
+	<AlternativeType Name="common::simd::lv50 ::F32x8"/>
+	<AlternativeType Name="common::simd::lv42 ::F32x8"/>
+	<AlternativeType Name="common::simd::lv41 ::F32x8"/>
+	<AlternativeType Name="common::simd::lv31 ::F32x8"/>
+	<AlternativeType Name="common::simd::lv30 ::F32x8"/>
+	<AlternativeType Name="common::simd::lv20 ::F32x8"/>
+	<AlternativeType Name="common::simd::lv10 ::F32x8"/>
     <DisplayString>F32x8: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -278,6 +422,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::I64x4">
+	<AlternativeType Name="common::simd::lv320::I64x4"/>
+	<AlternativeType Name="common::simd::lv310::I64x4"/>
+	<AlternativeType Name="common::simd::lv200::I64x4"/>
+	<AlternativeType Name="common::simd::lv150::I64x4"/>
+	<AlternativeType Name="common::simd::lv100::I64x4"/>
+	<AlternativeType Name="common::simd::lv50 ::I64x4"/>
+	<AlternativeType Name="common::simd::lv42 ::I64x4"/>
+	<AlternativeType Name="common::simd::lv41 ::I64x4"/>
+	<AlternativeType Name="common::simd::lv31 ::I64x4"/>
+	<AlternativeType Name="common::simd::lv30 ::I64x4"/>
+	<AlternativeType Name="common::simd::lv20 ::I64x4"/>
+	<AlternativeType Name="common::simd::lv10 ::I64x4"/>
     <DisplayString>I64x4: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -301,6 +457,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::U64x4">
+	<AlternativeType Name="common::simd::lv320::U64x4"/>
+	<AlternativeType Name="common::simd::lv310::U64x4"/>
+	<AlternativeType Name="common::simd::lv200::U64x4"/>
+	<AlternativeType Name="common::simd::lv150::U64x4"/>
+	<AlternativeType Name="common::simd::lv100::U64x4"/>
+	<AlternativeType Name="common::simd::lv50 ::U64x4"/>
+	<AlternativeType Name="common::simd::lv42 ::U64x4"/>
+	<AlternativeType Name="common::simd::lv41 ::U64x4"/>
+	<AlternativeType Name="common::simd::lv31 ::U64x4"/>
+	<AlternativeType Name="common::simd::lv30 ::U64x4"/>
+	<AlternativeType Name="common::simd::lv20 ::U64x4"/>
+	<AlternativeType Name="common::simd::lv10 ::U64x4"/>
     <DisplayString>U64x4: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -324,6 +492,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::I32x8">
+	<AlternativeType Name="common::simd::lv320::I32x8"/>
+	<AlternativeType Name="common::simd::lv310::I32x8"/>
+	<AlternativeType Name="common::simd::lv200::I32x8"/>
+	<AlternativeType Name="common::simd::lv150::I32x8"/>
+	<AlternativeType Name="common::simd::lv100::I32x8"/>
+	<AlternativeType Name="common::simd::lv50 ::I32x8"/>
+	<AlternativeType Name="common::simd::lv42 ::I32x8"/>
+	<AlternativeType Name="common::simd::lv41 ::I32x8"/>
+	<AlternativeType Name="common::simd::lv31 ::I32x8"/>
+	<AlternativeType Name="common::simd::lv30 ::I32x8"/>
+	<AlternativeType Name="common::simd::lv20 ::I32x8"/>
+	<AlternativeType Name="common::simd::lv10 ::I32x8"/>
     <DisplayString>I32x8: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -347,6 +527,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::U32x8">
+	<AlternativeType Name="common::simd::lv320::U32x8"/>
+	<AlternativeType Name="common::simd::lv310::U32x8"/>
+	<AlternativeType Name="common::simd::lv200::U32x8"/>
+	<AlternativeType Name="common::simd::lv150::U32x8"/>
+	<AlternativeType Name="common::simd::lv100::U32x8"/>
+	<AlternativeType Name="common::simd::lv50 ::U32x8"/>
+	<AlternativeType Name="common::simd::lv42 ::U32x8"/>
+	<AlternativeType Name="common::simd::lv41 ::U32x8"/>
+	<AlternativeType Name="common::simd::lv31 ::U32x8"/>
+	<AlternativeType Name="common::simd::lv30 ::U32x8"/>
+	<AlternativeType Name="common::simd::lv20 ::U32x8"/>
+	<AlternativeType Name="common::simd::lv10 ::U32x8"/>
     <DisplayString>U32x8: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -370,6 +562,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::I16x16">
+	<AlternativeType Name="common::simd::lv320::I16x16"/>
+	<AlternativeType Name="common::simd::lv310::I16x16"/>
+	<AlternativeType Name="common::simd::lv200::I16x16"/>
+	<AlternativeType Name="common::simd::lv150::I16x16"/>
+	<AlternativeType Name="common::simd::lv100::I16x16"/>
+	<AlternativeType Name="common::simd::lv50 ::I16x16"/>
+	<AlternativeType Name="common::simd::lv42 ::I16x16"/>
+	<AlternativeType Name="common::simd::lv41 ::I16x16"/>
+	<AlternativeType Name="common::simd::lv31 ::I16x16"/>
+	<AlternativeType Name="common::simd::lv30 ::I16x16"/>
+	<AlternativeType Name="common::simd::lv20 ::I16x16"/>
+	<AlternativeType Name="common::simd::lv10 ::I16x16"/>
     <DisplayString>I16x16: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}, ...}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -393,6 +597,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::U16x16">
+	<AlternativeType Name="common::simd::lv320::U16x16"/>
+	<AlternativeType Name="common::simd::lv310::U16x16"/>
+	<AlternativeType Name="common::simd::lv200::U16x16"/>
+	<AlternativeType Name="common::simd::lv150::U16x16"/>
+	<AlternativeType Name="common::simd::lv100::U16x16"/>
+	<AlternativeType Name="common::simd::lv50 ::U16x16"/>
+	<AlternativeType Name="common::simd::lv42 ::U16x16"/>
+	<AlternativeType Name="common::simd::lv41 ::U16x16"/>
+	<AlternativeType Name="common::simd::lv31 ::U16x16"/>
+	<AlternativeType Name="common::simd::lv30 ::U16x16"/>
+	<AlternativeType Name="common::simd::lv20 ::U16x16"/>
+	<AlternativeType Name="common::simd::lv10 ::U16x16"/>
     <DisplayString>U16x16: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}, ...}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -416,6 +632,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::I8x32">
+	<AlternativeType Name="common::simd::lv320::I8x32"/>
+	<AlternativeType Name="common::simd::lv310::I8x32"/>
+	<AlternativeType Name="common::simd::lv200::I8x32"/>
+	<AlternativeType Name="common::simd::lv150::I8x32"/>
+	<AlternativeType Name="common::simd::lv100::I8x32"/>
+	<AlternativeType Name="common::simd::lv50 ::I8x32"/>
+	<AlternativeType Name="common::simd::lv42 ::I8x32"/>
+	<AlternativeType Name="common::simd::lv41 ::I8x32"/>
+	<AlternativeType Name="common::simd::lv31 ::I8x32"/>
+	<AlternativeType Name="common::simd::lv30 ::I8x32"/>
+	<AlternativeType Name="common::simd::lv20 ::I8x32"/>
+	<AlternativeType Name="common::simd::lv10 ::I8x32"/>
     <DisplayString>I8x32: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}, ...}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>
@@ -439,6 +667,18 @@
     </Expand>
   </Type>
   <Type Name="common::simd::U8x32">
+	<AlternativeType Name="common::simd::lv320::U8x32"/>
+	<AlternativeType Name="common::simd::lv310::U8x32"/>
+	<AlternativeType Name="common::simd::lv200::U8x32"/>
+	<AlternativeType Name="common::simd::lv150::U8x32"/>
+	<AlternativeType Name="common::simd::lv100::U8x32"/>
+	<AlternativeType Name="common::simd::lv50 ::U8x32"/>
+	<AlternativeType Name="common::simd::lv42 ::U8x32"/>
+	<AlternativeType Name="common::simd::lv41 ::U8x32"/>
+	<AlternativeType Name="common::simd::lv31 ::U8x32"/>
+	<AlternativeType Name="common::simd::lv30 ::U8x32"/>
+	<AlternativeType Name="common::simd::lv20 ::U8x32"/>
+	<AlternativeType Name="common::simd::lv10 ::U8x32"/>
     <DisplayString>U8x32: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}, ...}}</DisplayString>
     <Expand>
       <Item Name="simd">Data</Item>

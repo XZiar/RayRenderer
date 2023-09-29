@@ -1,13 +1,18 @@
 #include "common/CommonRely.hpp"
 #if COMMON_COMPILER_GCC
 #   pragma GCC push_options
-#   pragma GCC target("avx512f,avx512vl,avx512bw,avx512dq")
+#   pragma GCC target("avx512f,avx512vl,avx512bw,avx512dq,avx2,fma,avx")
 #elif COMMON_COMPILER_CLANG
-#   pragma clang attribute push (__attribute__((target("avx512f,avx512vl,avx512bw,avx512dq"))), apply_to=function)
+#   pragma clang attribute push (__attribute__((target("avx512f,avx512vl,avx512bw,avx512dq,avx2,fma,avx"))), apply_to=function)
 #endif
 
+#define COMMON_SIMD_LV_NAMESPACE 1
 #define COMMON_SIMD_LV 320
 #include "common/simd/SIMD.hpp"
+#include "CopyEx.h"
+#include "MiscIntrins.h"
+#include "common/simd/SIMD128.hpp"
+#include "common/simd/SIMD256.hpp"
 
 #include "CopyExIntrin.inl"
 #include "MiscIntrins.inl"

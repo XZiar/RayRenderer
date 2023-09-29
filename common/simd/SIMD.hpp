@@ -100,23 +100,27 @@
 # endif
 # ifdef CMSIMD_FIX_LOADUSI
 #   undef CMSIMD_FIX_LOADUSI
-forceinline __m128i _mm_loadu_si32_correct(const void* __restrict addr) noexcept
-{
-    return _mm_set_epi32(0, 0, 0, reinterpret_cast<const int32_t*>(addr)[0]);
-}
-forceinline __m128i _mm_loadu_si16_correct(const void* __restrict addr) noexcept
-{
-    return _mm_set_epi16(0, 0, 0, 0, 0, 0, 0, reinterpret_cast<const int16_t*>(addr)[0]);
-}
+#   define _mm_loadu_si32_correct(addr) _mm_set_epi32(0, 0, 0, reinterpret_cast<const int32_t*>(addr)[0])
+#   define _mm_loadu_si16_correct(addr) _mm_set_epi16(0, 0, 0, 0, 0, 0, 0, reinterpret_cast<const int16_t*>(addr)[0])
+// forceinline __m128i _mm_loadu_si32_correct(const void* __restrict addr) noexcept
+// {
+//     return _mm_set_epi32(0, 0, 0, reinterpret_cast<const int32_t*>(addr)[0]);
+// }
+// forceinline __m128i _mm_loadu_si16_correct(const void* __restrict addr) noexcept
+// {
+//     return _mm_set_epi16(0, 0, 0, 0, 0, 0, 0, reinterpret_cast<const int16_t*>(addr)[0]);
+// }
 # else
-forceinline __m128i _mm_loadu_si32_correct(const void* addr) noexcept
-{
-    return _mm_loadu_si32(addr);
-}
-forceinline __m128i _mm_loadu_si16_correct(const void* addr) noexcept
-{
-    return _mm_loadu_si16(addr);
-}
+#   define _mm_loadu_si32_correct(addr) _mm_loadu_si32(addr)
+#   define _mm_loadu_si16_correct(addr) _mm_loadu_si16(addr)
+// forceinline __m128i _mm_loadu_si32_correct(const void* addr) noexcept
+// {
+//     return _mm_loadu_si32(addr);
+// }
+// forceinline __m128i _mm_loadu_si16_correct(const void* addr) noexcept
+// {
+//     return _mm_loadu_si16(addr);
+// }
 # endif
 #elif COMMON_ARCH_ARM
 # if COMMON_COMPILER_CLANG
@@ -292,8 +296,14 @@ struct VecDataInfo
         }
         else
         {
-            static_assert(!AlwaysTrue<T>, "only numeraic type allowed");
+            static_assert(!::common::AlwaysTrue<T>, "only numeraic type allowed");
         }
     }
 };
 }
+
+#if defined(COMMON_SIMD_LV_NAMESPACE) && COMMON_SIMD_LV_NAMESPACE
+#   define COMMON_SIMD_NAMESPACE PPCAT(common::simd::lv,COMMON_SIMD_LV)
+#else
+#   define COMMON_SIMD_NAMESPACE common::simd
+#endif

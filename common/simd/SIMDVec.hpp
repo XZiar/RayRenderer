@@ -2,9 +2,7 @@
 #include "SIMD.hpp"
 #include "../EnumEx.hpp"
 
-namespace common
-{
-namespace simd
+namespace common::simd
 {
 
 enum class DotPos : uint8_t
@@ -37,6 +35,62 @@ enum class CompareType : uint8_t
     LessThan = 0x1, LessEqual, Equal, NotEqual, GreaterEqual, GreaterThan
 };
 
+namespace detail
+{
+
+template<typename From, typename To>
+inline constexpr CastMode CstMode() noexcept
+{
+    constexpr auto src = From::VDInfo, dst = To::VDInfo;
+    if constexpr (src.Bit > dst.Bit)
+    {
+        if constexpr (src.Type == VecDataInfo::DataTypes::Float || dst.Type == VecDataInfo::DataTypes::Float)
+            return CastMode::RangeUndef;
+        return CastMode::RangeTrunc;
+    }
+    else 
+    {
+        return CastMode::RangeUndef;
+    }
+}
+
+
+inline constexpr auto FullMask64 = []()
+{
+    std::array<uint64_t, 256> dat = {};
+    for (uint32_t i = 0; i < 256; ++i)
+    {
+        uint64_t val = 0;
+        for (uint8_t j = 0; j < 8; ++j)
+            if ((i >> j) & 0x1)
+                val |= uint64_t(0xff) << (j * 8);
+        dat[i] = val;
+    }
+    return dat;
+}();
+template<size_t EleBits, size_t N>
+inline constexpr uint64_t ConvertMaskTo8(uint64_t mask)
+{
+    const auto unitBits = EleBits / 8;
+    auto unit = (uint64_t(1) << unitBits) - 1;
+    uint64_t ret = 0;
+    for (size_t i = 0; i < N; ++i)
+    {
+        if (mask & 0x1)
+            ret |= unit;
+        mask >>= 1, unit <<= unitBits;
+    }
+    return ret;
+}
+
+}
+
+}
+
+
+namespace COMMON_SIMD_NAMESPACE
+{
+
 template<typename T, size_t N>
 struct alignas(T) Pack
 {
@@ -59,7 +113,7 @@ namespace detail
 template<typename To, typename From>
 forceinline To AsType(From) noexcept
 {
-    static_assert(!AlwaysTrue<To>, "not implemented");
+    static_assert(!::common::AlwaysTrue<To>, "not implemented");
 }
 template<typename D, typename S, size_t N, size_t... I>
 forceinline Pack<D, N> PackCast(const Pack<S, N>& src, std::index_sequence<I...>)
@@ -98,7 +152,7 @@ struct CastTyper
 
 template<typename T, size_t N>
 template<typename U>
-inline auto Pack<T, N>::Cast() const noexcept
+forceinline auto Pack<T, N>::Cast() const noexcept
 {
     if constexpr (T::Count == U::Count)
     {
@@ -111,12 +165,12 @@ inline auto Pack<T, N>::Cast() const noexcept
     }
     else
     {
-        static_assert(!AlwaysTrue<T>, "cannot narrow cast");
+        static_assert(!::common::AlwaysTrue<T>, "cannot narrow cast");
     }
 }
 template<typename T, size_t N>
 template<typename U>
-inline Pack<U, N> Pack<T, N>::As() const noexcept
+forceinline Pack<U, N> Pack<T, N>::As() const noexcept
 {
     return detail::PackAs<U, T, N>(*this, std::make_index_sequence<N>{});
 }
@@ -173,52 +227,6 @@ struct CommonOperators
     }
 };
 
-template<typename From, typename To>
-inline constexpr CastMode CstMode() noexcept
-{
-    constexpr auto src = From::VDInfo, dst = To::VDInfo;
-    if constexpr (src.Bit > dst.Bit)
-    {
-        if constexpr (src.Type == VecDataInfo::DataTypes::Float || dst.Type == VecDataInfo::DataTypes::Float)
-            return CastMode::RangeUndef;
-        return CastMode::RangeTrunc;
-    }
-    else 
-    {
-        return CastMode::RangeUndef;
-    }
 }
 
-
-inline constexpr auto FullMask64 = []()
-{
-    std::array<uint64_t, 256> dat = {};
-    for (uint32_t i = 0; i < 256; ++i)
-    {
-        uint64_t val = 0;
-        for (uint8_t j = 0; j < 8; ++j)
-            if ((i >> j) & 0x1)
-                val |= uint64_t(0xff) << (j * 8);
-        dat[i] = val;
-    }
-    return dat;
-}();
-template<size_t EleBits, size_t N>
-inline constexpr uint64_t ConvertMaskTo8(uint64_t mask)
-{
-    const auto unitBits = EleBits / 8;
-    auto unit = (uint64_t(1) << unitBits) - 1;
-    uint64_t ret = 0;
-    for (size_t i = 0; i < N; ++i)
-    {
-        if (mask & 0x1)
-            ret |= unit;
-        mask >>= 1, unit <<= unitBits;
-    }
-    return ret;
-}
-
-}
-
-}
 }

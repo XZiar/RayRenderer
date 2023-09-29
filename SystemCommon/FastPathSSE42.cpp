@@ -6,6 +6,7 @@
 #   pragma clang attribute push (__attribute__((target("sse4_2,waitpkg,lzcnt,popcnt,sha,f16c"))), apply_to=function)
 #endif
 
+#define COMMON_SIMD_LV_NAMESPACE 1
 #define COMMON_SIMD_LV 42
 
 #if COMMON_COMPILER_MSVC
@@ -30,7 +31,9 @@
 #endif
 
 #include "common/simd/SIMD.hpp"
-
+#include "CopyEx.h"
+#include "MiscIntrins.h"
+#include "common/simd/SIMD128.hpp"
 
 #include "CopyExIntrin.inl"
 #include "MiscIntrins.inl"

@@ -10,9 +10,9 @@ namespace simds
 {
 
 template<typename T> struct V4SimdConv;
-template<> struct V4SimdConv<float>    { using T = common::simd::F32x4; };
-template<> struct V4SimdConv<int32_t>  { using T = common::simd::I32x4; };
-template<> struct V4SimdConv<uint32_t> { using T = common::simd::U32x4; };
+template<> struct V4SimdConv<float>    { using T = COMMON_SIMD_NAMESPACE::F32x4; };
+template<> struct V4SimdConv<int32_t>  { using T = COMMON_SIMD_NAMESPACE::I32x4; };
+template<> struct V4SimdConv<uint32_t> { using T = COMMON_SIMD_NAMESPACE::U32x4; };
 template<typename T> using V4SIMD = typename V4SimdConv<T>::T;
 
 }

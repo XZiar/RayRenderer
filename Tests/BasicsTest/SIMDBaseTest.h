@@ -608,12 +608,12 @@ static void TestSLLV(const T* ptr)
     constexpr size_t S = sizeof(U);
     constexpr size_t C = S * 8;
     constexpr auto Bits = []() 
-        {
-            std::array<U, C> bits = { 0 };
-            for (uint8_t i = 0; i < C; ++i)
-                bits[i] = i;
-            return bits;
-        }();
+    {
+        std::array<uint8_t, S * 8> bits = { 0 };
+        for (uint8_t i = 0; i < S * 8; ++i)
+            bits[i] = i;
+        return bits;
+    }();
     std::string shifttxt;
     shifttxt.reserve(T::Count * 4);
     ForKItem(1)
@@ -626,14 +626,53 @@ static void TestSLLV(const T* ptr)
             shifttxt.clear();
             for (size_t i = 0; i < T::Count; ++i)
             {
-                shiftsRef[i] = Bits[(j + i) % C];
-                ref[i] = static_cast<U>(data.Val[i] << shiftsRef[i]);
-                shifttxt.append(std::to_string(shiftsRef[i])).append(", ");
+                const auto shift = Bits[(j + i) % C];
+                shiftsRef[i] = shift;
+                ref[i] = static_cast<U>(data.Val[i] << shift);
+                shifttxt.append(std::to_string(shift)).append(", ");
             }
             shifttxt.resize(shifttxt.size() - 2);
             T shifts(shiftsRef);
             const auto output = data.ShiftLeftLogic(shifts);
             EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when shift-left-var [" << shifttxt << "] bits";
+        }
+    }
+}
+template<typename T>
+static void TestSRLV(const T* ptr)
+{
+    using U = typename T::EleType;
+    using V = std::make_unsigned_t<U>;
+    constexpr size_t S = sizeof(U);
+    constexpr size_t C = S * 8;
+    constexpr auto Bits = []()
+    {
+        std::array<uint8_t, S * 8> bits = { 0 };
+        for (uint8_t i = 0; i < S * 8; ++i)
+            bits[i] = i;
+        return bits;
+    }();
+    std::string shifttxt;
+    shifttxt.reserve(T::Count * 4);
+    ForKItem(1)
+    {
+        const auto data = ptr[k + 0];
+        for (size_t j = 0; j < C; j += T::Count)
+        {
+            U shiftsRef[T::Count] = { 0 };
+            U ref[T::Count] = { 0 };
+            shifttxt.clear();
+            for (size_t i = 0; i < T::Count; ++i)
+            {
+                const auto shift = Bits[(j + i) % C];
+                shiftsRef[i] = shift;
+                ref[i] = static_cast<U>(static_cast<V>(data.Val[i]) >> shift);
+                shifttxt.append(std::to_string(shift)).append(", ");
+            }
+            shifttxt.resize(shifttxt.size() - 2);
+            T shifts(shiftsRef);
+            const auto output = data.ShiftRightLogic(shifts);
+            EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when shift-right-var [" << shifttxt << "] bits";
         }
     }
 }
@@ -940,7 +979,7 @@ static void TestLoad(const T* ptr)
 enum class TestItem : uint32_t
 {
     Add = 0x1, Sub = 0x2, SatAdd = 0x4, SatSub = 0x8, Mul = 0x10, MulLo = 0x20, MulHi = 0x40, MulX = 0x80, 
-    Div = 0x100, Neg = 0x200, Abs = 0x400, Min = 0x800, Max = 0x1000, SLL = 0x2000, SLLV = 0x4000, SRL = 0x8000, SRA = 0x10000,
+    Div = 0x100, Neg = 0x200, Abs = 0x400, Min = 0x800, Max = 0x1000, SLL = 0x2000, SLLV = 0x4000, SRL = 0x8000, SRLV = 0x10000, SRA = 0x20000,
     And = 0x100000, Or = 0x200000, Xor = 0x400000, AndNot = 0x800000, Not = 0x1000000, FMA = 0x2000000, Rnd = 0x4000000,
     SWE = 0x10000000, SEL = 0x20000000, Load = 0x40000000
 };
@@ -956,7 +995,7 @@ public:
 #define AddItem(r, data, x) if constexpr (HAS_FIELD(Items, TestItem::x)) \
     BOOST_PP_CAT(Test,x)<T>(GetRandPtr<T, typename T::EleType>());
 #define AddItems(...) BOOST_PP_SEQ_FOR_EACH(AddItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
-        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SLLV, SRL, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL, FMA, Rnd, Load)
+        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SLLV, SRL, SRLV, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL, FMA, Rnd, Load)
 #undef AddItems
 #undef AddItem
     }
@@ -978,7 +1017,7 @@ public:
         [[maybe_unused]] const std::string_view XX = STRINGIZE(COMMON_SIMD_INTRIN);
         const auto ptr = GetRandPtr<T, typename T::EleType>();
         if constexpr (Mode == CastMode::RangeUndef)
-            (..., TestCast<T, U, detail::CstMode<T, U>()>(ptr));
+            (..., TestCast<T, U, ::common::simd::detail::CstMode<T, U>()>(ptr));
         else
             (..., TestCast<T, U, Mode>(ptr));
     }
