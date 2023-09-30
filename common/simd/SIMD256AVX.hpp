@@ -74,8 +74,8 @@ struct AVX256Common : public CommonOperators<T>
         E Val[N];
     };
     forceinline constexpr AVX256Common() noexcept : Data() { }
-    inline explicit AVX256Common(const E* ptr) noexcept : Data(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr))) { }
-    inline constexpr AVX256Common(const __m256i val) noexcept : Data(val) { }
+    forceinline explicit AVX256Common(const E* ptr) noexcept : Data(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr))) { }
+    forceinline constexpr AVX256Common(const __m256i val) noexcept : Data(val) { }
     forceinline AVX256Common(const Pack<L, 2>& pack) noexcept : Data(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
     forceinline AVX256Common(const L& lo, const L& hi) noexcept : Data(_mm256_set_m128i(hi.Data, lo.Data)) {}
     forceinline void VECCALL Load(const E* ptr) noexcept { Data = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr)); }
@@ -162,8 +162,8 @@ private:
     using AVX256Common = detail::AVX256Common<T, L, E, 4>;
 public:
     using AVX256Common::AVX256Common;
-    inline Common64x4(const E val) noexcept : AVX256Common(_mm256_set1_epi64x(static_cast<int64_t>(val))) { }
-    inline Common64x4(const E lo0, const E lo1, const E lo2, const E hi3) noexcept :
+    forceinline Common64x4(const E val) noexcept : AVX256Common(_mm256_set1_epi64x(static_cast<int64_t>(val))) { }
+    forceinline Common64x4(const E lo0, const E lo1, const E lo2, const E hi3) noexcept :
         AVX256Common(_mm256_setr_epi64x(static_cast<int64_t>(lo0), static_cast<int64_t>(lo1), static_cast<int64_t>(lo2), static_cast<int64_t>(hi3))) { }
 
 #if COMMON_SIMD_LV >= 200
@@ -320,8 +320,8 @@ private:
     using AVX256Common = detail::AVX256Common<T, L, E, 8>;
 public:
     using AVX256Common::AVX256Common;
-    inline Common32x8(const E val) noexcept : AVX256Common(_mm256_set1_epi32(static_cast<int32_t>(val))) { }
-    inline Common32x8(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7) noexcept :
+    forceinline Common32x8(const E val) noexcept : AVX256Common(_mm256_set1_epi32(static_cast<int32_t>(val))) { }
+    forceinline Common32x8(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7) noexcept :
         AVX256Common(_mm256_setr_epi32(static_cast<int32_t>(lo0), static_cast<int32_t>(lo1), static_cast<int32_t>(lo2), static_cast<int32_t>(lo3), static_cast<int32_t>(lo4), static_cast<int32_t>(lo5), static_cast<int32_t>(lo6), static_cast<int32_t>(hi7))) { }
 
 #if COMMON_SIMD_LV >= 200
@@ -436,8 +436,8 @@ private:
     using AVX256Common = detail::AVX256Common<T, L, E, 16>;
 public:
     using AVX256Common::AVX256Common;
-    inline Common16x16(const E val) noexcept : AVX256Common(_mm256_set1_epi16(static_cast<int16_t>(val))) { }
-    inline Common16x16(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7,
+    forceinline Common16x16(const E val) noexcept : AVX256Common(_mm256_set1_epi16(static_cast<int16_t>(val))) { }
+    forceinline Common16x16(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7,
         const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E hi15) noexcept :
         AVX256Common(_mm256_setr_epi16(
             static_cast<int16_t>(lo0),  static_cast<int16_t>(lo1),  static_cast<int16_t>(lo2),  static_cast<int16_t>(lo3), 
@@ -597,8 +597,8 @@ private:
     using AVX256Common = detail::AVX256Common<T, L, E, 32>;
 public:
     using AVX256Common::AVX256Common;
-    inline Common8x32(const E val) noexcept : AVX256Common(_mm256_set1_epi8(static_cast<int8_t>(val))) { }
-    inline Common8x32(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7,
+    forceinline Common8x32(const E val) noexcept : AVX256Common(_mm256_set1_epi8(static_cast<int8_t>(val))) { }
+    forceinline Common8x32(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7,
         const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E lo15,
         const E lo16, const E lo17, const E lo18, const E lo19, const E lo20, const E lo21, const E lo22, const E lo23,
         const E lo24, const E lo25, const E lo26, const E lo27, const E lo28, const E lo29, const E lo30, const E hi31) noexcept :

@@ -1,5 +1,5 @@
 #include "rely.h"
-#include "SystemCommon/SystemCommonRely.h"
+#include "SystemCommon/ThreadEx.h"
 
 
 void TestIntrinComplete(common::span<const common::FastPathBase::PathInfo> supports, common::span<const common::FastPathBase::VarItem> intrinMap, bool isComplete)
@@ -38,6 +38,7 @@ public:
             str.append(feat);
         }
         TestCout() << "CPU Feature: [" << str << "]\n";
+        common::SetThreadQoS(common::ThreadQoS::High);
     }
 };
 int main(int argc, char **argv)                  

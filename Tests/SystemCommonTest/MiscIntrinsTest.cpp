@@ -370,7 +370,7 @@ INTRIN_TEST(DigestFuncs, Sha256)
 }
 
 
-#if CM_DEBUG == 0 || 1
+#if CM_DEBUG == 0
 
 template<typename T>
 static std::vector<std::unique_ptr<T>> GenerateIntrinHost(std::string_view funcName)

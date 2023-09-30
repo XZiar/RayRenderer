@@ -1,9 +1,5 @@
-//
-// pch.cpp
-// Include the standard header and generate the precompiled header.
-//
-
 #include "pch.h"
+#include "SIMDRely.h"
 #include "3rdParty/cpuinfo/include/cpuinfo.h"
 
 
@@ -42,12 +38,6 @@ std::mt19937& GetRanEng()
 uint32_t GetARand()
 {
     return GetRanEng()();
-}
-
-
-void MemCopy(void* dest, size_t destsz, const void* src, size_t count)
-{
-    memcpy_s(dest, destsz, src, count);
 }
 
 

@@ -22,13 +22,13 @@ TEST(MemStream, ReadByte)
         std::vector<uint16_t> dat = { 0x0102, 0x4567 };
         MemoryInputStream memStream(common::to_span(dat));
         EXPECT_EQ(memStream.GetSize(), 4u);
-        EXPECT_EQ(memStream.ReadByte(), std::byte{ IsLittleEndian ? 0x02 : 0x01 });
+        EXPECT_EQ(memStream.ReadByte(), std::byte{ common::detail::is_little_endian ? 0x02 : 0x01 });
         EXPECT_FALSE(memStream.IsEnd());
-        EXPECT_EQ(memStream.ReadByte(), std::byte{ IsLittleEndian ? 0x01 : 0x02 });
+        EXPECT_EQ(memStream.ReadByte(), std::byte{ common::detail::is_little_endian ? 0x01 : 0x02 });
         EXPECT_FALSE(memStream.IsEnd());
-        EXPECT_EQ(memStream.ReadByte(), std::byte{ IsLittleEndian ? 0x67 : 0x45 });
+        EXPECT_EQ(memStream.ReadByte(), std::byte{ common::detail::is_little_endian ? 0x67 : 0x45 });
         EXPECT_FALSE(memStream.IsEnd());
-        EXPECT_EQ(memStream.ReadByte(), std::byte{ IsLittleEndian ? 0x45 : 0x67 });
+        EXPECT_EQ(memStream.ReadByte(), std::byte{ common::detail::is_little_endian ? 0x45 : 0x67 });
         EXPECT_TRUE(memStream.IsEnd());
     }
 }
@@ -48,7 +48,7 @@ TEST(MemStream, Read)
         EXPECT_FALSE(memStream.IsEnd());
 
         EXPECT_TRUE(memStream.Read(ret2));
-        EXPECT_EQ(ret2, std::uint16_t{ IsLittleEndian ? 0x0201 : 0x0102 });
+        EXPECT_EQ(ret2, std::uint16_t{ common::detail::is_little_endian ? 0x0201 : 0x0102 });
         EXPECT_TRUE(memStream.IsEnd());
     }
     {
@@ -59,15 +59,15 @@ TEST(MemStream, Read)
         std::uint16_t ret2;
 
         EXPECT_TRUE(memStream.Read(ret1));
-        EXPECT_EQ(ret1, std::byte{ IsLittleEndian ? 0x02 : 0x01 });
+        EXPECT_EQ(ret1, std::byte{ common::detail::is_little_endian ? 0x02 : 0x01 });
         EXPECT_FALSE(memStream.IsEnd());
 
         EXPECT_TRUE(memStream.Read(ret2));
-        EXPECT_EQ(ret2, std::uint16_t{ IsLittleEndian ? 0x6701 : 0x0245 });
+        EXPECT_EQ(ret2, std::uint16_t{ common::detail::is_little_endian ? 0x6701 : 0x0245 });
         EXPECT_FALSE(memStream.IsEnd());
 
         EXPECT_TRUE(memStream.Read(ret1));
-        EXPECT_EQ(ret1, std::byte{ IsLittleEndian ? 0x45 : 0x67 });
+        EXPECT_EQ(ret1, std::byte{ common::detail::is_little_endian ? 0x45 : 0x67 });
         EXPECT_TRUE(memStream.IsEnd());
     }
 }
@@ -200,8 +200,8 @@ TEST(MemStream, Write)
 
         uint16_t b2 = 0x0203;
         EXPECT_TRUE(memStream.Write(b2));
-        EXPECT_EQ(dat[1], IsLittleEndian ? 0x03 : 0x02);
-        EXPECT_EQ(dat[2], IsLittleEndian ? 0x02 : 0x03);
+        EXPECT_EQ(dat[1], common::detail::is_little_endian ? 0x03 : 0x02);
+        EXPECT_EQ(dat[2], common::detail::is_little_endian ? 0x02 : 0x03);
         EXPECT_EQ(memStream.CurrentPos(), 3u);
     }
     {

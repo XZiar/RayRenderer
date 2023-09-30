@@ -1,15 +1,17 @@
-#include "pch.h"
-
-#if COMMON_COMPILER_GCC
-#   pragma GCC push_options
-#   pragma GCC target("sse4.2,lzcnt,popcnt")
-#elif COMMON_COMPILER_CLANG
-#   pragma clang attribute push (__attribute__((target("sse4.2,lzcnt,popcnt"))), apply_to=function)
-#endif
+#include "SIMDRely.h"
 
 #define COMMON_SIMD_LV_NAMESPACE 1
 #define COMMON_SIMD_LV 42
+#if COMMON_COMPILER_MSVC
+#   define __SSE4_2__ 1
+#   define __SSE4_1__ 1
+#   define __SSSE3__  1
+#   define __SSE3__   1
+#endif
 #include "common/simd/SIMD.hpp"
+#if COMMON_SIMD_LV_ < COMMON_SIMD_LV
+#   error requires SIMDLV >= 42
+#endif
 #include "common/simd/SIMD128.hpp"
 
 namespace sse42
@@ -76,10 +78,3 @@ RegisterSIMDTest(F32x4, 41, dottest::DotProdTest<F32x4>);
 
 
 }
-
-
-#if COMMON_COMPILER_GCC
-#   pragma GCC pop_options
-#elif COMMON_COMPILER_CLANG
-#   pragma clang attribute pop
-#endif

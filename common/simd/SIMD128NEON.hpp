@@ -168,8 +168,8 @@ struct Neon128Common : public CommonOperators<T>
         SIMDType Data;
         E Val[N];
     };
-    inline constexpr Neon128Common() noexcept : Data() { }
-    inline constexpr Neon128Common(const SIMDType val) noexcept : Data(val) { }
+    forceinline constexpr Neon128Common() noexcept : Data() { }
+    forceinline constexpr Neon128Common(const SIMDType val) noexcept : Data(val) { }
     forceinline constexpr operator const SIMDType& () const noexcept { return Data; }
 
     // logic operations
@@ -1023,9 +1023,9 @@ struct alignas(16) Common8x16 : public Neon128Common<T, SIMDType, E, 16>
 struct alignas(16) F64x2 : public detail::Neon128Common<F64x2, float64x2_t, double, 2>, public detail::Shuffle64Common<F64x2, float64x2_t>
 {
     using Neon128Common<F64x2, float64x2_t, double, 2>::Neon128Common;
-    inline explicit F64x2(const double* ptr) noexcept : Neon128Common(vld1q_f64(ptr)) { }
-    inline F64x2(const double val) noexcept : Neon128Common(vdupq_n_f64(val)) { }
-    inline F64x2(const double lo, const double hi) noexcept : Neon128Common(vcombine_f64(vdup_n_f64(lo), vdup_n_f64(hi))) { }
+    forceinline explicit F64x2(const double* ptr) noexcept : Neon128Common(vld1q_f64(ptr)) { }
+    forceinline F64x2(const double val) noexcept : Neon128Common(vdupq_n_f64(val)) { }
+    forceinline F64x2(const double lo, const double hi) noexcept : Neon128Common(vcombine_f64(vdup_n_f64(lo), vdup_n_f64(hi))) { }
     forceinline void VECCALL Load(const double *ptr) noexcept { Data = vld1q_f64(ptr); }
     forceinline void VECCALL Save(double *ptr) const noexcept { vst1q_f64(reinterpret_cast<float64_t*>(ptr), Data); }
 
@@ -1117,9 +1117,9 @@ struct alignas(16) F64x2 : public detail::Neon128Common<F64x2, float64x2_t, doub
 struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, float, 4>, public detail::Shuffle32Common<F32x4, float32x4_t>
 {
     using Neon128Common<F32x4, float32x4_t, float, 4>::Neon128Common;
-    inline explicit F32x4(const float* ptr) noexcept : Neon128Common(vld1q_f32(ptr)) { }
-    inline F32x4(const float val) noexcept : Neon128Common(vdupq_n_f32(val)) { }
-    inline F32x4(const float lo0, const float lo1, const float lo2, const float hi3) noexcept
+    forceinline explicit F32x4(const float* ptr) noexcept : Neon128Common(vld1q_f32(ptr)) { }
+    forceinline F32x4(const float val) noexcept : Neon128Common(vdupq_n_f32(val)) { }
+    forceinline F32x4(const float lo0, const float lo1, const float lo2, const float hi3) noexcept
     {
         alignas(16) float tmp[] = { lo0, lo1, lo2, hi3 };
         Load(tmp);
@@ -1355,9 +1355,9 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
 struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64x2_t, int64_t>
 {
     using Common64x2<I64x2, int64x2_t, int64_t>::Common64x2;
-    inline explicit I64x2(const int64_t* ptr) noexcept : Common64x2(vld1q_s64(ptr)) { }
-    inline I64x2(const int64_t val) noexcept : Common64x2(vdupq_n_s64(val)) { }
-    inline I64x2(const int64_t lo, const int64_t hi) noexcept : Common64x2(vcombine_s64(vdup_n_s64(lo), vdup_n_s64(hi))) { }
+    forceinline explicit I64x2(const int64_t* ptr) noexcept : Common64x2(vld1q_s64(ptr)) { }
+    forceinline I64x2(const int64_t val) noexcept : Common64x2(vdupq_n_s64(val)) { }
+    forceinline I64x2(const int64_t lo, const int64_t hi) noexcept : Common64x2(vcombine_s64(vdup_n_s64(lo), vdup_n_s64(hi))) { }
     forceinline void VECCALL Load(const int64_t* ptr) noexcept { Data = vld1q_s64(ptr); }
     forceinline void VECCALL Save(int64_t* ptr) const noexcept { vst1q_s64(ptr, Data); }
 
@@ -1443,9 +1443,9 @@ template<> forceinline F64x2 VECCALL I64x2::Cast<F64x2, CastMode::RangeUndef>() 
 struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64x2_t, uint64_t>
 {
     using Common64x2<U64x2, uint64x2_t, uint64_t>::Common64x2;
-    inline explicit U64x2(const uint64_t* ptr) noexcept : Common64x2(vld1q_u64(ptr)) { }
-    inline U64x2(const uint64_t val) noexcept : Common64x2(vdupq_n_u64(val)) { }
-    inline U64x2(const uint64_t lo, const int64_t hi) noexcept : Common64x2(vcombine_u64(vdup_n_u64(lo), vdup_n_u64(hi))) { }
+    forceinline explicit U64x2(const uint64_t* ptr) noexcept : Common64x2(vld1q_u64(ptr)) { }
+    forceinline U64x2(const uint64_t val) noexcept : Common64x2(vdupq_n_u64(val)) { }
+    forceinline U64x2(const uint64_t lo, const int64_t hi) noexcept : Common64x2(vcombine_u64(vdup_n_u64(lo), vdup_n_u64(hi))) { }
     forceinline void VECCALL Load(const uint64_t* ptr) noexcept { Data = vld1q_u64(ptr); }
     forceinline void VECCALL Save(uint64_t* ptr) const noexcept { vst1q_u64(ptr, Data); }
 
@@ -1508,9 +1508,9 @@ template<> forceinline F64x2 VECCALL U64x2::Cast<F64x2, CastMode::RangeUndef>() 
 struct alignas(16) I32x4 : public detail::Common32x4<I32x4, int32x4_t, int32_t>
 {
     using Common32x4<I32x4, int32x4_t, int32_t>::Common32x4;
-    inline explicit I32x4(const int32_t* ptr) noexcept : Common32x4(vld1q_s32(ptr)) { }
-    inline I32x4(const int32_t val) noexcept : Common32x4(vdupq_n_s32(val)) { }
-    inline I32x4(const int32_t lo0, const int32_t lo1, const int32_t lo2, const int32_t hi3) noexcept : Common32x4()
+    forceinline explicit I32x4(const int32_t* ptr) noexcept : Common32x4(vld1q_s32(ptr)) { }
+    forceinline I32x4(const int32_t val) noexcept : Common32x4(vdupq_n_s32(val)) { }
+    forceinline I32x4(const int32_t lo0, const int32_t lo1, const int32_t lo2, const int32_t hi3) noexcept : Common32x4()
     {
         alignas(16) int32_t tmp[] = { lo0, lo1, lo2, hi3 };
         Load(tmp);
@@ -1578,9 +1578,9 @@ template<> forceinline Pack<F64x2, 2> VECCALL I32x4::Cast<F64x2, CastMode::Range
 struct alignas(16) U32x4 : public detail::Common32x4<U32x4, uint32x4_t, uint32_t>
 {
     using Common32x4<U32x4, uint32x4_t, uint32_t>::Common32x4;
-    inline explicit U32x4(const uint32_t* ptr) noexcept : Common32x4(vld1q_u32(ptr)) { }
-    inline U32x4(const uint32_t val) noexcept : Common32x4(vdupq_n_u32(val)) { }
-    inline U32x4(const uint32_t lo0, const uint32_t lo1, const uint32_t lo2, const uint32_t hi3) noexcept : Common32x4()
+    forceinline explicit U32x4(const uint32_t* ptr) noexcept : Common32x4(vld1q_u32(ptr)) { }
+    forceinline U32x4(const uint32_t val) noexcept : Common32x4(vdupq_n_u32(val)) { }
+    forceinline U32x4(const uint32_t lo0, const uint32_t lo1, const uint32_t lo2, const uint32_t hi3) noexcept : Common32x4()
     {
         alignas(16) uint32_t tmp[] = { lo0, lo1, lo2, hi3 };
         Load(tmp);
@@ -1652,9 +1652,9 @@ template<> forceinline Pack<F64x2, 2> VECCALL U32x4::Cast<F64x2, CastMode::Range
 struct alignas(16) I16x8 : public detail::Common16x8<I16x8, int16x8_t, int16_t>
 {
     using Common16x8<I16x8, int16x8_t, int16_t>::Common16x8;
-    inline explicit I16x8(const int16_t* ptr) noexcept : Common16x8(vld1q_s16(ptr)) { }
-    inline I16x8(const int16_t val) noexcept : Common16x8(vdupq_n_s16(val)) { }
-    inline I16x8(const int16_t lo0, const int16_t lo1, const int16_t lo2, const int16_t lo3, 
+    forceinline explicit I16x8(const int16_t* ptr) noexcept : Common16x8(vld1q_s16(ptr)) { }
+    forceinline I16x8(const int16_t val) noexcept : Common16x8(vdupq_n_s16(val)) { }
+    forceinline I16x8(const int16_t lo0, const int16_t lo1, const int16_t lo2, const int16_t lo3, 
         const int16_t lo4, const int16_t lo5, const int16_t lo6, const int16_t hi7) noexcept : Common16x8()
     {
         alignas(16) int16_t tmp[] = { lo0, lo1, lo2, lo3, lo4, lo5, lo6, hi7 };
@@ -1731,9 +1731,9 @@ template<> forceinline Pack<F64x2, 4> VECCALL I16x8::Cast<F64x2, CastMode::Range
 struct alignas(16) U16x8 : public detail::Common16x8<U16x8, uint16x8_t, uint16_t>
 {
     using Common16x8<U16x8, uint16x8_t, uint16_t>::Common16x8;
-    inline explicit U16x8(const uint16_t* ptr) noexcept : Common16x8(vld1q_u16(ptr)) { }
-    inline U16x8(const uint16_t val) noexcept : Common16x8(vdupq_n_u16(val)) { }
-    inline U16x8(const uint16_t lo0, const uint16_t lo1, const uint16_t lo2, const uint16_t lo3,
+    forceinline explicit U16x8(const uint16_t* ptr) noexcept : Common16x8(vld1q_u16(ptr)) { }
+    forceinline U16x8(const uint16_t val) noexcept : Common16x8(vdupq_n_u16(val)) { }
+    forceinline U16x8(const uint16_t lo0, const uint16_t lo1, const uint16_t lo2, const uint16_t lo3,
         const uint16_t lo4, const uint16_t lo5, const uint16_t lo6, const uint16_t hi7) noexcept : Common16x8()
     {
         alignas(16) uint16_t tmp[] = { lo0, lo1, lo2, lo3, lo4, lo5, lo6, hi7 };
@@ -1835,9 +1835,9 @@ template<> forceinline Pack<F64x2, 4> VECCALL U16x8::Cast<F64x2, CastMode::Range
 struct alignas(16) I8x16 : public detail::Common8x16<I8x16, int8x16_t, int8_t>
 {
     using Common8x16<I8x16, int8x16_t, int8_t>::Common8x16;
-    inline explicit I8x16(const int8_t* ptr) noexcept : Common8x16(vld1q_s8(ptr)) { }
-    inline I8x16(const int8_t val) noexcept : Common8x16(vdupq_n_s8(val)) { }
-    inline I8x16(const int8_t lo0, const int8_t lo1, const int8_t lo2, const int8_t lo3,
+    forceinline explicit I8x16(const int8_t* ptr) noexcept : Common8x16(vld1q_s8(ptr)) { }
+    forceinline I8x16(const int8_t val) noexcept : Common8x16(vdupq_n_s8(val)) { }
+    forceinline I8x16(const int8_t lo0, const int8_t lo1, const int8_t lo2, const int8_t lo3,
         const int8_t lo4, const int8_t lo5, const int8_t lo6, const int8_t lo7,
         const int8_t lo8, const int8_t lo9, const int8_t lo10, const int8_t lo11,
         const int8_t lo12, const int8_t lo13, const int8_t lo14, const int8_t hi15) noexcept : Common8x16()
@@ -1925,9 +1925,9 @@ template<> forceinline Pack<F64x2, 8> VECCALL I8x16::Cast<F64x2, CastMode::Range
 struct alignas(16) U8x16 : public detail::Common8x16<U8x16, uint8x16_t, uint8_t>
 {
     using Common8x16<U8x16, uint8x16_t, uint8_t>::Common8x16;
-    inline explicit U8x16(const uint8_t* ptr) noexcept : Common8x16(vld1q_u8(ptr)) { }
-    inline U8x16(const uint8_t val) noexcept : Common8x16(vdupq_n_u8(val)) { }
-    inline U8x16(const uint8_t lo0, const uint8_t lo1, const uint8_t lo2, const uint8_t lo3,
+    forceinline explicit U8x16(const uint8_t* ptr) noexcept : Common8x16(vld1q_u8(ptr)) { }
+    forceinline U8x16(const uint8_t val) noexcept : Common8x16(vdupq_n_u8(val)) { }
+    forceinline U8x16(const uint8_t lo0, const uint8_t lo1, const uint8_t lo2, const uint8_t lo3,
         const uint8_t lo4, const uint8_t lo5, const uint8_t lo6, const uint8_t lo7,
         const uint8_t lo8, const uint8_t lo9, const uint8_t lo10, const uint8_t lo11,
         const uint8_t lo12, const uint8_t lo13, const uint8_t lo14, const uint8_t hi15) noexcept : Common8x16()

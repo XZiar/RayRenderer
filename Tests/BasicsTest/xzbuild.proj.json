@@ -21,7 +21,17 @@
                 {"ifeq": {"arch": "arm", "bits": 64}, "-": ["TestARMv7.cpp", "TestARMA32.cpp"]},
                 {"ifeq": {"arch": "arm", "bits": 32}, "-": ["TestARMA64.cpp"]}
             ],
-            "pch": "pch.h"
+            "pch": "pch.h",
+            "arch":
+            [
+                {"file": "TestARMv7.cpp", "+": "arch=armv7-a+neon-vfpv4"},
+                {"file": "TestARMA32.cpp", "+": "arch=armv8-a+crc+simd+crypto"},
+                {"file": "TestARMA64.cpp", "+": "arch=armv8-a+crc+simd+crypto"},
+                {"file": "TestSSE42.cpp", "+": "sse4.2,lzcnt,popcnt"},
+                {"file": "TestAVX.cpp", "+": "avx"},
+                {"file": "TestAVX2.cpp", "+": "avx2,fma"},
+                {"file": "TestAVX512.cpp", "+": "avx512f,avx512vl,avx512bw,avx512dq,avx2,fma,avx,sse4.2"}
+            ]
         },
         "c":
         {

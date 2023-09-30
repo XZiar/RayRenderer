@@ -71,6 +71,9 @@
     <ClInclude Include="SIMDBaseTest.h">
       <Filter>Header</Filter>
     </ClInclude>
+    <ClInclude Include="SIMDRely.h">
+      <Filter>Header</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

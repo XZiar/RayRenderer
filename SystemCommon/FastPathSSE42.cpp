@@ -1,38 +1,17 @@
 #include "common/CommonRely.hpp"
-#if COMMON_COMPILER_GCC
-#   pragma GCC push_options
-#   pragma GCC target("sse4.2,waitpkg,lzcnt,popcnt,sha,f16c")
-#elif COMMON_COMPILER_CLANG
-#   pragma clang attribute push (__attribute__((target("sse4_2,waitpkg,lzcnt,popcnt,sha,f16c"))), apply_to=function)
-#endif
 
 #define COMMON_SIMD_LV_NAMESPACE 1
 #define COMMON_SIMD_LV 42
-
 #if COMMON_COMPILER_MSVC
-#   ifndef __SSE__
-#      define __SSE__ 1
-#   endif
-#   ifndef __SSE2__
-#      define __SSE2__ 1
-#   endif
-#   ifndef __SSE3__
-#      define __SSE3__ 1
-#   endif
-#   ifndef __SSSE3__
-#      define __SSSE3__ 1
-#   endif
-#   ifndef __SSE4_1__
-#      define __SSE4_1__ 1
-#   endif
-#   ifndef __SSE4_2__
-#      define __SSE4_2__ 1
-#   endif
+#   define __SSE4_2__ 1
+#   define __SSE4_1__ 1
+#   define __SSSE3__  1
+#   define __SSE3__   1
 #endif
-
 #include "common/simd/SIMD.hpp"
-#include "CopyEx.h"
-#include "MiscIntrins.h"
+#if COMMON_SIMD_LV_ < COMMON_SIMD_LV
+#   error requires SIMDLV >= 42
+#endif
 #include "common/simd/SIMD128.hpp"
 
 #include "CopyExIntrin.inl"
@@ -70,7 +49,7 @@ DEFINE_FASTPATH_PARTIAL(CopyManager, SSE42)
     REGISTER_FASTPATH_VARIANTS(CvtF32I8,  SIMD128, LOOP);
     REGISTER_FASTPATH_VARIANTS(CvtF32U16, SIMD128, LOOP);
     REGISTER_FASTPATH_VARIANTS(CvtF32U8,  SIMD128, LOOP);
-    REGISTER_FASTPATH_VARIANTS(CvtF16F32, LOOP);
+    REGISTER_FASTPATH_VARIANTS(CvtF16F32, SIMDSSE41, LOOP);
     REGISTER_FASTPATH_VARIANTS(CvtF32F16, LOOP);
     REGISTER_FASTPATH_VARIANTS(CvtF32F64, SIMD128, LOOP);
     REGISTER_FASTPATH_VARIANTS(CvtF64F32, SIMD128, LOOP);
@@ -92,10 +71,3 @@ DEFINE_FASTPATH_PARTIAL(DigestFuncs, SSE42)
 {
     REGISTER_FASTPATH_VARIANTS(Sha256, SHA2, SHANI, NAIVE);
 }
-
-
-#if COMMON_COMPILER_GCC
-#   pragma GCC pop_options
-#elif COMMON_COMPILER_CLANG
-#   pragma clang attribute pop
-#endif

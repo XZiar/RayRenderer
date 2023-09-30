@@ -1,5 +1,5 @@
 #pragma once
-#include "pch.h"
+#include "SIMDRely.h"
 #pragma message("Compiling SIMDBaseTest with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
 namespace simdtest
@@ -609,8 +609,8 @@ static void TestSLLV(const T* ptr)
     constexpr size_t C = S * 8;
     constexpr auto Bits = []() 
     {
-        std::array<uint8_t, S * 8> bits = { 0 };
-        for (uint8_t i = 0; i < S * 8; ++i)
+        std::array<uint8_t, C> bits = { 0 };
+        for (uint8_t i = 0; i < C; ++i)
             bits[i] = i;
         return bits;
     }();
@@ -647,8 +647,8 @@ static void TestSRLV(const T* ptr)
     constexpr size_t C = S * 8;
     constexpr auto Bits = []()
     {
-        std::array<uint8_t, S * 8> bits = { 0 };
-        for (uint8_t i = 0; i < S * 8; ++i)
+        std::array<uint8_t, C> bits = { 0 };
+        for (uint8_t i = 0; i < C; ++i)
             bits[i] = i;
         return bits;
     }();
@@ -959,7 +959,7 @@ static void TestLoad(const T* ptr)
     ForKItem(1)
     {
         std::array<U, T::Count> ref = { 0 };
-        MemCopy(ref.data(), sizeof(ref), &ptr[k], sizeof(T));
+        memcpy_s(ref.data(), sizeof(ref), &ptr[k], sizeof(T));
         U data1[T::Count] = { 0 };
         U data2[T::Count] = { 0 };
         const auto ePtr = reinterpret_cast<const U*>(&ptr[k]);

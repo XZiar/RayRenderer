@@ -5,10 +5,6 @@
 
 #define HALF_ENABLE_F16C_INTRINSICS 0 // only use half as fallback
 #include "3rdParty/half/half.hpp"
-#include <bit>
-#if !defined(__cpp_lib_bitops) || __cpp_lib_bitops < 201907L
-#   error "need bitops support"
-#endif
 
 static_assert(::common::detail::is_little_endian, "unsupported std::byte order (non little endian)");
 
@@ -418,6 +414,25 @@ forceinline void CastSIMD4(Dst* dest, const Src* src, size_t count, Args&&... ar
     count = count % K;
     F(dest, src, count, std::forward<Args>(args)...);
 }
+template<typename Cast, auto F, typename Src, typename Dst, typename... Args>
+forceinline void CastSIMD2(Dst* dest, const Src* src, size_t count, Args&&... args) noexcept
+{
+    Cast cast(std::forward<Args>(args)...);
+    constexpr auto K = std::max(Cast::N, Cast::M);
+    for (size_t iter = count / (K * 2); iter > 0; iter--)
+    {
+        cast(dest + K * 0, src + K * 0);
+        cast(dest + K * 1, src + K * 1);
+        src += K * 2; dest += K * 2;
+    }
+    count = count % (K * 2);
+    if (count > K)
+    {
+        cast(dest, src); 
+        src += K; dest += K; count -= K;
+    }
+    F(dest, src, count, std::forward<Args>(args)...);
+}
 
 #define DEFINE_CVTI2FP_SIMD4(func, from, to, algo, prev)                        \
 DEFINE_FASTPATH_METHOD(func, algo)                                              \
@@ -738,6 +753,95 @@ DEFINE_FASTPATH_METHOD(CvtF32F16, F16C)
     CastSIMD4<F3216Cast, &Func<LOOP>>(dest, src, count);
 }
 #endif
+
+
+#if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41)
+// seeeeeffffffffff
+// seeeeeeeefffffffffffffffffffffff
+// s|oooooooo|ffffffffffxxxxxxxxxxxxx
+// soooooooofffffff | fffxxxxxxxxxxxxx
+struct F1632Cast_SSE41
+{
+    using Src = uint16_t;
+    using Dst = float;
+    static constexpr size_t N = 8, M = 8;
+    forceinline void operator()(float* dst, const uint16_t* src) const noexcept
+    {
+        constexpr uint16_t SignMask = 0x8000;
+        constexpr uint16_t ExpMask  = 0x7c00;
+        constexpr uint16_t FracMask = 0x03ff;
+        constexpr uint16_t ExpShift = (127 - 15) << (16 - 1 - 8); // e' = (e - 15) + 127 => e' = e + (127 - 15)
+        constexpr uint16_t ExpMax32 = 0x7f80;
+        // fexp - 127 = trailing bit count
+        // shiter = 10 - trailing bit count = 10 + 127 - fexp
+        constexpr uint16_t FexpMax = 10 + 127;
+        // minexp = (127 - 14), curexp = (127 - 15) = minexp - 1
+        // exp = minexp - shifter = (127 - 15) + 1 - (10 + 127 - fexp) = fexp - 24
+        // exp -= 10 - (fexp - 127) => -= 10 + 127 - fexp
+        // exp = (127 - 15), exp -= FexpMax - fexp ==> exp = (127 - 15) - (FexpMax - fexp) = fexp - 25
+        constexpr uint16_t FexpAdjust = (FexpMax - (127 - 15 + 1)) << 7;
+
+        const auto misc0 = U16x8(SignMask, SignMask, ExpMask, ExpMask, FracMask, FracMask, ExpShift, ExpShift).As<U32x4>();
+        const auto misc1 = U16x8(ExpMax32, ExpMax32, FexpMax, FexpMax, FexpAdjust, FexpAdjust, 0, 0).As<U32x4>();
+        
+        const auto signMask   = misc0.Broadcast<0>().As<U16x8>();
+        const auto expMask    = misc0.Broadcast<1>().As<U16x8>();
+        const auto fracMask   = misc0.Broadcast<2>().As<U16x8>();
+        const auto expShift   = misc0.Broadcast<3>().As<U16x8>();
+        const auto expMax32   = misc1.Broadcast<0>().As<U16x8>();
+        const auto fexpMax    = misc1.Broadcast<1>().As<U16x8>();
+        const auto fexpAdjust = misc1.Broadcast<2>().As<U16x8>();
+
+        const U16x8 dat(src);
+
+        const auto ef = signMask.AndNot(dat);
+        const auto e_ = dat.And(expMask);
+        const auto f_ = dat.And(fracMask);
+        const auto e_normal = e_.ShiftRightLogic<3>().Add(expShift);
+        const auto isExpMax = e_.Compare<CompareType::Equal, MaskType::FullEle>(expMask);
+        const auto e_nm = e_normal.SelectWith<MaskType::FullEle>(expMax32, isExpMax);
+        const auto isExpMin = e_.Compare<CompareType::Equal, MaskType::FullEle>(U16x8::AllZero());
+        const auto isDenorm = U16x8(_mm_sign_epi16(isExpMin.Data, ef.Data)); // ef == 0 then become zero
+        const auto e_nmz = U16x8(_mm_sign_epi16(e_nm.Data, ef.Data)); // ef == 0 then become zero
+
+        U16x8 e, f;
+        IF_LIKELY(isDenorm.IsAllZero())
+        { // all normal
+            e = e_nmz;
+            f = f_;
+        }
+        else
+        { // calc denorm
+            const auto f_fp = f_.Cast<F32x4>();
+            const auto shufHiMask = _mm_setr_epi8(2, 3, 6, 7, 10, 11, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1);
+            const auto f_fphi0 = _mm_shuffle_epi8(f_fp[0].As<U32x4>().Data, shufHiMask);
+            const auto f_fphi1 = _mm_shuffle_epi8(f_fp[1].As<U32x4>().Data, shufHiMask);
+            const auto f_fphi = U16x8(_mm_unpacklo_epi64(f_fphi0, f_fphi1));
+
+            const auto fracShifter = fexpMax.Sub(f_fphi.ShiftRightLogic<7>());
+            const auto denormFrac = f_.ShiftLeftLogic(fracShifter).And(fracMask);
+
+            const auto denormExp = f_fphi.Sub(fexpAdjust).And(expMax32);
+
+            e = e_nmz.SelectWith<MaskType::FullEle>(denormExp, isDenorm);
+            f = f_.SelectWith<MaskType::FullEle>(denormFrac, isDenorm);
+        }
+        const auto fhi = f.ShiftRightLogic<3>();
+        const auto flo = f.ShiftLeftLogic<13>();
+
+        const auto sign = dat.And(signMask);
+        const auto sefh = sign.Or(fhi).Or(e);
+        const auto out0 = flo.ZipLo(sefh).As<U32x4>(), out1 = flo.ZipHi(sefh).As<U32x4>();
+        out0.Save(reinterpret_cast<uint32_t*>(dst) + 0);
+        out1.Save(reinterpret_cast<uint32_t*>(dst) + 4);
+    }
+};
+DEFINE_FASTPATH_METHOD(CvtF16F32, SIMDSSE41)
+{
+    CastSIMD2<F1632Cast_SSE41, &Func<LOOP>>(dest, src, count);
+}
+#endif
+
 
 #if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 30
 struct F1632Cast1

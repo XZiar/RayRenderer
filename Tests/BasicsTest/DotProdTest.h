@@ -1,5 +1,5 @@
 #pragma once
-#include "pch.h"
+#include "SIMDRely.h"
 #pragma message("Compiling DotProdTest with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
 

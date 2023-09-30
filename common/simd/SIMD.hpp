@@ -165,9 +165,9 @@
 #    define COMMON_SIMD_LV_ 31
 # elif defined(__SSE3__)
 #    define COMMON_SIMD_LV_ 30
-# elif defined(__SSE2__)
+# elif defined(__SSE2__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2) || COMMON_OSBIT >= 64
 #    define COMMON_SIMD_LV_ 20
-# elif defined(__SSE__)
+# elif defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1)
 #    define COMMON_SIMD_LV_ 10
 # else
 #    define COMMON_SIMD_LV_ 0

@@ -104,11 +104,12 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         self.version = ""
         self.visibility = "hidden"
         self.lto = False
+        self.archinfo = {}
         super().__init__(targets, proj, env)
 
     def solveTarget(self, targets:dict, proj, env:dict):
         self.flags += ["-Wall", "-pedantic", "-pthread", "-Wno-unknown-pragmas", "-Wno-ignored-attributes", "-Wno-unused-local-typedefs", "-fno-common"]
-        self.flags += [env["archparam"]]
+        #self.flags += [env["archparam"]]
         if env["arch"] == "arm":
             self.flags += ["-flax-vector-conversions"]
         if env["gprof"] == True:
@@ -158,6 +159,18 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         self.flags += [f"-fvisibility={self.visibility}"]
         if self.lto:
             self.flags += ["-flto"]
+        def procarch(ret:tuple, ele:dict, env:dict):
+            if "file" not in ele:
+                raise Exception("no file specified in arch")
+            file = ele["file"]
+            return tuple(list((file, i) for i in x) for x in ret)
+        a,d = PList.solveElementList(target, "arch", env, procarch)
+        archinfo = PList.combineElements([], a, d)
+        for file,arch in archinfo:
+            if file not in self.archinfo:
+                self.archinfo[file] = [arch]
+            else:
+                self.archinfo[file].append(arch)
 
     def write(self, file):
         super().write(file)
@@ -165,6 +178,8 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         writeItems(file, self.prefix()+"_incpaths", self.incpath)
         writeItems(file, self.prefix()+"_flags", [self.version, "-g" + self.dbgSymLevel, self.optimize], state="+")
         writeItem (file, self.prefix()+"_pch", self.pch)
+        archtext = [f"{file}={','.join(arch)}" for file,arch in self.archinfo.items()]
+        writeItems(file, self.prefix()+"_arch", archtext)
 
 
 class CPPTarget(CXXTarget):

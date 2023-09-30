@@ -40,7 +40,16 @@
                 {"ifeq": {"arch": "arm", "bits": 32}, "-": ["FastPathARMA64.cpp"]}
             ],
             "defines":  ["SYSCOMMON_EXPORT"],
-            "pch": "SystemCommonPch.h"
+            "pch": "SystemCommonPch.h",
+            "arch":
+            [
+                {"file": "FastPathARMv7.cpp", "+": "arch=armv7-a+neon-vfpv4"},
+                {"file": "FastPathARMA32.cpp", "+": "arch=armv8-a+crc+simd+crypto"},
+                {"file": "FastPathARMA64.cpp", "+": "arch=armv8-a+crc+simd+crypto"},
+                {"file": "FastPathSSE42.cpp", "+": "sse4.2,waitpkg,lzcnt,popcnt,sha,f16c"},
+                {"file": "FastPathAVX2.cpp", "+": "avx2,fma,waitpkg,lzcnt,popcnt,sha,f16c"},
+                {"file": "FastPathAVX512.cpp", "+": "avx512f,avx512vl,avx512bw,avx512dq,avx2,fma,avx,sse4.2,waitpkg,lzcnt,popcnt,sha,f16c"}
+            ]
         }
         
     }

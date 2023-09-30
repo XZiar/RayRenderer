@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cxx: [gcc9, gcc10, gcc11, gcc12, clang9, clang10, clang11, clang12, clang13, clang14, clang15]
+        cxx: [gcc9, gcc10, gcc11, gcc12, clang10, clang11, clang12, clang13, clang14, clang15]
         include:
           - cxx: gcc9
             os: ubuntu-latest
@@ -117,18 +117,6 @@ jobs:
             env_module: "all"
             env_clang: false
             pkg: "g++-12"
-          - cxx: clang9
-            os: ubuntu-20.04
-            env_cc: "clang-9"
-            env_asm: "clang++-9"
-            env_cpp: "clang++-9"
-            env_stalink: "llvm-ar-9"
-            env_dynlink: "clang++-9"
-            env_applink: "clang++-9"
-            env_module: "all"
-            env_clang: true
-            env_clang_ver: 9
-            pkg: "clang-9 lld-9 llvm-9"
           - cxx: clang10
             os: ubuntu-20.04
             env_cc: "clang-10"

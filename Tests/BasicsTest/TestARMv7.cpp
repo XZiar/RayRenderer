@@ -1,15 +1,11 @@
-#include "pch.h"
-
-#if COMMON_COMPILER_GCC
-#   pragma GCC push_options
-#   pragma GCC target("arch=armv7-a+neon-vfpv4")
-#elif COMMON_COMPILER_CLANG
-#   pragma clang attribute push (__attribute__((target("arch=armv7-a+neon-vfpv4"))), apply_to=function)
-#endif
+#include "SIMDRely.h"
 
 #define COMMON_SIMD_LV_NAMESPACE 1
 #define COMMON_SIMD_LV 30
 #include "common/simd/SIMD.hpp"
+#if COMMON_SIMD_LV_ < COMMON_SIMD_LV
+#   error requires SIMDLV >= 30
+#endif
 #include "common/simd/SIMD128.hpp"
 
 namespace
@@ -80,9 +76,3 @@ RegisterSIMDTest(F32x4, 30, dottest::DotProdTest<F32x4>);
 
 
 }
-
-#if COMMON_COMPILER_GCC
-#   pragma GCC pop_options
-#elif COMMON_COMPILER_CLANG
-#   pragma clang attribute pop
-#endif

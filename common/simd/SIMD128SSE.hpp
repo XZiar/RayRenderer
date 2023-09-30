@@ -82,8 +82,8 @@ struct SSE128Common : public CommonOperators<T>
         E Val[N];
     };
     forceinline constexpr SSE128Common() noexcept : Data() { }
-    inline explicit SSE128Common(const E* ptr) noexcept : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
-    inline constexpr SSE128Common(const __m128i val) noexcept : Data(val) { }
+    forceinline explicit SSE128Common(const E* ptr) noexcept : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
+    forceinline constexpr SSE128Common(const __m128i val) noexcept : Data(val) { }
     forceinline void VECCALL Load(const E* ptr) noexcept { Data = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
     forceinline void VECCALL Save(E* ptr) const noexcept { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), Data); }
     forceinline constexpr operator const __m128i& () const noexcept { return Data; }
@@ -130,8 +130,8 @@ private:
     using Base = SSE128Common<T, E, 2>;
 public:
     using Base::Base;
-    inline Common64x2(const E val) noexcept : Base(_mm_set1_epi64x(static_cast<int64_t>(val))) { }
-    inline Common64x2(const E lo, const E hi) noexcept :
+    forceinline Common64x2(const E val) noexcept : Base(_mm_set1_epi64x(static_cast<int64_t>(val))) { }
+    forceinline Common64x2(const E lo, const E hi) noexcept :
         Base(_mm_set_epi64x(static_cast<int64_t>(hi), static_cast<int64_t>(lo))) { }
 
     // shuffle operations
@@ -311,8 +311,8 @@ private:
     using Base = SSE128Common<T, E, 4>;
 public:
     using Base::Base;
-    inline Common32x4(const E val) noexcept : Base(_mm_set1_epi32(static_cast<int32_t>(val))) { }
-    inline Common32x4(const E lo0, const E lo1, const E lo2, const E hi3) noexcept :
+    forceinline Common32x4(const E val) noexcept : Base(_mm_set1_epi32(static_cast<int32_t>(val))) { }
+    forceinline Common32x4(const E lo0, const E lo1, const E lo2, const E hi3) noexcept :
         Base(_mm_setr_epi32(static_cast<int32_t>(lo0), static_cast<int32_t>(lo1), static_cast<int32_t>(lo2), static_cast<int32_t>(hi3))) { }
 
     // shuffle operations
@@ -461,8 +461,8 @@ private:
     using Base = SSE128Common<T, E, 8>;
 public:
     using Base::Base;
-    inline Common16x8(const E val) noexcept : Base(_mm_set1_epi16(val)) { }
-    inline Common16x8(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7) noexcept :
+    forceinline Common16x8(const E val) noexcept : Base(_mm_set1_epi16(val)) { }
+    forceinline Common16x8(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7) noexcept :
         Base(_mm_setr_epi16(static_cast<int16_t>(lo0), static_cast<int16_t>(lo1), static_cast<int16_t>(lo2), static_cast<int16_t>(lo3), static_cast<int16_t>(lo4), static_cast<int16_t>(lo5), static_cast<int16_t>(lo6), static_cast<int16_t>(hi7))) { }
 
     // shuffle operations
@@ -641,8 +641,8 @@ private:
     using Base = SSE128Common<T, E, 16>;
 public:
     using Base::Base;
-    inline Common8x16(const E val) noexcept : Base(_mm_set1_epi8(val)) { }
-    inline Common8x16(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7, const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E hi15) noexcept :
+    forceinline Common8x16(const E val) noexcept : Base(_mm_set1_epi8(val)) { }
+    forceinline Common8x16(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7, const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E hi15) noexcept :
         Base(_mm_setr_epi8(static_cast<int8_t>(lo0), static_cast<int8_t>(lo1), static_cast<int8_t>(lo2), static_cast<int8_t>(lo3),
             static_cast<int8_t>(lo4), static_cast<int8_t>(lo5), static_cast<int8_t>(lo6), static_cast<int8_t>(lo7), static_cast<int8_t>(lo8),
             static_cast<int8_t>(lo9), static_cast<int8_t>(lo10), static_cast<int8_t>(lo11), static_cast<int8_t>(lo12), static_cast<int8_t>(lo13),

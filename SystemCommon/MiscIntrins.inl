@@ -365,7 +365,7 @@ struct Sha256State
     //U32x4 state0(0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a); // ABCD
     //U32x4 state1(0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19); // EFGH
     U32x4 State0, State1;
-    Sha256State(U32x4 state0, U32x4 state1) : State0(state0), State1(state1) { }
+    forceinline Sha256State(U32x4 state0, U32x4 state1) : State0(state0), State1(state1) { }
 };
 
 // From http://software.intel.com/en-us/articles/intel-sha-extensions written by Sean Gulley.
@@ -493,7 +493,7 @@ struct Sha256Round_SHANI : public Sha256State
         return SuffixBit.SelectWith<MaskType::FullEle>(val.As<U8x16>(), KeepMask).As<U32x4>();
     }
 
-    Sha256Round_SHANI() noexcept : Sha256State(
+    forceinline Sha256Round_SHANI() noexcept : Sha256State(
         { 0x9b05688c, 0x510e527f, 0xbb67ae85, 0x6a09e667 }/*ABEF-rev*/, 
         { 0x5be0cd19, 0x1f83d9ab, 0xa54ff53a, 0x3c6ef372 }/*CDGH-rev*/) 
     { }
@@ -558,7 +558,7 @@ struct Sha256Round_SHA2 : public Sha256State
         return SuffixBit.SelectWith<MaskType::FullEle>(val.As<U8x16>(), KeepMask).As<U32x4>();
     }
 
-    Sha256Round_SHA2() noexcept : Sha256State(
+    forceinline Sha256Round_SHA2() noexcept : Sha256State(
         { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a }/*ABCD*/,
         { 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 }/*EFGH*/) 
     { }
@@ -605,15 +605,14 @@ forceinline static void VECCALL Sha256Block256(Calc& calc, U32x8 msg01, U32x8 ms
     /* Save current state */
     const auto abef_save = calc.State0;
     const auto cdgh_save = calc.State1;
-    U32x4 msg0 = msg01.GetLoLane(), msg1 = msg01.GetHiLane(), msg2 = msg23.GetLoLane(), msg3 = msg23.GetHiLane();
+
+    U32x4 msg0, msg1, msg2, msg3;
     ///* Rounds 0-3 */ calc.template Calc< 0>(msg3, msg0, msg1);
     ///* Rounds 4-7 */ calc.template Calc< 1>(msg0, msg1, msg2);
-    /* Rounds 0-7 */
-    calc.template CalcFFTF< 0>(msg01, msg0);
     ///* Rounds 8-11 */  calc.template Calc< 2>(msg1, msg2, msg3);
     ///* Rounds 12-15 */ calc.template Calc< 3>(msg2, msg3, msg0);
-    /* Rounds 8-15 */
-    calc.template CalcTFTT< 2>(msg23, msg1, msg2, msg0);
+    calc.Calc0123(msg01, msg23, msg0, msg1, msg2, msg3);
+
     /* Rounds 16-19 */
     calc.template Calc< 4>(msg3, msg0, msg1);
     /* Rounds 20-23 */
@@ -669,7 +668,7 @@ inline std::array<std::byte, 32> Sha256Main256(const std::byte* data, const size
             msg3 |= bitsvBE;
         Sha256Block256(calc, msg01, U32x8(msg2, msg3));
         if (len >= 56)
-            Sha256Block256(calc, U32x8::AllZero(), { U32x4::AllZero(), bitsvBE });
+            Sha256Block256(calc, U32x8::AllZero(), U32x8(U32x4::AllZero(), bitsvBE));
     }
     else
     {
@@ -702,37 +701,35 @@ struct Sha256Round_SHANIAVX2 : public Sha256Round_SHANI
 {
     // From http://software.intel.com/en-us/articles/intel-sha-extensions written by Sean Gulley.
     // Modifiled from code previously on https://github.com/mitls/hacl-star/tree/master/experimental/hash with BSD license.
-    template<size_t Round>
-    forceinline void VECCALL CalcFFTF(const U32x8& msgLH, U32x4& msgL) noexcept // msgs are BE
+    forceinline void VECCALL Calc0123(const U32x8 msg01, const U32x8& msg23, U32x4& msg0, U32x4& msg1, U32x4& msg2, U32x4& msg3) noexcept // msgs are BE
     {
-        static_assert(SHA256RoundProcControl[Round][0] == false && SHA256RoundProcControl[Round][1] == false &&
-            SHA256RoundProcControl[Round + 1][0] == true && SHA256RoundProcControl[Round + 1][0 + 1] == false); // FF, TF
-        const U32x8 adderLH(SHA256RoundAdders[Round]);
-        auto msgAddLH = msgLH + adderLH;
-        auto msgShufLH = msgAddLH.ShuffleLane<2, 3, 0, 0>(); // _mm256_shuffle_epi32(msgAddLH, 0x0E);
-        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH.GetLoLane());
-        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLH.GetLoLane());
-        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH.GetHiLane());
-        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLH.GetHiLane());
-        msgL = _mm_sha256msg1_epu32(msgLH.GetLoLane(), msgLH.GetHiLane());
-    }
-    template<size_t Round>
-    forceinline void VECCALL CalcTFTT(const U32x8& msgLH, U32x4& msgP, U32x4& msgL, U32x4& msgN) noexcept // msgs are BE
-    {
-        static_assert(SHA256RoundProcControl[Round][0] == true && SHA256RoundProcControl[Round][1] == false &&
-            SHA256RoundProcControl[Round + 1][0] == true && SHA256RoundProcControl[Round + 1][0 + 1] == true); // TF, TT
-        const U32x8 adderLH(SHA256RoundAdders[Round]);
-        auto msgAddLH = msgLH + adderLH;
-        auto msgShufLH = msgAddLH.ShuffleLane<2, 3, 0, 0>(); // _mm256_shuffle_epi32(msgAddLH, 0x0E);
-        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH.GetLoLane());
-        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLH.GetLoLane());
-        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH.GetHiLane());
-        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLH.GetHiLane());
-        const U32x4 msgLo = msgLH.GetLoLane(), msgHi = msgLH.GetHiLane();
-        const U32x4 tmp = _mm_alignr_epi8(msgHi, msgLo, 4);
-        msgP = _mm_sha256msg1_epu32(msgP, msgLo);
-        msgN = _mm_sha256msg2_epu32(msgN + tmp, msgHi);
-        msgL = _mm_sha256msg1_epu32(msgLo, msgHi);
+        static_assert(SHA256RoundProcControl[0][0] == false && SHA256RoundProcControl[0][1] == false &&
+            SHA256RoundProcControl[0 + 1][0] == true && SHA256RoundProcControl[0 + 1][0 + 1] == false); // FF, TF
+        const U32x8 adderLH01(SHA256RoundAdders[0]);
+        const auto msgAddLH01 = msg01 + adderLH01;
+        const auto msgShufLH01 = msgAddLH01.ShuffleLane<2, 3, 0, 0>(); // _mm256_shuffle_epi32(msgAddLH, 0x0E);
+        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH01.GetLoLane());
+        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLH01.GetLoLane());
+        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH01.GetHiLane());
+        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLH01.GetHiLane());
+        msg1 = msg01.GetHiLane();
+        msg0 = _mm_sha256msg1_epu32(msg01.GetLoLane(), msg1);
+
+        static_assert(SHA256RoundProcControl[2][0] == true && SHA256RoundProcControl[2][1] == false &&
+            SHA256RoundProcControl[2 + 1][0] == true && SHA256RoundProcControl[2 + 1][0 + 1] == true); // TF, TT
+        const U32x8 adderLH23(SHA256RoundAdders[2]);
+        const auto msgAddLH23 = msg23 + adderLH23;
+        const auto msgShufLH23 = msgAddLH23.ShuffleLane<2, 3, 0, 0>(); // _mm256_shuffle_epi32(msgAddLH, 0x0E);
+        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH23.GetLoLane());
+        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLH23.GetLoLane());
+        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH23.GetHiLane());
+        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLH23.GetHiLane());
+        msg2 = msg23.GetLoLane();
+        msg3 = msg23.GetHiLane();
+        const U32x4 tmp = _mm_alignr_epi8(msg3, msg2, 4);
+        msg1 = _mm_sha256msg1_epu32(msg1, msg2);
+        msg0 = _mm_sha256msg2_epu32(msg0 + tmp, msg3);
+        msg2 = _mm_sha256msg1_epu32(msg2, msg3);
     }
 };
 DEFINE_FASTPATH_METHOD(Sha256, SHANIAVX2)

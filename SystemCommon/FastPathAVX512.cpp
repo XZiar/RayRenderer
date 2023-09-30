@@ -1,16 +1,11 @@
 #include "common/CommonRely.hpp"
-#if COMMON_COMPILER_GCC
-#   pragma GCC push_options
-#   pragma GCC target("avx512f,avx512vl,avx512bw,avx512dq,avx2,fma,avx")
-#elif COMMON_COMPILER_CLANG
-#   pragma clang attribute push (__attribute__((target("avx512f,avx512vl,avx512bw,avx512dq,avx2,fma,avx"))), apply_to=function)
-#endif
 
 #define COMMON_SIMD_LV_NAMESPACE 1
 #define COMMON_SIMD_LV 320
 #include "common/simd/SIMD.hpp"
-#include "CopyEx.h"
-#include "MiscIntrins.h"
+#if COMMON_SIMD_LV_ < COMMON_SIMD_LV
+#   error requires SIMDLV >= 320
+#endif
 #include "common/simd/SIMD128.hpp"
 #include "common/simd/SIMD256.hpp"
 
@@ -71,10 +66,3 @@ DEFINE_FASTPATH_PARTIAL(CopyManager, AVX512)
 //{
 //    REGISTER_FASTPATH_VARIANTS(Sha256, );
 //}
-
-
-#if COMMON_COMPILER_GCC
-#   pragma GCC pop_options
-#elif COMMON_COMPILER_CLANG
-#   pragma clang attribute pop
-#endif

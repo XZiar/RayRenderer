@@ -12,6 +12,7 @@ CLR_CLEAR	:= \033[39m
 define CLR_TEXT
 $(1)$(2)$(CLR_CLEAR)
 endef
+COMMA	:=,
 
 APPDIR		 = $(SOLDIR)/$(OBJPATH)
 OBJDIR		 = $(SOLDIR)/$(BUILDPATH)/$(OBJPATH)
@@ -41,6 +42,8 @@ nasm_rcs	?=
 cuda_rcs	?=
 rc_srcs		?=
 ispc_srcs	?=
+cpp_arch	?=
+c_arch		?=
 
 INCPATH		 = $(patsubst %, -I"%", $(xz_incDir))
 LDPATH		 = -L"$(APPDIR)" -L.  $(patsubst %, -L"%", $(xz_libDir))
@@ -124,6 +127,16 @@ endif
 
 
 ###============================================================================
+### arch-dependent compile
+define ArchDefine
+	$(1) := -m$(if $(strip $(filter $(2)=%, $(3))),$(subst $(COMMA), -m,$(patsubst $(2)=%,%,$(filter $(2)=%, $(3)))),$(xz_archparam))
+endef
+define ArchPch
+	$(1) := $(if $(strip $(filter $(2)=%, $(4))),,$(3))
+endef
+
+
+###============================================================================
 ### stage targets
 APP		:= $(APPDIR)/$(TARGET_NAME)
 
@@ -176,9 +189,9 @@ ifeq ($(xz_compiler), gcc) # Has problem with pch on GCC
 	@echo "" > $(basename $@)
 endif
 ifneq (($(filter $<,$(cpp_pch))), ) # cpp pch
-	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPINCPATHS) $(cpp_flags) $(ALLDEFFLAGS) $(CPPDEFFLAGS) -x c++-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@)
+	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPINCPATHS) -m$(xz_archparam) $(cpp_flags) $(ALLDEFFLAGS) $(CPPDEFFLAGS) -x c++-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@)
 else ifneq (($(filter $<,$(c_pch))), ) # c pch
-	$(eval $@_bcmd := $(CPPCOMPILER) $(CINCPATHS) $(c_flags) $(ALLDEFFLAGS) $(CDEFFLAGS) -x c-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@)
+	$(eval $@_bcmd := $(CPPCOMPILER) $(CINCPATHS) -m$(xz_archparam) $(c_flags) $(ALLDEFFLAGS) $(CDEFFLAGS) -x c-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@)
 else
 $(error unknown pch file target)
 endif
@@ -188,15 +201,21 @@ endif
 ###============================================================================
 ### cxx targets
 $(OBJDIR)/%.cpp.o: %.cpp $(PCH_CPP) $(ISPCOBJS) $(DEP_MK)
-	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(ALLDEFFLAGS) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
+	$(eval $(call ArchDefine,archdef,$<,$(cpp_arch)))
+	$(eval $(call ArchPch,archpch,$<,$(CPPPCH),$(cpp_arch)))
+	$(eval $@_bcmd := $(CPPCOMPILER) $(archpch) $(CPPINCPATHS) $(archdef) $(cpp_flags) $(ALLDEFFLAGS) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
 	$(call BuildProgress,compile,  cpp, $<, $($@_bcmd))
 
 $(OBJDIR)/%.cc.o: %.cc $(PCH_CPP) $(ISPCOBJS) $(DEP_MK)
-	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(ALLDEFFLAGS) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
+	$(eval $(call ArchDefine,archdef,$<,$(cpp_arch)))
+	$(eval $(call ArchPch,archpch,$<,$(CPPPCH),$(cpp_arch)))
+	$(eval $@_bcmd := $(CPPCOMPILER) $(archpch) $(CPPINCPATHS) $(archdef) $(cpp_flags) $(ALLDEFFLAGS) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
 	$(call BuildProgress,compile,  cpp, $<, $($@_bcmd))
 
 $(OBJDIR)/%.c.o: %.c $(PCH_C) $(ISPCOBJS) $(DEP_MK)
-	$(eval $@_bcmd := $(CCOMPILER) $(CPCH) $(CINCPATHS) $(c_flags) $(ALLDEFFLAGS) $(CDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
+	$(eval $(call ArchDefine,archdef,$<,$(c_arch)))
+	$(eval $(call ArchPch,archpch,$<,$(CPCH),$(c_arch)))
+	$(eval $@_bcmd := $(CCOMPILER) $(archpch) $(CINCPATHS) $(archdef) $(c_flags) $(ALLDEFFLAGS) $(CDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
 	$(call BuildProgress,compile,    c, $<, $($@_bcmd))
 
 

@@ -1,16 +1,11 @@
 #include "common/CommonRely.hpp"
-#if COMMON_COMPILER_GCC
-#   pragma GCC push_options
-#   pragma GCC target("arch=armv8-a+simd+crypto")
-#elif COMMON_COMPILER_CLANG
-#   pragma clang attribute push (__attribute__((target("arch=armv8-a+simd+crypto"))), apply_to=function)
-#endif
 
 #define COMMON_SIMD_LV_NAMESPACE 1
 #define COMMON_SIMD_LV 100
 #include "common/simd/SIMD.hpp"
-#include "CopyEx.h"
-#include "MiscIntrins.h"
+#if COMMON_SIMD_LV_ < COMMON_SIMD_LV
+#   error requires SIMDLV >= 100
+#endif
 #include "common/simd/SIMD128.hpp"
 
 #include "CopyExIntrin.inl"
@@ -70,10 +65,3 @@ DEFINE_FASTPATH_PARTIAL(DigestFuncs, A32)
 {
     REGISTER_FASTPATH_VARIANTS(Sha256, SHA2, NAIVE);
 }
-
-
-#if COMMON_COMPILER_GCC
-#   pragma GCC pop_options
-#elif COMMON_COMPILER_CLANG
-#   pragma clang attribute pop
-#endif
