@@ -2,9 +2,8 @@
 #include "SIMD.hpp"
 #include "SIMDVec.hpp"
 
-//#define COMMON_SIMD_LV 200
-#if COMMON_SIMD_LV < 20
-#   error require at least SSE2
+#if COMMON_SIMD_LV < 41
+#   error require at least SSE4.1
 #endif
 #if !COMMON_OVER_ALIGNED
 #   error require c++17 + aligned_new to support memory management for over-aligned SIMD type.
@@ -112,11 +111,7 @@ struct SSE128Common : public CommonOperators<T>
     forceinline T VECCALL MoveHiToLo() const noexcept { return _mm_srli_si128(Data, 8); }
     forceinline bool VECCALL IsAllZero() const noexcept
     {
-#if COMMON_SIMD_LV >= 41
         return _mm_testz_si128(Data, Data) != 0;
-#else
-        return _mm_movemask_epi8(_mm_cmpeq_epi8(Data, _mm_setzero_si128())) == 0xffff;
-#endif
     }
 
     forceinline static T VECCALL AllZero() noexcept { return _mm_setzero_si128(); }
@@ -158,19 +153,16 @@ public:
         static_assert(Idx < 2, "shuffle index should be in [0,1]");
         return Shuffle<Idx, Idx>();
     }
-#if COMMON_SIMD_LV >= 31
     forceinline T VECCALL SwapEndian() const noexcept
     {
         const auto SwapMask = _mm_set_epi64x(0x08090a0b0c0d0e0fULL, 0x0001020304050607ULL);
         return _mm_shuffle_epi8(this->Data, SwapMask);
     }
-#endif
     forceinline T VECCALL ZipLo(const T& other) const noexcept { return _mm_unpacklo_epi64(this->Data, other.Data); }
     forceinline T VECCALL ZipHi(const T& other) const noexcept { return _mm_unpackhi_epi64(this->Data, other.Data); }
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, T mask) const noexcept
     {
-#if COMMON_SIMD_LV >= 41
         if constexpr (Msk != MaskType::FullEle)
             return _mm_castpd_si128(_mm_blendv_pd(_mm_castsi128_pd(this->Data), _mm_castsi128_pd(other.Data), _mm_castsi128_pd(mask))); // less inst with higher latency
 //# if COMMON_SIMD_LV >= 320
@@ -180,11 +172,6 @@ public:
 //# endif
         else
             return _mm_blendv_epi8(this->Data, other.Data, mask);
-#else
-        if constexpr (Msk != MaskType::FullEle)
-            mask = _mm_srai_epi32(_mm_shuffle_epi32(mask, 0xf5), 32); // make sure all bits are covered
-        return mask.AndNot(this->Data).Or(mask.And(other.Data));
-#endif
     }
     template<uint8_t Mask>
     forceinline T VECCALL SelectWith(const T& other) const noexcept
@@ -192,39 +179,31 @@ public:
         static_assert(Mask <= 0b11, "Only allow 2 bits");
 #if COMMON_SIMD_LV >= 200
         return _mm_blend_epi32(this->Data, other.Data, (Mask & 0b1 ? 0b11 : 0b00) | (Mask & 0b10 ? 0b1100 : 0b0000));
-#elif COMMON_SIMD_LV >= 41
-        return _mm_blend_epi16(this->Data, other.Data, (Mask & 0b1 ? 0xf : 0x0) | (Mask & 0b10 ? 0xf0 : 0x00));
 #else
-        if constexpr (Mask == 0b00)
-            return *static_cast<const T*>(this);
-        else if constexpr (Mask == 0b11)
-            return other;
-        else if constexpr (Mask == 0b01)
-            return _mm_castpd_si128(_mm_shuffle_pd(_mm_castsi128_pd(other.Data), _mm_castsi128_pd(this->Data), 0b10));
-        else if constexpr (Mask == 0b10)
-            return _mm_castpd_si128(_mm_shuffle_pd(_mm_castsi128_pd(this->Data), _mm_castsi128_pd(other.Data), 0b10));
+        return _mm_blend_epi16(this->Data, other.Data, (Mask & 0b1 ? 0xf : 0x0) | (Mask & 0b10 ? 0xf0 : 0x00));
 #endif
     }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const noexcept { return _mm_add_epi64(this->Data, other.Data); }
     forceinline T VECCALL Sub(const T& other) const noexcept { return _mm_sub_epi64(this->Data, other.Data); }
-#if COMMON_SIMD_LV >= 41
     forceinline T VECCALL MulLo(const T& other) const  noexcept
     {
-# if COMMON_SIMD_LV >= 320
+#if COMMON_SIMD_LV >= 320
         return _mm_mullo_epi64(this->Data, other.Data);
-# else
+#else
         const E loA = _mm_extract_epi64(this->Data, 0), hiA = _mm_extract_epi64(this->Data, 1);
         const E loB = _mm_extract_epi64(other.Data, 0), hiB = _mm_extract_epi64(other.Data, 1);
         return { static_cast<E>(loA * loB), static_cast<E>(hiA * hiB) };
-# endif
+#endif
     }
     forceinline T VECCALL operator*(const T& other) const noexcept { return MulLo(other); }
     forceinline T& VECCALL operator*=(const T& other) noexcept { this->Data = MulLo(other); return *static_cast<T*>(this); }
-#endif
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const noexcept { return _mm_sll_epi64(this->Data, _mm_cvtsi32_si128(bits)); }
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const noexcept { return _mm_srl_epi64(this->Data, _mm_cvtsi32_si128(bits)); }
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftRightArith(const uint8_t bits) const noexcept
     {
         if constexpr (std::is_unsigned_v<E>)
@@ -232,20 +211,24 @@ public:
         else
 #if COMMON_SIMD_LV >= 320
             return _mm_sra_epi64(this->Data, _mm_cvtsi32_si128(bits));
-#elif COMMON_SIMD_LV >= 41
+#else
         {
             if (bits == 0) return this->Data;
             const auto sign32H = _mm_srai_epi32(this->Data, 32); // only high part useful
             const auto signAll = _mm_shuffle_epi32(sign32H, 0b11110101);
-            if (bits > 63) return signAll;
+            if constexpr (MayOverflow)
+            {
+                if (bits > 63) return signAll;
+            }
             const auto zero64 = _mm_srl_epi64(this->Data, _mm_cvtsi32_si128(bits));
             const auto sign64 = _mm_sll_epi64(signAll, _mm_cvtsi32_si128(64 - bits));
             return _mm_or_si128(zero64, sign64);
         }
 #endif
     }
-    forceinline T VECCALL operator<<(const uint8_t bits) const noexcept { return ShiftLeftLogic(bits); }
+    forceinline T VECCALL operator<<(const uint8_t bits) const noexcept { return ShiftLeftLogic (bits); }
     forceinline T VECCALL operator>>(const uint8_t bits) const noexcept { return ShiftRightArith(bits); }
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftLeftLogic (const T bits) const noexcept
     {
 #if COMMON_SIMD_LV >= 200
@@ -256,6 +239,7 @@ public:
         return _mm_blend_epi16(lo, hi, 0xf0);
 #endif
     }
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftRightLogic(const T bits) const noexcept
     {
 #if COMMON_SIMD_LV >= 200
@@ -278,7 +262,7 @@ public:
 #if COMMON_SIMD_LV >= 320
         else
             return _mm_srai_epi64(this->Data, N);
-#elif COMMON_SIMD_LV >= 41
+#else
         else if constexpr (N == 0)
         {
             return this->Data;
@@ -336,29 +320,21 @@ public:
         static_assert(Idx < 4, "shuffle index should be in [0,3]");
         return Shuffle<Idx, Idx, Idx, Idx>();
     }
-#if COMMON_SIMD_LV >= 31
     forceinline T VECCALL SwapEndian() const noexcept
     {
         const auto SwapMask = _mm_set_epi64x(0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL);
         return _mm_shuffle_epi8(this->Data, SwapMask);
     }
-#endif
     forceinline T VECCALL ZipLo(const T& other) const noexcept { return _mm_unpacklo_epi32(this->Data, other.Data); }
     forceinline T VECCALL ZipHi(const T& other) const noexcept { return _mm_unpackhi_epi32(this->Data, other.Data); }
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, T mask) const noexcept
     {
-#if COMMON_SIMD_LV >= 41
         if constexpr (Msk != MaskType::FullEle)
             return _mm_castps_si128(_mm_blendv_ps(_mm_castsi128_ps(this->Data), _mm_castsi128_ps(other.Data), _mm_castsi128_ps(mask))); // less inst with higher latency
             //mask = _mm_srai_epi32(mask, 32); // make sure all bits are covered
         else
             return _mm_blendv_epi8(this->Data, other.Data, mask);
-#else
-        if constexpr (Msk != MaskType::FullEle)
-            mask = _mm_srai_epi32(mask, 32); // make sure all bits are covered
-        return mask.AndNot(this->Data).Or(mask.And(other.Data));
-#endif
     }
     template<uint8_t Mask>
     forceinline T VECCALL SelectWith(const T& other) const noexcept
@@ -366,34 +342,24 @@ public:
         static_assert(Mask <= 0b1111, "Only allow 4 bits");
 #if COMMON_SIMD_LV >= 200
         return _mm_blend_epi32(this->Data, other.Data, Mask);
-#elif COMMON_SIMD_LV >= 41
+#else
         return _mm_blend_epi16(this->Data, other.Data, (Mask & 0b1 ? 0b11 : 0) |
             (Mask & 0b10 ? 0b1100 : 0) | (Mask & 0b100 ? 0b110000 : 0) | (Mask & 0b1000 ? 0b11000000 : 0));
-#else
-        if constexpr (Mask == 0b0000)
-            return *static_cast<const T*>(this);
-        else if constexpr (Mask == 0b1111)
-            return other;
-        else if constexpr (Mask == 0b0011)
-            return _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(other.Data), _mm_castsi128_ps(this->Data), 0b11100100));
-        else if constexpr (Mask == 0b1100)
-            return _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(this->Data), _mm_castsi128_ps(other.Data), 0b11100100));
-        else
-            return SelectWith<MaskType::FullEle>(other, _mm_setr_epi32(Mask & 0b1 ? -1 : 0, Mask & 0b10 ? -1 : 0, Mask & 0b100 ? -1 : 0, Mask & 0b1000 ? -1 : 0));
 #endif
     }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const noexcept { return _mm_add_epi32(this->Data, other.Data); }
     forceinline T VECCALL Sub(const T& other) const noexcept { return _mm_sub_epi32(this->Data, other.Data); }
-#if COMMON_SIMD_LV >= 41
     forceinline T VECCALL MulLo(const T& other) const noexcept { return _mm_mullo_epi32(this->Data, other.Data); }
     forceinline T VECCALL operator*(const T& other) const noexcept { return MulLo(other); }
     forceinline T& VECCALL operator*=(const T& other) noexcept { this->Data = MulLo(other); return *static_cast<T*>(this); }
-#endif
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const noexcept { return _mm_sll_epi32(this->Data, _mm_cvtsi32_si128(bits)); }
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const noexcept { return _mm_srl_epi32(this->Data, _mm_cvtsi32_si128(bits)); }
-    forceinline T VECCALL ShiftRightArith(const uint8_t bits) const noexcept 
+    template<bool MayOverflow = true>
+    forceinline T VECCALL ShiftRightArith(const uint8_t bits) const noexcept
     { 
         if constexpr (std::is_unsigned_v<E>)
             return _mm_srl_epi32(this->Data, _mm_cvtsi32_si128(bits));
@@ -402,12 +368,12 @@ public:
     }
     forceinline T VECCALL operator<<(const uint8_t bits) const noexcept { return ShiftLeftLogic (bits); }
     forceinline T VECCALL operator>>(const uint8_t bits) const noexcept { return ShiftRightArith(bits); }
-#if COMMON_SIMD_LV >= 41
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftLeftLogic (const T bits) const noexcept
     {
-#   if COMMON_SIMD_LV >= 200
+#if COMMON_SIMD_LV >= 200
         return _mm_sllv_epi32(this->Data, bits.Data);
-#   else
+#else
         const auto bits64Lo = _mm_cvtepi32_epi64(bits.Data);
         const auto bits64Hi = _mm_cvtepi32_epi64(_mm_srli_si128(bits.Data, 8));
         const auto shift0 = _mm_sll_epi32(this->Data, bits64Lo);
@@ -417,13 +383,14 @@ public:
         const auto shift01 = _mm_blend_epi16(shift0, shift1, 0x0c);
         const auto shift23 = _mm_blend_epi16(shift2, shift3, 0xc0);
         return _mm_blend_epi16(shift01, shift23, 0xf0);
-#   endif
+#endif
     }
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftRightLogic(const T bits) const noexcept
     {
-#   if COMMON_SIMD_LV >= 200
+#if COMMON_SIMD_LV >= 200
         return _mm_srlv_epi32(this->Data, bits.Data);
-#   else
+#else
         const auto bits64Lo = _mm_cvtepi32_epi64(bits.Data);
         const auto bits64Hi = _mm_cvtepi32_epi64(_mm_srli_si128(bits.Data, 8));
         const auto shift0 = _mm_srl_epi32(this->Data, bits64Lo);
@@ -433,9 +400,8 @@ public:
         const auto shift01 = _mm_blend_epi16(shift0, shift1, 0x0c);
         const auto shift23 = _mm_blend_epi16(shift2, shift3, 0xc0);
         return _mm_blend_epi16(shift01, shift23, 0xf0);
-#   endif
-    }
 #endif
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftLeftLogic () const noexcept { return _mm_slli_epi32(this->Data, N); }
     template<uint8_t N>
@@ -470,29 +436,21 @@ public:
     forceinline T VECCALL Shuffle() const noexcept
     {
         static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
-#if COMMON_SIMD_LV >= 31
         const auto mask = _mm_setr_epi8(static_cast<int8_t>(Lo0 * 2), static_cast<int8_t>(Lo0 * 2 + 1),
             static_cast<int8_t>(Lo1 * 2), static_cast<int8_t>(Lo1 * 2 + 1), static_cast<int8_t>(Lo2 * 2), static_cast<int8_t>(Lo2 * 2 + 1),
             static_cast<int8_t>(Lo3 * 2), static_cast<int8_t>(Lo3 * 2 + 1), static_cast<int8_t>(Lo4 * 2), static_cast<int8_t>(Lo4 * 2 + 1),
             static_cast<int8_t>(Lo5 * 2), static_cast<int8_t>(Lo5 * 2 + 1), static_cast<int8_t>(Lo6 * 2), static_cast<int8_t>(Lo6 * 2 + 1),
             static_cast<int8_t>(Hi7 * 2), static_cast<int8_t>(Hi7 * 2 + 1));
         return _mm_shuffle_epi8(this->Data, mask);
-#else
-        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Hi7]);
-#endif
     }
     forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Hi7) const noexcept
     {
-#if COMMON_SIMD_LV >= 31
         const auto mask = _mm_setr_epi8(static_cast<int8_t>(Lo0 * 2), static_cast<int8_t>(Lo0 * 2 + 1),
             static_cast<int8_t>(Lo1 * 2), static_cast<int8_t>(Lo1 * 2 + 1), static_cast<int8_t>(Lo2 * 2), static_cast<int8_t>(Lo2 * 2 + 1),
             static_cast<int8_t>(Lo3 * 2), static_cast<int8_t>(Lo3 * 2 + 1), static_cast<int8_t>(Lo4 * 2), static_cast<int8_t>(Lo4 * 2 + 1),
             static_cast<int8_t>(Lo5 * 2), static_cast<int8_t>(Lo5 * 2 + 1), static_cast<int8_t>(Lo6 * 2), static_cast<int8_t>(Lo6 * 2 + 1),
             static_cast<int8_t>(Hi7 * 2), static_cast<int8_t>(Hi7 * 2 + 1));
         return _mm_shuffle_epi8(this->Data, mask);
-#else
-        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Hi7]);
-#endif
     }
     template<uint8_t Idx>
     forceinline T VECCALL Broadcast() const noexcept
@@ -518,16 +476,13 @@ public:
         }
 #endif
     }
-#if COMMON_SIMD_LV >= 31
     forceinline T VECCALL SwapEndian() const noexcept
     {
         const auto SwapMask = _mm_set_epi64x(0x0e0f0c0d0a0b0809ULL, 0x0607040502030001ULL);
         return _mm_shuffle_epi8(this->Data, SwapMask);
     }
-#endif
     forceinline T VECCALL ZipLo(const T& other) const noexcept { return _mm_unpacklo_epi16(this->Data, other.Data); }
     forceinline T VECCALL ZipHi(const T& other) const noexcept { return _mm_unpackhi_epi16(this->Data, other.Data); }
-#if COMMON_SIMD_LV >= 41
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, T mask) const noexcept
     {
@@ -540,7 +495,6 @@ public:
     {
         return _mm_blend_epi16(this->Data, other.Data, Mask);
     }
-#endif
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const noexcept { return _mm_add_epi16(this->Data, other.Data); }
@@ -548,8 +502,11 @@ public:
     forceinline T VECCALL MulLo(const T& other) const noexcept { return _mm_mullo_epi16(this->Data, other.Data); }
     forceinline T VECCALL operator*(const T& other) const noexcept { return MulLo(other); }
     forceinline T& VECCALL operator*=(const T& other) noexcept { this->Data = MulLo(other); return *static_cast<T*>(this); }
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const noexcept { return _mm_sll_epi16(this->Data, _mm_cvtsi32_si128(bits)); }
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const noexcept { return _mm_srl_epi16(this->Data, _mm_cvtsi32_si128(bits)); }
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftRightArith(const uint8_t bits) const noexcept
     {
         if constexpr (std::is_unsigned_v<E>)
@@ -559,6 +516,7 @@ public:
     }
     forceinline T VECCALL operator<<(const uint8_t bits) const noexcept { return ShiftLeftLogic (bits); }
     forceinline T VECCALL operator>>(const uint8_t bits) const noexcept { return ShiftRightArith(bits); }
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftLeftLogic (const T bits) const noexcept
     {
 #if COMMON_SIMD_LV >= 320
@@ -576,12 +534,19 @@ public:
             0, 0, 0, 0, 0, 0, 0, 0);
         const auto shifterHi = _mm_setr_epi8(0, 0, 0, 0, 0, 0, 0, 0,
             1 << 0, 1 << 1, 1 << 2, 1 << 3, 1 << 4, 1 << 5, 1 << 6, static_cast<char>(1 << 7));
-        const auto shiftLo = _mm_shuffle_epi8(shifterLo, bits.Data);
-        const auto shiftHi = _mm_slli_epi16(_mm_shuffle_epi8(shifterHi, bits.Data), 8);
-        const auto shifter = _mm_blendv_epi8(shiftHi, shiftLo, _mm_set1_epi16(0x00ff));
+        const auto loMask = _mm_set1_epi16(0x00ff);
+        auto shiftBits = bits.Data;
+        if constexpr (MayOverflow)
+        {
+            shiftBits = _mm_min_epu16(shiftBits, loMask);
+        }
+        const auto shiftLo = _mm_shuffle_epi8(shifterLo, shiftBits);
+        const auto shiftHi = _mm_slli_epi16(_mm_shuffle_epi8(shifterHi, shiftBits), 8);
+        const auto shifter = _mm_blendv_epi8(shiftHi, shiftLo, loMask);
         return this->MulLo(shifter);
 #endif
     }
+    template<bool MayOverflow = true>
     forceinline T VECCALL ShiftRightLogic(const T bits) const noexcept
     {
 #if COMMON_SIMD_LV >= 320
@@ -595,25 +560,22 @@ public:
         const auto hi = _mm_srlv_epi32(this->Data, bitsHi);
         return _mm_blend_epi16(lo, hi, 0xaa);
 #else
-        const auto bits64_01 = _mm_cvtepi16_epi64(bits.Data);
-        const auto bits64_23 = _mm_cvtepi16_epi64(_mm_srli_si128(bits.Data,  4));
-        const auto bits64_45 = _mm_cvtepi16_epi64(_mm_srli_si128(bits.Data,  8));
-        const auto bits64_67 = _mm_cvtepi16_epi64(_mm_srli_si128(bits.Data, 12));
-        const auto shift0 = _mm_srl_epi16(this->Data, bits64_01);
-        const auto shift1 = _mm_srl_epi16(this->Data, _mm_srli_si128(bits64_01, 8));
-        const auto shift2 = _mm_srl_epi16(this->Data, bits64_23);
-        const auto shift3 = _mm_srl_epi16(this->Data, _mm_srli_si128(bits64_23, 8));
-        const auto shift4 = _mm_srl_epi16(this->Data, bits64_45);
-        const auto shift5 = _mm_srl_epi16(this->Data, _mm_srli_si128(bits64_45, 8));
-        const auto shift6 = _mm_srl_epi16(this->Data, bits64_67);
-        const auto shift7 = _mm_srl_epi16(this->Data, _mm_srli_si128(bits64_67, 8));
-        const auto shift01 = _mm_blend_epi16(shift0, shift1, 0x02);
-        const auto shift23 = _mm_blend_epi16(shift2, shift3, 0x08);
-        const auto shift45 = _mm_blend_epi16(shift4, shift5, 0x20);
-        const auto shift67 = _mm_blend_epi16(shift6, shift7, 0x80);
-        const auto shiftLo = _mm_blend_epi16(shift01, shift23, 0x0c);
-        const auto shiftHi = _mm_blend_epi16(shift45, shift67, 0xc0);
-        return _mm_blend_epi16(shiftLo, shiftHi, 0xf0);
+        const auto shifterHi = _mm_setr_epi8(0, static_cast<char>(1 << 7), 1 << 6, 1 << 5, 1 << 4, 1 << 3, 1 << 2, 1 << 1,
+            1 << 0, 0, 0, 0, 0, 0, 0, 0);
+        const auto shifterLo = _mm_setr_epi8(0, 0, 0, 0, 0, 0, 0, 0,
+            0, static_cast<char>(1 << 7), 1 << 6, 1 << 5, 1 << 4, 1 << 3, 1 << 2, 1 << 1);
+        const auto loMask = _mm_set1_epi16(0x00ff);
+        auto shiftBits = bits.Data;
+        if constexpr (MayOverflow)
+        {
+            shiftBits = _mm_min_epu16(shiftBits, loMask);
+        }
+        const auto shiftLo = _mm_shuffle_epi8(shifterLo, shiftBits);
+        const auto shiftHi = _mm_slli_epi16(_mm_shuffle_epi8(shifterHi, shiftBits), 8);
+        const auto shifter = _mm_blendv_epi8(shiftHi, shiftLo, loMask);
+        const auto res = _mm_mulhi_epu16(this->Data, shifter);
+        const auto keepMask = _mm_cmpeq_epi16(bits.Data, _mm_setzero_si128());
+        return _mm_blendv_epi8(res, this->Data, keepMask);
 #endif
     }
     template<uint8_t N>
@@ -654,31 +616,21 @@ public:
     {
         static_assert(Lo0 < 16 && Lo1 < 16 && Lo2 < 16 && Lo3 < 16 && Lo4 < 16 && Lo5 < 16 && Lo6 < 16 && Lo7 < 16
             && Lo8 < 16 && Lo9 < 16 && Lo10 < 16 && Lo11 < 16 && Lo12 < 16 && Lo13 < 16 && Lo14 < 16 && Hi15 < 16, "shuffle index should be in [0,15]");
-#if COMMON_SIMD_LV >= 31
         const auto mask = _mm_setr_epi8(static_cast<int8_t>(Lo0), static_cast<int8_t>(Lo1), static_cast<int8_t>(Lo2), static_cast<int8_t>(Lo3),
             static_cast<int8_t>(Lo4), static_cast<int8_t>(Lo5), static_cast<int8_t>(Lo6), static_cast<int8_t>(Lo7), static_cast<int8_t>(Lo8),
             static_cast<int8_t>(Lo9), static_cast<int8_t>(Lo10), static_cast<int8_t>(Lo11), static_cast<int8_t>(Lo12), static_cast<int8_t>(Lo13),
             static_cast<int8_t>(Lo14), static_cast<int8_t>(Hi15));
         return _mm_shuffle_epi8(this->Data, mask);
-#else
-        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Lo7], Val[Lo8], Val[Lo9], Val[Lo10], Val[Lo11], Val[Lo12], Val[Lo13], Val[Lo14], Val[Hi15]);
-#endif
     }
-#if COMMON_SIMD_LV >= 31
     forceinline T VECCALL Shuffle(const U8x16& pos) const noexcept;
-#endif
     forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Lo7,
         const uint8_t Lo8, const uint8_t Lo9, const uint8_t Lo10, const uint8_t Lo11, const uint8_t Lo12, const uint8_t Lo13, const uint8_t Lo14, const uint8_t Hi15) const noexcept
     {
-#if COMMON_SIMD_LV >= 31
         const auto mask = _mm_setr_epi8(static_cast<int8_t>(Lo0), static_cast<int8_t>(Lo1), static_cast<int8_t>(Lo2), static_cast<int8_t>(Lo3),
             static_cast<int8_t>(Lo4), static_cast<int8_t>(Lo5), static_cast<int8_t>(Lo6), static_cast<int8_t>(Lo7), static_cast<int8_t>(Lo8),
             static_cast<int8_t>(Lo9), static_cast<int8_t>(Lo10), static_cast<int8_t>(Lo11), static_cast<int8_t>(Lo12), static_cast<int8_t>(Lo13),
             static_cast<int8_t>(Lo14), static_cast<int8_t>(Hi15));
         return Shuffle(mask);
-#else
-        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Lo7], Val[Lo8], Val[Lo9], Val[Lo10], Val[Lo11], Val[Lo12], Val[Lo13], Val[Lo14], Val[Hi15]);
-#endif
     }
     template<uint8_t Idx>
     forceinline T VECCALL Broadcast() const noexcept
@@ -712,7 +664,6 @@ public:
     }
     forceinline T VECCALL ZipLo(const T& other) const noexcept { return _mm_unpacklo_epi8(this->Data, other.Data); }
     forceinline T VECCALL ZipHi(const T& other) const noexcept { return _mm_unpackhi_epi8(this->Data, other.Data); }
-#if COMMON_SIMD_LV >= 41
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, T mask) const noexcept { return _mm_blendv_epi8(this->Data, other.Data, mask); }
     template<uint16_t Mask>
@@ -724,16 +675,15 @@ public:
             return other;
         else
         {
-#   ifdef CMSIMD_LESS_SPACE
+#ifdef CMSIMD_LESS_SPACE
             const auto mask = _mm_insert_epi64(_mm_loadu_si64(&::common::simd::detail::FullMask64[Mask & 0xff]), static_cast<int64_t>(::common::simd::detail::FullMask64[(Mask >> 8) & 0xff]), 1);
             return _mm_blendv_epi8(this->Data, other.Data, mask);
-#   else
+#else
             constexpr uint64_t mask[2] = { ::common::simd::detail::FullMask64[Mask & 0xff], ::common::simd::detail::FullMask64[(Mask >> 8) & 0xff] };
             return _mm_blendv_epi8(this->Data, other.Data, _mm_loadu_si128(reinterpret_cast<const __m128i*>(mask)));
-#   endif
+#endif
         }
     }
-#endif
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const noexcept { return _mm_add_epi8(this->Data, other.Data); }
@@ -847,7 +797,6 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
     }
     forceinline F64x2 VECCALL ZipLo(const F64x2& other) const noexcept { return _mm_unpacklo_pd(Data, other); }
     forceinline F64x2 VECCALL ZipHi(const F64x2& other) const noexcept { return _mm_unpackhi_pd(Data, other); }
-#if COMMON_SIMD_LV >= 41
     template<MaskType Msk>
     forceinline F64x2 VECCALL SelectWith(const F64x2& other, F64x2 mask) const noexcept
     {
@@ -859,7 +808,6 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
         static_assert(Mask <= 0b11, "Only allow 2 bits");
         return _mm_blend_pd(this->Data, other.Data, Mask);
     }
-#endif
 
     // compare operations
     template<CompareType Cmp, MaskType Msk>
@@ -976,14 +924,12 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
     forceinline F64x2& VECCALL operator/=(const F64x2& other) noexcept { Data = Div(other); return *this; }
     template<typename T, CastMode Mode = ::common::simd::detail::CstMode<F64x2, T>(), typename... Args>
     typename CastTyper<F64x2, T>::Type VECCALL Cast(const Args&... args) const noexcept;
-#if COMMON_SIMD_LV >= 41
     template<RoundMode Mode = RoundMode::ToEven>
     forceinline F64x2 VECCALL Round() const noexcept
     {
         constexpr auto imm8 = detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC;
         return _mm_round_pd(Data, imm8);
     }
-#endif
 
     forceinline static F64x2 VECCALL AllZero() noexcept { return _mm_setzero_pd(); }
     forceinline static F64x2 VECCALL LoadLo(const double val) noexcept { return _mm_load_sd(&val); }
@@ -1044,7 +990,6 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     }
     forceinline F32x4 VECCALL ZipLo(const F32x4& other) const noexcept { return _mm_unpacklo_ps(Data, other); }
     forceinline F32x4 VECCALL ZipHi(const F32x4& other) const noexcept { return _mm_unpackhi_ps(Data, other); }
-#if COMMON_SIMD_LV >= 41
     template<MaskType Msk>
     forceinline F32x4 VECCALL SelectWith(const F32x4& other, F32x4 mask) const noexcept
     {
@@ -1056,7 +1001,6 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
         static_assert(Mask <= 0b1111, "Only allow 4 bits");
         return _mm_blend_ps(this->Data, other.Data, Mask);
     }
-#endif
 
     // compare operations
     template<CompareType Cmp, MaskType Msk>
@@ -1170,30 +1114,12 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     template<DotPos Mul, DotPos Res>
     forceinline F32x4 VECCALL Dot(const F32x4& other) const noexcept
     { 
-#if COMMON_SIMD_LV >= 41
         return _mm_dp_ps(Data, other.Data, static_cast<uint8_t>(Mul) << 4 | static_cast<uint8_t>(Res));
-#else
-        const float sum = Dot<Mul>(other);
-        const auto sumVec = _mm_set_ss(sum);
-        constexpr uint8_t imm = (HAS_FIELD(Res, DotPos::X) ? 0 : 0b11) + (HAS_FIELD(Res, DotPos::Y) ? 0 : 0b1100) + 
-            (HAS_FIELD(Res, DotPos::Z) ? 0 : 0b110000) + (HAS_FIELD(Res, DotPos::W) ? 0 : 0b11000000);
-        return _mm_shuffle_ps(sumVec, sumVec, imm);
-#endif
     }
     template<DotPos Mul>
     forceinline float VECCALL Dot(const F32x4& other) const noexcept
     {
-#if COMMON_SIMD_LV >= 41
         return _mm_cvtss_f32(Dot<Mul, DotPos::XYZW>(other).Data);
-#else
-        const auto prod = Mul(other);
-        float sum = 0.f;
-        if constexpr (HAS_FIELD(Mul, DotPos::X)) sum += prod[0];
-        if constexpr (HAS_FIELD(Mul, DotPos::Y)) sum += prod[1];
-        if constexpr (HAS_FIELD(Mul, DotPos::Z)) sum += prod[2];
-        if constexpr (HAS_FIELD(Mul, DotPos::W)) sum += prod[3];
-        return sum;
-#endif
     }
 
     forceinline F32x4 VECCALL operator*(const F32x4& other) const noexcept { return Mul(other); }
@@ -1202,14 +1128,12 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     forceinline F32x4& VECCALL operator/=(const F32x4& other) noexcept { Data = Div(other); return *this; }
     template<typename T, CastMode Mode = ::common::simd::detail::CstMode<F32x4, T>(), typename... Args>
     typename CastTyper<F32x4, T>::Type VECCALL Cast(const Args&... args) const noexcept;
-#if COMMON_SIMD_LV >= 41
     template<RoundMode Mode = RoundMode::ToEven>
     forceinline F32x4 VECCALL Round() const noexcept
     {
         constexpr auto imm8 = detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC;
         return _mm_round_ps(Data, imm8);
     }
-#endif
 
     forceinline static F32x4 VECCALL AllZero() noexcept { return _mm_setzero_ps(); }
     forceinline static F32x4 VECCALL LoadLo(const float val) noexcept { return _mm_load_ss(&val); }
@@ -1222,7 +1146,6 @@ struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64_t>
     using Common64x2<I64x2, int64_t>::Common64x2;
 
     // compare operations
-#if COMMON_SIMD_LV >= 41
     template<CompareType Cmp, MaskType Msk>
     forceinline I64x2 VECCALL Compare(const I64x2 other) const noexcept
     {
@@ -1237,7 +1160,6 @@ struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64_t>
             else static_assert(!::common::AlwaysTrue2<Cmp>, "unrecognized compare");
         }
     }
-#endif
 
     // arithmetic operations
     forceinline I64x2 VECCALL Neg() const noexcept { return _mm_sub_epi64(_mm_setzero_si128(), Data); }
@@ -1273,24 +1195,22 @@ struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64_t>
         return added.SelectWith<MaskType::SigBit>(satVal, overflow);
 #endif
     }
-#if COMMON_SIMD_LV >= 41
     forceinline I64x2 VECCALL Max(const I64x2& other) const noexcept
     {
-# if COMMON_SIMD_LV >= 320
+#if COMMON_SIMD_LV >= 320
         return _mm_max_epi64(Data, other.Data);
-# else
+#else
         return _mm_blendv_epi8(other.Data, Data, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
-# endif
+#endif
     }
     forceinline I64x2 VECCALL Min(const I64x2& other) const noexcept
     {
-# if COMMON_SIMD_LV >= 320
+#if COMMON_SIMD_LV >= 320
         return _mm_min_epi64(Data, other.Data);
-# else
+#else
         return _mm_blendv_epi8(Data, other.Data, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
-# endif
-    }
 #endif
+    }
     forceinline I64x2 VECCALL Abs() const noexcept
     {
 #if COMMON_SIMD_LV >= 320
@@ -1324,7 +1244,6 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64_t>
     }
 
     // arithmetic operations
-#if COMMON_SIMD_LV >= 41
     forceinline U64x2 VECCALL SatAdd(const U64x2& other) const noexcept
     {
         //// sig: 1|1 return 1, 0|0 return add, 1|0/0|1 use add
@@ -1339,50 +1258,28 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64_t>
     }
     forceinline U64x2 VECCALL SatSub(const U64x2& other) const noexcept
     {
-# if COMMON_SIMD_LV >= 320
+#if COMMON_SIMD_LV >= 320
         return Max(other).Sub(other);
-# elif COMMON_SIMD_LV >= 41
+#else
         return Sub(other).And(Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
-# else
-        // sig: 1|0 return sub, 0|1 return 0, 1|1/0|0 use sub
-        // sub: 1 return 0, 0 return sub
-        const auto sig = _mm_castsi128_pd(Xor(other));
-        const auto sub = _mm_castsi128_pd(Sub(other));
-        const auto mask = _mm_blendv_pd(sub, _mm_castsi128_pd(other), sig);
-        return _mm_castpd_si128(_mm_blendv_pd(sub, _mm_setzero_pd(), mask));
-# endif
+#endif
     }
     forceinline U64x2 VECCALL Max(const U64x2& other) const noexcept
     { 
-# if COMMON_SIMD_LV >= 320
+#if COMMON_SIMD_LV >= 320
         return _mm_max_epu64(Data, other.Data);
-# elif COMMON_SIMD_LV >= 41
+#else
         return _mm_blendv_epi8(other, Data, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
-# else
-        // sig: 1|0 choose A, 0|1 choose B, 1|1/0|0 use sub
-        // sub: 1 choose B, 0 choose A
-        const auto sig = _mm_castsi128_pd(Xor(other));
-        const auto sub = _mm_castsi128_pd(Sub(other));
-        const auto mask = _mm_blendv_pd(sub, _mm_castsi128_pd(other), sig);
-        return _mm_castpd_si128(_mm_blendv_pd(_mm_castsi128_pd(Data), _mm_castsi128_pd(other), mask));
-# endif
+#endif
     }
     forceinline U64x2 VECCALL Min(const U64x2& other) const noexcept
     { 
-# if COMMON_SIMD_LV >= 320
+#if COMMON_SIMD_LV >= 320
         return _mm_min_epu64(Data, other.Data);
-# elif COMMON_SIMD_LV >= 41
+#else
         return _mm_blendv_epi8(Data, other, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
-# else
-        // sig: 1|0 choose B, 0|1 choose A, 1|1/0|0 use sub
-        // sub: 1 choose A, 0 choose B
-        const auto sig = _mm_castsi128_pd(Xor(other));
-        const auto sub = _mm_castsi128_pd(Sub(other));
-        const auto mask = _mm_blendv_pd(sub, _mm_castsi128_pd(other), sig);
-        return _mm_castpd_si128(_mm_blendv_pd(_mm_castsi128_pd(other), _mm_castsi128_pd(Data), mask));
-# endif
-    }
 #endif
+    }
     forceinline U64x2 VECCALL Abs() const noexcept { return Data; }
     template<typename T, CastMode Mode = ::common::simd::detail::CstMode<U64x2, T>(), typename... Args>
     forceinline typename CastTyper<U64x2, T>::Type VECCALL Cast(const Args&... args) const noexcept;
@@ -1443,7 +1340,6 @@ struct alignas(16) I32x4 : public detail::Common32x4<I32x4, int32_t>
 #endif
     }
     forceinline I32x4 VECCALL Neg() const noexcept { return _mm_sub_epi32(_mm_setzero_si128(), Data); }
-#if COMMON_SIMD_LV >= 41
     forceinline I32x4 VECCALL Max(const I32x4& other) const noexcept { return _mm_max_epi32(Data, other.Data); }
     forceinline I32x4 VECCALL Min(const I32x4& other) const noexcept { return _mm_min_epi32(Data, other.Data); }
     forceinline Pack<I64x2, 2> VECCALL MulX(const I32x4& other) const noexcept
@@ -1452,14 +1348,10 @@ struct alignas(16) I32x4 : public detail::Common32x4<I32x4, int32_t>
         const I64x2 odd  = _mm_mul_epi32(As<I64x2>().ShiftRightLogic<32>(), other.As<I64x2>().ShiftRightLogic<32>());
         return { even.ZipLo(odd), even.ZipHi(odd) };
     }
-#endif
-#if COMMON_SIMD_LV >= 31
     forceinline I32x4 VECCALL Abs() const noexcept { return _mm_abs_epi32(Data); }
-#endif
     template<typename T, CastMode Mode = ::common::simd::detail::CstMode<I32x4, T>(), typename... Args>
     forceinline typename CastTyper<I32x4, T>::Type VECCALL Cast(const Args&... args) const noexcept;
 };
-#if COMMON_SIMD_LV >= 41
 template<> forceinline Pack<I64x2, 2> VECCALL I32x4::Cast<I64x2, CastMode::RangeUndef>() const noexcept
 {
     return { _mm_cvtepi32_epi64(Data), _mm_cvtepi32_epi64(MoveHiToLo()) };
@@ -1468,7 +1360,6 @@ template<> forceinline Pack<U64x2, 2> VECCALL I32x4::Cast<U64x2, CastMode::Range
 {
     return Cast<I64x2>().As<U64x2>();
 }
-#endif
 template<> forceinline F32x4 VECCALL I32x4::Cast<F32x4, CastMode::RangeUndef>() const noexcept
 {
     return _mm_cvtepi32_ps(Data);
@@ -1499,7 +1390,6 @@ struct alignas(16) U32x4 : public detail::Common32x4<U32x4, uint32_t>
     }
 
     // arithmetic operations
-#if COMMON_SIMD_LV >= 41
     forceinline U32x4 VECCALL SatAdd(const U32x4& other) const noexcept
     {
         return Min(other.Not()).Add(other);
@@ -1510,7 +1400,6 @@ struct alignas(16) U32x4 : public detail::Common32x4<U32x4, uint32_t>
     }
     forceinline U32x4 VECCALL Max(const U32x4& other) const noexcept { return _mm_max_epu32(Data, other.Data); }
     forceinline U32x4 VECCALL Min(const U32x4& other) const noexcept { return _mm_min_epu32(Data, other.Data); }
-#endif
     forceinline U32x4 VECCALL Abs() const { return Data; }
     forceinline Pack<U64x2, 2> VECCALL MulX(const U32x4& other) const noexcept
     {
@@ -1588,9 +1477,7 @@ struct alignas(16) I16x8 : public detail::Common16x8<I16x8, int16_t>
     forceinline I16x8 VECCALL Neg() const noexcept { return _mm_sub_epi16(_mm_setzero_si128(), Data); }
     forceinline I16x8 VECCALL Max(const I16x8& other) const noexcept { return _mm_max_epi16(Data, other.Data); }
     forceinline I16x8 VECCALL Min(const I16x8& other) const noexcept { return _mm_min_epi16(Data, other.Data); }
-#if COMMON_SIMD_LV >= 31
     forceinline I16x8 VECCALL Abs() const noexcept { return _mm_abs_epi16(Data); }
-#endif
     forceinline Pack<I32x4, 2> MulX(const I16x8& other) const noexcept
     {
         const auto los = MulLo(other), his = MulHi(other);
@@ -1599,7 +1486,6 @@ struct alignas(16) I16x8 : public detail::Common16x8<I16x8, int16_t>
     template<typename T, CastMode Mode = ::common::simd::detail::CstMode<I16x8, T>(), typename... Args>
     forceinline typename CastTyper<I16x8, T>::Type VECCALL Cast(const Args&... args) const noexcept;
 };
-#if COMMON_SIMD_LV >= 41
 template<> forceinline Pack<I32x4, 2> VECCALL I16x8::Cast<I32x4, CastMode::RangeUndef>() const noexcept
 {
     return { _mm_cvtepi16_epi32(Data), _mm_cvtepi16_epi32(MoveHiToLo()) };
@@ -1628,7 +1514,6 @@ template<> forceinline Pack<F64x2, 4> VECCALL I16x8::Cast<F64x2, CastMode::Range
 {
     return Cast<I32x4>().Cast<F64x2>();
 }
-#endif
 
 
 struct alignas(16) U16x8 : public detail::Common16x8<U16x8, uint16_t>
@@ -1654,10 +1539,8 @@ struct alignas(16) U16x8 : public detail::Common16x8<U16x8, uint16_t>
     forceinline U16x8 VECCALL SatAdd(const U16x8& other) const noexcept { return _mm_adds_epu16(Data, other.Data); }
     forceinline U16x8 VECCALL SatSub(const U16x8& other) const noexcept { return _mm_subs_epu16(Data, other.Data); }
     forceinline U16x8 VECCALL MulHi(const U16x8& other) const noexcept { return _mm_mulhi_epu16(Data, other.Data); }
-#if COMMON_SIMD_LV >= 41
     forceinline U16x8 VECCALL Max(const U16x8& other) const noexcept { return _mm_max_epu16(Data, other.Data); }
     forceinline U16x8 VECCALL Min(const U16x8& other) const noexcept { return _mm_min_epu16(Data, other.Data); }
-#endif
     forceinline U16x8 VECCALL Abs() const noexcept { return Data; }
     forceinline Pack<U32x4, 2> VECCALL MulX(const U16x8& other) const noexcept
     {
@@ -1720,14 +1603,9 @@ struct alignas(16) I8x16 : public detail::Common8x16<I8x16, int8_t>
     forceinline I8x16 VECCALL SatAdd(const I8x16& other) const noexcept { return _mm_adds_epi8(Data, other.Data); }
     forceinline I8x16 VECCALL SatSub(const I8x16& other) const noexcept { return _mm_subs_epi8(Data, other.Data); }
     forceinline I8x16 VECCALL Neg() const noexcept { return _mm_sub_epi8(_mm_setzero_si128(), Data); }
-#if COMMON_SIMD_LV >= 41
     forceinline I8x16 VECCALL Max(const I8x16& other) const noexcept { return _mm_max_epi8(Data, other.Data); }
     forceinline I8x16 VECCALL Min(const I8x16& other) const noexcept { return _mm_min_epi8(Data, other.Data); }
-#endif
-#if COMMON_SIMD_LV >= 31
     forceinline I8x16 VECCALL Abs() const noexcept { return _mm_abs_epi8(Data); }
-#endif
-#if COMMON_SIMD_LV >= 41
     forceinline I8x16 VECCALL MulHi(const I8x16& other) const noexcept
     {
         const auto full = MulX(other);
@@ -1742,11 +1620,9 @@ struct alignas(16) I8x16 : public detail::Common8x16<I8x16, int8_t>
         return _mm_packus_epi16(lo, hi);
     }
     forceinline Pack<I16x8, 2> VECCALL MulX(const I8x16& other) const noexcept;
-#endif
     template<typename T, CastMode Mode = ::common::simd::detail::CstMode<I8x16, T>(), typename... Args>
     forceinline typename CastTyper<I8x16, T>::Type VECCALL Cast(const Args&... args) const noexcept;
 };
-#if COMMON_SIMD_LV >= 41
 template<> forceinline Pack<I16x8, 2> VECCALL I8x16::Cast<I16x8, CastMode::RangeUndef>() const noexcept
 {
     return { _mm_cvtepi8_epi16(Data), _mm_cvtepi8_epi16(MoveHiToLo()) };
@@ -1796,7 +1672,6 @@ template<> forceinline Pack<F64x2, 8> VECCALL I8x16::Cast<F64x2, CastMode::Range
 {
     return Cast<I32x4>().Cast<F64x2>();
 }
-#endif
 
 
 struct alignas(16) U8x16 : public detail::Common8x16<U8x16, uint8_t>
@@ -1852,13 +1727,11 @@ template<> forceinline Pack<U16x8, 2> VECCALL U8x16::Cast<U16x8, CastMode::Range
 }
 template<> forceinline Pack<I32x4, 4> VECCALL U8x16::Cast<I32x4, CastMode::RangeUndef>() const noexcept
 {
-#if COMMON_SIMD_LV >= 41
     /*const auto ret0 = _mm_cvtepu8_epi32(Data);
     const auto ret1 = _mm_cvtepu8_epi32(_mm_srli_si128(Data, 4));
     const auto ret2 = _mm_cvtepu8_epi32(_mm_srli_si128(Data, 8));
     const auto ret3 = _mm_cvtepu8_epi32(_mm_srli_si128(Data, 12));
     return { ret0, ret1, ret2, ret3 };*/
-#endif
     // not really slower
     const auto zero = _mm_setzero_si128();
     const auto lo = _mm_unpacklo_epi8(Data, zero), hi = _mm_unpackhi_epi8(Data, zero);
@@ -1870,7 +1743,6 @@ template<> forceinline Pack<U32x4, 4> VECCALL U8x16::Cast<U32x4, CastMode::Range
 }
 template<> forceinline Pack<I64x2, 8> VECCALL U8x16::Cast<I64x2, CastMode::RangeUndef>() const noexcept
 {
-//#if COMMON_SIMD_LV >= 41
 //    const auto ret0 = _mm_cvtepu8_epi64(Data);
 //    const auto ret1 = _mm_cvtepu8_epi64(_mm_srli_si128(Data, 2));
 //    const auto ret2 = _mm_cvtepu8_epi64(_mm_srli_si128(Data, 4));
@@ -1880,8 +1752,6 @@ template<> forceinline Pack<I64x2, 8> VECCALL U8x16::Cast<I64x2, CastMode::Range
 //    const auto ret6 = _mm_cvtepu8_epi64(_mm_srli_si128(Data, 12));
 //    const auto ret7 = _mm_cvtepu8_epi64(_mm_srli_si128(Data, 14));
 //    return { ret0, ret1, ret2, ret3, ret4, ret5, ret6, ret7 };
-//#else
-//#endif
     // not really slower
     const auto zero = _mm_setzero_si128();
     const auto lo = _mm_unpacklo_epi8(Data, zero), hi = _mm_unpackhi_epi8(Data, zero);
@@ -2113,14 +1983,8 @@ template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4, CastMode::RangeSaturate>
     const auto isGe = Compare<CompareType::GreaterEqual, MaskType::FullEle>(maxVal).As<I32x4>();
     /*const auto isLe = _mm_castps_si128(_mm_cmple_ps(Data, minVal));
     const auto isGe = _mm_castps_si128(_mm_cmpge_ps(Data, maxVal));*/
-#if COMMON_SIMD_LV >= 41
     const auto satMin = _mm_blendv_epi8(val, I32x4(INT32_MIN), isLe);
     return _mm_blendv_epi8(satMin, I32x4(INT32_MAX), isGe);
-#else
-    const auto minItem = I32x4(INT32_MIN).And(isLe), maxItem = I32x4(INT32_MAX).And(isGe);
-    const auto keptItem = _mm_andnot_si128(_mm_or_si128(isGe, isLe), val);
-    return minItem.Or(maxItem).Or(keptItem);
-#endif
 }
 template<> forceinline I16x8 VECCALL F32x4::Cast<I16x8, CastMode::RangeSaturate>(const F32x4& arg1) const noexcept
 {
@@ -2148,7 +2012,6 @@ template<> forceinline I16x8 VECCALL I32x4::Cast<I16x8, CastMode::RangeSaturate>
 {
     return _mm_packs_epi32(Data, arg1);
 }
-#if COMMON_SIMD_LV >= 41
 template<> forceinline U16x8 VECCALL I32x4::Cast<U16x8, CastMode::RangeSaturate>(const I32x4& arg1) const noexcept
 {
     return _mm_packus_epi32(Data, arg1);
@@ -2158,7 +2021,6 @@ template<> forceinline U16x8 VECCALL U32x4::Cast<U16x8, CastMode::RangeSaturate>
     const auto data_ = Min(UINT16_MAX).As<I32x4>(), arg1_ = arg1.Min(UINT16_MAX).As<I32x4>();
     return data_.Cast<U16x8, CastMode::RangeSaturate>(arg1_);
 }
-#endif
 template<> forceinline I8x16 VECCALL I16x8::Cast<I8x16, CastMode::RangeSaturate>(const I16x8& arg1) const noexcept
 {
     return _mm_packs_epi16(Data, arg1);

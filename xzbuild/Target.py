@@ -158,7 +158,13 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         self.dbgSymLevel = env.get("dslv", self.dbgSymLevel)
         self.flags += [f"-fvisibility={self.visibility}"]
         if self.lto:
-            self.flags += ["-flto"]
+            if env["compiler"] == "gcc": # gcc uses 1 job by default
+                if env["gccVer"] >= 100000: # supports auto, see
+                    self.flags += ["-flto=auto"]
+                else: #no auto support, see https://gcc.gnu.org/onlinedocs/gcc-9.5.0/gcc/Optimize-Options.html#index-flto
+                    self.flags += [f"-flto={env['threads']}"]
+            else: # clang automatically uses cpu-count-based, see https://releases.llvm.org/9.0.0/tools/clang/docs/ClangCommandLineReference.html
+                self.flags += ["-flto"]
         def procarch(ret:tuple, ele:dict, env:dict):
             if "file" not in ele:
                 raise Exception("no file specified in arch")

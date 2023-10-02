@@ -755,7 +755,7 @@ DEFINE_FASTPATH_METHOD(CvtF32F16, F16C)
 #endif
 
 
-#if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41)
+#if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41 && COMMON_SIMD_LV < 100)
 // seeeeeffffffffff
 // seeeeeeeefffffffffffffffffffffff
 // s|oooooooo|ffffffffffxxxxxxxxxxxxx
@@ -819,7 +819,7 @@ struct F1632Cast_SSE41
             const auto f_fphi = U16x8(_mm_unpacklo_epi64(f_fphi0, f_fphi1));
 
             const auto fracShifter = fexpMax.Sub(f_fphi.ShiftRightLogic<7>());
-            const auto denormFrac = f_.ShiftLeftLogic(fracShifter).And(fracMask);
+            const auto denormFrac = f_.ShiftLeftLogic<false>(fracShifter).And(fracMask);
 
             const auto denormExp = f_fphi.Sub(fexpAdjust).And(expMax32);
 
@@ -836,9 +836,95 @@ struct F1632Cast_SSE41
         out1.Save(reinterpret_cast<uint32_t*>(dst) + 4);
     }
 };
+
+struct F3216Cast_SSE41
+{
+    using Src = float;
+    using Dst = uint16_t;
+    static constexpr size_t N = 8, M = 8;
+    forceinline void operator()(uint16_t* dst, const float* src) const noexcept
+    {
+        constexpr uint16_t SignMask = 0x8000;
+        constexpr uint16_t ExpMask  = 0x7f80;
+        constexpr uint16_t FracMask = 0x03ff;
+        constexpr uint16_t ExpShift = (127 - 15) << (16 - 1 - 8); // e' = (e - 15) + 127 => e' = e + (127 - 15)
+        constexpr uint16_t ExpMin   = (127 - 15 - 10) << (16 - 1 - 8);
+        constexpr uint16_t ExpMax   = (127 + 15 + 1) << (16 - 1 - 8);
+        constexpr uint16_t FracHiBit = 0x0400;
+
+        const auto misc0 = U16x8(SignMask, SignMask, ExpMask, ExpMask, FracMask, FracMask, ExpShift, ExpShift).As<U32x4>();
+        const auto misc1 = U16x8(ExpMin, ExpMin, ExpMax, ExpMax, FracHiBit, FracHiBit, 1, 1).As<U32x4>();
+        
+        const auto signMask   = misc0.Broadcast<0>().As<U16x8>();
+        const auto expMask    = misc0.Broadcast<1>().As<U16x8>();
+        const auto fracMask   = misc0.Broadcast<2>().As<U16x8>();
+        const auto expShift   = misc0.Broadcast<3>().As<U16x8>();
+        const auto expMin     = misc1.Broadcast<0>().As<U16x8>();
+        const auto expMax     = misc1.Broadcast<1>().As<U16x8>();
+        const auto fracHiBit  = misc1.Broadcast<2>().As<U16x8>();
+        const auto one        = misc1.Broadcast<3>().As<U16x8>();
+
+        const U32x4 dat0(reinterpret_cast<const uint32_t*>(src)), dat1(reinterpret_cast<const uint32_t*>(src) + 4);
+
+        const auto shufHiMask = _mm_setr_epi8(2, 3, 6, 7, 10, 11, 14, 15,
+            0, 1, 4, 5, 8, 9, 12, 13);
+        const auto datHi0 = _mm_shuffle_epi8(dat0.Data, shufHiMask);
+        const auto datHi1 = _mm_shuffle_epi8(dat1.Data, shufHiMask);
+        const auto datHi = U16x8(_mm_unpacklo_epi64(datHi0, datHi1));
+        const auto frac0 = _mm_shuffle_epi8(dat0.ShiftLeftLogic<3>().Data, shufHiMask);
+        const auto frac1 = _mm_shuffle_epi8(dat1.ShiftLeftLogic<3>().Data, shufHiMask);
+        const auto fracPart = U16x8(_mm_unpacklo_epi64(frac0, frac1));
+        const auto frac16 = fracPart.And(fracMask);
+        const auto fracTrailing = U16x8(_mm_unpackhi_epi64(frac0, frac1));
+        const auto isHalfRound = fracTrailing.Compare<CompareType::Equal, MaskType::FullEle>(signMask);
+        const auto frac16LastBit = fracPart.ShiftLeftLogic<15>();
+        const auto isRoundUpMSB = fracTrailing.SelectWith<MaskType::FullEle>(frac16LastBit, isHalfRound);
+        const auto isRoundUpMask = isRoundUpMSB.As<I16x8>().ShiftRightArith<15>().As<U16x8>();
+        const auto e_ = datHi.And(expMask); // [0000h~7f80h][denorm,inf]
+        const auto e_hicut = e_.Min(expMax); // [0000h~4780h][denorm,2^16=inf]
+        const auto e_shifted = e_hicut.Max(expShift).Sub(expShift); // [0000h~07c0h][0=denorm,31=inf]
+        const auto e_normal = e_shifted.ShiftLeftLogic<3>(); // [0=denorm,31=inf]
+        const auto mapToZero = e_.As<I16x8>().Compare<CompareType::LessThan, MaskType::FullEle>(expMin.As<I16x8>()).As<U16x8>(); // 2^-25, < 0.5*(min-denorm of fp16)
+        const auto isNaNInf = e_.Compare<CompareType::Equal, MaskType::FullEle>(expMask); // NaN or Inf
+        const auto mapToInf   = e_hicut.Compare<CompareType::Equal, MaskType::FullEle>(expMax); // 2^16(with high cut), become inf exp
+        const auto isOverflow = isNaNInf.AndNot(mapToInf); // !isNaNInf && mapToInf
+        const auto shouldFracZero = mapToZero.Or(isOverflow);
+        const auto f_ = shouldFracZero.AndNot(frac16); // when shouldFracZero == ff, become 0
+        const auto needRoundUpMask = shouldFracZero.AndNot(isRoundUpMask);
+
+        const auto dontRequestDenorm = e_hicut.As<I16x8>().Compare<CompareType::GreaterThan, MaskType::FullEle>(expShift.As<I16x8>()).As<U16x8>();
+        const auto notDenorm = mapToZero.Or(dontRequestDenorm); // mapToZero || dontRequestDenorm
+
+        U16x8 e, f, r;
+        e = e_normal;
+        IF_LIKELY(notDenorm.Add(one).IsAllZero())
+        { // all normal
+            f = f_;
+            r = needRoundUpMask;
+        }
+        else
+        { // calc denorm
+            const auto e_denormReq = /*shiftAdj*/expShift.Sub(e_hicut).ShiftRightLogic<16 - 9>(); // [f080h~3800h] -> [1e1h~070h], only [00h~09h] valid
+            const auto f_shifted1 = f_.Or(fracHiBit).ShiftRightLogic<false>(e_denormReq);
+            const auto denormRoundUpBit = f_shifted1.And(one);
+            const auto denormRoundUp = U16x8(_mm_sign_epi16(denormRoundUpBit, signMask)); // bit==1 then become ffff, bit==0 then become 0
+            f = f_shifted1.ShiftRightLogic<1>().SelectWith<MaskType::FullEle>(f_, notDenorm); // actually shift [0~9]+1
+            r = denormRoundUp.SelectWith<MaskType::FullEle>(needRoundUpMask, notDenorm);
+        }
+        const auto sign = datHi.And(signMask);
+        const auto sef = sign.Or(e).Or(f);
+        const auto roundUpVal = _mm_abs_epi16(r); // full mask then 1, 0 then 0
+        const auto out = sef.Add(roundUpVal);
+        out.Save(dst);
+    }
+};
 DEFINE_FASTPATH_METHOD(CvtF16F32, SIMDSSE41)
 {
     CastSIMD2<F1632Cast_SSE41, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(CvtF32F16, SIMDSSE41)
+{
+    CastSIMD2<F3216Cast_SSE41, &Func<LOOP>>(dest, src, count);
 }
 #endif
 

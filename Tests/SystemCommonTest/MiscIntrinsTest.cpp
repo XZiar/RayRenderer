@@ -251,12 +251,40 @@ INTRIN_TEST(CopyEx, func)                           \
 {                                                   \
     F2FTest<tsrc, tdst, tin, tout, tval>(*Intrin);  \
 }
-using half = half_float::half;
-F2F_TEST(CvtF16F32, half,   float,  uint16_t, float,    uint16_t)
-F2F_TEST(CvtF32F16, float,  half,   float,    uint16_t, uint16_t)
 F2F_TEST(CvtF32F64, float,  double, float,    double,   uint32_t)
 F2F_TEST(CvtF64F32, double, float,  double,   float,    uint32_t)
-
+using half = half_float::half;
+F2F_TEST(CvtF16F32, half,   float,  uint16_t, float,    uint16_t)
+//F2F_TEST(CvtF32F16, float,  half,   float,    uint16_t, uint16_t)
+INTRIN_TEST(CopyEx, CvtF32F16)
+{
+    static const auto Full16BitFP32 = []() 
+    {
+        std::vector<uint16_t> tmp(UINT16_MAX);
+        std::vector<half> srcs(UINT16_MAX);
+        std::vector<float> vals(UINT16_MAX);
+        for (uint32_t i = 0; i < UINT16_MAX; ++i)
+            tmp[i] = static_cast<uint16_t>(i);
+        memcpy_s(srcs.data(), sizeof(uint16_t) * UINT16_MAX, tmp.data(), sizeof(uint16_t) * UINT16_MAX);
+        for (uint32_t i = 0; i < UINT16_MAX; ++i)
+            vals[i] = srcs[i];
+        return vals;
+    }();
+    {
+        std::vector<uint16_t> dst;
+        dst.resize(Full16BitFP32.size());
+        Intrin->CopyFloat(dst.data(), Full16BitFP32.data(), Full16BitFP32.size());
+        for (uint32_t i = 0; i < UINT16_MAX; ++i)
+        {
+            const auto isExpMax = (i & 0x7c00u) == 0x7c00u;
+            if (isExpMax && (i & 0x3ffu) != 0) // NaN
+                EXPECT_EQ((dst[i] & 0xfc00u), (i & 0xfc00u)) << "when test on full 16bit elements, idx[" << i << "]";
+            else
+                EXPECT_EQ(dst[i], i) << "when test on full 16bit elements, idx[" << i <<"]";
+        }
+    }
+    F2FTest<float, half, float, uint16_t, uint16_t>(*Intrin);
+}
 
 INTRIN_TESTSUITE(MiscIntrins, common::MiscIntrins, common::MiscIntrin);
 
@@ -370,7 +398,7 @@ INTRIN_TEST(DigestFuncs, Sha256)
 }
 
 
-#if CM_DEBUG == 0
+#if CM_DEBUG == 0 || 1
 
 template<typename T>
 static std::vector<std::unique_ptr<T>> GenerateIntrinHost(std::string_view funcName)
@@ -405,7 +433,7 @@ static void RunPerfTestAll(std::string_view funcName, F&& func, size_t opPerRun,
     }
 }
 
-TEST(IntrinPerf, F2F)
+TEST(IntrinPerf, CvtF16F32)
 {
     std::vector<half_float::half> inputs;
     inputs.reserve(512 * 512 * 4);
@@ -429,8 +457,42 @@ TEST(IntrinPerf, F2F)
     std::vector<float> outputs;
     outputs.resize(inputs.size());
     RunPerfTestAll<common::CopyManager>("CvtF16F32", [&](const common::CopyManager& host)
+    {
+        host.CopyFloat(outputs.data(), reinterpret_cast<const uint16_t*>(inputs.data()), inputs.size());
+    }, static_cast<uint32_t>(inputs.size()));
+}
+
+TEST(IntrinPerf, CvtF32F16)
+{
+    std::vector<float> inputs;
+    inputs.reserve(256 * 256 * 8);
+    // 512*512*4 = 1M test cases
+    for (uint32_t i = 0; i < 256; ++i)
+    {
+        const float srca = RandVals[i];
+        for (uint32_t j = 0; j < 256; ++j)
         {
-            host.CopyFloat(outputs.data(), reinterpret_cast<const uint16_t*>(inputs.data()), inputs.size());
+            const float srcb = RandVals[j];
+            const auto base = srca * srcb;
+            inputs.push_back(base);
+            inputs.push_back(base * srca);
+            inputs.push_back(base * srcb);
+            inputs.push_back(base * base);
+            const auto frac = base / (UINT16_MAX / 2);
+            inputs.push_back(frac);
+            const auto small1 = frac / UINT8_MAX;
+            inputs.push_back(small1);
+            const auto small2 = small1 / UINT8_MAX;
+            inputs.push_back(small2);
+            const auto small3 = small2 / UINT8_MAX;
+            inputs.push_back(small3);
+        }
+    }
+    std::vector<uint16_t> outputs;
+    outputs.resize(inputs.size());
+    RunPerfTestAll<common::CopyManager>("CvtF32F16", [&](const common::CopyManager& host)
+        {
+            host.CopyFloat(outputs.data(), inputs.data(), inputs.size());
         }, static_cast<uint32_t>(inputs.size()));
 }
 
