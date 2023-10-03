@@ -116,7 +116,7 @@ static void clz##_GatherSupportMap(::std::vector<::common::FastPathBase::PathInf
 #define FASTPATH_ITEM(r, clz, func) ret.emplace_back(STRINGIZE(func), &::common::fastpath::PathHack::Access<clz, &clz::func>);
 #define CHECK_FASTPATH_FUNC(r, state, func) state && func
 #define DEFINE_FASTPATH_BASIC(clz, ...)                                                 \
-span<const clz::PathInfo> clz::GetSupportMap() noexcept                                 \
+::common::span<const clz::PathInfo> clz::GetSupportMap() noexcept                       \
 {                                                                                       \
     static auto list = []()                                                             \
     {                                                                                   \

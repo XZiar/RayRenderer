@@ -1,5 +1,6 @@
 #include "ImageUtilPch.h"
 #include "ImageTGA.h"
+#include "ColorConvert.h"
 
 namespace xziar::img::tga
 {
@@ -71,8 +72,9 @@ public:
             {
                 AlignedBuffer tmp(count);
                 reader.Read(count, tmp.GetRawPtr());
-                auto * __restrict destPtr = output.GetRawPtr();
-                convert::GraysToRGBAs(destPtr, tmp.GetRawPtr(), count);
+                //auto * __restrict destPtr = output.GetRawPtr();
+                //convert::GraysToRGBAs(destPtr, tmp.GetRawPtr(), count);
+                ColorConvertor::Get().GrayToRGBA(output.GetRawPtr<uint32_t>(), tmp.GetRawPtr<uint8_t>(), count);
             }break;
         case 15:
             {
@@ -123,8 +125,9 @@ public:
             {
                 AlignedBuffer tmp(count);
                 reader.Read(count, tmp.GetRawPtr());
-                auto * __restrict destPtr = output.GetRawPtr();
-                convert::GraysToRGBs(destPtr, tmp.GetRawPtr(), count);
+                //auto * __restrict destPtr = output.GetRawPtr();
+                //convert::GraysToRGBs(destPtr, tmp.GetRawPtr(), count);
+                ColorConvertor::Get().GrayToRGB(output.GetRawPtr<uint8_t>(), tmp.GetRawPtr<uint8_t>(), count);
             }break;
         case 15:
         case 16:

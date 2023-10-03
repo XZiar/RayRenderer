@@ -17,6 +17,9 @@
   <ItemGroup>
     <None Include="README.md" />
     <None Include="xzbuild.proj.json" />
+    <None Include="ColorConvert.inl">
+      <Filter>头文件</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Text Include="License.txt" />
@@ -49,9 +52,6 @@
     <ClInclude Include="ImageCore.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="FloatConvertor.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="RGB15Converter.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -62,6 +62,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="ImageUtilPch.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ColorConvert.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FastPathCategory.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -91,6 +97,21 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="TexFormat.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FastPathSSE42.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FastPathAVX2.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FastPathAVX512.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FastPathARMA32.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FastPathARMA64.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

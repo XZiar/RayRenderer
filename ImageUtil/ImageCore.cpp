@@ -1,5 +1,6 @@
 #include "ImageUtilPch.h"
 #include "ImageCore.h"
+#include "ColorConvert.h"
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb/stb_image_resize.h"
@@ -150,11 +151,13 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
                 break;
             case 2://remove alpha, 2->1
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::GrayAsToGrays(destPtr, srcPtr, pixcnt);
+                    ColorConvertor::Get().GrayAToGray(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint16_t*>(srcPtr), pixcnt);
+                    //convert::GrayAsToGrays(destPtr, srcPtr, pixcnt);
                 break;
             case 1://add alpha, 1->2
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::GraysToGrayAs(destPtr, srcPtr, pixcnt);
+                    ColorConvertor::Get().GrayToGrayA(reinterpret_cast<uint16_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
+                    //convert::GraysToGrayAs(destPtr, srcPtr, pixcnt);
                 break;
             }
         }
@@ -164,7 +167,8 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
             {
             case 1:
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::GraysToRGBAs(destPtr, srcPtr, pixcnt);
+                    ColorConvertor::Get().GrayToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
+                    //convert::GraysToRGBAs(destPtr, srcPtr, pixcnt);
                 break;
             case 2:
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
@@ -186,7 +190,8 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
             {
             case 1:
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::GraysToRGBs(destPtr, srcPtr, pixcnt);
+                    ColorConvertor::Get().GrayToRGB(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
+                    //convert::GraysToRGBs(destPtr, srcPtr, pixcnt);
                 break;
             case 2:
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)

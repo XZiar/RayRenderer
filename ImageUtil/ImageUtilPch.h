@@ -4,6 +4,7 @@
 #if COMMON_SIMD_LV >= 20
 #   define IMGU_USE_SIMD
 #endif
+#include "ColorConvert.h"
 #include "DataConvertor.hpp"
 #include "RGB15Converter.hpp"
 

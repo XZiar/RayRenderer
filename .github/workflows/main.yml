@@ -276,12 +276,13 @@ jobs:
           
       - name: Build Release modules
         run: |     
-          python3 xzbuild rebuildall "BasicsTest,SystemCommonTest,NailangTest" Release /threads=x1.5 /dsymlv=0
+          python3 xzbuild rebuildall "BasicsTest,SystemCommonTest,ImageUtilTest,NailangTest" Release /threads=x1.5 /dsymlv=0
           
       - name: Run Tests
         run: |            
           ./x64/Release/BasicsTest
           ./x64/Release/SystemCommonTest
+          ./x64/Release/ImageUtilTest
           ./x64/Release/NailangTest
 
       - uses: actions/upload-artifact@v3

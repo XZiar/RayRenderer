@@ -1,0 +1,19 @@
+{
+    "name": "ImageUtilTest",
+    "type": "executable",
+    "description": "test for ImageUtil",
+    "dependency": ["googletest", "ImageUtil", "SystemCommon"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "incpath": ["$(SolutionDir)/3rdParty/googletest/googletest/include/", "$(SolutionDir)/3rdParty/googletest/googlemock/include/"],
+            "sources": ["*.cpp"]
+        }
+    }
+}

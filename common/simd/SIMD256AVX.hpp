@@ -447,21 +447,36 @@ public:
 
 #if COMMON_SIMD_LV >= 200
     // shuffle operations
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
+    forceinline T VECCALL ShuffleLane() const noexcept // no cross lane
+    {
+        static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
+        const auto mask = _mm256_setr_epi8(
+            static_cast<int8_t>(Lo0 * 2), static_cast<int8_t>(Lo0 * 2 + 1), static_cast<int8_t>(Lo1 * 2), static_cast<int8_t>(Lo1 * 2 + 1),
+            static_cast<int8_t>(Lo2 * 2), static_cast<int8_t>(Lo2 * 2 + 1), static_cast<int8_t>(Lo3 * 2), static_cast<int8_t>(Lo3 * 2 + 1),
+            static_cast<int8_t>(Lo4 * 2), static_cast<int8_t>(Lo4 * 2 + 1), static_cast<int8_t>(Lo5 * 2), static_cast<int8_t>(Lo5 * 2 + 1),
+            static_cast<int8_t>(Lo6 * 2), static_cast<int8_t>(Lo6 * 2 + 1), static_cast<int8_t>(Hi7 * 2), static_cast<int8_t>(Hi7 * 2 + 1),
+            static_cast<int8_t>(Lo0 * 2), static_cast<int8_t>(Lo0 * 2 + 1), static_cast<int8_t>(Lo1 * 2), static_cast<int8_t>(Lo1 * 2 + 1),
+            static_cast<int8_t>(Lo2 * 2), static_cast<int8_t>(Lo2 * 2 + 1), static_cast<int8_t>(Lo3 * 2), static_cast<int8_t>(Lo3 * 2 + 1),
+            static_cast<int8_t>(Lo4 * 2), static_cast<int8_t>(Lo4 * 2 + 1), static_cast<int8_t>(Lo5 * 2), static_cast<int8_t>(Lo5 * 2 + 1),
+            static_cast<int8_t>(Lo6 * 2), static_cast<int8_t>(Lo6 * 2 + 1), static_cast<int8_t>(Hi7 * 2), static_cast<int8_t>(Hi7 * 2 + 1));
+        return _mm256_shuffle_epi8(this->Data, mask);
+    }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Hi15>
     forceinline T VECCALL Shuffle() const noexcept
     {
         static_assert(Lo0 < 16 && Lo1 < 16 && Lo2 < 16 && Lo3 < 16 && Lo4 < 16 && Lo5 < 16 && Lo6 < 16 && Lo7 < 16
             && Lo8 < 16 && Lo9 < 16 && Lo10 < 16 && Lo11 < 16 && Lo12 < 16 && Lo13 < 16 && Lo14 < 16 && Hi15 < 16, "shuffle index should be in [0,15]");
-        const auto mask = _mm256_setr_epi8(
-            static_cast<int8_t>(Lo0  * 2), static_cast<int8_t>(Lo0  * 2 + 1), static_cast<int8_t>(Lo1  * 2), static_cast<int8_t>(Lo1  * 2 + 1),
-            static_cast<int8_t>(Lo2  * 2), static_cast<int8_t>(Lo2  * 2 + 1), static_cast<int8_t>(Lo3  * 2), static_cast<int8_t>(Lo3  * 2 + 1),
-            static_cast<int8_t>(Lo4  * 2), static_cast<int8_t>(Lo4  * 2 + 1), static_cast<int8_t>(Lo5  * 2), static_cast<int8_t>(Lo5  * 2 + 1),
-            static_cast<int8_t>(Lo6  * 2), static_cast<int8_t>(Lo6  * 2 + 1), static_cast<int8_t>(Lo7  * 2), static_cast<int8_t>(Lo7  * 2 + 1),
-            static_cast<int8_t>(Lo8  * 2), static_cast<int8_t>(Lo8  * 2 + 1), static_cast<int8_t>(Lo9  * 2), static_cast<int8_t>(Lo9  * 2 + 1), 
-            static_cast<int8_t>(Lo10 * 2), static_cast<int8_t>(Lo10 * 2 + 1), static_cast<int8_t>(Lo11 * 2), static_cast<int8_t>(Lo11 * 2 + 1), 
-            static_cast<int8_t>(Lo12 * 2), static_cast<int8_t>(Lo12 * 2 + 1), static_cast<int8_t>(Lo13 * 2), static_cast<int8_t>(Lo13 * 2 + 1), 
-            static_cast<int8_t>(Lo14 * 2), static_cast<int8_t>(Lo14 * 2 + 1), static_cast<int8_t>(Hi15 * 2), static_cast<int8_t>(Hi15 * 2 + 1));
-        return _mm256_shuffle_epi8(this->Data, mask);
+        if constexpr (Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Lo7 < 8
+            && Lo8 - Lo0 == 8 && Lo9 - Lo1 == 8 && Lo10 - Lo2 == 8 && Lo11 - Lo3 == 8 && Lo12 - Lo4 == 8 && Lo13 - Lo5 == 8 && Lo14 - Lo6 == 8 && Hi15 - Lo7 == 8) // no cross lane and same shuffle for two lane
+        {
+            return ShuffleLane<Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Lo7>();
+        }
+        else
+        {
+            static_assert(!::common::AlwaysTrue2<Lo0>, "Unimplemented");
+            return *this;
+        }
     }
     template<uint8_t Idx>
     forceinline T VECCALL BroadcastLane() const noexcept
@@ -614,6 +629,22 @@ public:
 
 #if COMMON_SIMD_LV >= 200
     // shuffle operations
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Hi15>
+    forceinline T VECCALL ShuffleLane() const noexcept // no cross lane
+    {
+        static_assert(Lo0 < 16 && Lo1 < 16 && Lo2 < 16 && Lo3 < 16 && Lo4 < 16 && Lo5 < 16 && Lo6 < 16 && Lo7 < 16
+            && Lo8 < 16 && Lo9 < 16 && Lo10 < 16 && Lo11 < 16 && Lo12 < 16 && Lo13 < 16 && Lo14 < 16 && Hi15 < 16, "shuffle index should be in [0,15]");
+        const auto mask = _mm256_setr_epi8(
+            static_cast<int8_t>(Lo0),  static_cast<int8_t>(Lo1),  static_cast<int8_t>(Lo2),  static_cast<int8_t>(Lo3),
+            static_cast<int8_t>(Lo4),  static_cast<int8_t>(Lo5),  static_cast<int8_t>(Lo6),  static_cast<int8_t>(Lo7),
+            static_cast<int8_t>(Lo8),  static_cast<int8_t>(Lo9),  static_cast<int8_t>(Lo10), static_cast<int8_t>(Lo11),
+            static_cast<int8_t>(Lo12), static_cast<int8_t>(Lo13), static_cast<int8_t>(Lo14), static_cast<int8_t>(Hi15),
+            static_cast<int8_t>(Lo0),  static_cast<int8_t>(Lo1),  static_cast<int8_t>(Lo2),  static_cast<int8_t>(Lo3),
+            static_cast<int8_t>(Lo4),  static_cast<int8_t>(Lo5),  static_cast<int8_t>(Lo6),  static_cast<int8_t>(Lo7),
+            static_cast<int8_t>(Lo8),  static_cast<int8_t>(Lo9),  static_cast<int8_t>(Lo10), static_cast<int8_t>(Lo11),
+            static_cast<int8_t>(Lo12), static_cast<int8_t>(Lo13), static_cast<int8_t>(Lo14), static_cast<int8_t>(Hi15));
+        return _mm256_shuffle_epi8(this->Data, mask);
+    }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Lo15,
         uint8_t Lo16, uint8_t Lo17, uint8_t Lo18, uint8_t Lo19, uint8_t Lo20, uint8_t Lo21, uint8_t Lo22, uint8_t Lo23, uint8_t Lo24, uint8_t Lo25, uint8_t Lo26, uint8_t Lo27, uint8_t Lo28, uint8_t Lo29, uint8_t Lo30, uint8_t Hi31>
     forceinline T VECCALL Shuffle() const noexcept
@@ -622,16 +653,18 @@ public:
             && Lo8 < 32 && Lo9 < 32 && Lo10 < 32 && Lo11 < 32 && Lo12 < 32 && Lo13 < 32 && Lo14 < 32 && Lo15 < 32
             && Lo16 < 32 && Lo17 < 32 && Lo18 < 32 && Lo19 < 32 && Lo20 < 32 && Lo21 < 32 && Lo22 < 32 && Lo23 < 32
             && Lo24 < 32 && Lo25 < 32 && Lo26 < 32 && Lo27 < 32 && Lo28 < 32 && Lo29 < 32 && Lo30 < 32 && Hi31 < 32, "shuffle index should be in [0,31]");
-        const auto mask = _mm256_setr_epi8(
-            static_cast<int8_t>(Lo0),  static_cast<int8_t>(Lo1),  static_cast<int8_t>(Lo2),  static_cast<int8_t>(Lo3),
-            static_cast<int8_t>(Lo4),  static_cast<int8_t>(Lo5),  static_cast<int8_t>(Lo6),  static_cast<int8_t>(Lo7),  
-            static_cast<int8_t>(Lo8),  static_cast<int8_t>(Lo9),  static_cast<int8_t>(Lo10), static_cast<int8_t>(Lo11), 
-            static_cast<int8_t>(Lo12), static_cast<int8_t>(Lo13), static_cast<int8_t>(Lo14), static_cast<int8_t>(Lo15), 
-            static_cast<int8_t>(Lo16), static_cast<int8_t>(Lo17), static_cast<int8_t>(Lo18), static_cast<int8_t>(Lo19), 
-            static_cast<int8_t>(Lo20), static_cast<int8_t>(Lo21), static_cast<int8_t>(Lo22), static_cast<int8_t>(Lo23),
-            static_cast<int8_t>(Lo24), static_cast<int8_t>(Lo25), static_cast<int8_t>(Lo26), static_cast<int8_t>(Lo27), 
-            static_cast<int8_t>(Lo28), static_cast<int8_t>(Lo29), static_cast<int8_t>(Lo30), static_cast<int8_t>(Hi31));
-        return _mm256_shuffle_epi8(this->Data, mask);
+        if constexpr (Lo0 < 16 && Lo1 < 16 && Lo2 < 16 && Lo3 < 16 && Lo4 < 16 && Lo5 < 16 && Lo6 < 16 && Lo7 < 16
+            && Lo8 < 16 && Lo9 < 16 && Lo10 < 16 && Lo11 < 16 && Lo12 < 16 && Lo13 < 16 && Lo14 < 16 && Lo15 < 16
+            && Lo16 - Lo0 == 16 && Lo17 - Lo1 == 16 && Lo18 - Lo2 == 16 && Lo19 - Lo3 == 16 && Lo20 - Lo4 == 16 && Lo21 - Lo5 == 16 && Lo22 - Lo6 == 16 && Lo23 - Lo7 == 16
+            && Lo24 - Lo8 == 16 && Lo25 - Lo9 == 16 && Lo26 - Lo10 == 16 && Lo27 - Lo11 == 16 && Lo28 - Lo12 == 16 && Lo29 - Lo13 == 16 && Lo30 - Lo14 == 16 && Hi31 - Lo15 == 16) // no cross lane and same shuffle for two lane
+        {
+            return ShuffleLane<Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Lo7, Lo8, Lo9, Lo10, Lo11, Lo12, Lo13, Lo14, Lo15>();
+        }
+        else
+        {
+            static_assert(!::common::AlwaysTrue2<Lo0>, "Unimplemented");
+            return *this;
+        }
     }
     template<uint8_t Idx>
     forceinline T VECCALL BroadcastLane() const noexcept
