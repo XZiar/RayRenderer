@@ -16,6 +16,7 @@ private:
     uint32_t(*TailZero64)(const uint64_t) noexcept = nullptr;
     uint32_t(*PopCount32)(const uint32_t) noexcept = nullptr;
     uint32_t(*PopCount64)(const uint64_t) noexcept = nullptr;
+    uint32_t(*PopCounts )(const std::byte* data, size_t count) noexcept = nullptr;
     std::string(*Hex2Str)(const uint8_t* data, size_t size, bool isCapital) noexcept = nullptr;
     bool(*PauseCycles)(uint32_t) noexcept = nullptr;
 #if COMMON_COMPILER_MSVC
@@ -96,6 +97,17 @@ public:
             return PopCount64(static_cast<uint64_t>(num));
         else
             static_assert(!AlwaysTrue<T>, "datatype larger than 64 bit is not supported");
+    }
+    template<typename T>
+    [[nodiscard]] forceinline uint32_t PopCountRange(span<const T> space) const noexcept
+    {
+        const auto byteCount = space.size_bytes();
+        if (byteCount == 8)
+            return PopCount64(*reinterpret_cast<const uint64_t*>(space.data()));
+        else if (byteCount == 4)
+            return PopCount32(*reinterpret_cast<const uint32_t*>(space.data()));
+        else
+            return PopCounts(reinterpret_cast<const std::byte*>(space.data()), byteCount);
     }
     template<typename T>
     [[nodiscard]] forceinline T ByteSwap(const T num) const noexcept

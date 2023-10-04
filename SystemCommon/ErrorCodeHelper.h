@@ -44,7 +44,7 @@ struct Win32ErrorHolder
         return *this;
     }
     constexpr explicit operator unsigned long() const noexcept { return Value; }
-    constexpr explicit operator bool() const noexcept { return Value >= 0; }
+    constexpr explicit operator bool() const noexcept { return Value == 0; }
 
     [[nodiscard]] SYSCOMMONAPI static std::u16string FormatError(unsigned long err);
     [[nodiscard]] SYSCOMMONAPI static Win32ErrorHolder GetLastError();

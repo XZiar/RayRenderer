@@ -21,6 +21,7 @@
 #include <vector>
 #include <string_view>
 #include <functional>
+#include <optional>
 
 
 namespace common
@@ -42,6 +43,7 @@ namespace common
 #endif
 #if COMMON_OS_UNIX
 [[nodiscard]] SYSCOMMONAPI uint32_t GetUnixKernelVersion() noexcept;
+[[nodiscard]] SYSCOMMONAPI std::optional<uint32_t> GetGlibcVersion() noexcept;
 #endif
 #if COMMON_OS_LINUX
 [[nodiscard]] inline uint32_t GetLinuxKernelVersion() noexcept { return GetUnixKernelVersion(); }

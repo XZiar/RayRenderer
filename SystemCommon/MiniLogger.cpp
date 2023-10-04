@@ -247,9 +247,9 @@ class GlobalBackend final : public LoggerQBackend
 private:
     Delegate<const LogMessage&> DoPrint;
 protected:
-    bool OnStart(std::any& cookie) noexcept final
+    bool OnStart(const ThreadObject& thr, std::any& cookie) noexcept final
     {
-        common::SetThreadName(u"Debugger-GlobalBackend");
+        thr.SetName(u"Debugger-GlobalBackend");
         return LoggerQBackend::OnStart(cookie);
     }
 public:
@@ -378,9 +378,9 @@ void detail::MiniLoggerBase::SentToGlobalOutputer(LogMessage* msg)
 class DebuggerBackend final : public LoggerQBackend
 {
 protected:
-    bool OnStart(std::any& cookie) noexcept final
+    bool OnStart(const ThreadObject& thr, std::any& cookie) noexcept final
     {
-        common::SetThreadName(u"Debugger-MLogger-Backend");
+        thr.SetName(u"Debugger-MLogger-Backend");
         return LoggerQBackend::OnStart(cookie);
     }
 public:
@@ -443,10 +443,10 @@ private:
     std::u16string PrefixCacheU16;
     bool UseFastU8Path;
     bool SupportColor;
-    bool OnStart(std::any& cookie) noexcept final
+    bool OnStart(const ThreadObject& thr, std::any& cookie) noexcept final
     {
-        common::SetThreadName(u"Console-MLogger-Backend");
-        common::SetThreadQoS(ThreadQoS::Background);
+        thr.SetName(u"Console-MLogger-Backend");
+        thr.SetQoS(ThreadQoS::Background);
         return LoggerQBackend::OnStart(cookie);
     }
 public:
@@ -503,9 +503,9 @@ class FileBackend final : public LoggerQBackend
 {
 protected:
     file::FileOutputStream Stream;
-    bool OnStart(std::any& cookie) noexcept final
+    bool OnStart(const ThreadObject& thr, std::any& cookie) noexcept final
     {
-        common::SetThreadName(u"File-MLogger-Backend");
+        thr.SetName(u"File-MLogger-Backend");
         return LoggerQBackend::OnStart(cookie);
     }
     void OnStop() noexcept final

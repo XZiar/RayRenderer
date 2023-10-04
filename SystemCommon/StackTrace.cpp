@@ -54,43 +54,43 @@ public:
         std::unique_lock<std::mutex> callerLock(CallerMutex);
         std::unique_lock<std::mutex> workerLock(WorkerMutex);
         WorkThread = std::thread([&]()
+        {
+            ThreadObject::GetCurrentThreadObject().SetName(u"StackExplainer");
+            std::unique_lock<std::mutex> lock(WorkerMutex);
+            ExitCallback = ExitCleaner::RegisterCleaner([&]() noexcept { this->Stop(); });
+            CallerCV.notify_one();
+            WorkerCV.wait(lock);
+            while (ShouldRun)
             {
-                SetThreadName(u"StackExplainer");
-                std::unique_lock<std::mutex> lock(WorkerMutex);
-                ExitCallback = ExitCleaner::RegisterCleaner([&]() noexcept { this->Stop(); });
+                switch (Request.index())
+                {
+                case 1:
+                {
+                    const auto [frame, output] = std::get<1>(Request);
+                    *output = { CachedFileName(*frame), str::to_u16string(frame->name()), frame->source_line() };
+                } break;
+                case 2:
+                {
+                    const auto [stks, output] = std::get<2>(Request);
+                    for (auto frame = stks->begin(); frame != stks->end(); ++frame)
+                    {
+                        try
+                        {
+                            output->emplace_back(CachedFileName(*frame), str::to_u16string(frame->name()), frame->source_line());
+                        }
+                        catch (...)
+                        {
+                        }
+                    }
+                } break;
+                default: break;
+                }
+                Request = std::monostate{};
                 CallerCV.notify_one();
                 WorkerCV.wait(lock);
-                while (ShouldRun)
-                {
-                    switch (Request.index())
-                    {
-                    case 1:
-                    {
-                        const auto [frame, output] = std::get<1>(Request);
-                        *output = { CachedFileName(*frame), str::to_u16string(frame->name()), frame->source_line() };
-                    } break;
-                    case 2:
-                    {
-                        const auto [stks, output] = std::get<2>(Request);
-                        for (auto frame = stks->begin(); frame != stks->end(); ++frame)
-                        {
-                            try
-                            {
-                                output->emplace_back(CachedFileName(*frame), str::to_u16string(frame->name()), frame->source_line());
-                            }
-                            catch (...)
-                            {
-                            }
-                        }
-                    } break;
-                    default: break;
-                    }
-                    Request = std::monostate{};
-                    CallerCV.notify_one();
-                    WorkerCV.wait(lock);
-                }
-                CallerCV.notify_one();
-            });
+            }
+            CallerCV.notify_one();
+        });
         CallerCV.wait(workerLock);
     }
     ~StackExplainer()

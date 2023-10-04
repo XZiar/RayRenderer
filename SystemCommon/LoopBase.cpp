@@ -72,7 +72,8 @@ bool LoopExecutor::TurnToRun() noexcept
 void LoopExecutor::RunLoop() noexcept
 {
     std::unique_lock<std::mutex> runningLock(Control->RunningMtx);
-    if (!Loop.OnStart(Cookie))
+    const auto thisThread = ThreadObject::GetCurrentThreadObject();
+    if (!Loop.OnStart(thisThread, Cookie))
         return;
     while (ExeState.load(std::memory_order_relaxed) == ExeStates::Running)
     {

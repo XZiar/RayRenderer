@@ -55,7 +55,7 @@ const CopyManager CopyEx;
 
 
 DEFINE_FASTPATH_BASIC(MiscIntrins,
-    LeadZero32, LeadZero64, TailZero32, TailZero64, PopCount32, PopCount64, Hex2Str, PauseCycles)
+    LeadZero32, LeadZero64, TailZero32, TailZero64, PopCount32, PopCount64, PopCounts, Hex2Str, PauseCycles)
 const MiscIntrins MiscIntrin;
 
 

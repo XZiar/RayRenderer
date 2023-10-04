@@ -13,6 +13,7 @@
 #define TailZero64Info  (uint32_t)(const uint64_t num)
 #define PopCount32Info  (uint32_t)(const uint32_t num)
 #define PopCount64Info  (uint32_t)(const uint64_t num)
+#define PopCountsInfo   (uint32_t)(const std::byte* data, size_t count)
 #define Hex2StrInfo     (::std::string)(const uint8_t* data, size_t size, bool isCapital)
 #define PauseCyclesInfo (bool)(uint32_t cycles)
 #define Sha256Info      (::std::array<std::byte, 32>)(const std::byte* data, const size_t size)
@@ -43,7 +44,7 @@ using ::common::DigestFuncs;
 
 
 DEFINE_FASTPATHS(MiscIntrins,
-    LeadZero32, LeadZero64, TailZero32, TailZero64, PopCount32, PopCount64, Hex2Str, PauseCycles)
+    LeadZero32, LeadZero64, TailZero32, TailZero64, PopCount32, PopCount64, PopCounts, Hex2Str, PauseCycles)
 
 
 DEFINE_FASTPATHS(DigestFuncs, Sha256)
@@ -88,6 +89,43 @@ DEFINE_FASTPATH_METHOD(PauseCycles, WAITPKG)
 #endif
 #undef PauseCycleLoop
 
+
+template<typename F64, typename F32>
+static forceinline uint32_t PopCountsLoop(F64&& func64, F32&& func32, const std::byte* data, size_t count)
+{
+    uint32_t result = 0;
+    while (count >= 32)
+    {
+        const auto cnt0 = static_cast<uint32_t>(func64(reinterpret_cast<const uint64_t*>(data)[0]));
+        const auto cnt1 = static_cast<uint32_t>(func64(reinterpret_cast<const uint64_t*>(data)[1]));
+        const auto cnt2 = static_cast<uint32_t>(func64(reinterpret_cast<const uint64_t*>(data)[2]));
+        const auto cnt3 = static_cast<uint32_t>(func64(reinterpret_cast<const uint64_t*>(data)[3]));
+        result += cnt0 + cnt1 + cnt2 + cnt3;
+        data += 32; count -= 32;
+    }
+    while (count >= 8)
+    {
+        result += static_cast<uint32_t>(func64(reinterpret_cast<const uint64_t*>(data)[0]));
+        data += 8; count -= 8;
+    }
+    if (count >= 4)
+    {
+        result += static_cast<uint32_t>(func32(reinterpret_cast<const uint32_t*>(data)[0]));
+        data += 4; count -= 4;
+    }
+    switch (count)
+    {
+    case 3: result += static_cast<uint32_t>(func32(static_cast<uint32_t>(*data))); data++;
+        [[fallthrough]];
+    case 2: result += static_cast<uint32_t>(func32(static_cast<uint32_t>(*data))); data++;
+        [[fallthrough]];
+    case 1: result += static_cast<uint32_t>(func32(static_cast<uint32_t>(*data))); data++;
+        [[fallthrough]];
+    default:
+        break;
+    }
+    return result;
+}
 
 #if COMMON_COMPILER_MSVC
 
@@ -149,13 +187,25 @@ DEFINE_FASTPATH_METHOD(TailZero64, COMPILER)
     return num == 0 ? 64 : __builtin_ctzll(num);
 }
 
-DEFINE_FASTPATH_METHOD(PopCount32, COMPILER)
+forceinline uint32_t PopCount_COMPILER_32(uint32_t num)
 {
     return __builtin_popcount(num);
 }
-DEFINE_FASTPATH_METHOD(PopCount64, COMPILER)
+forceinline uint32_t PopCount_COMPILER_64(uint64_t num)
 {
     return __builtin_popcountll(num);
+}
+DEFINE_FASTPATH_METHOD(PopCount32, COMPILER)
+{
+    return PopCount_COMPILER_32(num);
+}
+DEFINE_FASTPATH_METHOD(PopCount64, COMPILER)
+{
+    return PopCount_COMPILER_64(num);
+}
+DEFINE_FASTPATH_METHOD(PopCounts, COMPILER)
+{
+    return PopCountsLoop(PopCount_COMPILER_64, PopCount_COMPILER_32, data, count);
 }
 
 #endif
@@ -175,19 +225,32 @@ DEFINE_FASTPATH_METHOD(PopCount64, COMPILER)
 //{
 //}
 
-DEFINE_FASTPATH_METHOD(PopCount32, NAIVE)
+forceinline uint32_t PopCount_NAIVE_32(uint32_t num)
 {
     auto tmp = num - ((num >> 1) & 0x55555555u);
     tmp = (tmp & 0x33333333u) + ((tmp >> 2) & 0x33333333u);
     tmp = (tmp + (tmp >> 4)) & 0x0f0f0f0fu;
     return (tmp * 0x01010101u) >> 24;
 }
-DEFINE_FASTPATH_METHOD(PopCount64, NAIVE)
+forceinline uint32_t PopCount_NAIVE_64(uint64_t num)
 {
     auto tmp = num - ((num >> 1) & 0x5555555555555555u);
     tmp = (tmp & 0x3333333333333333u) + ((tmp >> 2) & 0x3333333333333333u);
     tmp = (tmp + (tmp >> 4)) & 0x0f0f0f0f0f0f0f0fu;
     return (tmp * 0x0101010101010101u) >> 56;
+}
+
+DEFINE_FASTPATH_METHOD(PopCount32, NAIVE)
+{
+    return PopCount_NAIVE_32(num);
+}
+DEFINE_FASTPATH_METHOD(PopCount64, NAIVE)
+{
+    return PopCount_NAIVE_64(num);
+}
+DEFINE_FASTPATH_METHOD(PopCounts, NAIVE)
+{
+    return PopCountsLoop(PopCount_NAIVE_64, PopCount_NAIVE_32, data, count);
 }
 
 DEFINE_FASTPATH_METHOD(Sha256, NAIVE)
@@ -244,11 +307,11 @@ DEFINE_FASTPATH_METHOD(TailZero64, TZCNT)
 #if (COMMON_COMPILER_MSVC && COMMON_ARCH_X86/* && COMMON_SIMD_LV >= 42*/) || (!COMMON_COMPILER_MSVC && defined(__POPCNT__))
 #pragma message("Compiling MiscIntrins with POPCNT")
 
-DEFINE_FASTPATH_METHOD(PopCount32, POPCNT)
+forceinline uint32_t PopCount_POPCNT_32(uint32_t num) noexcept
 {
     return _mm_popcnt_u32(num);
 }
-DEFINE_FASTPATH_METHOD(PopCount64, POPCNT)
+forceinline uint32_t PopCount_POPCNT_64(uint64_t num) noexcept
 {
 #   if COMMON_OSBIT == 64
     return static_cast<uint32_t>(_mm_popcnt_u64(num));
@@ -256,6 +319,18 @@ DEFINE_FASTPATH_METHOD(PopCount64, POPCNT)
     const auto lo = static_cast<uint32_t>(num), hi = static_cast<uint32_t>(num >> 32);
     return _mm_popcnt_u32(lo) + _mm_popcnt_u32(hi);
 #   endif
+}
+DEFINE_FASTPATH_METHOD(PopCount32, POPCNT)
+{
+    return PopCount_POPCNT_32(num);
+}
+DEFINE_FASTPATH_METHOD(PopCount64, POPCNT)
+{
+    return PopCount_POPCNT_64(num);
+}
+DEFINE_FASTPATH_METHOD(PopCounts, POPCNT)
+{
+    return PopCountsLoop(PopCount_POPCNT_64, PopCount_POPCNT_32, data, count);
 }
 
 #endif

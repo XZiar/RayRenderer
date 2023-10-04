@@ -18,7 +18,8 @@ public:
     SmallBitset(size_t count, bool initial) noexcept :
         Real((count + 7) / 8 + 1, static_cast<char>(initial ? 0xffu : 0x0u))
     {
-        Real.back() = static_cast<char>(8 - (count % 8));
+        const auto remainder = count % 8;
+        Real.back() = static_cast<char>(remainder ? 8 - remainder : 0);
     }
     bool Get(size_t idx) const noexcept
     {
@@ -49,12 +50,14 @@ public:
         {
             const auto base = (size - 1) * 8;
             const auto dummy = static_cast<uint8_t>(Real.back());
-            Ensures(base >= dummy);
+            Ensures(base > dummy);
             return base - dummy;
         }
         else
             return 0;
     }
+          std::byte* Data()       noexcept { return reinterpret_cast<      std::byte*>(Real.data()); }
+    const std::byte* Data() const noexcept { return reinterpret_cast<const std::byte*>(Real.data()); }
 };
 
 }

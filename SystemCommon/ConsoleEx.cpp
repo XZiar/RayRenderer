@@ -713,13 +713,13 @@ struct InitMessageHandler final : detail::InitMessage::Handler
 const ConsoleEx& ConsoleEx::Get() noexcept
 {
     static auto theConsole = []()
-        {
-            auto console = CreateConsole();
-            auto handler = std::make_unique<InitMessageHandler>(console.get());
-            detail::InitMessage::Consume(std::move(handler));
-            return console;
-        }();
-        return *theConsole;
+    {
+        auto console = CreateConsole();
+        auto handler = std::make_unique<InitMessageHandler>(console.get());
+        detail::InitMessage::Consume(std::move(handler));
+        return console;
+    }();
+    return *theConsole;
 }
 
 

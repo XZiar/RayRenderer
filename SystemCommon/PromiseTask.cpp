@@ -37,9 +37,9 @@ private:
     {
         return TaskList.IsEmpty();
     }
-    bool OnStart(std::any&) noexcept final
+    bool OnStart(const ThreadObject& thr, std::any&) noexcept final
     {
-        common::SetThreadName(u"PromiseActiveProxy");
+        thr.SetName(u"PromiseActiveProxy");
         return true;
     }
     void AddNode(PmsCore&& promise)

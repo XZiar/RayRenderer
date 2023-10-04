@@ -1,6 +1,6 @@
 #include "rely.h"
 #include "ImageUtil/ImageUtilRely.h"
-#include "ImageUtil/Colorconvert.h"
+#include "ImageUtil/ColorConvert.h"
 #include "SystemCommon/Format.h"
 #include <algorithm>
 #include <random>

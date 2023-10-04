@@ -27,7 +27,6 @@
 #   define NOMINMAX 1
 #   include <conio.h>
 #   include <Windows.h>
-#   include <ProcessThreadsApi.h>
 #else
 #   ifndef _GNU_SOURCE
 #       define _GNU_SOURCE
@@ -39,7 +38,6 @@
 #   include <errno.h>
 #   include <dlfcn.h>
 #   include <fcntl.h>
-#   include <pthread.h>
 #   include <termios.h>
 #   include <unistd.h>
 #   include <sys/ioctl.h>
@@ -64,7 +62,6 @@
             inline off64_t ftello64(FILE* stream) { return ftello(stream); }
 #       endif
 #   else
-#       include <sched.h>
 #       include <sys/syscall.h>
 #   endif
 #endif

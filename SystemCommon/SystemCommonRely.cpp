@@ -1,17 +1,10 @@
 #include "SystemCommonPch.h"
 #include "Exceptions.h"
+#include "Format.h"
+#include "ConsoleEx.h"
 #include "SpinLock.h"
-#include "common/FrozenDenseSet.hpp"
 #include "common/simd/SIMD.hpp"
 #include "common/StringLinq.hpp"
-#include "3rdParty/cpuinfo/include/cpuinfo.h"
-#if COMMON_ARCH_X86
-#   include "3rdParty/cpuinfo/src/x86/cpuid.h"
-#endif
-#if COMMON_OS_LINUX && COMMON_ARCH_ARM
-#   include <sys/auxv.h>
-#   include <asm/hwcap.h>
-#endif
 #include <boost/version.hpp>
 
 #pragma message("Compiling SystemCommon with [" STRINGIZE(COMMON_SIMD_INTRIN) "]" )
@@ -34,6 +27,10 @@
 #endif
 #if COMMON_OS_UNIX
 #   include <sys/utsname.h>
+#   ifdef __GLIBC__
+#       pragma message("Compiling SystemCommon with GLIBC[" STRINGIZE(__GLIBC__) "." STRINGIZE(__GLIBC_MINOR__) "]" )
+#       include <gnu/libc-version.h>
+#   endif
 #endif
 
 #include <cstdarg>
@@ -142,6 +139,31 @@ uint32_t GetUnixKernelVersion() noexcept
     }();
     return ver;
 }
+std::optional<uint32_t> GetGlibcVersion() noexcept
+{
+#   ifdef __GLIBC__
+    static const auto ver = []()
+    {
+        const auto txt = gnu_get_libc_version();
+        uint32_t ver = 0;
+        for (const std::string_view part : str::SplitStream(txt, '.', false).Take(2))
+        {
+            uint32_t partver = 0;
+            for (const auto ch : part)
+            {
+                if (ch >= '0' && ch <= '9')
+                    partver = partver * 10 + (ch - '0');
+                else
+                    break;
+            }
+            ver = ver * 100 + (partver % 100);
+        }
+        return ver;
+    }();
+    return ver;
+#   endif
+    return {};
+}
 #endif
 
 
@@ -152,15 +174,19 @@ forceinline std::array<uint32_t, 3> SplitVer3(uint32_t ver) noexcept
 }
 void PrintSystemVersion() noexcept
 {
+    str::Formatter<char16_t> fmter;
+    std::u16string txt;
 #if COMMON_OS_WIN
-    printf("Running on Windows build [%u]\n", GetWinBuildNumber());
+    fmter.FormatToStatic(txt, FmtString(u"Running on Windows build [{}]\n"), GetWinBuildNumber());
+    //printf("Running on Windows build [%u]\n", GetWinBuildNumber());
 #elif COMMON_OS_ANDROID
     const auto kerVer = SplitVer3<100, 1000>(GetLinuxKernelVersion());
-    printf("Running on Android API [%d], Linux [%u.%u.%u]\n", GetAndroidAPIVersion(), kerVer[0], kerVer[1], kerVer[2]);
+    fmter.FormatToStatic(txt, FmtString(u"Running on Android API [{}], Linux [{}.{}.{}]\n"), GetAndroidAPIVersion(), kerVer[0], kerVer[1], kerVer[2]);
+    //printf("Running on Android API [%d], Linux [%u.%u.%u]\n", GetAndroidAPIVersion(), kerVer[0], kerVer[1], kerVer[2]);
 #elif COMMON_OS_DARWIN
     const auto ver = SplitVer3(GetDarwinOSVersion());
     const auto kerVer = SplitVer3<100, 1000>(GetUnixKernelVersion());
-    printf("Running on %s [%u.%u.%u], Darwin [%u.%u.%u]\n",
+    printf(u"Running on %s [%u.%u.%u], Darwin [%u.%u.%u]\n",
 # if COMMON_OS_MACOS
         "macOS",
 # elif COMMON_OS_IOS
@@ -169,13 +195,21 @@ void PrintSystemVersion() noexcept
         "Unknown",
 # endif
         ver[0], ver[1], ver[2], kerVer[0], kerVer[1], kerVer[2]);
-#elif COMMON_OS_LINUX
-    const auto kerVer = SplitVer3<100, 1000>(GetLinuxKernelVersion());
-    printf("Running on Linux [%u.%u.%u]\n", kerVer[0], kerVer[1], kerVer[2]);
 #elif COMMON_OS_UNIX
+#   if COMMON_OS_LINUX
+    std::string_view target = "Linux";
+#   else
+    std::string_view target = "Unix";
+#   endif
     const auto kerVer = SplitVer3<100, 1000>(GetUnixKernelVersion());
-    printf("Running on Unix [%u.%u.%u]\n", kerVer[0], kerVer[1], kerVer[2]);
+    fmter.FormatToStatic(txt, FmtString(u"Running on {} [{}.{}.{}]"), target, kerVer[0], kerVer[1], kerVer[2]);
+    const auto glibcver = GetGlibcVersion();
+    if (glibcver.has_value())
+        fmter.FormatToStatic(txt, FmtString(u" glibc [{}.{}]"), (*glibcver) / 100, (*glibcver) % 100);
+    txt.push_back(u'\n');
+    //printf("Running on Unix [%u.%u.%u]\n", kerVer[0], kerVer[1], kerVer[2]);
 #endif
+    console::ConsoleEx::Get().Print(txt);
 }
 
 
@@ -460,158 +494,6 @@ ScreenColor Expend256ColorToRGB(uint8_t color) noexcept
 {
     const auto& newColor = Color256Map[color];
     return { false, newColor[0], newColor[1], newColor[2] };
-}
-
-
-struct CPUFeature
-{
-    std::vector<std::string_view> FeatureText;
-    container::FrozenDenseStringSetSimple<char> FeatureLookup;
-    void AppendFeature(std::string_view txt) noexcept
-    {
-        for (const auto& feat : FeatureText)
-        {
-            if (feat == txt) return;
-        }
-        FeatureText.push_back(txt);
-    }
-    void TryCPUInfo() noexcept
-    {
-        cpuinfo_initialize();
-        detail::InitMessage::Enqueue(mlog::LogLevel::Verbose, "cpuinfo", std::string("detected cpu: ") + cpuinfo_get_package(0)->name + "\n");
-#if COMMON_ARCH_X86
-        const uint32_t max_base_index = cpuid(0).eax;
-        if (max_base_index >= 7)
-        {
-            const auto reg70 = cpuidex(7, 0);
-            if (reg70.ecx & (1u << 5))
-                AppendFeature("waitpkg"sv);
-        }
-# define CHECK_FEATURE(en, name) if (cpuinfo_has_x86_##en()) AppendFeature(#name""sv)
-        CHECK_FEATURE(sse,          sse);
-        CHECK_FEATURE(sse2,         sse2);
-        CHECK_FEATURE(sse3,         sse3);
-        CHECK_FEATURE(ssse3,        ssse3);
-        CHECK_FEATURE(sse4_1,       sse4_1);
-        CHECK_FEATURE(sse4_2,       sse4_2);
-        CHECK_FEATURE(avx,          avx);
-        CHECK_FEATURE(fma3,         fma);
-        CHECK_FEATURE(avx2,         avx2);
-        CHECK_FEATURE(avx512f,      avx512f);
-        CHECK_FEATURE(avx512dq,     avx512dq);
-        CHECK_FEATURE(avx512pf,     avx512pf);
-        CHECK_FEATURE(avx512er,     avx512er);
-        CHECK_FEATURE(avx512cd,     avx512cd);
-        CHECK_FEATURE(avx512bw,     avx512bw);
-        CHECK_FEATURE(avx512vl,     avx512vl);
-        CHECK_FEATURE(avx512vnni,   avx512vnni);
-        CHECK_FEATURE(avx512vbmi,   avx512vbmi);
-        CHECK_FEATURE(avx512vbmi2,  avx512vbmi2);
-        CHECK_FEATURE(pclmulqdq,    pclmul);
-        CHECK_FEATURE(popcnt,       popcnt);
-        CHECK_FEATURE(aes,          aes);
-        CHECK_FEATURE(lzcnt,        lzcnt);
-        CHECK_FEATURE(f16c,         f16c);
-        CHECK_FEATURE(bmi,          bmi1);
-        CHECK_FEATURE(bmi2,         bmi2);
-        CHECK_FEATURE(sha,          sha);
-        CHECK_FEATURE(adx,          adx);
-# undef CHECK_FEATURE
-#elif COMMON_ARCH_ARM
-        cpuinfo_has_arm_sha2();
-# define CHECK_FEATURE(en, name) if (cpuinfo_has_arm_##en()) AppendFeature(#name""sv)
-        CHECK_FEATURE(neon,         asimd);
-        CHECK_FEATURE(aes,          aes);
-        CHECK_FEATURE(pmull,        pmull);
-        CHECK_FEATURE(sha1,         sha1);
-        CHECK_FEATURE(sha2,         sha2);
-        CHECK_FEATURE(crc32,        crc32);
-# undef CHECK_FEATURE
-#endif
-        return;
-    }
-    void TryAUXVal() noexcept
-    {
-#if COMMON_OS_LINUX && COMMON_ARCH_ARM && (!COMMON_OS_ANDROID || __NDK_MAJOR__ >= 18)
-        [[maybe_unused]] const auto cap1 = getauxval(AT_HWCAP), cap2 = getauxval(AT_HWCAP2);
-        //printf("cap1&2: [%lx][%lx]\n", cap1, cap2);
-# define PFX1(en) PPCAT(HWCAP_,  en)
-# define PFX2(en) PPCAT(HWCAP2_, en)
-# define CHECK_FEATURE(n, en, name) if (PPCAT(cap, n) & PPCAT(PFX, n)(en)) AppendFeature(#name""sv)
-# if COMMON_ARCH_ARM
-#   if defined(__aarch64__)
-#     define CAPNUM 1
-        CHECK_FEATURE(1, ASIMD, asimd);
-        CHECK_FEATURE(CAPNUM, FP,       fp);
-#   else
-#     define CAPNUM 2
-        CHECK_FEATURE(1, NEON, asimd);
-#   endif
-        CHECK_FEATURE(CAPNUM, AES,      aes);
-        CHECK_FEATURE(CAPNUM, PMULL,    pmull);
-        CHECK_FEATURE(CAPNUM, SHA1,     sha1);
-        CHECK_FEATURE(CAPNUM, SHA2,     sha2);
-        CHECK_FEATURE(CAPNUM, CRC32,    crc32);
-# undef CAPNUM
-# endif
-# undef CHECK_FEATURE
-# undef PFX1
-# undef PFX2
-#endif
-    }
-    void TrySysCtl() noexcept
-    {
-#if COMMON_OS_DARWIN && COMMON_ARCH_ARM
-        constexpr auto SysCtl = [](const std::string_view name) -> bool 
-        {
-            char buf[100] = { 0 };
-            size_t len = 100;
-            if (sysctlbyname(name.data(), &buf, &len, nullptr, 0)) return false;
-            return len >= 1 && buf[0] == 1;
-        };
-# define CHECK_FEATURE(name, feat) if (SysCtl("hw.optional."#name""sv)) AppendFeature(#feat""sv)
-        CHECK_FEATURE(floatingpoint, fp);
-#   if COMMON_OSBIT == 64
-        AppendFeature("asimd"sv);
-        AppendFeature("aes"sv);
-        AppendFeature("pmull"sv);
-        AppendFeature("sha1"sv);
-        AppendFeature("sha2"sv);
-#   else
-        CHECK_FEATURE(neon, asimd);
-#   endif
-        CHECK_FEATURE(armv8_crc32, crc32);
-        CHECK_FEATURE(armv8_2_sha512, sha512);
-        CHECK_FEATURE(armv8_2_sha3, sha3);
-# undef CHECK_FEATURE
-#endif
-    }
-
-    CPUFeature() noexcept
-    {
-        TryCPUInfo();
-        TryAUXVal();
-        TrySysCtl();
-        FeatureLookup = FeatureText;
-    }
-};
-
-[[nodiscard]] static const CPUFeature& GetCPUFeatureHost() noexcept
-{
-    static const CPUFeature Host;
-    return Host;
-}
-
-
-bool CheckCPUFeature(str::HashedStrView<char> feature) noexcept
-{
-    static const auto& features = GetCPUFeatureHost();
-    return features.FeatureLookup.Has(feature);
-}
-span<const std::string_view> GetCPUFeatures() noexcept
-{
-    static const auto& features = GetCPUFeatureHost();
-    return features.FeatureText;
 }
 
 
