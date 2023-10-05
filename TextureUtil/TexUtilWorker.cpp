@@ -12,7 +12,7 @@ TexUtilWorker::TexUtilWorker(oglContext&& glContext, const oclContext& clContext
 {
     Executor.Start([this]
     {
-        common::SetThreadName(u"TexUtil");
+        Executor.GetThread()->SetName(u"TexUtil");
         texLog().Success(u"TexUtil thread start running.\n");
         if (!GLContext->UseContext())
         {

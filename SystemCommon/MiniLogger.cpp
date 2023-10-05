@@ -167,7 +167,7 @@ bool LoggerQBackend::SleepCheck() noexcept
 {
     return MsgQueue.empty();
 }
-bool LoggerQBackend::OnStart(std::any&) noexcept
+bool LoggerQBackend::OnStart(const ThreadObject&, std::any&) noexcept
 {
     CleanerId = ExitCleaner::RegisterCleaner([&]() noexcept 
         {
@@ -250,7 +250,7 @@ protected:
     bool OnStart(const ThreadObject& thr, std::any& cookie) noexcept final
     {
         thr.SetName(u"Debugger-GlobalBackend");
-        return LoggerQBackend::OnStart(cookie);
+        return LoggerQBackend::OnStart(thr, cookie);
     }
 public:
     GlobalBackend() {}
@@ -381,7 +381,7 @@ protected:
     bool OnStart(const ThreadObject& thr, std::any& cookie) noexcept final
     {
         thr.SetName(u"Debugger-MLogger-Backend");
-        return LoggerQBackend::OnStart(cookie);
+        return LoggerQBackend::OnStart(thr, cookie);
     }
 public:
 #if COMMON_OS_ANDROID
@@ -447,7 +447,7 @@ private:
     {
         thr.SetName(u"Console-MLogger-Backend");
         thr.SetQoS(ThreadQoS::Background);
-        return LoggerQBackend::OnStart(cookie);
+        return LoggerQBackend::OnStart(thr, cookie);
     }
 public:
     ConsoleBackend() : Console(console::ConsoleEx::Get()),
@@ -506,7 +506,7 @@ protected:
     bool OnStart(const ThreadObject& thr, std::any& cookie) noexcept final
     {
         thr.SetName(u"File-MLogger-Backend");
-        return LoggerQBackend::OnStart(cookie);
+        return LoggerQBackend::OnStart(thr, cookie);
     }
     void OnStop() noexcept final
     {

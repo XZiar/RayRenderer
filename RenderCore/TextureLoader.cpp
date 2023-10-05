@@ -52,9 +52,9 @@ TextureLoader::TextureLoader(const std::shared_ptr<oglu::texutil::TexMipmap>& mi
         { TexLoadType::Color,  TexProc{TexProcType::CompressBC7, true} },
         { TexLoadType::Normal, TexProc{TexProcType::CompressBC5, true} }
     };
-    Compressor->Start([]
+    Compressor->Start([&]
     {
-        common::SetThreadName(u"TexCompress");
+        Compressor->GetThread()->SetName(u"TexCompress");
         dizzLog().Success(u"TexCompress thread start running.\n");
     });
     RegistControllable();

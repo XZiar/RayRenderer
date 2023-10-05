@@ -18,6 +18,7 @@
 #   include <android/api-level.h>
 #   include <android/log.h>
 #   pragma message("Compiling SystemCommon with Android NDK[" STRINGIZE(__NDK_MAJOR__) "]" )
+#   pragma message("Compiling SystemCommon with Android Target API[" STRINGIZE(__ANDROID_API__) "]" )
 #endif
 #if COMMON_OS_DARWIN
 #   include "ObjCHelper.h"

@@ -86,7 +86,7 @@ bool WindowBackend::Run(bool isNewThread, common::BasicPromise<void>* pms)
             std::promise<void> pms2;
             Impl->MainThread = std::thread([&]()
                 {
-                    common::SetThreadName(u"WindowManager");
+                    common::ThreadObject::GetCurrentThreadObject().SetName(u"WindowManager");
                     OnPrepare();
                     if (pms)
                         pms->SetData();

@@ -143,6 +143,7 @@ struct AsyncManager::ManagerContext
 {
     boost::context::continuation Stack;
     common::mlog::MiniLogger<false> Logger;
+    std::optional<ThreadObject> Thread;
     ManagerContext(const std::u16string& name) :
         Logger(u"Asy-" + name, { common::mlog::GetConsoleBackend() })
     { }
@@ -246,8 +247,9 @@ bool AsyncManager::SleepCheck() noexcept
     return TaskList.IsEmpty();
 }
 
-bool AsyncManager::OnStart(std::any& cookie) noexcept
+bool AsyncManager::OnStart(const ThreadObject& thr, std::any& cookie) noexcept
 {
+    Context->Thread.emplace(thr.Duplicate());
     AsyncAgent::GetRawAsyncAgent() = &Agent;
     Context->Logger.Info(u"AsyncProxy started\n");
     Injector initer;
@@ -288,6 +290,7 @@ void AsyncManager::OnStop() noexcept
             detail::AsyncTaskNodeBase::ReleaseNode(node);
         }, true);
     AsyncAgent::GetRawAsyncAgent() = nullptr;
+    Context->Thread.reset();
     if (ExitCallback)
         ExitCallback();
 }
@@ -308,9 +311,9 @@ bool AsyncManager::RequestStop()
     return LoopBase::RequestStop();
 }
 
-common::loop::LoopExecutor& AsyncManager::GetHost()
+const ThreadObject* AsyncManager::GetThread()
 {
-    return LoopBase::GetHost();
+    return Context->Thread.has_value() ? &*Context->Thread : nullptr;
 }
 
 

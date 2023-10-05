@@ -3,6 +3,7 @@
 #include "DynamicLibrary.h"
 #include "ErrorCodeHelper.h"
 #include "common/FrozenDenseSet.hpp"
+#include "common/SpinLock.hpp"
 #include "3rdParty/cpuinfo/include/cpuinfo.h"
 #if COMMON_ARCH_X86
 #   include "3rdParty/cpuinfo/src/x86/cpuid.h"
@@ -30,6 +31,7 @@ static_assert(common::detail::is_little_endian, "Only Little Endian on Windows")
 #   if __ANDROID_API__ < 21
 #       error Need Android API >= 21
 #   endif
+typedef int (*GetThreadNamePtr)(pthread_t __pthread, char* __buf, size_t __n);
 #endif
 #if COMMON_OS_DARWIN
 #   include <pthread/qos.h>
@@ -42,7 +44,7 @@ namespace common
 using namespace std::string_view_literals;
 
 
-void EnsureCPUInfoInited()
+static void EnsureCPUInfoInited()
 {
     [[maybe_unused]] static const auto Dummy = []() 
     {
@@ -55,6 +57,7 @@ void EnsureCPUInfoInited()
 struct ThreadExHost final : public TopologyInfo
 {
     std::vector<uint32_t> Groups;
+    uint32_t ProcessorCount = 0;
 #if COMMON_OS_WIN
     DynLib Kernel32 = L"kernel32.dll";
 #   define DECLARE_FUNC(name) decltype(&name) name = nullptr
@@ -120,13 +123,14 @@ struct ThreadExHost final : public TopologyInfo
 #   if defined(COMMON_GLIBC_VER) && COMMON_GLIBC_VER >= 230
     decltype(&gettid) GetCurrentTid = nullptr;
 #   endif
-#   if COMMON_OS_ANDROID && (__ANDROID_API__ >= 26)
-    decltype(&pthread_getname_np) GetThreadName = nullptr;
+#   if COMMON_OS_ANDROID
+    GetThreadNamePtr GetThreadName = nullptr;
 #   endif
 #endif
     ThreadExHost()
     {
         EnsureCPUInfoInited();
+        ProcessorCount = cpuinfo_get_processors_count();
 #if COMMON_OS_WIN
         BitsPerGroup = gsl::narrow_cast<uint32_t>(sizeof(KAFFINITY) * 8);
         for (const auto& proc : span<const cpuinfo_processor>{ cpuinfo_get_processors(), cpuinfo_get_processors_count() })
@@ -146,19 +150,20 @@ struct ThreadExHost final : public TopologyInfo
 #       undef LOAD_FUNC
 #   endif
 #else
-        const auto count = cpuinfo_get_processors_count();
-        Expects(count < sizeof(cpu_set_t) * 8);
-        BitsPerGroup = (count + 8 - 1) / 8 * 8;
-        Groups.push_back(count);
+        Expects(ProcessorCount < sizeof(cpu_set_t) * 8);
+        BitsPerGroup = (ProcessorCount + 8 - 1) / 8 * 8;
+        Groups.push_back(ProcessorCount);
 #   if defined(COMMON_GLIBC_VER) && COMMON_GLIBC_VER >= 230
         GetCurrentTid = reinterpret_cast<decltype(&gettid)>(dlsym(RTLD_DEFAULT, "gettid"));
 #   endif
-#   if COMMON_OS_ANDROID && (__ANDROID_API__ >= 26)
-        GetThreadName = reinterpret_cast<decltype(&gettid)>(dlsym(RTLD_DEFAULT, "pthread_getname_np")); 
+#   if COMMON_OS_ANDROID
+        GetThreadName = reinterpret_cast<GetThreadNamePtr>(dlsym(RTLD_DEFAULT, "pthread_getname_np"));
 #   endif
 #endif
+        Ensures(ProcessorCount > 0);
         Ensures(BitsPerGroup % 8 == 0);
     }
+    uint32_t GetTotalProcessorCount() const noexcept final { return ProcessorCount; }
     uint32_t GetGroupCount() const noexcept final { return static_cast<uint32_t>(Groups.size()); }
     uint32_t GetCountInGroup(uint32_t group) const noexcept final { return Groups[group]; }
     static const ThreadExHost& Get() noexcept
@@ -217,6 +222,8 @@ void TopologyInfo::PrintTopology()
         printf("proc[%u]: "
 #if COMMON_OS_WIN
             "gid[%u] pid[%u] "
+#else
+            "sysid[%u] "
 #endif
 #if COMMON_ARCH_X86
             "apic[%u] "
@@ -224,12 +231,15 @@ void TopologyInfo::PrintTopology()
             "\n", proc.smt_id
 #if COMMON_OS_WIN
             , proc.windows_group_id, proc.windows_processor_id
+#else
+            , proc.linux_id
 #endif
 #if COMMON_ARCH_X86
             , proc.apic_id
 #endif
         );
-        constexpr auto PrintCache = [](const char* name, const cpuinfo_cache* theCache) 
+        printf("\n");
+        constexpr auto PrintCache = [](const char* name, const cpuinfo_cache* theCache)
         {
             if (!theCache) return;
             const auto& cache = *theCache;
@@ -241,6 +251,7 @@ void TopologyInfo::PrintTopology()
         PrintCache("L2", proc.cache.l2);
         PrintCache("L3", proc.cache.l3);
         PrintCache("L4", proc.cache.l4);
+        printf("\n");
     }
 }
 
@@ -260,14 +271,6 @@ std::string ThreadAffinity::ToString(std::pair<char, char> ch) const noexcept
 }
 
 
-ThreadObject::~ThreadObject()
-{
-#if COMMON_OS_WIN
-    if (Handle != 0)
-        ::CloseHandle((HANDLE)Handle);
-#endif
-}
-
 bool ThreadObject::CompareHandle(uintptr_t lhs, uintptr_t rhs) noexcept
 {
 #if COMMON_OS_WIN
@@ -276,6 +279,64 @@ bool ThreadObject::CompareHandle(uintptr_t lhs, uintptr_t rhs) noexcept
     return pthread_equal((pthread_t)lhs, (pthread_t)rhs) != 0;
 #endif
 }
+
+#if COMMON_OS_WIN
+forceinline static uintptr_t CopyThreadHandle(void* src)
+{
+    HANDLE Handle = nullptr;
+    DuplicateHandle(GetCurrentProcess(), (HANDLE)src, GetCurrentProcess(), &Handle,
+        SYNCHRONIZE | THREAD_QUERY_INFORMATION | THREAD_QUERY_LIMITED_INFORMATION | THREAD_SET_INFORMATION | THREAD_SET_LIMITED_INFORMATION, false, 0);
+    return reinterpret_cast<uintptr_t>(Handle);
+}
+#elif !COMMON_OS_ANDROID && !COMMON_OS_DARWIN
+class ThreadIdMap
+{
+private:
+    std::map<uintptr_t, uint64_t> IdMap;
+    pthread_key_t Key = {};
+    RWSpinLock Locker;
+    static ThreadIdMap& Get() noexcept
+    {
+        static ThreadIdMap Host;
+        return Host;
+    }
+    static void OnThreadExit(void* handle) noexcept
+    {
+        auto& self = Get();
+        const auto key = reinterpret_cast<uintptr_t>(handle);
+        //printf("~~Exit and remove [%08" PRIx64 "]\n", static_cast<uint64_t>(key));
+        const auto locker = self.Locker.WriteScope();
+        self.IdMap.erase(key);
+    }
+    ThreadIdMap() noexcept
+    {
+        pthread_key_create(&Key, OnThreadExit);
+    }
+public:
+    static uint64_t Register(uint64_t tid) noexcept
+    {
+        auto& self = Get();
+        if (pthread_getspecific(self.Key) == nullptr)
+        {
+            const uintptr_t key = pthread_self();
+            pthread_setspecific(self.Key, reinterpret_cast<void*>(key));
+            //printf("~~Register [%08" PRIx64 "] -> [%" PRIu64 "]\n", static_cast<uint64_t>(key), tid);
+            {
+                const auto locker = self.Locker.WriteScope();
+                self.IdMap.insert_or_assign(key, tid);
+            }
+        }
+        return tid;
+    }
+    static uint64_t QueryId(uintptr_t key) noexcept
+    {
+        auto& self = Get();
+        const auto locker = self.Locker.ReadScope();
+        const auto it = self.IdMap.find(key);
+        return it != self.IdMap.end() ? it->second : 0u;
+    }
+};
+#endif
 
 uint64_t ThreadObject::GetCurrentThreadId()
 {
@@ -290,21 +351,14 @@ uint64_t ThreadObject::GetCurrentThreadId()
 #else
 #   if defined(COMMON_GLIBC_VER) && COMMON_GLIBC_VER >= 230
     const auto& info = ThreadExHost::Get();
-    if (info.GetCurrentTid) return info.GetCurrentTid();
+    if (info.GetCurrentTid)
+        return ThreadIdMap::Register(info.GetCurrentTid());
 #   endif
-    return syscall(SYS_gettid);
+    return ThreadIdMap::Register(syscall(SYS_gettid));
 #endif
+    
 }
 
-#if COMMON_OS_WIN
-forceinline static uintptr_t CopyThreadHandle(void* src)
-{
-    HANDLE Handle = nullptr;
-    DuplicateHandle(GetCurrentProcess(), (HANDLE)src, GetCurrentProcess(), &Handle,
-        SYNCHRONIZE | THREAD_QUERY_INFORMATION | THREAD_QUERY_LIMITED_INFORMATION | THREAD_SET_INFORMATION | THREAD_SET_LIMITED_INFORMATION, false, 0);
-    return reinterpret_cast<uintptr_t>(Handle);
-}
-#endif
 template<bool NeedOwnership = true>
 uintptr_t RetriveCurrentThread() noexcept
 {
@@ -316,25 +370,64 @@ uintptr_t RetriveCurrentThread() noexcept
 #elif COMMON_OS_DARWIN
     return reinterpret_cast<uintptr_t>(pthread_self());
 #else
-    return pthread_self();
+    const auto handle = pthread_self();
+#   if !COMMON_OS_ANDROID
+    ThreadObject::GetCurrentThreadId(); // force register it
+#   endif
+    return handle;
+#endif
+}
+
+static uint64_t GetThreadMappingId(uintptr_t handle)
+{
+#if COMMON_OS_WIN
+    return ::GetThreadId((HANDLE)handle);
+#elif COMMON_OS_DARWIN
+    uint64_t tid = 0;
+    pthread_threadid_np((pthread_t)handle, &tid);
+    return tid;
+#elif COMMON_OS_ANDROID
+    return pthread_gettid_np((pthread_t)handle); // introduced in SDK Level 21
+#else
+    return ThreadIdMap::QueryId(handle);
+#endif
+}
+
+ThreadObject::~ThreadObject()
+{
+#if COMMON_OS_WIN
+    if (Handle != 0)
+        ::CloseHandle((HANDLE)Handle);
+#endif
+}
+
+ThreadObject ThreadObject::Duplicate() const
+{
+#if COMMON_OS_WIN
+    return { CopyThreadHandle(reinterpret_cast<void*>(Handle)), TId };
+#else
+    return { Handle, TId };
 #endif
 }
 
 ThreadObject ThreadObject::GetCurrentThreadObject()
 {
-    auto ret = ThreadObject(RetriveCurrentThread());
-    //printf("get thread [%08" PRIx64 "] tid [%" PRIu64 "]\n", ret.Handle, ret.TId);
-    return ret;
+    const auto handle = RetriveCurrentThread();
+    const auto tid = ThreadObject::GetCurrentThreadId();
+    //printf("get thread [%08" PRIx64 "] tid [%" PRIu64 "]\n", handle, tid);
+    return { handle, tid };
 }
 
 ThreadObject ThreadObject::GetThreadObject(std::thread& thr)
 {
+    const auto& handle = thr.native_handle();
 #if COMMON_OS_WIN
-    return ThreadObject(CopyThreadHandle(thr.native_handle()));
+    return { CopyThreadHandle(handle), GetThreadMappingId(reinterpret_cast<uintptr_t>(handle)) };
 #elif COMMON_OS_DARWIN
-    return ThreadObject(reinterpret_cast<uintptr_t>(thr.native_handle()));
+    const auto handle_ = reinterpret_cast<uintptr_t>(handle);
+    return { handle_, GetThreadMappingId(handle_) };
 #else
-    return ThreadObject(thr.native_handle());
+    return { handle, GetThreadMappingId(handle) };
 #endif
 }
 
@@ -363,30 +456,10 @@ bool ThreadObject::IsCurrent() const
     return CompareHandle(RetriveCurrentThread<false>(), Handle);
 }
 
-uint64_t ThreadObject::GetId() const
-{
-#if COMMON_OS_WIN
-    return ::GetThreadId((HANDLE)Handle);
-#elif COMMON_OS_DARWIN
-    uint64_t tid = 0;
-    pthread_threadid_np((pthread_t)Handle, &tid);
-    return tid;
-#elif COMMON_OS_ANDROID
-    return pthread_gettid_np((pthread_t)Handle); // introduced in SDK Level 21
-#else
-#   if defined(COMMON_GLIBC_VER) && COMMON_GLIBC_VER >= 230
-    const auto& info = ThreadExHost::Get();
-    if (info.GetCurrentTid) return info.GetCurrentTid();
-#endif
-    return syscall(SYS_gettid);
-    //return Handle;
-#endif
-}
-
 #if COMMON_OS_UNIX
 static void GetThreadName(pthread_t handle, [[maybe_unused]] const ThreadObject& self, char(&buf)[16]) noexcept
 {
-# if COMMON_OS_ANDROID && (__ANDROID_API__ >= 26)
+# if COMMON_OS_ANDROID
     const auto& info = ThreadExHost::Get();
     if (info.GetThreadName)
         info.GetThreadName(handle, buf, sizeof(buf));
@@ -394,7 +467,7 @@ static void GetThreadName(pthread_t handle, [[maybe_unused]] const ThreadObject&
 #   ifndef PR_GET_NAME
 #     define PR_GET_NAME 16
 #   endif
-        prctl(PR_GET_NAME, reinterpret_cast<unsigned long>(tmp), 0, 0, 0);
+        prctl(PR_GET_NAME, reinterpret_cast<unsigned long>(buf), 0, 0, 0);
 # else
     pthread_getname_np(handle, buf, sizeof(buf));
 # endif
@@ -700,19 +773,19 @@ std::optional<ThreadQoS> ThreadObject::SetQoS(ThreadQoS qos) const
 
 static void AssignMask(ThreadAffinity& affinity, uint32_t procId)
 {
+    const auto& proc = *cpuinfo_get_processor(procId);
 #if COMMON_OS_WIN
-    const cpuinfo_processor& proc = *cpuinfo_get_processor(procId);
     affinity.Set(proc.windows_group_id, proc.windows_processor_id, true);
 #else
-    affinity.Set(procId, true);
+    affinity.Set(proc.linux_id, true);
 #endif
 }
-void AssignPartition(CPUPartition& partition, span<const uint32_t> procIds)
+static void AssignPartition(CPUPartition& partition, span<const uint32_t> procIds)
 {
     for (const auto procId : procIds)
         AssignMask(partition.Affinity, procId);
 }
-void AssignPartition(CPUPartition& partition, uint32_t idStart, uint32_t count)
+static void AssignPartition(CPUPartition& partition, uint32_t idStart, uint32_t count)
 {
     while (count--)
         AssignMask(partition.Affinity, idStart++);

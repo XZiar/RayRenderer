@@ -207,11 +207,6 @@ bool LoopBase::RequestStop()
     return Host->RequestStop();
 }
 
-LoopExecutor& LoopBase::GetHost()
-{
-    return *Host;
-}
-
 std::unique_ptr<LoopExecutor> LoopBase::GetThreadedExecutor(LoopBase& loop)
 {
     return std::unique_ptr<LoopExecutor>(new ThreadedExecutor(loop));

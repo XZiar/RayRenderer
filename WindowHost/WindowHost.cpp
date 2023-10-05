@@ -119,8 +119,9 @@ void WindowHost_::SetWindowData_(std::string_view name, std::any&& data) const n
     Impl->Data.Add(name, std::move(data));
 }
 
-bool WindowHost_::OnStart(std::any&) noexcept
+bool WindowHost_::OnStart(const common::ThreadObject& thr, std::any&) noexcept
 {
+    thr.SetName(u"Window");
     Manager.BeforeWindowOpen(this);
     OnOpen();
     Manager.AfterWindowOpen(this);

@@ -187,17 +187,18 @@ private:
 
     void Resume(detail::AsyncTaskStatus status);
     LoopAction OnLoop() override;
-    bool OnStart(std::any& cookie) noexcept override;
-    void OnStop() noexcept override;
-    bool SleepCheck() noexcept override; // double check if should sleep
+    bool OnStart(const ThreadObject&, std::any& cookie) noexcept final;
+    void OnStop() noexcept final;
+    bool SleepCheck() noexcept final; // double check if should sleep
 public:
     SYSCOMMONAPI AsyncManager(const bool isthreaded, const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);
     SYSCOMMONAPI AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);
-    SYSCOMMONAPI ~AsyncManager() override;
+    SYSCOMMONAPI ~AsyncManager() final;
     SYSCOMMONAPI bool Start(Injector initer = {}, Injector exiter = {});
     SYSCOMMONAPI bool Stop();
     SYSCOMMONAPI bool RequestStop();
-    SYSCOMMONAPI common::loop::LoopExecutor& GetHost();
+    SYSCOMMONAPI [[nodiscard]] const ThreadObject* GetThread();
+    using common::loop::LoopBase::GetHost;
 
     template<typename Func>
     forceinline auto AddTask(Func&& task, std::u16string taskName = u"", uint32_t stackSize = 0)

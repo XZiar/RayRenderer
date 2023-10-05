@@ -403,6 +403,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpuinfo", "3rdParty\Project
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImageUtilTest", "Tests\ImageUtilTest\ImageUtilTest.vcxproj", "{3EDD7EC9-C90D-31C0-6D8C-8A6E251333E5}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shared", "Shared", "{7F67B343-A49C-412C-A2E1-7B6AF760C60B}"
+	ProjectSection(SolutionItems) = preProject
+		Tests\Shared\GTestCommon.h = Tests\Shared\GTestCommon.h
+		Tests\Shared\GTestCommon.inl = Tests\Shared\GTestCommon.inl
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -851,6 +857,7 @@ Global
 		{7BE97D3D-F242-4AB9-8EEE-05B974E7515E} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{03AB567F-05FF-3782-BE15-D7BCB3DD0FE5} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{3EDD7EC9-C90D-31C0-6D8C-8A6E251333E5} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
+		{7F67B343-A49C-412C-A2E1-7B6AF760C60B} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

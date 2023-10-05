@@ -18,7 +18,7 @@ void oglWorker::Start()
     ShareExecutor.Start([&]()
     {
         const auto& prefix = u"[oglShare]" + Name;
-        common::SetThreadName(prefix);
+        ShareExecutor.GetThread()->SetName(prefix);
         if (!ShareContext->UseContext())
         {
             oglLog().Error(u"{} failed with DC[{}] RC[{}]\n", prefix, ShareContext->Host->GetDeviceContext(), ShareContext->Hrc);
@@ -41,7 +41,7 @@ void oglWorker::Start()
     IsolateExecutor.Start([&]()
     {
         const auto& prefix = u"[oglIsolate]" + Name;
-        common::SetThreadName(prefix);
+        IsolateExecutor.GetThread()->SetName(prefix);
         if (!IsolateContext->UseContext())
         {
             oglLog().Error(u"{} failed with DC[{}] RC[{}]\n", prefix, ShareContext->Host->GetDeviceContext(), ShareContext->Hrc);

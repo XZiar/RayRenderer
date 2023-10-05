@@ -24,7 +24,7 @@ private:
     LoopAction OnLoop() override;
     bool SleepCheck() noexcept override; // double check if should sleep
 protected:
-    bool OnStart(std::any&) noexcept override;
+    bool OnStart(const ThreadObject&, std::any&) noexcept override;
     void OnStop() noexcept override;
     void EnsureRunning();
 public:

@@ -236,7 +236,7 @@ void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(std:
 {
     std::thread([onFinish, onError, this](const u16string name)
     {
-        common::SetThreadName(u"AsyncLoader for Model");
+        common::ThreadObject::GetCurrentThreadObject().SetName(u"AsyncLoader for Model");
         try
         {
             auto mod = std::make_shared<Model>(name, TexLoader, GLWorker);
@@ -258,7 +258,7 @@ common::PromiseResult<std::shared_ptr<Model>> RenderCore::LoadModelAsync2(const 
 {
     auto fut = std::async(std::launch::async, [&](const u16string name)
         {
-            common::SetThreadName(u"AsyncLoader for Model");
+            common::ThreadObject::GetCurrentThreadObject().SetName(u"AsyncLoader for Model");
             try
             {
                 auto mod = std::make_shared<Model>(name, TexLoader, GLWorker);
@@ -287,7 +287,7 @@ void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdN
     }, u"load shader " + shdName, common::asyexe::StackSize::Big);
     std::thread([onFinish, onError](common::PromiseResult<std::shared_ptr<DefaultRenderPass>>&& pms)
     {
-        common::SetThreadName(u"AsyncLoader for Shader");
+        common::ThreadObject::GetCurrentThreadObject().SetName(u"AsyncLoader for Shader");
         try
         {
             auto shader = pms->Get();

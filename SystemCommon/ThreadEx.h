@@ -21,6 +21,7 @@ class ThreadObject;
 struct TopologyInfo
 {
     uint32_t BitsPerGroup = 0;
+    [[nodiscard]] virtual uint32_t GetTotalProcessorCount() const noexcept = 0;
     [[nodiscard]] virtual uint32_t GetGroupCount() const noexcept = 0;
     [[nodiscard]] virtual uint32_t GetCountInGroup(uint32_t group) const noexcept = 0;
     [[nodiscard]] std::pair<uint32_t, uint32_t> TranslateLinearIdx(uint32_t idx) const noexcept
@@ -121,7 +122,7 @@ class ThreadObject
 protected:
     uintptr_t Handle;
     uint64_t TId;
-    ThreadObject(const uintptr_t handle) noexcept : Handle(handle), TId(GetId()) { }
+    constexpr ThreadObject(uintptr_t handle, uint64_t id) noexcept : Handle(handle), TId(id) { }
     SYSCOMMONAPI static bool CompareHandle(uintptr_t lhs, uintptr_t rhs) noexcept;
 public:
     SYSCOMMONAPI static ThreadObject GetCurrentThreadObject();
@@ -129,8 +130,7 @@ public:
 #if !defined(_MANAGED) && !defined(_M_CEE)
     SYSCOMMONAPI static ThreadObject GetThreadObject(std::thread& thr);
 #endif
-
-    constexpr ThreadObject() noexcept : Handle(0), TId(0) { }
+    constexpr ThreadObject() noexcept : ThreadObject(0u, 0u) { }
     COMMON_NO_COPY(ThreadObject)
     ThreadObject(ThreadObject&& other) noexcept
     {
@@ -145,19 +145,20 @@ public:
         return *this;
     }
     SYSCOMMONAPI ~ThreadObject();
+    SYSCOMMONAPI ThreadObject Duplicate() const;
 
-    bool operator==(const ThreadObject& other) noexcept
+    bool operator==(const ThreadObject& other) const noexcept
     {
         return CompareHandle(Handle, other.Handle);
     }
-    bool operator!=(const ThreadObject& other) noexcept
+    bool operator!=(const ThreadObject& other) const noexcept
     {
         return !operator==(other);
     }
 
     SYSCOMMONAPI [[nodiscard]] std::optional<bool> IsAlive() const;
     SYSCOMMONAPI [[nodiscard]] bool IsCurrent() const;
-    SYSCOMMONAPI [[nodiscard]] uint64_t GetId() const;
+    [[nodiscard]] constexpr uint64_t GetId() const noexcept { return TId; }
     SYSCOMMONAPI [[nodiscard]] std::u16string GetName() const;
     SYSCOMMONAPI bool SetName(const std::u16string_view name) const;
     SYSCOMMONAPI [[nodiscard]] std::optional<ThreadAffinity> GetAffinity() const;
@@ -169,17 +170,6 @@ public:
 #if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
-
-
-
-inline bool SetThreadName(const std::u16string_view threadName)
-{
-    return ThreadObject::GetCurrentThreadObject().SetName(threadName);
-}
-[[nodiscard]] inline std::u16string GetThreadName()
-{
-    return ThreadObject::GetCurrentThreadObject().GetName();
-}
 
 
 }
