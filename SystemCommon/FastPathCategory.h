@@ -32,7 +32,7 @@ struct SSE2
 #endif
     }
 };
-struct SIMDSSSE3
+struct SSSE3
 {
     static bool RuntimeCheck() noexcept
     {
@@ -43,7 +43,7 @@ struct SIMDSSSE3
 #endif
     }
 };
-struct SIMDSSE41
+struct SSSE41
 {
     static bool RuntimeCheck() noexcept
     {
@@ -54,7 +54,7 @@ struct SIMDSSE41
 #endif
     }
 };
-struct SIMD256
+struct AVX
 {
     static bool RuntimeCheck() noexcept
     {
@@ -65,7 +65,7 @@ struct SIMD256
 #endif
     }
 };
-struct SIMDAVX2
+struct AVX2
 {
     static bool RuntimeCheck() noexcept
     {
@@ -82,6 +82,50 @@ struct AVX512F
     {
 #if COMMON_ARCH_X86
         return CheckCPUFeature("avx512f");
+#else
+        return false;
+#endif
+    }
+};
+struct AVX512BW
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("avx512f") && CheckCPUFeature("avx512bw");
+#else
+        return false;
+#endif
+    }
+};
+struct AVX512VBMI
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("avx512f") && CheckCPUFeature("avx512bw") && CheckCPUFeature("avx512vbmi");
+#else
+        return false;
+#endif
+    }
+};
+struct AVX512VBMI2
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("avx512f") && CheckCPUFeature("avx512bw") && CheckCPUFeature("avx512vbmi2");
+#else
+        return false;
+#endif
+    }
+};
+struct AVX512VPOPCNT
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("avx512f") && CheckCPUFeature("avx512vl") && CheckCPUFeature("avx512vpopcntdq");
 #else
         return false;
 #endif

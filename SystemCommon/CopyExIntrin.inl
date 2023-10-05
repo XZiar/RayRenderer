@@ -570,159 +570,159 @@ DEFINE_FASTPATH_METHOD(TruncCopy84, SIMD128)
 #endif
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
-DEFINE_FASTPATH_METHOD(ZExtCopy14, SIMDSSSE3)
+DEFINE_FASTPATH_METHOD(ZExtCopy14, SSSE3)
 {
     CastSIMD4<DefaultCast<U8x16, U32x4>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(TruncCopy21, SIMDSSSE3)
+DEFINE_FASTPATH_METHOD(TruncCopy21, SSSE3)
 {
     CastSIMD4<DefaultCast<U16x8, U8x16>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(TruncCopy41, SIMDSSSE3)
+DEFINE_FASTPATH_METHOD(TruncCopy41, SSSE3)
 {
     CastSIMD4<DefaultCast<U32x4, U8x16>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(TruncCopy42, SIMDSSSE3)
+DEFINE_FASTPATH_METHOD(TruncCopy42, SSSE3)
 {
     CastSIMD4<DefaultCast<U32x4, U16x8>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(TruncCopy81, SIMDSSSE3)
+DEFINE_FASTPATH_METHOD(TruncCopy81, SSSE3)
 {
     CastSIMD4<DefaultCast<U64x2, U8x16>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(TruncCopy82, SIMDSSSE3)
+DEFINE_FASTPATH_METHOD(TruncCopy82, SSSE3)
 {
     CastSIMD4<DefaultCast<U64x2, U16x8>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(TruncCopy84, SIMDSSSE3)
+DEFINE_FASTPATH_METHOD(TruncCopy84, SSSE3)
 {
     CastSIMD4<DefaultCast<U64x2, U32x4>, &Func<LOOP>>(dest, src, count);
 }
 #endif
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41
-DEFINE_FASTPATH_METHOD(SExtCopy12, SIMDSSE41)
+DEFINE_FASTPATH_METHOD(SExtCopy12, SSSE41)
 {
     CastSIMD4<DefaultCast<I8x16, I16x8>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(SExtCopy14, SIMDSSE41)
+DEFINE_FASTPATH_METHOD(SExtCopy14, SSSE41)
 {
     CastSIMD4<DefaultCast<I8x16, I32x4>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(SExtCopy24, SIMDSSE41)
+DEFINE_FASTPATH_METHOD(SExtCopy24, SSSE41)
 {
     CastSIMD4<DefaultCast<I16x8, I32x4>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(SExtCopy28, SIMDSSE41)
+DEFINE_FASTPATH_METHOD(SExtCopy28, SSSE41)
 {
     CastSIMD4<DefaultCast<I16x8, I64x2>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(SExtCopy48, SIMDSSE41)
+DEFINE_FASTPATH_METHOD(SExtCopy48, SSSE41)
 {
     CastSIMD4<DefaultCast<I32x4, I64x2>, &Func<LOOP>>(dest, src, count);
 }
 #endif
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
-DEFINE_FASTPATH_METHOD(Broadcast2, SIMD256)
+DEFINE_FASTPATH_METHOD(Broadcast2, AVX)
 {
     BroadcastSIMD4<U16x16, &Func<SIMD128>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(Broadcast4, SIMD256)
+DEFINE_FASTPATH_METHOD(Broadcast4, AVX)
 {
     BroadcastSIMD4<U32x8, &Func<SIMD128>>(dest, src, count);
 }
 
-DEFINE_CVTI2FP_SIMD4(CvtI32F32, I32x8, F32x8, SIMD256, SIMD128)
+DEFINE_CVTI2FP_SIMD4(CvtI32F32, I32x8, F32x8, AVX, SIMD128)
 
-DEFINE_CVTFP2I_SIMD4(CvtF32I32, F32x8, I32x8, SIMD256, SIMD128)
+DEFINE_CVTFP2I_SIMD4(CvtF32I32, F32x8, I32x8, AVX, SIMD128)
 
-DEFINE_FASTPATH_METHOD(CvtF32F64, SIMD256)
+DEFINE_FASTPATH_METHOD(CvtF32F64, AVX)
 {
     CastSIMD4<DefaultCast<F32x8, F64x4>, &Func<SIMD128>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(CvtF64F32, SIMD256)
+DEFINE_FASTPATH_METHOD(CvtF64F32, AVX)
 {
     CastSIMD4<DefaultCast<F64x4, F32x8>, &Func<SIMD128>>(dest, src, count);
 }
 #endif
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
-DEFINE_FASTPATH_METHOD(ZExtCopy12, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(ZExtCopy12, AVX2)
 {
     CastSIMD4<DefaultCast<U8x32, U16x16>, &Func<SIMD128>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(ZExtCopy14, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(ZExtCopy14, AVX2)
 {
-    CastSIMD4<DefaultCast<U8x32, U32x8>, &Func<SIMDSSSE3>>(dest, src, count);
+    CastSIMD4<DefaultCast<U8x32, U32x8>, &Func<SSSE3>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(ZExtCopy24, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(ZExtCopy24, AVX2)
 {
     CastSIMD4<DefaultCast<U16x16, U32x8>, &Func<SIMD128>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(ZExtCopy28, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(ZExtCopy28, AVX2)
 {
     CastSIMD4<DefaultCast<U16x16, U64x4>, &Func<SIMD128>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(ZExtCopy48, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(ZExtCopy48, AVX2)
 {
     CastSIMD4<DefaultCast<U32x8, U64x4>, &Func<SIMD128>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(SExtCopy12, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(SExtCopy12, AVX2)
 {
-    CastSIMD4<DefaultCast<I8x32, I16x16>, &Func<SIMDSSE41>>(dest, src, count);
+    CastSIMD4<DefaultCast<I8x32, I16x16>, &Func<SSSE41>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(SExtCopy14, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(SExtCopy14, AVX2)
 {
-    CastSIMD4<DefaultCast<I8x32, I32x8>, &Func<SIMDSSE41>>(dest, src, count);
+    CastSIMD4<DefaultCast<I8x32, I32x8>, &Func<SSSE41>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(SExtCopy24, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(SExtCopy24, AVX2)
 {
-    CastSIMD4<DefaultCast<I16x16, I32x8>, &Func<SIMDSSE41>>(dest, src, count);
+    CastSIMD4<DefaultCast<I16x16, I32x8>, &Func<SSSE41>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(SExtCopy28, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(SExtCopy28, AVX2)
 {
-    CastSIMD4<DefaultCast<I16x16, I64x4>, &Func<SIMDSSE41>>(dest, src, count);
+    CastSIMD4<DefaultCast<I16x16, I64x4>, &Func<SSSE41>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(SExtCopy48, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(SExtCopy48, AVX2)
 {
-    CastSIMD4<DefaultCast<I32x8, I64x4>, &Func<SIMDSSE41>>(dest, src, count);
+    CastSIMD4<DefaultCast<I32x8, I64x4>, &Func<SSSE41>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(TruncCopy21, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(TruncCopy21, AVX2)
 {
-    CastSIMD4<DefaultCast<U16x16, U8x32>, &Func<SIMDSSSE3>>(dest, src, count);
+    CastSIMD4<DefaultCast<U16x16, U8x32>, &Func<SSSE3>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(TruncCopy41, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(TruncCopy41, AVX2)
 {
-    CastSIMD4<DefaultCast<U32x8, U8x32>, &Func<SIMDSSSE3>>(dest, src, count);
+    CastSIMD4<DefaultCast<U32x8, U8x32>, &Func<SSSE3>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(TruncCopy42, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(TruncCopy42, AVX2)
 {
-    CastSIMD4<DefaultCast<U32x8, U16x16>, &Func<SIMDSSSE3>>(dest, src, count);
+    CastSIMD4<DefaultCast<U32x8, U16x16>, &Func<SSSE3>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(TruncCopy81, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(TruncCopy81, AVX2)
 {
-    CastSIMD4<DefaultCast<U64x4, U8x32>, &Func<SIMDSSSE3>>(dest, src, count);
+    CastSIMD4<DefaultCast<U64x4, U8x32>, &Func<SSSE3>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(TruncCopy82, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(TruncCopy82, AVX2)
 {
-    CastSIMD4<DefaultCast<U64x4, U16x16>, &Func<SIMDSSSE3>>(dest, src, count);
+    CastSIMD4<DefaultCast<U64x4, U16x16>, &Func<SSSE3>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(TruncCopy84, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(TruncCopy84, AVX2)
 {
-    CastSIMD4<DefaultCast<U64x4, U32x8>, &Func<SIMDSSSE3>>(dest, src, count);
+    CastSIMD4<DefaultCast<U64x4, U32x8>, &Func<SSSE3>>(dest, src, count);
 }
 
-DEFINE_CVTI2FP_SIMD4(CvtI16F32, I16x16, F32x8, SIMDAVX2, SIMD128)
-DEFINE_CVTI2FP_SIMD4(CvtI8F32,  I8x32,  F32x8, SIMDAVX2, SIMD128)
-DEFINE_CVTI2FP_SIMD4(CvtU32F32, U32x8,  F32x8, SIMDAVX2, SIMD128)
-DEFINE_CVTI2FP_SIMD4(CvtU16F32, U16x16, F32x8, SIMDAVX2, SIMD128)
-DEFINE_CVTI2FP_SIMD4(CvtU8F32,  U8x32,  F32x8, SIMDAVX2, SIMD128)
+DEFINE_CVTI2FP_SIMD4(CvtI16F32, I16x16, F32x8, AVX2, SIMD128)
+DEFINE_CVTI2FP_SIMD4(CvtI8F32,  I8x32,  F32x8, AVX2, SIMD128)
+DEFINE_CVTI2FP_SIMD4(CvtU32F32, U32x8,  F32x8, AVX2, SIMD128)
+DEFINE_CVTI2FP_SIMD4(CvtU16F32, U16x16, F32x8, AVX2, SIMD128)
+DEFINE_CVTI2FP_SIMD4(CvtU8F32,  U8x32,  F32x8, AVX2, SIMD128)
 
-DEFINE_CVTFP2I_SIMD4(CvtF32I16, F32x8, I16x16, SIMDAVX2, SIMD128)
-DEFINE_CVTFP2I_SIMD4(CvtF32I8,  F32x8, I8x32,  SIMDAVX2, SIMD128)
-DEFINE_CVTFP2I_SIMD4(CvtF32U16, F32x8, U16x16, SIMDAVX2, SIMD128)
-DEFINE_CVTFP2I_SIMD4(CvtF32U8,  F32x8, U8x32,  SIMDAVX2, SIMD128)
+DEFINE_CVTFP2I_SIMD4(CvtF32I16, F32x8, I16x16, AVX2, SIMD128)
+DEFINE_CVTFP2I_SIMD4(CvtF32I8,  F32x8, I8x32,  AVX2, SIMD128)
+DEFINE_CVTFP2I_SIMD4(CvtF32U16, F32x8, U16x16, AVX2, SIMD128)
+DEFINE_CVTFP2I_SIMD4(CvtF32U8,  F32x8, U8x32,  AVX2, SIMD128)
 #endif
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100 && (defined(__F16C__) || COMMON_COMPILER_MSVC)
@@ -918,11 +918,11 @@ struct F3216Cast_SSE41
         out.Save(dst);
     }
 };
-DEFINE_FASTPATH_METHOD(CvtF16F32, SIMDSSE41)
+DEFINE_FASTPATH_METHOD(CvtF16F32, SSSE41)
 {
     CastSIMD2<F1632Cast_SSE41, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(CvtF32F16, SIMDSSE41)
+DEFINE_FASTPATH_METHOD(CvtF32F16, SSSE41)
 {
     CastSIMD2<F3216Cast_SSE41, &Func<LOOP>>(dest, src, count);
 }
@@ -1005,6 +1005,247 @@ struct F3216CastAVX512
         U16x16(_mm512_cvtps_ph(_mm512_loadu_ps(src), _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC)).Save(dst);
     }
 };
+struct F3264CastAVX512
+{
+    using Src = float;
+    using Dst = double;
+    static constexpr size_t N = 8, M = 8;
+    void operator()(double* __restrict dst, const float* __restrict src) const noexcept
+    {
+        _mm512_storeu_pd(dst, _mm512_cvtps_pd(_mm256_loadu_ps(src)));
+    }
+};
+struct F6432CastAVX512
+{
+    using Src = double;
+    using Dst = float;
+    static constexpr size_t N = 8, M = 8;
+    void operator()(float* __restrict dst, const double* __restrict src) const noexcept
+    {
+        _mm256_storeu_ps(dst, _mm512_cvtpd_ps(_mm512_loadu_pd(src)));
+    }
+};
+
+struct ZExt14AVX512
+{
+    using Src = uint8_t;
+    using Dst = uint32_t;
+    static constexpr size_t N = 64, M = 64;
+    void operator()(uint32_t* __restrict dst, const uint8_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm_loadu_epi8(src +  0);
+        const auto dat1 = _mm_loadu_epi8(src + 16);
+        const auto dat2 = _mm_loadu_epi8(src + 32);
+        const auto dat3 = _mm_loadu_epi8(src + 48);
+        const auto out0 = _mm512_cvtepu8_epi32(dat0);
+        const auto out1 = _mm512_cvtepu8_epi32(dat1);
+        const auto out2 = _mm512_cvtepu8_epi32(dat2);
+        const auto out3 = _mm512_cvtepu8_epi32(dat3);
+        _mm512_storeu_si512(dst +  0, out0);
+        _mm512_storeu_si512(dst + 16, out1);
+        _mm512_storeu_si512(dst + 32, out2);
+        _mm512_storeu_si512(dst + 48, out3);
+    }
+};
+struct ZExt24AVX512
+{
+    using Src = uint16_t;
+    using Dst = uint32_t;
+    static constexpr size_t N = 32, M = 32;
+    void operator()(uint32_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm256_loadu_epi16(src +  0);
+        const auto dat1 = _mm256_loadu_epi16(src + 16);
+        const auto out0 = _mm512_cvtepu16_epi32(dat0);
+        const auto out1 = _mm512_cvtepu16_epi32(dat1);
+        _mm512_storeu_si512(dst +  0, out0);
+        _mm512_storeu_si512(dst + 16, out1);
+    }
+};
+struct ZExt28AVX512
+{
+    using Src = uint16_t;
+    using Dst = uint64_t;
+    static constexpr size_t N = 32, M = 32;
+    void operator()(uint64_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm_loadu_epi16(src +  0);
+        const auto dat1 = _mm_loadu_epi16(src +  8);
+        const auto dat2 = _mm_loadu_epi16(src + 16);
+        const auto dat3 = _mm_loadu_epi16(src + 24);
+        const auto out0 = _mm512_cvtepu16_epi64(dat0);
+        const auto out1 = _mm512_cvtepu16_epi64(dat1);
+        const auto out2 = _mm512_cvtepu16_epi64(dat2);
+        const auto out3 = _mm512_cvtepu16_epi64(dat3);
+        _mm512_storeu_si512(dst +  0, out0);
+        _mm512_storeu_si512(dst +  8, out1);
+        _mm512_storeu_si512(dst + 16, out2);
+        _mm512_storeu_si512(dst + 24, out3);
+    }
+};
+struct ZExt48AVX512
+{
+    using Src = uint32_t;
+    using Dst = uint64_t;
+    static constexpr size_t N = 16, M = 16;
+    void operator()(uint64_t* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm256_loadu_epi32(src + 0);
+        const auto dat1 = _mm256_loadu_epi32(src + 8);
+        const auto out0 = _mm512_cvtepu32_epi64(dat0);
+        const auto out1 = _mm512_cvtepu32_epi64(dat1);
+        _mm512_storeu_si512(dst + 0, out0);
+        _mm512_storeu_si512(dst + 8, out1);
+    }
+};
+
+struct SExt14AVX512
+{
+    using Src = int8_t;
+    using Dst = int32_t;
+    static constexpr size_t N = 64, M = 64;
+    void operator()(int32_t* __restrict dst, const int8_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm_loadu_epi8(src +  0);
+        const auto dat1 = _mm_loadu_epi8(src + 16);
+        const auto dat2 = _mm_loadu_epi8(src + 32);
+        const auto dat3 = _mm_loadu_epi8(src + 48);
+        const auto out0 = _mm512_cvtepi8_epi32(dat0);
+        const auto out1 = _mm512_cvtepi8_epi32(dat1);
+        const auto out2 = _mm512_cvtepi8_epi32(dat2);
+        const auto out3 = _mm512_cvtepi8_epi32(dat3);
+        _mm512_storeu_si512(dst +  0, out0);
+        _mm512_storeu_si512(dst + 16, out1);
+        _mm512_storeu_si512(dst + 32, out2);
+        _mm512_storeu_si512(dst + 48, out3);
+    }
+};
+struct SExt24AVX512
+{
+    using Src = int16_t;
+    using Dst = int32_t;
+    static constexpr size_t N = 32, M = 32;
+    void operator()(int32_t* __restrict dst, const int16_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm256_loadu_epi16(src +  0);
+        const auto dat1 = _mm256_loadu_epi16(src + 16);
+        const auto out0 = _mm512_cvtepi16_epi32(dat0);
+        const auto out1 = _mm512_cvtepi16_epi32(dat1);
+        _mm512_storeu_si512(dst +  0, out0);
+        _mm512_storeu_si512(dst + 16, out1);
+    }
+};
+struct SExt28AVX512
+{
+    using Src = int16_t;
+    using Dst = int64_t;
+    static constexpr size_t N = 32, M = 32;
+    void operator()(int64_t* __restrict dst, const int16_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm_loadu_epi16(src +  0);
+        const auto dat1 = _mm_loadu_epi16(src +  8);
+        const auto dat2 = _mm_loadu_epi16(src + 16);
+        const auto dat3 = _mm_loadu_epi16(src + 24);
+        const auto out0 = _mm512_cvtepi16_epi64(dat0);
+        const auto out1 = _mm512_cvtepi16_epi64(dat1);
+        const auto out2 = _mm512_cvtepi16_epi64(dat2);
+        const auto out3 = _mm512_cvtepi16_epi64(dat3);
+        _mm512_storeu_si512(dst +  0, out0);
+        _mm512_storeu_si512(dst +  8, out1);
+        _mm512_storeu_si512(dst + 16, out2);
+        _mm512_storeu_si512(dst + 24, out3);
+    }
+};
+struct SExt48AVX512
+{
+    using Src = int32_t;
+    using Dst = int64_t;
+    static constexpr size_t N = 16, M = 16;
+    void operator()(int64_t* __restrict dst, const int32_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm256_loadu_epi32(src + 0);
+        const auto dat1 = _mm256_loadu_epi32(src + 8);
+        const auto out0 = _mm512_cvtepi32_epi64(dat0);
+        const auto out1 = _mm512_cvtepi32_epi64(dat1);
+        _mm512_storeu_si512(dst + 0, out0);
+        _mm512_storeu_si512(dst + 8, out1);
+    }
+};
+
+struct Trunc41AVX512F
+{
+    using Src = uint32_t;
+    using Dst = uint8_t;
+    static constexpr size_t N = 64, M = 64;
+    void operator()(uint8_t* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi32(src +  0);
+        const auto dat1 = _mm512_loadu_epi32(src + 16);
+        const auto dat2 = _mm512_loadu_epi32(src + 32);
+        const auto dat3 = _mm512_loadu_epi32(src + 48);
+        const U8x16 out0 = _mm512_cvtepi32_epi8(dat0);
+        const U8x16 out1 = _mm512_cvtepi32_epi8(dat1);
+        const U8x16 out2 = _mm512_cvtepi32_epi8(dat2);
+        const U8x16 out3 = _mm512_cvtepi32_epi8(dat3);
+        out0.Save(dst +  0);
+        out1.Save(dst + 16);
+        out2.Save(dst + 32);
+        out3.Save(dst + 48);
+    }
+};
+struct Trunc42AVX512F
+{
+    using Src = uint32_t;
+    using Dst = uint16_t;
+    static constexpr size_t N = 32, M = 32;
+    void operator()(uint16_t* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi32(src +  0);
+        const auto dat1 = _mm512_loadu_epi32(src + 16);
+        const U16x16 out0 = _mm512_cvtepi32_epi16(dat0);
+        const U16x16 out1 = _mm512_cvtepi32_epi16(dat1);
+        out0.Save(dst +  0);
+        out1.Save(dst + 16);
+    }
+};
+struct Trunc82AVX512F
+{
+    using Src = uint64_t;
+    using Dst = uint16_t;
+    static constexpr size_t N = 32, M = 32;
+    void operator()(uint16_t* __restrict dst, const uint64_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi64(src +  0);
+        const auto dat1 = _mm512_loadu_epi64(src +  8);
+        const auto dat2 = _mm512_loadu_epi64(src + 16);
+        const auto dat3 = _mm512_loadu_epi64(src + 24);
+        const U16x8 out0 = _mm512_cvtepi64_epi16(dat0);
+        const U16x8 out1 = _mm512_cvtepi64_epi16(dat1);
+        const U16x8 out2 = _mm512_cvtepi64_epi16(dat2);
+        const U16x8 out3 = _mm512_cvtepi64_epi16(dat3);
+        out0.Save(dst +  0);
+        out1.Save(dst +  8);
+        out2.Save(dst + 16);
+        out3.Save(dst + 24);
+    }
+};
+struct Trunc84AVX512F
+{
+    using Src = uint64_t;
+    using Dst = uint32_t;
+    static constexpr size_t N = 16, M = 16;
+    void operator()(uint32_t* __restrict dst, const uint64_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi64(src + 0);
+        const auto dat1 = _mm512_loadu_epi64(src + 8);
+        const U32x8 out0 = _mm512_cvtepi64_epi32(dat0);
+        const U32x8 out1 = _mm512_cvtepi64_epi32(dat1);
+        out0.Save(dst + 0);
+        out1.Save(dst + 8);
+    }
+};
+
+
 DEFINE_FASTPATH_METHOD(CvtF16F32, AVX512F)
 {
     CastSIMD4<F1632CastAVX512, &Func<F16C>>(dest, src, count);
@@ -1013,6 +1254,347 @@ DEFINE_FASTPATH_METHOD(CvtF32F16, AVX512F)
 {
     CastSIMD4<F3216CastAVX512, &Func<F16C>>(dest, src, count);
 }
+DEFINE_FASTPATH_METHOD(CvtF32F64, AVX512F)
+{
+    CastSIMD4<F3264CastAVX512, &Func<AVX>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(CvtF64F32, AVX512F)
+{
+    CastSIMD4<F6432CastAVX512, &Func<AVX>>(dest, src, count);
+}
+
+DEFINE_FASTPATH_METHOD(ZExtCopy14, AVX512F)
+{
+    CastSIMD4<ZExt14AVX512, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(ZExtCopy24, AVX512F)
+{
+    CastSIMD4<ZExt24AVX512, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(ZExtCopy28, AVX512F)
+{
+    CastSIMD4<ZExt28AVX512, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(ZExtCopy48, AVX512F)
+{
+    CastSIMD4<ZExt48AVX512, &Func<AVX2>>(dest, src, count);
+}
+
+DEFINE_FASTPATH_METHOD(SExtCopy14, AVX512F)
+{
+    CastSIMD4<SExt14AVX512, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy24, AVX512F)
+{
+    CastSIMD4<SExt24AVX512, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy28, AVX512F)
+{
+    CastSIMD4<SExt28AVX512, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy48, AVX512F)
+{
+    CastSIMD4<SExt48AVX512, &Func<AVX2>>(dest, src, count);
+}
+
+DEFINE_FASTPATH_METHOD(TruncCopy41, AVX512F)
+{
+    CastSIMD4<Trunc41AVX512F, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(TruncCopy42, AVX512F)
+{
+    CastSIMD4<Trunc42AVX512F, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(TruncCopy82, AVX512F)
+{
+    CastSIMD4<Trunc82AVX512F, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(TruncCopy84, AVX512F)
+{
+    CastSIMD4<Trunc84AVX512F, &Func<AVX2>>(dest, src, count);
+}
 #endif
+
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 320
+struct ZExt12AVX512BW
+{
+    using Src = uint8_t;
+    using Dst = uint16_t;
+    static constexpr size_t N = 64, M = 64;
+    void operator()(uint16_t* __restrict dst, const uint8_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm256_loadu_epi8(src +  0);
+        const auto dat1 = _mm256_loadu_epi8(src + 32);
+        const auto out0 = _mm512_cvtepu8_epi16(dat0);
+        const auto out1 = _mm512_cvtepu8_epi16(dat1);
+        _mm512_storeu_si512(dst +  0, out0);
+        _mm512_storeu_si512(dst + 32, out1);
+    }
+};
+struct SExt12AVX512BW
+{
+    using Src = int8_t;
+    using Dst = int16_t;
+    static constexpr size_t N = 64, M = 64;
+    void operator()(int16_t* __restrict dst, const int8_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm256_loadu_epi8(src +  0);
+        const auto dat1 = _mm256_loadu_epi8(src + 32);
+        const auto out0 = _mm512_cvtepi8_epi16(dat0);
+        const auto out1 = _mm512_cvtepi8_epi16(dat1);
+        _mm512_storeu_si512(dst +  0, out0);
+        _mm512_storeu_si512(dst + 32, out1);
+    }
+};
+struct Trunc21AVX512BW
+{
+    using Src = uint16_t;
+    using Dst = uint8_t;
+    static constexpr size_t N = 64, M = 64;
+    void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi16(src +  0);
+        const auto dat1 = _mm512_loadu_epi16(src + 32);
+        const U8x32 out0 = _mm512_cvtepi16_epi8(dat0);
+        const U8x32 out1 = _mm512_cvtepi16_epi8(dat1);
+        out0.Save(dst +  0);
+        out1.Save(dst + 32);
+    }
+};
+
+DEFINE_FASTPATH_METHOD(SExtCopy12, AVX512BW)
+{
+    CastSIMD4<SExt12AVX512BW, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(ZExtCopy12, AVX512BW)
+{
+    CastSIMD4<ZExt12AVX512BW, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(TruncCopy21, AVX512BW)
+{
+    CastSIMD4<Trunc21AVX512BW, &Func<AVX2>>(dest, src, count);
+}
+
+
+#if defined(__AVX512VBMI__) || COMMON_COMPILER_MSVC
+#   pragma message("Compiling CopyEx with AVX512-VBMI")
+struct Trunc21AVX512VBMI
+{
+    using Src = uint16_t;
+    using Dst = uint8_t;
+    static constexpr size_t N = 64, M = 64;
+    void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi16(src +  0); // 00~1f
+        const auto dat1 = _mm512_loadu_epi16(src + 32); // 20~3f
+        const auto shufMask = _mm512_set_epi8(
+            126, 124, 122, 120, 118, 116, 114, 112, 110, 108, 106, 104, 102, 100, 98, 96,
+             94,  92,  90,  88,  86,  84,  82,  80,  78,  76,  74,  72,  70,  68, 66, 64,
+             62,  60,  58,  56,  54,  52,  50,  48,  46,  44,  42,  40,  38,  36, 34, 32,
+             30,  28,  26,  24,  22,  20,  18,  16,  14,  12,  10,   8,   6,   4,  2,  0);
+        const auto out = _mm512_permutex2var_epi8(dat0, shufMask, dat1);
+        _mm512_storeu_si512(dst, out);
+    }
+};
+struct Trunc41AVX512VBMI
+{
+    using Src = uint32_t;
+    using Dst = uint8_t;
+    static constexpr size_t N = 64, M = 64;
+    void operator()(uint8_t* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi32(src +  0); // 00~0f
+        const auto dat1 = _mm512_loadu_epi32(src + 16); // 10~1f
+        const auto dat2 = _mm512_loadu_epi32(src + 32); // 20~2f
+        const auto dat3 = _mm512_loadu_epi32(src + 48); // 30~3f
+        const auto shufMask = _mm512_set_epi8(
+            124, 120, 116, 112, 108, 104, 100, 96, 92,  88,  84,  80,  76,  72,  68, 64,
+             60,  56,  52,  48,  44,  40,  36, 32, 28,  24,  20,  16,  12,   8,   4,  0,
+            124, 120, 116, 112, 108, 104, 100, 96, 92,  88,  84,  80,  76,  72,  68, 64,
+             60,  56,  52,  48,  44,  40,  36, 32, 28,  24,  20,  16,  12,   8,   4,  0);
+        const auto out0 = _mm512_permutex2var_epi8(dat0, shufMask, dat1);
+        const auto out1 = _mm512_permutex2var_epi8(dat2, shufMask, dat3);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(dst +  0), _mm512_castsi512_si256(out0));
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(dst + 32), _mm512_castsi512_si256(out1));
+    }
+};
+struct Trunc42AVX512VBMI
+{
+    using Src = uint32_t;
+    using Dst = uint16_t;
+    static constexpr size_t N = 32, M = 32;
+    void operator()(uint16_t* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi32(src +  0); // 00~0f
+        const auto dat1 = _mm512_loadu_epi32(src + 16); // 10~1f
+        const auto shufMask = _mm512_set_epi16(
+            62, 60, 58, 56, 54, 52, 50, 48, 46, 44, 42, 40, 38, 36, 34, 32,
+            30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10,  8,  6,  4,  2,  0);
+        const auto out = _mm512_permutex2var_epi16(dat0, shufMask, dat1);
+        _mm512_storeu_si512(dst, out);
+    }
+};
+struct Trunc82AVX512VBMI
+{
+    using Src = uint64_t;
+    using Dst = uint16_t;
+    static constexpr size_t N = 32, M = 32;
+    void operator()(uint16_t* __restrict dst, const uint64_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi64(src +  0); // 00~07
+        const auto dat1 = _mm512_loadu_epi64(src +  8); // 08~0f
+        const auto dat2 = _mm512_loadu_epi64(src + 16); // 10~17
+        const auto dat3 = _mm512_loadu_epi64(src + 24); // 18~1f
+        const auto shufMask = _mm512_set_epi16(
+            60, 56, 52, 48, 44, 40, 36, 32, 28, 24, 20, 16, 12, 8, 4, 0,
+            60, 56, 52, 48, 44, 40, 36, 32, 28, 24, 20, 16, 12, 8, 4, 0);
+        const auto out0 = _mm512_permutex2var_epi16(dat0, shufMask, dat1);
+        const auto out1 = _mm512_permutex2var_epi16(dat2, shufMask, dat3);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(dst +  0), _mm512_castsi512_si256(out0));
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(dst + 16), _mm512_castsi512_si256(out1));
+    }
+};
+struct Trunc84AVX512VBMI
+{
+    using Src = uint64_t;
+    using Dst = uint32_t;
+    static constexpr size_t N = 16, M = 16;
+    void operator()(uint32_t* __restrict dst, const uint64_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi64(src + 0); // 00~07
+        const auto dat1 = _mm512_loadu_epi64(src + 8); // 08~0f
+        const auto shufMask = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+        const auto out = _mm512_permutex2var_epi32(dat0, shufMask, dat1);
+        _mm512_storeu_si512(dst, out);
+    }
+};
+DEFINE_FASTPATH_METHOD(TruncCopy21, AVX512VBMI)
+{
+    CastSIMD4<Trunc21AVX512VBMI, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(TruncCopy41, AVX512VBMI)
+{
+    CastSIMD4<Trunc41AVX512VBMI, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(TruncCopy42, AVX512VBMI)
+{
+    CastSIMD4<Trunc42AVX512VBMI, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(TruncCopy82, AVX512VBMI)
+{
+    CastSIMD4<Trunc82AVX512VBMI, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(TruncCopy84, AVX512VBMI)
+{
+    CastSIMD4<Trunc84AVX512VBMI, &Func<AVX2>>(dest, src, count);
+}
+#endif
+
+
+#if defined(__AVX512VBMI2__) || COMMON_COMPILER_MSVC
+#   pragma message("Compiling CopyEx with AVX512-VBMI2")
+struct ZExt12AVX512VBMI2
+{
+    using Src = uint8_t;
+    using Dst = uint16_t;
+    static constexpr size_t N = 64, M = 64;
+    void operator()(uint16_t* __restrict dst, const uint8_t* __restrict src) const noexcept
+    {
+        const auto mask = _cvtu64_mask64(0x5555555555555555u);
+        const auto outLo = _mm512_maskz_expandloadu_epi8(mask, src);
+        const auto outHi = _mm512_maskz_expandloadu_epi8(mask, src + 32);
+        _mm512_storeu_si512(dst +  0, outLo);
+        _mm512_storeu_si512(dst + 32, outHi);
+    }
+};
+struct ZExt14AVX512VBMI2
+{
+    using Src = uint8_t;
+    using Dst = uint32_t;
+    static constexpr size_t N = 64, M = 64;
+    void operator()(uint32_t* __restrict dst, const uint8_t* __restrict src) const noexcept
+    {
+        const auto mask = _cvtu64_mask64(0x1111111111111111u);
+        const auto out0 = _mm512_maskz_expandloadu_epi8(mask, src + 0);
+        const auto out1 = _mm512_maskz_expandloadu_epi8(mask, src + 16);
+        const auto out2 = _mm512_maskz_expandloadu_epi8(mask, src + 32);
+        const auto out3 = _mm512_maskz_expandloadu_epi8(mask, src + 48);
+        _mm512_storeu_si512(dst +  0, out0);
+        _mm512_storeu_si512(dst + 16, out1);
+        _mm512_storeu_si512(dst + 32, out2);
+        _mm512_storeu_si512(dst + 48, out3);
+    }
+};
+struct ZExt24AVX512VBMI2
+{
+    using Src = uint16_t;
+    using Dst = uint32_t;
+    static constexpr size_t N = 32, M = 32;
+    void operator()(uint32_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto mask = _cvtu32_mask32(0x55555555u);
+        const auto outLo = _mm512_maskz_expandloadu_epi16(mask, src);
+        const auto outHi = _mm512_maskz_expandloadu_epi16(mask, src + 16);
+        _mm512_storeu_si512(dst +  0, outLo);
+        _mm512_storeu_si512(dst + 16, outHi);
+    }
+};
+struct ZExt28AVX512VBMI2
+{
+    using Src = uint16_t;
+    using Dst = uint64_t;
+    static constexpr size_t N = 32, M = 32;
+    void operator()(uint64_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto mask = _cvtu32_mask32(0x11111111u);
+        const auto out0 = _mm512_maskz_expandloadu_epi16(mask, src +  0);
+        const auto out1 = _mm512_maskz_expandloadu_epi16(mask, src +  8);
+        const auto out2 = _mm512_maskz_expandloadu_epi16(mask, src + 16);
+        const auto out3 = _mm512_maskz_expandloadu_epi16(mask, src + 24);
+        _mm512_storeu_si512(dst +  0, out0);
+        _mm512_storeu_si512(dst +  8, out1);
+        _mm512_storeu_si512(dst + 16, out2);
+        _mm512_storeu_si512(dst + 24, out3);
+    }
+};
+struct ZExt48AVX512VBMI2
+{
+    using Src = uint32_t;
+    using Dst = uint64_t;
+    static constexpr size_t N = 16, M = 16;
+    void operator()(uint64_t* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const auto mask = _cvtu32_mask32(0x33333333u);
+        const auto outLo = _mm512_maskz_expandloadu_epi16(mask, src);
+        const auto outHi = _mm512_maskz_expandloadu_epi16(mask, src + 8);
+        _mm512_storeu_si512(dst + 0, outLo);
+        _mm512_storeu_si512(dst + 8, outHi);
+    }
+};
+
+DEFINE_FASTPATH_METHOD(ZExtCopy12, AVX512VBMI2)
+{
+    CastSIMD4<ZExt12AVX512VBMI2, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(ZExtCopy14, AVX512VBMI2)
+{
+    CastSIMD4<ZExt14AVX512VBMI2, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(ZExtCopy24, AVX512VBMI2)
+{
+    CastSIMD4<ZExt24AVX512VBMI2, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(ZExtCopy28, AVX512VBMI2)
+{
+    CastSIMD4<ZExt28AVX512VBMI2, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(ZExtCopy48, AVX512VBMI2)
+{
+    CastSIMD4<ZExt48AVX512VBMI2, &Func<AVX2>>(dest, src, count);
+}
+#endif
+
+#endif
+
 
 }

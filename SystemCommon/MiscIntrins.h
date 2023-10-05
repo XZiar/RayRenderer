@@ -102,9 +102,10 @@ public:
     [[nodiscard]] forceinline uint32_t PopCountRange(span<const T> space) const noexcept
     {
         const auto byteCount = space.size_bytes();
-        if (byteCount == 8)
+        Expects(byteCount < UINT32_MAX / 8);
+        if (byteCount == 8 && PopCount64)
             return PopCount64(*reinterpret_cast<const uint64_t*>(space.data()));
-        else if (byteCount == 4)
+        else if (byteCount == 4 && PopCount32)
             return PopCount32(*reinterpret_cast<const uint32_t*>(space.data()));
         else
             return PopCounts(reinterpret_cast<const std::byte*>(space.data()), byteCount);

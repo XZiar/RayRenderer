@@ -336,6 +336,213 @@ DEFINE_FASTPATH_METHOD(PopCounts, POPCNT)
 #endif
 
 
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
+
+DEFINE_FASTPATH_METHOD(PopCounts, AVX2)
+{
+    uint32_t ret = 0;
+    if (count >= 32)
+    {
+        // 0000=0, 0001=1, 0010=1, 0011=2, 0100=1, 0101=2, 0110=2, 0111=3, 1000=1, 1001=2, 1010=2, 1011=3, 1100=2, 1101=3, 1110=3, 1111=4
+        const U8x32 LUT(0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4);
+        const U8x32 MaskLo(0x0f);
+        auto accum = U64x4::AllZero();
+        constexpr auto Lookup = [](const uint8_t* ptr, const U8x32& lut, const U8x32& mask) -> U8x32
+        {
+            U8x32 dat(ptr);
+            const auto partLo = _mm256_shuffle_epi8(lut.Data, dat.And(mask).Data);
+            const auto partHi = _mm256_shuffle_epi8(lut.Data, dat.As<U16x16>().ShiftRightLogic<4>().As<U8x32>().And(mask).Data);
+            return _mm256_add_epi8(partLo, partHi);
+        };
+        while (count >= 256)
+        {
+            const auto mid0 = Lookup(reinterpret_cast<const uint8_t*>(data) +   0, LUT, MaskLo);
+            const auto mid1 = Lookup(reinterpret_cast<const uint8_t*>(data) +  32, LUT, MaskLo);
+            const auto mid2 = Lookup(reinterpret_cast<const uint8_t*>(data) +  64, LUT, MaskLo);
+            const auto mid3 = Lookup(reinterpret_cast<const uint8_t*>(data) +  96, LUT, MaskLo);
+            const auto mid4 = Lookup(reinterpret_cast<const uint8_t*>(data) + 128, LUT, MaskLo);
+            const auto mid5 = Lookup(reinterpret_cast<const uint8_t*>(data) + 160, LUT, MaskLo);
+            const auto mid6 = Lookup(reinterpret_cast<const uint8_t*>(data) + 192, LUT, MaskLo);
+            const auto mid7 = Lookup(reinterpret_cast<const uint8_t*>(data) + 224, LUT, MaskLo);
+            const auto tmp = ((mid0 + mid1) + (mid2 + mid3)) + ((mid4 + mid5) + (mid6 + mid7));
+            accum = accum + U64x4(_mm256_sad_epu8(tmp, _mm256_setzero_si256()));
+            data += 256; count -= 256;
+        }
+        while (count >= 32)
+        {
+            const auto mid = Lookup(reinterpret_cast<const uint8_t*>(data) + 0, LUT, MaskLo);
+            accum = accum + U64x4(_mm256_sad_epu8(mid, _mm256_setzero_si256()));
+            data += 32; count -= 32;
+        }
+        // with in 32bit range
+        const auto ret0 = _mm256_extract_epi32(accum.Data, 0);
+        const auto ret1 = _mm256_extract_epi32(accum.Data, 2);
+        const auto ret2 = _mm256_extract_epi32(accum.Data, 4);
+        const auto ret3 = _mm256_extract_epi32(accum.Data, 6);
+        ret = ret0 + ret1 + ret2 + ret3;
+    }
+    CM_ASSUME(count < 32);
+    const auto trailing = count > 0 ? PopCountsLoop(PopCount_POPCNT_64, PopCount_POPCNT_32, data, count) : 0u;
+    return trailing + ret;
+}
+
+#endif
+
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 320 && (defined(__AVX512VPOPCNTDQ__) || COMMON_COMPILER_MSVC)
+#pragma message("Compiling MiscIntrins with AVX512-VPOPCNTDQ")
+
+DEFINE_FASTPATH_METHOD(PopCounts, AVX512VPOPCNT)
+{
+    uint32_t ret = 0;
+    if (count >= 32)
+    {
+        __m512i accum = _mm512_setzero_si512();
+        while (count >= 512)
+        {
+            const auto mid0 = _mm512_popcnt_epi64(_mm512_loadu_epi64(data +   0));
+            const auto mid1 = _mm512_popcnt_epi64(_mm512_loadu_epi64(data +  64));
+            const auto mid2 = _mm512_popcnt_epi64(_mm512_loadu_epi64(data + 128));
+            const auto mid3 = _mm512_popcnt_epi64(_mm512_loadu_epi64(data + 192));
+            const auto mid4 = _mm512_popcnt_epi64(_mm512_loadu_epi64(data + 256));
+            const auto mid5 = _mm512_popcnt_epi64(_mm512_loadu_epi64(data + 320));
+            const auto mid6 = _mm512_popcnt_epi64(_mm512_loadu_epi64(data + 384));
+            const auto mid7 = _mm512_popcnt_epi64(_mm512_loadu_epi64(data + 448));
+            accum = _mm512_add_epi64(_mm512_add_epi64(
+                _mm512_add_epi64(_mm512_add_epi64(mid0, mid1), _mm512_add_epi64(mid2, mid3)),
+                _mm512_add_epi64(_mm512_add_epi64(mid4, mid5), _mm512_add_epi64(mid6, mid7))), accum);
+            data += 512; count -= 512;
+        }
+        while (count >= 64)
+        {
+            const auto mid = _mm512_popcnt_epi64(_mm512_loadu_epi64(data));
+            accum = _mm512_add_epi64(accum, mid);
+            data += 64; count -= 64;
+        }
+        auto accum2 = _mm512_cvtepi64_epi32(accum);
+        if (count >= 32)
+        {
+            const auto mid = _mm256_popcnt_epi32(_mm256_loadu_epi32(data));
+            accum2 = _mm256_add_epi32(accum2, mid);
+            data += 32; count -= 32;
+        }
+        auto accum3 = _mm256_hadd_epi32(accum2, accum2);
+        const auto ret0 = _mm256_extract_epi32(accum3, 0);
+        const auto ret1 = _mm256_extract_epi32(accum3, 1);
+        const auto ret2 = _mm256_extract_epi32(accum3, 4);
+        const auto ret3 = _mm256_extract_epi32(accum3, 5);
+        ret = ret0 + ret1 + ret2 + ret3;
+    }
+    CM_ASSUME(count < 32);
+    const auto trailing = count > 0 ? PopCountsLoop(PopCount_POPCNT_64, PopCount_POPCNT_32, data, count) : 0u;
+    return trailing + ret;
+}
+
+#endif
+
+#if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 30
+
+DEFINE_FASTPATH_METHOD(PopCounts, SIMD128)
+{
+    uint32_t ret = 0;
+    constexpr auto Sum16x8x8 = [](const uint8_t* ptr) -> U8x16
+    {
+        const auto dat0123 = vld1q_u8_x4(ptr);
+        const auto dat4567 = vld1q_u8_x4(ptr + 64);
+        const U8x16 mid0 = vcntq_u8(dat0123.val[0]);
+        const U8x16 mid1 = vcntq_u8(dat0123.val[1]);
+        const U8x16 mid2 = vcntq_u8(dat0123.val[2]);
+        const U8x16 mid3 = vcntq_u8(dat0123.val[3]);
+        const U8x16 mid4 = vcntq_u8(dat4567.val[0]);
+        const U8x16 mid5 = vcntq_u8(dat4567.val[1]);
+        const U8x16 mid6 = vcntq_u8(dat4567.val[2]);
+        const U8x16 mid7 = vcntq_u8(dat4567.val[3]);
+        return ((mid0 + mid1) + (mid2 + mid3)) + ((mid4 + mid5) + (mid6 + mid7));
+    };
+    if (count >= 16)
+    {
+#   if COMMON_SIMD_LV >= 200
+#   else
+        auto accum = U32x4::AllZero();
+        auto accum2 = U8x16::AllZero();
+#   endif
+
+        while (count >= 512)
+        {
+            const auto part0 = Sum16x8x8(reinterpret_cast<const uint8_t*>(data) + 0);
+            const auto part1 = Sum16x8x8(reinterpret_cast<const uint8_t*>(data) + 128);
+            const auto part2 = Sum16x8x8(reinterpret_cast<const uint8_t*>(data) + 256);
+            const auto part3 = Sum16x8x8(reinterpret_cast<const uint8_t*>(data) + 384);
+            const auto part = ((part0 + part1) + (part2 + part3));
+#   if COMMON_SIMD_LV >= 200
+            ret += vaddlvq_u8(part);
+#   else
+            const U32x4 part32x4 = vpaddlq_u16(vpaddlq_u8(part));
+            accum = accum + part32x4;
+#   endif
+            data += 512; count -= 512;
+        }
+
+#   if COMMON_SIMD_LV >= 200
+#       define PartialAdd(var) ret += vaddlvq_u8(var)
+#   else
+#       define PartialAdd(var) accum2 = accum2 + var
+#   endif
+        switch (count / 128)
+        {
+#   define Iter_Sum16x8x8 { const auto part = Sum16x8x8(reinterpret_cast<const uint8_t*>(data)); PartialAdd(part); data += 128; count -= 128; } [[fallthrough]]
+        case 3: Iter_Sum16x8x8;
+        case 2: Iter_Sum16x8x8;
+        case 1: Iter_Sum16x8x8;
+#   undef Iter_Sum16x8x8
+        default:
+            break;
+        }
+        switch (count / 16)
+        {
+#   define Iter_Sum16x8 { const auto part = vcntq_u8(vld1q_u8(reinterpret_cast<const uint8_t*>(data))); PartialAdd(part); data += 16; count -= 16; }
+        case 7: Iter_Sum16x8 [[fallthrough]];
+        case 6: Iter_Sum16x8 [[fallthrough]];
+        case 5: Iter_Sum16x8 [[fallthrough]];
+        case 4: Iter_Sum16x8 [[fallthrough]];
+        case 3: Iter_Sum16x8 [[fallthrough]];
+        case 2: Iter_Sum16x8 [[fallthrough]];
+        case 1: Iter_Sum16x8
+#   undef Iter_Sum16x8
+#   if COMMON_SIMD_LV >= 200
+#   else
+        {
+            const U32x4 part32x4 = vpaddlq_u16(vpaddlq_u8(accum2));
+            accum = accum + part32x4;
+            const auto tmp = vpadd_u32(vget_low_u32(accum), vget_high_u32(accum));
+            ret += vget_lane_u32(tmp, 0) + vget_lane_u32(tmp, 1);
+        }
+#   endif
+            [[fallthrough]];
+        default:
+            break;
+        }
+#   undef PartialAdd
+
+        if (count >= 8)
+        {
+            const auto part = vcnt_u8(vld1_u8(reinterpret_cast<const uint8_t*>(data))); 
+#   if COMMON_SIMD_LV >= 200
+            ret += vaddlv_u8(part);
+#   else
+            const auto tmp = vpaddl_u16(vpaddl_u8(part));
+            ret += vget_lane_u32(tmp, 0) + vget_lane_u32(tmp, 1);
+#   endif
+            data += 8; count -= 8;
+        }
+    }
+    CM_ASSUME(count < 8);
+    const auto trailing = count > 0 ? PopCountsLoop(PopCount_NAIVE_64, PopCount_NAIVE_32, data, count) : 0u;
+    return trailing + ret;
+}
+
+#endif
+
+
 static void Hex2Str(std::string& ret, const uint8_t* data, size_t size, bool isCapital)
 {
     constexpr auto ch = "0123456789abcdef0123456789ABCDEF";
@@ -358,7 +565,7 @@ DEFINE_FASTPATH_METHOD(Hex2Str, NAIVE)
 
 #if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31) || (COMMON_ARCH_ARM && COMMON_SIMD_LV >= 10)
 # if COMMON_ARCH_X86
-#   define ALGO SIMDSSSE3
+#   define ALGO SSSE3
 # else
 #   define ALGO SIMD128
 # endif

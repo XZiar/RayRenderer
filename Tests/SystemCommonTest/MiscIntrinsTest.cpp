@@ -4,7 +4,7 @@
 #include "3rdParty/half/half.hpp"
 #include <algorithm>
 #include <random>
-
+#include <bit>
 
 using namespace std::string_view_literals;
 
@@ -349,6 +349,21 @@ INTRIN_TEST(MiscIntrins, PopCount64)
     EXPECT_EQ(Intrin->PopCount<int64_t> (INT64_MIN),        1u);
 }
 
+INTRIN_TEST(MiscIntrins, PopCounts)
+{
+    constexpr size_t sizes[] = { 0,1,2,3,4,7,8,9,15,16,17,30,32,34,61,64,67,252,256,260,509,512,517,1001,1024,1031,2098 };
+    for (const auto size : sizes)
+    {
+        const auto count = std::min(RandVals.size(), size);
+        uint32_t ref = 0;
+        for (size_t i = 0; i < count; ++i)
+            ref += std::popcount(RandVals[i]);
+        const auto ret = Intrin->PopCountRange<uint8_t>({ RandVals.data(), count });
+        EXPECT_EQ(ret, ref) << "when test on [" << count << "] elements";
+        if (size >= RandVals.size()) break;
+    }
+}
+
 INTRIN_TEST(MiscIntrins, Hex2Str)
 {
     constexpr auto data = []() 
@@ -398,7 +413,7 @@ INTRIN_TEST(DigestFuncs, Sha256)
 }
 
 
-#if CM_DEBUG == 0 || 1
+#if CM_DEBUG == 0
 
 template<typename T>
 static std::vector<std::unique_ptr<T>> GenerateIntrinHost(std::string_view funcName)
@@ -419,7 +434,7 @@ static std::vector<std::unique_ptr<T>> GenerateIntrinHost(std::string_view funcN
 }
 
 template<typename T, typename F>
-static void RunPerfTestAll(std::string_view funcName, F&& func, size_t opPerRun, uint32_t limitUs = 400000/*0.4s*/)
+static void RunPerfTestAll(std::string_view funcName, F&& func, size_t opPerRun, uint32_t limitUs = 400000u/*0.4s*/)
 {
     const auto tests = GenerateIntrinHost<T>(funcName);
     for (const auto& test : tests)
@@ -432,6 +447,64 @@ static void RunPerfTestAll(std::string_view funcName, F&& func, size_t opPerRun,
         TestCout() << "[" << funcName << "]: [" << intrinMap[0].second << "] takes avg[" << nsPerOp << "]ns per operation\n";
     }
 }
+
+
+template<typename Dst, typename Src>
+inline void ZExtPerfTest(std::string_view name)
+{
+    std::vector<Src> inputs(512 * 512 * 4);
+    // 512*512*4 = 1M test cases
+    std::vector<Dst> outputs(inputs.size());
+    RunPerfTestAll<common::CopyManager>(name, [&](const common::CopyManager& host)
+    {
+        host.ZExtCopy(outputs.data(), inputs.data(), inputs.size());
+    }, static_cast<uint32_t>(inputs.size()), 200000u);
+}
+#define ZEXT_PERF_TEST(name, dst, src) TEST(IntrinPerf, name) { ZExtPerfTest<dst, src>(#name); }
+ZEXT_PERF_TEST(ZExtCopy12, uint16_t,  uint8_t)
+ZEXT_PERF_TEST(ZExtCopy14, uint32_t,  uint8_t)
+ZEXT_PERF_TEST(ZExtCopy24, uint32_t, uint16_t)
+ZEXT_PERF_TEST(ZExtCopy28, uint64_t, uint16_t)
+ZEXT_PERF_TEST(ZExtCopy48, uint64_t, uint32_t)
+
+
+template<typename Dst, typename Src>
+inline void SExtPerfTest(std::string_view name)
+{
+    std::vector<Src> inputs(512 * 512 * 4);
+    // 512*512*4 = 1M test cases
+    std::vector<Dst> outputs(inputs.size());
+    RunPerfTestAll<common::CopyManager>(name, [&](const common::CopyManager& host)
+    {
+        host.SExtCopy(outputs.data(), inputs.data(), inputs.size());
+    }, static_cast<uint32_t>(inputs.size()), 200000u);
+}
+#define SEXT_PERF_TEST(name, dst, src) TEST(IntrinPerf, name) { SExtPerfTest<dst, src>(#name); }
+SEXT_PERF_TEST(SExtCopy12, int16_t,  int8_t)
+SEXT_PERF_TEST(SExtCopy14, int32_t,  int8_t)
+SEXT_PERF_TEST(SExtCopy24, int32_t, int16_t)
+SEXT_PERF_TEST(SExtCopy28, int64_t, int16_t)
+SEXT_PERF_TEST(SExtCopy48, int64_t, int32_t)
+
+
+template<typename Dst, typename Src>
+inline void TruncPerfTest(std::string_view name)
+{
+    std::vector<Src> inputs(512 * 512 * 4);
+    // 512*512*4 = 1M test cases
+    std::vector<Dst> outputs(inputs.size());
+    RunPerfTestAll<common::CopyManager>(name, [&](const common::CopyManager& host)
+    {
+        host.TruncCopy(outputs.data(), inputs.data(), inputs.size());
+    }, static_cast<uint32_t>(inputs.size()), 200000u);
+}
+#define TRUNC_PERF_TEST(name, dst, src) TEST(IntrinPerf, name) { TruncPerfTest<dst, src>(#name); }
+TRUNC_PERF_TEST(TruncCopy21,  uint8_t, uint16_t)
+TRUNC_PERF_TEST(TruncCopy41,  uint8_t, uint32_t)
+TRUNC_PERF_TEST(TruncCopy42, uint16_t, uint32_t)
+TRUNC_PERF_TEST(TruncCopy82, uint16_t, uint64_t)
+TRUNC_PERF_TEST(TruncCopy84, uint32_t, uint64_t)
+
 
 TEST(IntrinPerf, CvtF16F32)
 {
@@ -497,12 +570,20 @@ TEST(IntrinPerf, CvtF32F16)
 }
 
 
+TEST(IntrinPerf, PopCounts)
+{
+    RunPerfTestAll<common::MiscIntrins>("PopCounts", [&](const common::MiscIntrins& host)
+        {
+            [[maybe_unused]] const auto ret = host.PopCountRange<uint8_t>(RandVals);
+        }, static_cast<uint32_t>(sizeof(RandVals)));
+}
+
 TEST(IntrinPerf, Hex2Str)
 {
     RunPerfTestAll<common::MiscIntrins>("Hex2Str", [&](const common::MiscIntrins& host)
-        {
-            [[maybe_unused]] const auto ret = host.HexToStr(RandVals.data(), sizeof(RandVals));
-        }, static_cast<uint32_t>(sizeof(RandVals)));
+    {
+        [[maybe_unused]] const auto ret = host.HexToStr(RandVals.data(), sizeof(RandVals));
+    }, static_cast<uint32_t>(sizeof(RandVals)));
 }
 
 

@@ -427,7 +427,8 @@ ThreadObject ThreadObject::GetThreadObject(std::thread& thr)
     const auto handle_ = reinterpret_cast<uintptr_t>(handle);
     return { handle_, GetThreadMappingId(handle_) };
 #else
-    return { handle, GetThreadMappingId(handle) };
+    const auto handle_ = static_cast<uintptr_t>(handle);
+    return { handle_, GetThreadMappingId(handle_) };
 #endif
 }
 
@@ -897,34 +898,36 @@ struct CPUFeature
                 AppendFeature("waitpkg"sv);
         }
 # define CHECK_FEATURE(en, name) if (cpuinfo_has_x86_##en()) AppendFeature(#name""sv)
-        CHECK_FEATURE(sse,          sse);
-        CHECK_FEATURE(sse2,         sse2);
-        CHECK_FEATURE(sse3,         sse3);
-        CHECK_FEATURE(ssse3,        ssse3);
-        CHECK_FEATURE(sse4_1,       sse4_1);
-        CHECK_FEATURE(sse4_2,       sse4_2);
-        CHECK_FEATURE(avx,          avx);
-        CHECK_FEATURE(fma3,         fma);
-        CHECK_FEATURE(avx2,         avx2);
-        CHECK_FEATURE(avx512f,      avx512f);
-        CHECK_FEATURE(avx512dq,     avx512dq);
-        CHECK_FEATURE(avx512pf,     avx512pf);
-        CHECK_FEATURE(avx512er,     avx512er);
-        CHECK_FEATURE(avx512cd,     avx512cd);
-        CHECK_FEATURE(avx512bw,     avx512bw);
-        CHECK_FEATURE(avx512vl,     avx512vl);
-        CHECK_FEATURE(avx512vnni,   avx512vnni);
-        CHECK_FEATURE(avx512vbmi,   avx512vbmi);
-        CHECK_FEATURE(avx512vbmi2,  avx512vbmi2);
-        CHECK_FEATURE(pclmulqdq,    pclmul);
-        CHECK_FEATURE(popcnt,       popcnt);
-        CHECK_FEATURE(aes,          aes);
-        CHECK_FEATURE(lzcnt,        lzcnt);
-        CHECK_FEATURE(f16c,         f16c);
-        CHECK_FEATURE(bmi,          bmi1);
-        CHECK_FEATURE(bmi2,         bmi2);
-        CHECK_FEATURE(sha,          sha);
-        CHECK_FEATURE(adx,          adx);
+        CHECK_FEATURE(sse,              sse);
+        CHECK_FEATURE(sse2,             sse2);
+        CHECK_FEATURE(sse3,             sse3);
+        CHECK_FEATURE(ssse3,            ssse3);
+        CHECK_FEATURE(sse4_1,           sse4_1);
+        CHECK_FEATURE(sse4_2,           sse4_2);
+        CHECK_FEATURE(avx,              avx);
+        CHECK_FEATURE(fma3,             fma);
+        CHECK_FEATURE(avx2,             avx2);
+        CHECK_FEATURE(avx512f,          avx512f);
+        CHECK_FEATURE(avx512dq,         avx512dq);
+        CHECK_FEATURE(avx512pf,         avx512pf);
+        CHECK_FEATURE(avx512er,         avx512er);
+        CHECK_FEATURE(avx512cd,         avx512cd);
+        CHECK_FEATURE(avx512bw,         avx512bw);
+        CHECK_FEATURE(avx512vl,         avx512vl);
+        CHECK_FEATURE(avx512vnni,       avx512vnni);
+        CHECK_FEATURE(avx512vbmi,       avx512vbmi);
+        CHECK_FEATURE(avx512vbmi2,      avx512vbmi2);
+        CHECK_FEATURE(avx512bitalg,     avx512bitalg);
+        CHECK_FEATURE(avx512vpopcntdq,  avx512vpopcntdq);
+        CHECK_FEATURE(pclmulqdq,        pclmul);
+        CHECK_FEATURE(popcnt,           popcnt);
+        CHECK_FEATURE(aes,              aes);
+        CHECK_FEATURE(lzcnt,            lzcnt);
+        CHECK_FEATURE(f16c,             f16c);
+        CHECK_FEATURE(bmi,              bmi1);
+        CHECK_FEATURE(bmi2,             bmi2);
+        CHECK_FEATURE(sha,              sha);
+        CHECK_FEATURE(adx,              adx);
 # undef CHECK_FEATURE
 #elif COMMON_ARCH_ARM
         cpuinfo_has_arm_sha2();

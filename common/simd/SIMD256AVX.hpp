@@ -2162,12 +2162,25 @@ template<> forceinline I8x32 VECCALL U8x32::Cast<I8x32, CastMode::RangeUndef>() 
 
 
 #if COMMON_SIMD_LV >= 200
+template<> forceinline U32x4 VECCALL U64x4::Cast<U32x4, CastMode::RangeTrunc>() const noexcept
+{
+    const auto mask = _mm256_setr_epi32(0, 2, 4, 6, 0, 2, 4, 6);
+    const auto dat0101 = _mm256_permutevar8x32_epi32(Data, mask);//ab,ab
+    return _mm256_castsi256_si128(dat0101);
+}
 template<> forceinline U32x8 VECCALL U64x4::Cast<U32x8, CastMode::RangeTrunc>(const U64x4& arg1) const noexcept
 {
     const auto mask = _mm256_setr_epi32(0, 2, 4, 6, 0, 2, 4, 6);
     const auto dat0101 = _mm256_permutevar8x32_epi32(Data, mask);//ab,ab
     const auto dat2323 = _mm256_permutevar8x32_epi32(arg1, mask);//cd,cd
     return _mm256_blend_epi32(dat0101, dat2323, 0b11110000);//ab,cd
+}
+template<> forceinline U16x8 VECCALL U32x8::Cast<U16x8, CastMode::RangeTrunc>() const noexcept
+{
+    const auto mask = _mm256_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 1, 4, 5, 8, 9, 12, 13);
+    const auto dat01 = _mm256_shuffle_epi8(Data, mask);//a0,0b
+    const auto dat0101 = _mm256_permute4x64_epi64(dat01, 0b11001100);//ab,ab
+    return _mm256_castsi256_si128(dat0101);
 }
 template<> forceinline U16x16 VECCALL U32x8::Cast<U16x16, CastMode::RangeTrunc>(const U32x8& arg1) const noexcept
 {
@@ -2177,6 +2190,13 @@ template<> forceinline U16x16 VECCALL U32x8::Cast<U16x16, CastMode::RangeTrunc>(
     const auto dat0101 = _mm256_permute4x64_epi64(dat01, 0b11001100);//ab,ab
     const auto dat2323 = _mm256_permute4x64_epi64(dat23, 0b11001100);//cd,cd
     return _mm256_blend_epi32(dat0101, dat2323, 0b11110000);//ab,cd
+}
+template<> forceinline U8x16 VECCALL U16x16::Cast<U8x16, CastMode::RangeTrunc>() const noexcept
+{
+    const auto mask = _mm256_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 4, 6, 8, 10, 12, 14);
+    const auto dat01 = _mm256_shuffle_epi8(Data, mask);//a0,0b
+    const auto dat0101 = _mm256_permute4x64_epi64(dat01, 0b11001100);//ab,ab
+    return _mm256_castsi256_si128(dat0101);
 }
 template<> forceinline U8x32 VECCALL U16x16::Cast<U8x32, CastMode::RangeTrunc>(const U16x16& arg1) const noexcept
 {
@@ -2267,13 +2287,25 @@ template<> forceinline U8x32 VECCALL U64x4::Cast<U8x32, CastMode::RangeTrunc>(co
     const auto dat13579bdf = _mm256_permute2x128_si256(dat02461357, dat8ace9bdf, 0x31);//0b0d0f0h,0j0l0n0p
     return _mm256_or_si256(dat02468ace, dat13579bdf);//abcdefgh,ijklmnop
 }
+template<> forceinline I32x4 VECCALL I64x4::Cast<I32x4, CastMode::RangeTrunc>() const noexcept
+{
+    return As<U64x4>().Cast<U32x4>().As<I32x4>();
+}
 template<> forceinline I32x8 VECCALL I64x4::Cast<I32x8, CastMode::RangeTrunc>(const I64x4& arg1) const noexcept
 {
     return As<U64x4>().Cast<U32x8>(arg1.As<U64x4>()).As<I32x8>();
 }
+template<> forceinline I16x8 VECCALL I32x8::Cast<I16x8, CastMode::RangeTrunc>() const noexcept
+{
+    return As<U32x8>().Cast<U16x8>().As<I16x8>();
+}
 template<> forceinline I16x16 VECCALL I32x8::Cast<I16x16, CastMode::RangeTrunc>(const I32x8& arg1) const noexcept
 {
     return As<U32x8>().Cast<U16x16>(arg1.As<U32x8>()).As<I16x16>();
+}
+template<> forceinline I8x16 VECCALL I16x16::Cast<I8x16, CastMode::RangeTrunc>() const noexcept
+{
+    return As<U16x16>().Cast<U8x16>().As<I8x16>();
 }
 template<> forceinline I8x32 VECCALL I16x16::Cast<I8x32, CastMode::RangeTrunc>(const I16x16& arg1) const noexcept
 {
