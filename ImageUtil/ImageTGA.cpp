@@ -233,7 +233,8 @@ public:
             if (needAlpha)
             {
                 reader.Read(count, image.GetRawPtr() + count);
-                convert::GraysToGrayAs(image.GetRawPtr(), image.GetRawPtr() + count, count);
+                ColorConvertor::Get().GrayToGrayA(image.GetRawPtr<uint16_t>(), image.GetRawPtr<uint8_t>() + count, count);
+                //convert::GraysToGrayAs(image.GetRawPtr(), image.GetRawPtr() + count, count);
             }
             else
             {

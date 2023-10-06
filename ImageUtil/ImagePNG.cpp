@@ -97,9 +97,8 @@ static void ReadPng(void *pngStruct, const uint32_t passes, Image& image, const 
     else
         for (uint32_t row = 0; row < image.GetHeight(); row++, rowPtr += lineStep)
         {
-            auto * __restrict destPtr = rowPtr;
-            auto * __restrict srcPtr = rowPtr + image.GetWidth();
-            convert::GraysToGrayAs(destPtr, srcPtr, image.GetWidth());
+            ColorConvertor::Get().GrayToGrayA(reinterpret_cast<uint16_t*>(rowPtr), reinterpret_cast<const uint8_t*>(rowPtr + image.GetWidth()), image.GetWidth());
+            //convert::GraysToGrayAs(destPtr, srcPtr, image.GetWidth());
         }
     timer.Stop();
     ImgLog().Debug(u"[png]post add alpha cost {} ms\n", timer.ElapseMs());

@@ -458,7 +458,7 @@ DEFINE_FASTPATH_METHOD(PopCounts, SIMD128)
         const U8x16 mid7 = vcntq_u8(dat4567.val[3]);
         return ((mid0 + mid1) + (mid2 + mid3)) + ((mid4 + mid5) + (mid6 + mid7));
     };
-    if (count >= 16)
+    if (count >= 8)
     {
 #   if COMMON_SIMD_LV >= 200
 #   else

@@ -172,7 +172,8 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
                 break;
             case 2:
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::GrayAsToRGBAs(destPtr, srcPtr, pixcnt);
+                    ColorConvertor::Get().GrayAToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint16_t*>(srcPtr), pixcnt);
+                    //convert::GrayAsToRGBAs(destPtr, srcPtr, pixcnt);
                 break;
             case 3://change byte-order and add alpha(plain-add, see above) 
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)

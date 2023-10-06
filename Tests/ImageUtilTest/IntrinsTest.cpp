@@ -108,6 +108,30 @@ INTRIN_TEST(ColorCvt, G8ToRGBA8)
     });
 }
 
+INTRIN_TEST(ColorCvt, GA8ToRGBA8)
+{
+    const auto src = GetRandVals();
+    VarLenTest<uint16_t, uint32_t, 1>({ reinterpret_cast<const uint16_t*>(src.data()), src.size() / 2 }, [&](uint32_t* dst, const uint16_t* src, size_t count)
+    {
+        Intrin->GrayAToRGBA(dst, src, count);
+    }, [](uint32_t* dst, const uint16_t* src, size_t count)
+    {
+        while (count)
+        {
+            const auto val = *src++;
+            const uint32_t gray = val & 0xffu, alpha = val >> 8;
+            const uint32_t r = gray, g = gray << 8, b = gray << 16, a = alpha << 24;
+            *dst++ = r | g | b | a;
+            count--;
+        }
+    },
+    [](size_t count, size_t idx, uint16_t src, uint32_t dst, uint32_t ref)
+    {
+        common::str::Formatter<char> fmter{};
+        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:04x}] get[{:08x}] ref[{:08x}]"), count, idx, src, dst, ref);
+    });
+}
+
 
 #if CM_DEBUG == 0
 
@@ -175,6 +199,17 @@ TEST(IntrinPerf, G8ToRGBA8)
         {
             host.GrayToRGBA(dst.data(), src.data(), src.size());
         }, Size);
+}
+
+TEST(IntrinPerf, GA8ToRGBA8)
+{
+    constexpr uint32_t Size = 1024 * 1024;
+    std::vector<uint16_t> src(Size);
+    std::vector<uint32_t> dst(Size);
+    RunPerfTestAll<xziar::img::ColorConvertor>("GA8ToRGBA8", [&](const xziar::img::ColorConvertor& host)
+    {
+        host.GrayAToRGBA(dst.data(), src.data(), src.size());
+    }, Size);
 }
 
 #endif

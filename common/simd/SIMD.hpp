@@ -43,7 +43,7 @@
 #     define CMSIMD_WA_LOADU2       1 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=91341
 #   endif
 #   if COMMON_GCC_VER < 110000
-#     define CMSIMD_WA_LOADUSI      1 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95483
+#     define CMSIMD_WA_LS           1 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95483
 #   endif
 #   if COMMON_GCC_VER < 110300 || (COMMON_GCC_VER >= 120000 && COMMON_GCC_VER < 120100)
 #     define CMSIMD_FIX_LOADUSI     1 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=99754
@@ -91,12 +91,28 @@
 #   define _mm_loadu_si64(mem_addr) _mm_loadl_epi64((const __m128i*)(mem_addr))
 #   define _mm_storeu_si64(mem_addr, a) _mm_storel_epi64((__m128i*)(mem_addr), (a))
 # endif
-# ifdef CMSIMD_WA_LOADUSI
-#   undef CMSIMD_WA_LOADUSI
+# ifdef CMSIMD_WA_LS
+#   undef CMSIMD_WA_LS
 #   define _mm_loadu_si32(mem_addr) _mm_cvtsi32_si128(*(const int*)(mem_addr))
 #   define _mm_loadu_si16(mem_addr) _mm_cvtsi32_si128(*(const short*)(mem_addr))
 #   define _mm_storeu_si32(mem_addr, a) (void)(*(int*)(mem_addr) = _mm_cvtsi128_si32((a)))
 #   define _mm_storeu_si16(mem_addr, a) (void)(*(short*)(mem_addr) = (short)_mm_cvtsi128_si32((a)))
+#   define _mm512_loadu_epi8(mem_addr)  _mm512_loadu_si512((const __m512i*)(mem_addr))
+#   define _mm512_loadu_epi16(mem_addr) _mm512_loadu_si512((const __m512i*)(mem_addr))
+#   define _mm256_loadu_epi8(mem_addr)  _mm256_loadu_si256((const __m256i*)(mem_addr))
+#   define _mm256_loadu_epi16(mem_addr) _mm256_loadu_si256((const __m256i*)(mem_addr))
+#   define _mm256_loadu_epi32(mem_addr) _mm256_loadu_si256((const __m256i*)(mem_addr))
+#   define _mm256_loadu_epi64(mem_addr) _mm256_loadu_si256((const __m256i*)(mem_addr))
+#   define _mm_loadu_epi8(mem_addr)     _mm_loadu_si128((const __m128i*)(mem_addr))
+#   define _mm_loadu_epi16(mem_addr)    _mm_loadu_si128((const __m128i*)(mem_addr))
+#   define _mm_loadu_epi32(mem_addr)    _mm_loadu_si128((const __m128i*)(mem_addr))
+#   define _mm_loadu_epi64(mem_addr)    _mm_loadu_si128((const __m128i*)(mem_addr))
+#   define _mm512_storeu_epi8(mem_addr, a)  _mm512_storeu_epi32(mem_addr, a)
+#   define _mm512_storeu_epi16(mem_addr, a) _mm512_storeu_epi32(mem_addr, a)
+#   define _mm256_storeu_epi8(mem_addr, a)  _mm256_storeu_epi32(mem_addr, a)
+#   define _mm256_storeu_epi16(mem_addr, a) _mm256_storeu_epi32(mem_addr, a)
+#   define _mm_storeu_epi8(mem_addr, a)     _mm_storeu_epi32(mem_addr, a)
+#   define _mm_storeu_epi16(mem_addr, a)    _mm_storeu_epi32(mem_addr, a)
 # endif
 # ifdef CMSIMD_FIX_LOADUSI
 #   undef CMSIMD_FIX_LOADUSI
