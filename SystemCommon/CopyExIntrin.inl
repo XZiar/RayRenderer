@@ -1033,10 +1033,10 @@ struct ZExt14AVX512
     static constexpr size_t N = 64, M = 64;
     void operator()(uint32_t* __restrict dst, const uint8_t* __restrict src) const noexcept
     {
-        const auto dat0 = _mm_loadu_epi8(src +  0);
-        const auto dat1 = _mm_loadu_epi8(src + 16);
-        const auto dat2 = _mm_loadu_epi8(src + 32);
-        const auto dat3 = _mm_loadu_epi8(src + 48);
+        const auto dat0 = U8x16(src +  0);
+        const auto dat1 = U8x16(src + 16);
+        const auto dat2 = U8x16(src + 32);
+        const auto dat3 = U8x16(src + 48);
         const auto out0 = _mm512_cvtepu8_epi32(dat0);
         const auto out1 = _mm512_cvtepu8_epi32(dat1);
         const auto out2 = _mm512_cvtepu8_epi32(dat2);
@@ -1054,8 +1054,8 @@ struct ZExt24AVX512
     static constexpr size_t N = 32, M = 32;
     void operator()(uint32_t* __restrict dst, const uint16_t* __restrict src) const noexcept
     {
-        const auto dat0 = _mm256_loadu_epi16(src +  0);
-        const auto dat1 = _mm256_loadu_epi16(src + 16);
+        const auto dat0 = U16x16(src +  0);
+        const auto dat1 = U16x16(src + 16);
         const auto out0 = _mm512_cvtepu16_epi32(dat0);
         const auto out1 = _mm512_cvtepu16_epi32(dat1);
         _mm512_storeu_si512(dst +  0, out0);
@@ -1069,10 +1069,10 @@ struct ZExt28AVX512
     static constexpr size_t N = 32, M = 32;
     void operator()(uint64_t* __restrict dst, const uint16_t* __restrict src) const noexcept
     {
-        const auto dat0 = _mm_loadu_epi16(src +  0);
-        const auto dat1 = _mm_loadu_epi16(src +  8);
-        const auto dat2 = _mm_loadu_epi16(src + 16);
-        const auto dat3 = _mm_loadu_epi16(src + 24);
+        const auto dat0 = U16x8(src +  0);
+        const auto dat1 = U16x8(src +  8);
+        const auto dat2 = U16x8(src + 16);
+        const auto dat3 = U16x8(src + 24);
         const auto out0 = _mm512_cvtepu16_epi64(dat0);
         const auto out1 = _mm512_cvtepu16_epi64(dat1);
         const auto out2 = _mm512_cvtepu16_epi64(dat2);
@@ -1090,8 +1090,8 @@ struct ZExt48AVX512
     static constexpr size_t N = 16, M = 16;
     void operator()(uint64_t* __restrict dst, const uint32_t* __restrict src) const noexcept
     {
-        const auto dat0 = _mm256_loadu_epi32(src + 0);
-        const auto dat1 = _mm256_loadu_epi32(src + 8);
+        const auto dat0 = U32x8(src + 0);
+        const auto dat1 = U32x8(src + 8);
         const auto out0 = _mm512_cvtepu32_epi64(dat0);
         const auto out1 = _mm512_cvtepu32_epi64(dat1);
         _mm512_storeu_si512(dst + 0, out0);
@@ -1106,10 +1106,10 @@ struct SExt14AVX512
     static constexpr size_t N = 64, M = 64;
     void operator()(int32_t* __restrict dst, const int8_t* __restrict src) const noexcept
     {
-        const auto dat0 = _mm_loadu_epi8(src +  0);
-        const auto dat1 = _mm_loadu_epi8(src + 16);
-        const auto dat2 = _mm_loadu_epi8(src + 32);
-        const auto dat3 = _mm_loadu_epi8(src + 48);
+        const auto dat0 = I8x16(src +  0);
+        const auto dat1 = I8x16(src + 16);
+        const auto dat2 = I8x16(src + 32);
+        const auto dat3 = I8x16(src + 48);
         const auto out0 = _mm512_cvtepi8_epi32(dat0);
         const auto out1 = _mm512_cvtepi8_epi32(dat1);
         const auto out2 = _mm512_cvtepi8_epi32(dat2);
@@ -1127,8 +1127,8 @@ struct SExt24AVX512
     static constexpr size_t N = 32, M = 32;
     void operator()(int32_t* __restrict dst, const int16_t* __restrict src) const noexcept
     {
-        const auto dat0 = _mm256_loadu_epi16(src +  0);
-        const auto dat1 = _mm256_loadu_epi16(src + 16);
+        const auto dat0 = I16x16(src +  0);
+        const auto dat1 = I16x16(src + 16);
         const auto out0 = _mm512_cvtepi16_epi32(dat0);
         const auto out1 = _mm512_cvtepi16_epi32(dat1);
         _mm512_storeu_si512(dst +  0, out0);
@@ -1142,10 +1142,10 @@ struct SExt28AVX512
     static constexpr size_t N = 32, M = 32;
     void operator()(int64_t* __restrict dst, const int16_t* __restrict src) const noexcept
     {
-        const auto dat0 = _mm_loadu_epi16(src +  0);
-        const auto dat1 = _mm_loadu_epi16(src +  8);
-        const auto dat2 = _mm_loadu_epi16(src + 16);
-        const auto dat3 = _mm_loadu_epi16(src + 24);
+        const auto dat0 = I16x8(src +  0);
+        const auto dat1 = I16x8(src +  8);
+        const auto dat2 = I16x8(src + 16);
+        const auto dat3 = I16x8(src + 24);
         const auto out0 = _mm512_cvtepi16_epi64(dat0);
         const auto out1 = _mm512_cvtepi16_epi64(dat1);
         const auto out2 = _mm512_cvtepi16_epi64(dat2);
@@ -1163,8 +1163,8 @@ struct SExt48AVX512
     static constexpr size_t N = 16, M = 16;
     void operator()(int64_t* __restrict dst, const int32_t* __restrict src) const noexcept
     {
-        const auto dat0 = _mm256_loadu_epi32(src + 0);
-        const auto dat1 = _mm256_loadu_epi32(src + 8);
+        const auto dat0 = I32x8(src + 0);
+        const auto dat1 = I32x8(src + 8);
         const auto out0 = _mm512_cvtepi32_epi64(dat0);
         const auto out1 = _mm512_cvtepi32_epi64(dat1);
         _mm512_storeu_si512(dst + 0, out0);

@@ -741,6 +741,13 @@ public:
     }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightArith() const noexcept;
+
+    forceinline static T VECCALL LoadLo(const E val) noexcept
+    {
+        const auto tmp = static_cast<uint16_t>(val); 
+        return _mm_loadu_si16_correct(&tmp);
+    }
+    forceinline static T VECCALL LoadLo(const E* ptr) noexcept { return LoadLo(*ptr); }
 };
 
 }

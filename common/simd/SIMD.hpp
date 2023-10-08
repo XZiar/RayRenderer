@@ -38,6 +38,7 @@
 #   endif
 #   if COMMON_GCC_VER < 100000
 #     define CMSIMD_WA_ZEXTAVX      1 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83250
+#     define CMSIMD_WA_LSU512       1 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90980
 #   endif
 #   if COMMON_GCC_VER < 100100
 #     define CMSIMD_WA_LOADU2       1 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=91341
@@ -85,6 +86,17 @@
 #   define _mm256_zextps128_ps256(a) _mm256_insertf128_ps(_mm256_setzero_ps(), a, 0)
 #   define _mm256_zextpd128_pd256(a) _mm256_insertf128_pd(_mm256_setzero_pd(), a, 0)
 #   define _mm256_zextsi128_si256(a) _mm256_insertf128_si256(_mm256_setzero_si256(), a, 0)
+# endif
+# ifdef CMSIMD_WA_LSU512
+#   undef CMSIMD_WA_LSU512
+#   define _mm512_loadu_epi32(mem_addr)  _mm512_loadu_si512((const __m512i*)(mem_addr))
+#   define _mm512_loadu_epi64(mem_addr)  _mm512_loadu_si512((const __m512i*)(mem_addr))
+#   define _mm512_storeu_epi32(mem_addr, a)  _mm512_storeu_si512((__m512i*)(mem_addr), a)
+#   define _mm512_storeu_epi64(mem_addr, a)  _mm512_storeu_si512((__m512i*)(mem_addr), a)
+#   define _mm256_storeu_epi32(mem_addr, a)  _mm256_storeu_si256((__m256i*)(mem_addr), a)
+#   define _mm256_storeu_epi64(mem_addr, a)  _mm256_storeu_si256((__m256i*)(mem_addr), a)
+#   define _mm_storeu_epi32(mem_addr, a)     _mm_storeu_si128((__m128i*)(mem_addr), a)
+#   define _mm_storeu_epi64(mem_addr, a)     _mm_storeu_si128((__m128i*)(mem_addr), a)
 # endif
 # ifdef CMSIMD_WA_LOADUSI64
 #   undef CMSIMD_WA_LOADUSI64

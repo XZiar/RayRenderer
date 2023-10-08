@@ -919,6 +919,7 @@ struct CPUFeature
         CHECK_FEATURE(avx512vbmi2,      avx512vbmi2);
         CHECK_FEATURE(avx512bitalg,     avx512bitalg);
         CHECK_FEATURE(avx512vpopcntdq,  avx512vpopcntdq);
+        CHECK_FEATURE(movbe,            movbe);
         CHECK_FEATURE(pclmulqdq,        pclmul);
         CHECK_FEATURE(popcnt,           popcnt);
         CHECK_FEATURE(aes,              aes);

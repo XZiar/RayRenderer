@@ -454,7 +454,7 @@ struct GA2RGBA_NEON
     static constexpr size_t M = 16, N = 16;
     forceinline void operator()(uint32_t * __restrict dst, const uint16_t * __restrict src) const noexcept
     {
-        const auto dat = vld2q_u8(reinterpret_cast<uint8_t*>(src));
+        const auto dat = vld2q_u8(reinterpret_cast<const uint8_t*>(src));
         uint8x16x4_t out4;
         out4.val[0] = dat.val[0];
         out4.val[1] = dat.val[0];

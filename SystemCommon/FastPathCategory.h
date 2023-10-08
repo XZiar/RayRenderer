@@ -92,7 +92,7 @@ struct AVX512BW
     static bool RuntimeCheck() noexcept
     {
 #if COMMON_ARCH_X86
-        return CheckCPUFeature("avx512f") && CheckCPUFeature("avx512bw");
+        return AVX512F::RuntimeCheck() && CheckCPUFeature("avx512bw") && CheckCPUFeature("avx512vl");
 #else
         return false;
 #endif
@@ -103,7 +103,7 @@ struct AVX512VBMI
     static bool RuntimeCheck() noexcept
     {
 #if COMMON_ARCH_X86
-        return CheckCPUFeature("avx512f") && CheckCPUFeature("avx512bw") && CheckCPUFeature("avx512vbmi");
+        return AVX512BW::RuntimeCheck() && CheckCPUFeature("avx512vbmi");
 #else
         return false;
 #endif
@@ -114,7 +114,7 @@ struct AVX512VBMI2
     static bool RuntimeCheck() noexcept
     {
 #if COMMON_ARCH_X86
-        return CheckCPUFeature("avx512f") && CheckCPUFeature("avx512bw") && CheckCPUFeature("avx512vbmi2");
+        return AVX512BW::RuntimeCheck() && CheckCPUFeature("avx512vbmi2");
 #else
         return false;
 #endif
@@ -125,7 +125,7 @@ struct AVX512VPOPCNT
     static bool RuntimeCheck() noexcept
     {
 #if COMMON_ARCH_X86
-        return CheckCPUFeature("avx512f") && CheckCPUFeature("avx512vl") && CheckCPUFeature("avx512vpopcntdq");
+        return AVX512BW::RuntimeCheck() && CheckCPUFeature("avx512vpopcntdq");
 #else
         return false;
 #endif
@@ -202,7 +202,18 @@ struct SHANIAVX2
     static bool RuntimeCheck() noexcept
     {
 #if COMMON_ARCH_X86
-        return CheckCPUFeature("sha") && CheckCPUFeature("avx2");
+        return SHANI::RuntimeCheck() && AVX2::RuntimeCheck() && CheckCPUFeature("movbe");
+#else
+        return false;
+#endif
+    }
+};
+struct SHANIAVX512BW
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return SHANI::RuntimeCheck() && AVX512BW::RuntimeCheck();
 #else
         return false;
 #endif

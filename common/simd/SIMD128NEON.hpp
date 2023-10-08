@@ -1013,6 +1013,15 @@ struct alignas(16) Common8x16 : public Neon128Common<T, SIMDType, E, 16>
     }
 
     forceinline T VECCALL operator*(const T& other) const noexcept { return static_cast<const T*>(this)->MulLo(other); }
+
+    forceinline static T LoadLo(const E val) noexcept
+    {
+        return AsType<SIMDType>(vsetq_lane_u8(static_cast<uint16_t>(val), vdupq_n_u8(0), 0));
+    }
+    forceinline static T LoadLo(const E* ptr) noexcept
+    {
+        return LoadLo(*ptr);
+    }
 };
 
 
