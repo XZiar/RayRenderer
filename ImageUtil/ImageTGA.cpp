@@ -102,7 +102,8 @@ public:
                 if (isOutputRGB)
                     convert::BGRsToRGBAs(destPtr, srcPtr, count);
                 else
-                    convert::RGBsToRGBAs(destPtr, srcPtr, count);
+                    ColorConvertor::Get().RGBToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), count);
+                    //convert::RGBsToRGBAs(destPtr, srcPtr, count);
             }break;
         case 32:
             {//BGRA
@@ -155,7 +156,8 @@ public:
                     if (isOutputRGB)
                         convert::BGRAsToRGBs(output.GetRawPtr(row), tmp.GetRawPtr(), count);
                     else
-                        convert::RGBAsToRGBs(output.GetRawPtr(row), tmp.GetRawPtr(), count);
+                        ColorConvertor::Get().RGBAToRGB(output.GetRawPtr<uint8_t>(row), tmp.GetRawPtr<uint32_t>(), count);
+                        //convert::RGBAsToRGBs(output.GetRawPtr(row), tmp.GetRawPtr(), count);
                 }
             }break;
         }

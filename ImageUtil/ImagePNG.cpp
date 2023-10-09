@@ -90,9 +90,8 @@ static void ReadPng(void *pngStruct, const uint32_t passes, Image& image, const 
     if (isColor)
         for (uint32_t row = 0; row < image.GetHeight(); row++, rowPtr += lineStep)
         {
-            auto * __restrict destPtr = rowPtr;
-            auto * __restrict srcPtr = rowPtr + image.GetWidth();
-            convert::RGBsToRGBAs(destPtr, srcPtr, image.GetWidth());
+            ColorConvertor::Get().RGBToRGBA(reinterpret_cast<uint32_t*>(rowPtr), reinterpret_cast<const uint8_t*>(rowPtr + image.GetWidth()), image.GetWidth());
+            //convert::RGBsToRGBAs(destPtr, srcPtr, image.GetWidth());
         }
     else
         for (uint32_t row = 0; row < image.GetHeight(); row++, rowPtr += lineStep)

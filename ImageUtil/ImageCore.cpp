@@ -143,11 +143,13 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
             {
             case 4://remove alpha, 4->3
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::RGBAsToRGBs(destPtr, srcPtr, pixcnt);
+                    ColorConvertor::Get().RGBAToRGB(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint32_t*>(srcPtr), pixcnt);
+                    //convert::RGBAsToRGBs(destPtr, srcPtr, pixcnt);
                 break;
             case 3://add alpha, 3->4
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::RGBsToRGBAs(destPtr, srcPtr, pixcnt);
+                    ColorConvertor::Get().RGBToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
+                    //convert::RGBsToRGBAs(destPtr, srcPtr, pixcnt);
                 break;
             case 2://remove alpha, 2->1
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)

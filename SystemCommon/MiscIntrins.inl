@@ -1021,8 +1021,9 @@ inline std::array<std::byte, 32> Sha256Main256(const std::byte* data, const size
         len -= 64;
     }
     const auto bitsv = U64x2::LoadLo(static_cast<uint64_t>(size) * 8);
+    const auto bitsvBE128 = bitsv.As<U32x4>().Shuffle<3, 3, 1, 0>();
     //const auto bitsvBE = U32x8(U32x4::AllZero(), bitsv.As<U32x4>().Shuffle<3, 3, 1, 0>());
-    const auto bitsvBE = _mm256_inserti128_si256(_mm256_setzero_si256(), bitsv.As<U32x4>().Shuffle<3, 3, 1, 0>(), 1);
+    const auto bitsvBE = _mm256_inserti128_si256(_mm256_setzero_si256(), bitsvBE128, 1);
     if (len >= 48)
     {
         const auto msg01 = U32x8(ptr).SwapEndian(); ptr += 8;

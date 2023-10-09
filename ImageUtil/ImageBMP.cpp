@@ -36,7 +36,9 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, bool needF
                 case ImageDataType::RGBA:
                     convert::BGRAsToRGBAs(imgrow, bufptr, width); break;
                 case ImageDataType::BGR:
-                    convert::BGRAsToBGRs(imgrow, bufptr, width); break;
+                    ColorConvertor::Get().RGBAToRGB(reinterpret_cast<uint8_t*>(imgrow), reinterpret_cast<const uint32_t*>(bufptr), width);
+                    break;
+                    //convert::BGRAsToBGRs(imgrow, bufptr, width); break;
                 case ImageDataType::RGB:
                     convert::BGRAsToRGBs(imgrow, bufptr, width); break;
                 default:
@@ -58,7 +60,9 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, bool needF
                 case ImageDataType::RGB:
                     convert::BGRsToRGBs(imgrow, bufptr, width); break;
                 case ImageDataType::BGRA:
-                    convert::BGRsToBGRAs(imgrow, bufptr, width); break;
+                    ColorConvertor::Get().RGBToRGBA(reinterpret_cast<uint32_t*>(imgrow), reinterpret_cast<const uint8_t*>(bufptr), width);
+                    break;
+                    //convert::BGRsToBGRAs(imgrow, bufptr, width); break;
                 case ImageDataType::RGBA:
                     convert::BGRsToRGBAs(imgrow, bufptr, width); break;
                 default:

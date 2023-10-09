@@ -44,7 +44,7 @@ MiniLogger<false>& ImgLog()
     return imglog;
 }
 
-DEFINE_FASTPATH_BASIC(ColorConvertor, G8ToGA8, G8ToRGB8, G8ToRGBA8, GA8ToRGBA8)
+DEFINE_FASTPATH_BASIC(ColorConvertor, G8ToGA8, G8ToRGB8, G8ToRGBA8, GA8ToRGBA8, RGB8ToRGBA8, RGBA8ToRGB8)
 
 const ColorConvertor& ColorConvertor::Get() noexcept
 {
