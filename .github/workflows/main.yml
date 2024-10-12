@@ -5,7 +5,7 @@ name: CI
 env:
   boost_ver1: "1_86_0"
   boost_ver2: "1.86.0"
-  ispc_ver: "1.21.0"
+  ispc_ver: "1.24.0"
 
 # Controls when the action will run. 
 on:
@@ -14,13 +14,12 @@ on:
     branches: [ $default-branch ]
   pull_request:
     branches: [ $default-branch ]
-
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  download_dep:
+  download_boost:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -31,32 +30,53 @@ jobs:
           mkdir ~/dependency
           cd ~/dependency
           mkdir include
-          mkdir bin
 
-      - name: Cache boost library
-        id: cache-boost
-        uses: actions/cache@v3
+      - name: Check boost library
+        id: check-boost
+        uses: actions/cache/restore@v4
         with:
           path: ~/dependency/include/boost
           key: cache-boost-${{ env.boost_ver1 }}
+          lookup-only: true
         
       - name: Download boost library
-        if: ${{steps.cache-boost.outputs.cache-hit != 'true'}}
+        if: ${{steps.check-boost.outputs.cache-hit != 'true'}}
         working-directory: ./tmp
         run: |
           wget --no-show-progress -O boost.tar.bz2 https://archives.boost.io/release/${{env.boost_ver2}}/source/boost_${{env.boost_ver1}}.tar.bz2
           tar xjf boost.tar.bz2
           mv ./boost_${{env.boost_ver1}}/boost ~/dependency/include/
-          
-      - name: Cache ispc
-        id: cache-ispc
-        uses: actions/cache@v3
+
+      - name: Cache boost library
+        id: save-boost
+        if: ${{steps.check-boost.outputs.cache-hit != 'true'}}
+        uses: actions/cache/save@v4
+        with:
+          path: ~/dependency/include/boost
+          key: cache-boost-${{ env.boost_ver1 }}
+  
+  download_ispc:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Make temp dir
+        run: |
+          mkdir tmp
+          mkdir ~/dependency
+          cd ~/dependency
+          mkdir bin
+
+      - name: Check ispc
+        id: check-ispc
+        uses: actions/cache/restore@v4
         with:
           path: ~/dependency/bin/ispc
           key: cache-ispc-${{ env.ispc_ver }}
+          lookup-only: true
         
-      - name: Download ispc library
-        if: ${{steps.cache-ispc.outputs.cache-hit != 'true'}}
+      - name: Download ispc
+        if: ${{steps.check-ispc.outputs.cache-hit != 'true'}}
         working-directory: ./tmp
         run: |
           wget --no-show-progress -O ispc.tar.gz https://github.com/ispc/ispc/releases/download/v${{env.ispc_ver}}/ispc-v${{env.ispc_ver}}-linux.tar.gz
@@ -64,15 +84,53 @@ jobs:
           tar xzf ispc.tar.gz -C ./ispc
           mv ./ispc ~/dependency/bin/
 
+      - name: Cache ispc
+        id: save-ispc
+        if: ${{steps.check-ispc.outputs.cache-hit != 'true'}}
+        uses: actions/cache/save@v4
+        with:
+          path: ~/dependency/bin/ispc
+          key: cache-ispc-${{ env.ispc_ver }}
+  
+  clone_repo:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Cache repo
+        id: cache-repo
+        uses: actions/cache@v4
+        with:
+          path: .
+          key: cache-repo-${{ github.sha }}
+          lookup-only: true
+        
+      - name: Clone repo
+        #if: ${{steps.cache-repo.outputs.cache-hit != 'true'}}
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
   build:
-    needs: download_dep
+    needs: [download_boost, download_ispc, clone_repo]
     runs-on: ${{matrix.os}}
     
     strategy:
       fail-fast: false
       matrix:
-        cxx: [gcc10, gcc11, gcc12, gcc12, clang10, clang11, clang12, clang13, clang14, clang15]
+        cxx: [gcc9, gcc10, gcc11, gcc12, gcc12, gcc13, clang10, clang11, clang12, clang13, clang14, clang15]
         include:
+          - cxx: gcc9
+            os: ubuntu-latest
+            env_cc: "gcc-9"
+            env_asm: "g++-9"
+            env_cpp: "g++-9"
+            env_stalink: "gcc-ar-9"
+            env_dynlink: "g++-9"
+            env_applink: "g++-9"
+            env_module: "all"
+            env_clang: false
+            pkg: "g++-9"
           - cxx: gcc10
             os: ubuntu-latest
             env_cc: "gcc-10"
@@ -191,11 +249,16 @@ jobs:
             pkg: "clang-15 lld-15 llvm-15"
     
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
-        with:
-          submodules: "true"
-          
+      - name: Get basic information
+        run: |
+          echo "${{github.run_id}}"
+          echo "${{github.sha}}"
+          echo "${{github.workspace}}"
+          echo $GITHUB_WORKSPACE
+          echo ~
+          echo $HOME
+          pwd
+
       - name: Make temp dir
         run: |
           echo "ubt_codename=$(lsb_release -c -s)" >> $GITHUB_ENV
@@ -206,6 +269,35 @@ jobs:
           mkdir include
           mkdir bin
           echo "CPP_DEPENDENCY_PATH=$(pwd)" >> $GITHUB_ENV
+
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      #- uses: actions/checkout@v4
+      #  with:
+      #    submodules: "true"
+          
+      - name: Retrieve repo
+        id: retrieve-repo
+        uses: actions/cache/restore@v4
+        with:
+          path: .
+          key: cache-ispc-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Retrieve boost library
+        id: retrieve-boost
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/dependency/include/boost
+          key: cache-boost-${{ env.boost_ver1 }}
+          fail-on-cache-miss: true
+          
+      - name: Retrieve ispc
+        id: retrieve-ispc
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/dependency/bin/ispc
+          key: cache-ispc-${{ env.ispc_ver }}
+          fail-on-cache-miss: true
           
       # - name: Prepare for clang
       #   if: ${{matrix.env_clang}}
@@ -221,25 +313,11 @@ jobs:
           sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt update -q
           [[ $(echo "$ubt_release >= 19.10" | bc -l) = 0 ]] && lrlver="7" || lrlver="8"
-          sudo apt install util-linux nasm unzip python3 python3-pip ${{matrix.pkg}}
+          sudo apt install util-linux nasm unzip python3 python3-pip python3-chardet ${{matrix.pkg}}
           sudo apt install libreadline$lrlver libreadline-dev libx11-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libgl1-mesa-dev libglu1-mesa-dev libxi-dev libxxf86vm-dev libdrm-dev
-          python3 -m pip install chardet
-
-      - name: Cache boost library
-        id: cache-boost
-        uses: actions/cache@v3
-        with:
-          path: ~/dependency/include/boost
-          key: cache-boost-${{ env.boost_ver1 }}
-          
-      - name: Cache ispc
-        id: cache-ispc
-        uses: actions/cache@v3
-        with:
-          path: ~/dependency/bin/ispc
-          key: cache-ispc-${{ env.ispc_ver }}
               
       - name: Setup environment
+        id: setup
         run: |
           echo $CPP_DEPENDENCY_PATH
           echo "ISPCCOMPILER=$(find ~/dependency/bin -type f -name ispc)" >> $GITHUB_ENV
@@ -250,6 +328,7 @@ jobs:
           echo "STATICLINKER=${{matrix.env_stalink}}" >> $GITHUB_ENV
           echo "DYNAMICLINKER=${{matrix.env_dynlink}}" >> $GITHUB_ENV
           echo "APPLINKER=${{matrix.env_applink}}" >> $GITHUB_ENV
+          echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
           
       - name: List verbose info
         run: |
@@ -259,20 +338,16 @@ jobs:
           nasm -v
           lscpu
 
-      - name: Get current date
-        id: date
-        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-
       - name: Build Debug modules
         run: |
           python3 xzbuild rebuild "${{matrix.env_module}},-curl,-libressl,-BasicsTest,-SystemCommonTest,-NailangTest,-NullTest,-Blur" /threads=x1.5 /dsymlv=0
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: debug-${{matrix.cxx}}-${{steps.date.outputs.date}}
+          name: debug-${{matrix.cxx}}-${{steps.setup.outputs.date}}-${{github.run_id}}
           path: x64/Debug
-          retention-days: 3
+          retention-days: 7
           
       - name: Build Release modules
         run: |     
@@ -285,9 +360,9 @@ jobs:
           ./x64/Release/ImageUtilTest
           ./x64/Release/NailangTest
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: release-${{matrix.cxx}}-${{steps.date.outputs.date}}
+          name: release-${{matrix.cxx}}-${{steps.setup.outputs.date}}-${{github.run_id}}
           path: x64/Release
-          retention-days: 3
+          retention-days: 7
