@@ -25,8 +25,8 @@
 #   pragma warning(pop)
 #endif
 
-#if FMT_VERSION < 100000
-#   error("Require fmt 10.0.0+")
+#if FMT_VERSION < 100000 || FMT_VERSION > 110000
+#   error("Require fmt 10.x")
 #endif
 
 FMT_BEGIN_NAMESPACE

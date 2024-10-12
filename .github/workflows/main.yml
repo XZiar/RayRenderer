@@ -3,8 +3,8 @@
 name: CI
 
 env:
-  boost_ver1: "1_83_0"
-  boost_ver2: "1.83.0"
+  boost_ver1: "1_86_0"
+  boost_ver2: "1.86.0"
   ispc_ver: "1.21.0"
 
 # Controls when the action will run. 
@@ -44,7 +44,7 @@ jobs:
         if: ${{steps.cache-boost.outputs.cache-hit != 'true'}}
         working-directory: ./tmp
         run: |
-          wget --no-show-progress -O boost.tar.bz2 https://boostorg.jfrog.io/artifactory/main/release/${{env.boost_ver2}}/source/boost_${{env.boost_ver1}}.tar.bz2
+          wget --no-show-progress -O boost.tar.bz2 https://archives.boost.io/release/${{env.boost_ver2}}/source/boost_${{env.boost_ver1}}.tar.bz2
           tar xjf boost.tar.bz2
           mv ./boost_${{env.boost_ver1}}/boost ~/dependency/include/
           
@@ -71,19 +71,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cxx: [gcc9, gcc10, gcc11, gcc12, clang10, clang11, clang12, clang13, clang14, clang15]
+        cxx: [gcc10, gcc11, gcc12, gcc12, clang10, clang11, clang12, clang13, clang14, clang15]
         include:
-          - cxx: gcc9
-            os: ubuntu-latest
-            env_cc: "gcc-9"
-            env_asm: "g++-9"
-            env_cpp: "g++-9"
-            env_stalink: "gcc-ar-9"
-            env_dynlink: "g++-9"
-            env_applink: "g++-9"
-            env_module: "all"
-            env_clang: false
-            pkg: "g++-9"
           - cxx: gcc10
             os: ubuntu-latest
             env_cc: "gcc-10"
@@ -117,6 +106,17 @@ jobs:
             env_module: "all"
             env_clang: false
             pkg: "g++-12"
+          - cxx: gcc13
+            os: ubuntu-latest
+            env_cc: "gcc-13"
+            env_asm: "g++-13"
+            env_cpp: "g++-13"
+            env_stalink: "gcc-ar-13"
+            env_dynlink: "g++-13"
+            env_applink: "g++-13"
+            env_module: "all"
+            env_clang: false
+            pkg: "g++-13"
           - cxx: clang10
             os: ubuntu-20.04
             env_cc: "clang-10"

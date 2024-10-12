@@ -47,13 +47,13 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
 
-For Windows parts, Windows SDK Target is `10(latest)`. `.Net Core 7.0` needed for C# components.
+For Windows parts, Windows SDK Target is `10(latest)`. `.Net Core 8.0` needed for C# components.
 
 To use `xzbuild`, python3.7+ is required.
 
 ## Build
 
-To build C++ parts, a C++17 compiler is needed and C++20 is recommanded (defaultly used for gcc>=9 and clang>=9). 
+To build C++ parts, a C++17 compiler is needed and C++20 is recommanded (defaultly used for gcc>=10 and clang>=10). 
 
 For Windows, project uses `VisualStudio2022`, VS2022(>`17.6`) is needed for the vcproj version.
 
