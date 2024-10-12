@@ -130,7 +130,7 @@ namespace OpenGLView
             this->ImeMode = System::Windows::Forms::ImeMode::Disable;
             ResizeBGDraw = true;
             Deshake = true;
-            hDC = GetDC(HWND(this->Handle.ToPointer()));
+            hDC = GetDC(::HWND(this->Handle.ToPointer()));
 
             //std::vector<int32_t> pixelAttribs(
             //    {

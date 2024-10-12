@@ -63,5 +63,5 @@ def solveSingleElement(target, field:str, env:dict, defaultVal) -> any:
     if len(adds) == 0: return defaultVal
     trimAdds = set(adds)
     if len(trimAdds) > 1: raise Exception(f'get multiple result for {field}: {trimAdds}')
-    return trimAdds[0]
+    return list(trimAdds)[0]
     

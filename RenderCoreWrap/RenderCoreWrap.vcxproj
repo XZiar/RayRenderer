@@ -28,11 +28,11 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{49B581B8-58E2-4E1F-A0EF-1A83A9224B40}</ProjectGuid>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Keyword>ManagedCProj</Keyword>
     <RootNamespace>RenderCoreWrap</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <WindowsTargetPlatformMinVersion>7.0</WindowsTargetPlatformMinVersion>
+    <WindowsTargetPlatformMinVersion>8.0</WindowsTargetPlatformMinVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">

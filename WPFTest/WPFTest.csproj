@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net7.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows8.0</TargetFramework>
     <ProjectGuid>{E05720DB-A5FB-4A0C-9552-F3777E66FE29}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <Platforms>x64;ARM64</Platforms>
