@@ -20,6 +20,7 @@
   <ItemGroup>
     <None Include="..\..\googletest\README.md" />
     <None Include="..\..\googletest\LICENSE" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="gtest-enhanced.h">

@@ -1083,16 +1083,24 @@ forceinline constexpr StrArgInfoCh<Char> ParseResult<Size>::ToInfo(const std::ba
     return { { opCodes, idxTypes, namedTypes }, str };
 }
 
+namespace detail
+{
+template<typename T, size_t N>
+inline constexpr std::array<T, N> PopulateArray(const T* src) noexcept
+{
+    std::array<T, N> ret;
+    for (size_t i = 0; i < N; ++i)
+        ret[i] = src[i];
+    return ret;
+}
+}
 
 template<uint8_t IdxArgCount>
 struct IdxArgLimiter
 {
-    ArgDispType IndexTypes[IdxArgCount] = { ArgDispType::Any };
-    constexpr IdxArgLimiter(const ArgDispType* type) noexcept
-    {
-        for (uint8_t i = 0; i < IdxArgCount; ++i)
-            IndexTypes[i] = type[i];
-    }
+    std::array<ArgDispType, IdxArgCount> IndexTypes;
+    constexpr IdxArgLimiter(const ArgDispType* type) noexcept : IndexTypes(detail::PopulateArray<ArgDispType, IdxArgCount>(type))
+    { }
 };
 template<>
 struct IdxArgLimiter<0>
@@ -1102,12 +1110,9 @@ struct IdxArgLimiter<0>
 template<uint8_t NamedArgCount>
 struct NamedArgLimiter
 {
-    ParseResultCommon::NamedArgType NamedTypes[NamedArgCount] = {};
-    constexpr NamedArgLimiter(const ParseResultCommon::NamedArgType* type) noexcept
-    {
-        for (uint8_t i = 0; i < NamedArgCount; ++i)
-            NamedTypes[i] = type[i];
-    }
+    std::array<ParseResultCommon::NamedArgType, NamedArgCount> NamedTypes;
+    constexpr NamedArgLimiter(const ParseResultCommon::NamedArgType* type) noexcept : NamedTypes(detail::PopulateArray<ParseResultCommon::NamedArgType, NamedArgCount>(type))
+    { }
 };
 template<>
 struct NamedArgLimiter<0>
@@ -1812,12 +1817,12 @@ struct ArgChecker
         static_assert(ArgsInfo.NamedArgCount >= StrInfo.NamedArgCount, "No enough named arg");
         if constexpr (StrInfo.IdxArgCount > 0)
         {
-            constexpr auto Index = GetIdxArgMismatch(StrInfo.IndexTypes, ArgsInfo.IndexTypes, StrInfo.IdxArgCount);
+            constexpr auto Index = GetIdxArgMismatch(StrInfo.IndexTypes.data(), ArgsInfo.IndexTypes, StrInfo.IdxArgCount);
             CheckIdxArgMismatch<Index>();
         }
         if constexpr (StrInfo.NamedArgCount > 0)
         {
-            constexpr auto NamedRet = GetNamedArgMismatch(StrInfo.NamedTypes, StrInfo.GetNameSource(), StrInfo.NamedArgCount,
+            constexpr auto NamedRet = GetNamedArgMismatch(StrInfo.NamedTypes.data(), StrInfo.GetNameSource(), StrInfo.NamedArgCount,
                 ArgsInfo.NamedTypes, ArgsInfo.Names, ArgsInfo.NamedArgCount);
             CheckNamedArgMismatch<NamedRet.AskIndex ? *NamedRet.AskIndex : ParseResultCommon::NamedArgSlots,
                 NamedRet.GiveIndex ? *NamedRet.GiveIndex : ParseResultCommon::NamedArgSlots>();

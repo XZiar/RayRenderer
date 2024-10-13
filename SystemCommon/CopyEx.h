@@ -64,7 +64,7 @@ public:
         else
         {
             for (size_t i = 0; i < count; ++i)
-                *dest++ = src;
+                dest[i] = src;
         }
     }
     template<typename T, typename U>

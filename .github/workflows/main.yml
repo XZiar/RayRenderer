@@ -223,7 +223,7 @@ jobs:
             env_clang_ver: 12
             pkg: "clang-12 lld-12 llvm-12"
           - cxx: clang13
-            os: ubuntu-latest
+            os: ubuntu-22.04
             env_cc: "clang-13"
             env_asm: "clang++-13"
             env_cpp: "clang++-13"
@@ -235,7 +235,7 @@ jobs:
             env_clang_ver: 13
             pkg: "clang-13 lld-13 llvm-13"
           - cxx: clang14
-            os: ubuntu-latest
+            os: ubuntu-22.04
             env_cc: "clang-14"
             env_asm: "clang++-14"
             env_cpp: "clang++-14"
@@ -247,7 +247,7 @@ jobs:
             env_clang_ver: 14
             pkg: "clang-14 lld-14 llvm-14"
           - cxx: clang15
-            os: ubuntu-latest
+            os: ubuntu-22.04
             env_cc: "clang-15"
             env_asm: "clang++-15"
             env_cpp: "clang++-15"

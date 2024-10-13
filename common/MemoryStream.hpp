@@ -168,7 +168,7 @@ protected:
     using EleType = std::conditional_t<std::is_const_v<T>, std::add_const_t<typename Helper::EleType>, typename Helper::EleType>;
     ContainerHolder(T& container) : Container(&container) {}
     constexpr ContainerHolder(T&& container) noexcept : Container(std::move(container)) {}
-    constexpr ContainerHolder(ContainerHolder<T>&& other) noexcept : Container(std::move(other.container)) {}
+    constexpr ContainerHolder(ContainerHolder<T>&& other) noexcept : Container(std::move(other.Container)) {}
     [[nodiscard]] constexpr T* GetContainer() noexcept
     {
         if (std::holds_alternative<T>(Container))
