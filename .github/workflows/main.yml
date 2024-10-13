@@ -118,7 +118,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cxx: [gcc9, gcc10, gcc11, gcc12, gcc12, gcc13, clang10, clang11, clang12, clang13, clang14, clang15]
+        cxx: [gcc9, gcc10, gcc11, gcc12, gcc13, gcc14, clang10, clang11, clang12, clang13, clang14, clang15, clang16]
         include:
           - cxx: gcc9
             os: ubuntu-latest
@@ -175,6 +175,17 @@ jobs:
             env_module: "all"
             env_clang: false
             pkg: "g++-13"
+          - cxx: gcc14
+            os: ubuntu-latest
+            env_cc: "gcc-14"
+            env_asm: "g++-14"
+            env_cpp: "g++-14"
+            env_stalink: "gcc-ar-14"
+            env_dynlink: "g++-14"
+            env_applink: "g++-14"
+            env_module: "all"
+            env_clang: false
+            pkg: "g++-14"
           - cxx: clang10
             os: ubuntu-20.04
             env_cc: "clang-10"
@@ -247,13 +258,25 @@ jobs:
             env_clang: true
             env_clang_ver: 15
             pkg: "clang-15 lld-15 llvm-15"
+          - cxx: clang16
+            os: ubuntu-latest
+            env_cc: "clang-16"
+            env_asm: "clang++-16"
+            env_cpp: "clang++-16"
+            env_stalink: "llvm-ar-16"
+            env_dynlink: "clang++-16"
+            env_applink: "clang++-16"
+            env_module: "all"
+            env_clang: true
+            env_clang_ver: 16
+            pkg: "clang-16 lld-16 llvm-16"
     
     steps:
       - name: Get basic information
         run: |
-          echo "${{github.run_id}}"
-          echo "${{github.sha}}"
-          echo "${{github.workspace}}"
+          echo "run_id=${{github.run_id}}"
+          echo "sha=${{github.sha}}"
+          echo "workspace=${{github.workspace}}"
           echo $GITHUB_WORKSPACE
           echo ~
           echo $HOME
@@ -280,7 +303,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .
-          key: cache-ispc-${{ github.sha }}
+          key: cache-repo-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Retrieve boost library
@@ -340,7 +363,7 @@ jobs:
 
       - name: Build Debug modules
         run: |
-          python3 xzbuild rebuild "${{matrix.env_module}},-curl,-libressl,-BasicsTest,-SystemCommonTest,-NailangTest,-NullTest,-Blur" /threads=x1.5 /dsymlv=0
+          python3 xzbuild rebuild "${{matrix.env_module}},-curl,-libressl,-BasicsTest,-SystemCommonTest,-NailangTest,-NullTest,-Blur" /threads=x2 /dsymlv=0
 
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
