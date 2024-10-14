@@ -95,7 +95,7 @@ static void OpenTestWindow(WindowBackend& backend)
     };
     window->MouseMove() += [](auto& wd, const auto& evt)
     {
-        wd.SetTitle(fmt::format(u"Mouse move to [{:4},{:4}]", evt.Pos.X, evt.Pos.Y));
+        wd.SetTitle(FMTSTR2(u"Mouse move to [{:4},{:4}]", evt.Pos.X, evt.Pos.Y));
         //log().Info(u"Mouse move to [{:4},{:4}], moved [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y, evt.Delta.X, evt.Delta.Y);
     };
     window->MouseDrag() += [](const auto&, const auto& evt)

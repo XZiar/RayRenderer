@@ -32,7 +32,7 @@ static MiniLogger<false>& log()
 
 static void OutIndent(const u16string& indent)
 {
-    GetConsole().Print(FMTSTR(u"\x1b[37m       {}\x1b[39m\n", indent));
+    GetConsole().Print(FMTSTR2(u"\x1b[37m       {}\x1b[39m\n", indent));
 }
 
 

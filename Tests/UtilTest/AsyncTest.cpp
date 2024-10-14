@@ -5,7 +5,6 @@
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
 #include "SystemCommon/StringConvert.h"
-#include "SystemCommon/StringFormat.h"
 #include <thread>
 
 

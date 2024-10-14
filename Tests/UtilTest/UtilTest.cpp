@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
 
     if (args.size() >= 1)
         BasePathHolder() = fs::absolute(args[0]).parent_path().parent_path().parent_path();
-    GetConsole().Print(CommonColor::BrightMagenta, FMTSTR(u"Locate BasePath to [{}]\n", BasePathHolder().u16string()));
+    GetConsole().Print(CommonColor::BrightMagenta, FMTSTR2(u"Locate BasePath to [{}]\n", BasePathHolder().u16string()));
 
     const auto& testMap = GetTestMap();
     {

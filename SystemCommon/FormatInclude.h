@@ -56,21 +56,33 @@ struct FormatSpec
 };
 
 
+#if COMMON_COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4324)
+#endif
 struct OpaqueFormatSpecBase
 {
     uint8_t Dummy[11] = { 0 };
 };
-struct OpaqueFormatSpec
+struct OpaqueFormatSpecFill
 {
+    uint8_t Fill[4] = { 0 };
+    uint8_t Count = 0;
+};
+struct alignas(4) OpaqueFormatSpecReal
+{
+    OpaqueFormatSpecBase Base;
+    OpaqueFormatSpecFill Fill;
+};
+struct alignas(4) OpaqueFormatSpec
+{
+    OpaqueFormatSpecReal Real;
     char32_t Fill32[1] = { 0 };
     char16_t Fill16[2] = { 0 };
-    char     Fill8 [4] = { 0 };
-    uint8_t Count32 : 2;
-    uint8_t Count16 : 2;
-    uint8_t Count8  : 2;
-    OpaqueFormatSpecBase Base;
-    constexpr OpaqueFormatSpec() noexcept : Count32(0), Count16(0), Count8(0) {}
 };
+#if COMMON_COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 
 namespace detail
@@ -169,6 +181,43 @@ template<typename Char>
 inline auto FormatAs(const HashedStrView<Char>& arg)
 {
     return arg.View;
+}
+
+template<typename T, typename = std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>>>
+inline void FormatWith(const span<T>& arg, FormatterExecutor& executor, FormatterExecutor::Context& context, const FormatSpec* spec)
+{
+    executor.PutString(context, "[", nullptr);
+    static_assert(sizeof(T) <= sizeof(uint64_t));
+    for (size_t i = 0; i < arg.size(); ++i)
+    {
+        if (i > 0)
+        {
+            executor.PutString(context, ", ", nullptr);
+        }
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            if constexpr (std::is_same_v<T, double>)
+            {
+                executor.PutFloat(context, arg[i], spec);
+            }
+            else
+            {
+                executor.PutFloat(context, static_cast<float>(arg[i]), spec);
+            }
+        }
+        else
+        {
+            if constexpr (sizeof(T) == sizeof(uint64_t))
+            {
+                executor.PutInteger(context, arg[i], !std::is_unsigned_v<T>, spec);
+            }
+            else
+            {
+                executor.PutInteger(context, static_cast<uint32_t>(arg[i]), !std::is_unsigned_v<T>, spec);
+            }
+        }
+    }
+    executor.PutString(context, "]", nullptr);
 }
 
 

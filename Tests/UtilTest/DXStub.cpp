@@ -260,8 +260,7 @@ static void RunKernel(DxDevice dev, DxComputeCmdQue cmdque, DxComputeProgram pro
         {
             const auto mapped = buf->Map(cmdque, MapFlags::ReadOnly, 0, 64);
             const auto sp = mapped.AsType<uint32_t>();
-            const auto vals = fmt::format("{}", sp);
-            log().Debug(u"{}: {}\n", buf->GetName(), vals);
+            log().Debug(u"{}: {}\n", buf->GetName(), sp);
         }
         common::mlog::SyncConsoleBackend();
     }
@@ -319,7 +318,7 @@ static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
         }
         if (runnable)
         {
-            const auto rg = cmdque->DeclareRange(FMTSTR(u"Test run of [{}]", filepath.u16string()));
+            const auto rg = cmdque->DeclareRange(FMTSTR2(u"Test run of [{}]", filepath.u16string()));
             RunKernel(dev, cmdque, progs[0].second);
         }
     }

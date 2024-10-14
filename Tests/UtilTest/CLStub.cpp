@@ -439,7 +439,7 @@ static void OCLStub()
                 std::string str;
                 for (const auto& field : sgItemField)
                 {
-                    fmt::format_to(std::back_inserter(str), FMT_STRING("[{:20}]: offset[{:3}] byte[{}] dim[{}]\n"),
+                    APPEND_FMT(str, "[{:20}]: offset[{:3}] byte[{}] dim[{}]\n"sv,
                         field.Name, field.Offset, field.VecType.Bit / 8, field.VecType.Dim0);
                 }
                 log().Verbose(u"Fields of SubgroupWgInfo:\n{}\n", str);

@@ -13,7 +13,7 @@
 #   pragma clang diagnostic push
 #   pragma clang diagnostic ignored "-Wassume"
 #endif
-#if COMMON_COMPILER_GCC & COMMON_GCC_VER < 100000
+#if COMMON_COMPILER_GCC && COMMON_GCC_VER < 100000
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wattributes"
 #endif
@@ -1088,7 +1088,7 @@ namespace detail
 template<typename T, size_t N>
 inline constexpr std::array<T, N> PopulateArray(const T* src) noexcept
 {
-    std::array<T, N> ret;
+    std::array<T, N> ret = {};
     for (size_t i = 0; i < N; ++i)
         ret[i] = src[i];
     return ret;
@@ -2056,7 +2056,7 @@ private:
 
 }
 
-#if COMMON_COMPILER_GCC & COMMON_GCC_VER < 100000
+#if COMMON_COMPILER_GCC && COMMON_GCC_VER < 100000
 #   pragma GCC diagnostic pop
 #endif
 #if COMMON_COMPILER_CLANG

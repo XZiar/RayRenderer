@@ -25,19 +25,34 @@
 #   pragma warning(pop)
 #endif
 
-#if FMT_VERSION < 100000 || FMT_VERSION > 110000
-#   error("Require fmt 10.x")
+#if FMT_VERSION < 110000
+#   error("Require fmt 11.x")
 #endif
 
 FMT_BEGIN_NAMESPACE
 
-using u16memory_buffer = basic_memory_buffer<char16_t>;
-using u32memory_buffer = basic_memory_buffer<char32_t>;
-using u16format_context = buffer_context<char16_t>;
-using u32format_context = buffer_context<char32_t>;
-using u16format_args = basic_format_args<u16format_context>;
-using u32format_args = basic_format_args<u32format_context>;
+//namespace detail 
+//{
+//template <typename T, FMT_ENABLE_IF(is_compile_string<T>::value)>
+//constexpr auto to_string_view(const T& s)
+//-> basic_string_view<typename T::char_type> {
+//    return (basic_string_view<typename T::char_type>)s;
+//}
+//}
 
+template <typename S, typename... T, FMT_ENABLE_IF(detail::is_compile_string<S>::value)>
+auto format_utf(const S& format_str, T&&... args) -> std::basic_string<typename S::char_type> 
+{
+    using Char = typename S::char_type;
+    return vformat(static_cast<basic_string_view<typename S::char_type>>(format_str),
+        fmt::make_format_args<buffered_context<Char>>(args...));
+}
+
+
+FMT_BEGIN_EXPORT
+
+
+FMT_END_EXPORT
 FMT_END_NAMESPACE
 
-#define FMTSTR(syntax, ...) fmt::format(FMT_STRING(syntax), __VA_ARGS__)
+#define FMTSTR(syntax, ...) fmt::format_utf(FMT_STRING(syntax), __VA_ARGS__)

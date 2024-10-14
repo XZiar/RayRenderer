@@ -691,22 +691,22 @@ auto ToString(T&& res, Args&&... args)
 TEST(Format, Formatting)
 {
     {
-        const auto ref = fmt::format("{},{x},{:>6},{:_^7}", "hello", "Hello", "World"sv, fmt::arg("x", "world"));
-        const auto ret = ToString(FmtString("{},{x},{:>6},{:_^7}"sv), "hello", NAMEARG("x")("world"sv), u"Hello", U"World"sv);
+        const auto ref = fmt::format("{},{:>6},{:_^7},{x}", "hello", "Hello", "World"sv, fmt::arg("x", "world"));
+        const auto ret = ToString(FmtString("{},{:>6},{:_^7},{x}"sv), "hello", u"Hello", U"World"sv, NAMEARG("x")("world"sv));
         EXPECT_EQ(ret, ref);
-        EXPECT_EQ(ret, "hello,world, Hello,_World_");
+        EXPECT_EQ(ret, "hello, Hello,_World_,world");
     }
     {
-        const auto ref = fmt::format("{},{x},{:b},{:#X},{:05o}", 13, uint8_t(64), int64_t(65535), 042, fmt::arg("x", -99));
-        const auto ret = ToString(FmtString("{},{x},{:b},{:#X},{:05o}"sv), 13, NAMEARG("x")(-99), uint8_t(64), int64_t(65535), 042);
+        const auto ref = fmt::format("{},{:b},{:#X},{:05o},{x}", 13, uint8_t(64), int64_t(65535), 042, fmt::arg("x", -99));
+        const auto ret = ToString(FmtString("{},{:b},{:#X},{:05o},{x}"sv), 13, uint8_t(64), int64_t(65535), 042, NAMEARG("x")(-99));
         EXPECT_EQ(ret, ref);
-        EXPECT_EQ(ret, "13,-99,1000000,0XFFFF,00042");
+        EXPECT_EQ(ret, "13,1000000,0XFFFF,00042,-99");
     }
     {
-        const auto ref = fmt::format("{},{x},{:g},{:f},{:+010.4g}", 0.0, 4.9014e6, -392.5f, 392.65, fmt::arg("x", 392.65));
-        const auto ret = ToString(FmtString("{},{x},{:g},{:f},{:+010.4g}"sv), 0.0, NAMEARG("x")(392.65), 4.9014e6, -392.5f, 392.65);
+        const auto ref = fmt::format("{},{:g},{:f},{:+010.4g},{x}", 0.0, 4.9014e6, -392.5f, 392.65, fmt::arg("x", 392.65));
+        const auto ret = ToString(FmtString("{},{:g},{:f},{:+010.4g},{x}"sv), 0.0, 4.9014e6, -392.5f, 392.65, NAMEARG("x")(392.65));
         EXPECT_EQ(ret, ref);
-        EXPECT_EQ(ret, "0,392.65,4.9014e+06,-392.500000,+0000392.6");
+        EXPECT_EQ(ret, "0,4.9014e+06,-392.500000,+0000392.6,392.65");
     }
     {
         const auto ptr = reinterpret_cast<const int*>(uintptr_t(1));
@@ -722,12 +722,26 @@ TEST(Format, Formatting)
         EXPECT_EQ(ret, "1,97,false,0X63");
     }
     {
-        const auto ref = fmt::format(u"{},{},{},{},{x},{:g},{:f},{:+010.4g}"sv,
+        const auto ref = fmt::format(u"{},{},{},{},{:g},{:f},{:+010.4g},{x}"sv,
             u"hello", u"Hello", u"World"sv, 0.0, 4.9014e6, -392.5f, 392.65, fmt::arg(u"x", 392.65));
-        const auto ret = ToString(FmtString(u"{},{},{},{},{x},{:g},{:f},{:+010.4g}"sv),
-            "hello", u"Hello", U"World"sv, 0.0, NAMEARG("x")(392.65), 4.9014e6, -392.5f, 392.65);
+        const auto ret = ToString(FmtString(u"{},{},{},{},{:g},{:f},{:+010.4g},{x}"sv),
+            "hello", u"Hello", U"World"sv, 0.0, 4.9014e6, -392.5f, 392.65, NAMEARG("x")(392.65));
         EXPECT_EQ(ret, ref);
-        EXPECT_EQ(ret, u"hello,Hello,World,0,392.65,4.9014e+06,-392.500000,+0000392.6");
+        EXPECT_EQ(ret, u"hello,Hello,World,0,4.9014e+06,-392.500000,+0000392.6,392.65");
+    }
+    {
+        int32_t datI32[4] = { 1,-3,9,0 };
+        uint64_t datU64[4] = { 996, 510, UINT32_MAX, 0 };
+        float datF32[3] = { 1.0f, -3.0f, -0.0f };
+        double datF64[3] = { 0.0, 10e50, -2e-50 };
+        common::span<const int32_t> spanI32(datI32);
+        common::span<const uint64_t> spanU64(datU64);
+        common::span<const float> spanF32(datF32);
+        common::span<const double> spanF64(datF64);
+        const auto ref = fmt::format(u"{},{},{},{}"sv, spanI32, spanU64, spanF32, spanF64);
+        const auto ret = ToString(FmtString(u"{},{},{},{}"sv), spanI32, spanU64, spanF32, spanF64);
+        EXPECT_EQ(ret, ref);
+        EXPECT_EQ(ret, u"[1, -3, 9, 0],[996, 510, 4294967295, 0],[1, -3, -0],[0, 1e+51, -2e-50]");
     }
     {
         const auto ret = ToString(FmtString("{},{}"sv), TypeC{}, TypeD{});
@@ -814,7 +828,7 @@ TEST(Format, Perf)
         const auto nsPerRun = RunPerfTest([&]()
         {
             ref[3].clear();
-            fmt::dynamic_format_arg_store<fmt::buffer_context<char>> store;
+            fmt::dynamic_format_arg_store<fmt::buffered_context<char>> store;
             store.push_back("hello");
             store.push_back(0.0);
             store.push_back(42);
