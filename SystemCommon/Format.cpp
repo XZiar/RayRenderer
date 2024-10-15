@@ -694,14 +694,14 @@ void CommonFormatter<Char>::PutFloat(StrType& ret, float  val, const OpaqueForma
 {
     WrapSpec<Char> spec_(spec);
     const auto& fmtSpec = *spec_.Ptr;
-    fmt::detail::write<Char>(std::back_inserter(ret), val, fmtSpec, {});
+    fmt::detail::write_float<Char>(std::back_inserter(ret), val, fmtSpec, {});
 }
 template<typename Char>
 void CommonFormatter<Char>::PutFloat(StrType& ret, double val, const OpaqueFormatSpec& spec)
 {
     WrapSpec<Char> spec_(spec);
     const auto& fmtSpec = *spec_.Ptr;
-    fmt::detail::write<Char>(std::back_inserter(ret), val, fmtSpec, {});
+    fmt::detail::write_float<Char>(std::back_inserter(ret), val, fmtSpec, {});
 }
 
 template<typename Char>
@@ -870,7 +870,7 @@ void Formatter<Char>::PutFloat(StrType& ret, float val, const FormatSpec* spec)
         FormatterHelper::FillSpecFloatPresent(fmtSpec, *spec);
         fmtSpec.sign = FormatterHelper::ConvertSpecSign(spec->SignFlag);
     }
-    fmt::detail::write<Char>(std::back_inserter(ret), val, fmtSpec, {});
+    fmt::detail::write_float<Char>(std::back_inserter(ret), val, fmtSpec, {});
 }
 template<typename Char>
 void Formatter<Char>::PutFloat(StrType& ret, double val, const FormatSpec* spec)
@@ -882,7 +882,7 @@ void Formatter<Char>::PutFloat(StrType& ret, double val, const FormatSpec* spec)
         FormatterHelper::FillSpecFloatPresent(fmtSpec, *spec);
         fmtSpec.sign = FormatterHelper::ConvertSpecSign(spec->SignFlag);
     }
-    fmt::detail::write<Char>(std::back_inserter(ret), val, fmtSpec, {});
+    fmt::detail::write_float<Char>(std::back_inserter(ret), val, fmtSpec, {});
 }
 
 template<typename Char>

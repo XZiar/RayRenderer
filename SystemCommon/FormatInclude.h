@@ -183,20 +183,20 @@ inline auto FormatAs(const HashedStrView<Char>& arg)
     return arg.View;
 }
 
-template<typename T, typename = std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>>>
+template<typename T, typename U = std::decay_t<T>, typename = std::enable_if_t<std::is_integral_v<U> || std::is_floating_point_v<U>>>
 inline void FormatWith(const span<T>& arg, FormatterExecutor& executor, FormatterExecutor::Context& context, const FormatSpec* spec)
 {
     executor.PutString(context, "[", nullptr);
-    static_assert(sizeof(T) <= sizeof(uint64_t));
+    static_assert(sizeof(U) <= sizeof(uint64_t));
     for (size_t i = 0; i < arg.size(); ++i)
     {
         if (i > 0)
         {
             executor.PutString(context, ", ", nullptr);
         }
-        if constexpr (std::is_floating_point_v<T>)
+        if constexpr (std::is_floating_point_v<U>)
         {
-            if constexpr (std::is_same_v<T, double>)
+            if constexpr (std::is_same_v<U, double>)
             {
                 executor.PutFloat(context, arg[i], spec);
             }
@@ -207,13 +207,13 @@ inline void FormatWith(const span<T>& arg, FormatterExecutor& executor, Formatte
         }
         else
         {
-            if constexpr (sizeof(T) == sizeof(uint64_t))
+            if constexpr (sizeof(U) == sizeof(uint64_t))
             {
-                executor.PutInteger(context, arg[i], !std::is_unsigned_v<T>, spec);
+                executor.PutInteger(context, arg[i], !std::is_unsigned_v<U>, spec);
             }
             else
             {
-                executor.PutInteger(context, static_cast<uint32_t>(arg[i]), !std::is_unsigned_v<T>, spec);
+                executor.PutInteger(context, static_cast<uint32_t>(arg[i]), !std::is_unsigned_v<U>, spec);
             }
         }
     }

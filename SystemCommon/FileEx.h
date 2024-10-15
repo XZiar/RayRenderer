@@ -12,6 +12,8 @@
 namespace common::file
 {
 
+[[nodiscard]] SYSCOMMONAPI fs::path LocateCurrentExecutable() noexcept;
+
 
 #if COMMON_COMPILER_MSVC
 #   pragma warning(push)

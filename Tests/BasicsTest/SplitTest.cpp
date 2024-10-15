@@ -33,7 +33,7 @@ TEST(Split, SplitSource)
     }
     {
         const common::AlignedBuffer buf(1);
-        [[maybe_unused]] const auto stream = SplitStream(buf.AsSpan(), [](const std::byte ch) { return ch == std::byte(','); });
+        [[maybe_unused]] const auto stream = SplitStream(buf.AsSpan<char>(), [](const char ch) { return ch == ','; });
     }
 }
 

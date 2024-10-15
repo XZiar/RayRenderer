@@ -74,6 +74,21 @@ public:
         const auto [gid, i] = TopologyInfo::Get().TranslateLinearIdx(idx);
         Set(gid, i, val);
     }
+    void SetGroup(uint32_t group, const bool val) noexcept
+    {
+        const auto& info = TopologyInfo::Get();
+        Expects(group < info.GetGroupCount());
+        const auto count = info.GetCountInGroup(group);
+        for (uint32_t i = 0; i < count; ++i)
+            Mask.Set(group * info.BitsPerGroup + i, val);
+    }
+    void SetAll(const bool val) noexcept
+    {
+        const auto& info = TopologyInfo::Get();
+        const auto count = info.GetGroupCount();
+        for (uint32_t i = 0; i < count; ++i)
+            SetGroup(i, val);
+    }
     bool Flip(uint32_t group, uint32_t idx) noexcept
     {
         const auto& info = TopologyInfo::Get();
@@ -88,7 +103,7 @@ public:
         return Flip(gid, i);
     }
     [[nodiscard]] const std::byte* GetRawData(uint32_t group = 0) const noexcept { return Mask.Data() + group * (TopologyInfo::Get().BitsPerGroup / 8); }
-    [[nodiscard]] uint32_t SetCount() const noexcept
+    [[nodiscard]] uint32_t GetCount() const noexcept
     {
         const auto& info = TopologyInfo::Get();
         return MiscIntrin.PopCountRange<std::byte>({ GetRawData(), info.GetGroupCount() * info.BitsPerGroup / 8 });

@@ -19,9 +19,10 @@ common::span<const std::byte> GetRandVals() noexcept
 
 int main(int argc, char **argv)                  
 {
-    printf("Running main() from %s\n", __FILE__);
-    ProcessTestArg({ argv, static_cast<size_t>(argc) });
+    const auto env = new GTestEnvironment();
     testing::InitGoogleTest(&argc, argv);
-    testing::AddGlobalTestEnvironment(new CPUEnvironment());
+    env->ProcessTestArg({ argv, static_cast<size_t>(argc) });
+    printf("Running main() from %s\n", env->ExePath.empty() ? __FILE__ : env->ExePath.string().c_str());
+    testing::AddGlobalTestEnvironment(env);
     return RUN_ALL_TESTS();
 }

@@ -791,94 +791,89 @@ TEST(Format, MultiFormat)
 }
 
 
-#if CM_DEBUG == 0
+#if CM_DEBUG == 0 || 1
 TEST(Format, Perf)
 {
+    PerfTester tester("FormatPerf");
+    const uint64_t datU64[4] = { 996, 510, UINT32_MAX, 0 };
+    common::span<const uint64_t> spanU64(datU64);
+
     std::string ref[4];
-    {
-        const auto nsPerRun = RunPerfTest([&]() 
-        {
-            ref[0].clear();
-            fmt::format_to(std::back_inserter(ref[0]), FMT_STRING("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}"),
-                "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
-        });
-        TestCout() << "[fmt-def] u8 use avg[" << nsPerRun << "]ns to finish\n";
-    }
-    {
-        const auto nsPerRun = RunPerfTest([&]()
-        {
-            ref[1].clear();
-            fmt::format_to(std::back_inserter(ref[1]), FMT_COMPILE("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}"),
-                "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
-        });
-        TestCout() << "[fmt-cpl] u8 use avg[" << nsPerRun << "]ns to finish\n";
-        EXPECT_TRUE(ref[1] == ref[0]);
-    }
-    {
-        const auto nsPerRun = RunPerfTest([&]()
-            {
-                ref[2].clear();
-                fmt::format_to(std::back_inserter(ref[2]), fmt::runtime("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}"),
-                    "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
-            });
-        TestCout() << "[fmt-rt ] u8 use avg[" << nsPerRun << "]ns to finish\n";
-        EXPECT_TRUE(ref[2] == ref[0]);
-    }
-    {
-        const auto nsPerRun = RunPerfTest([&]()
-        {
-            ref[3].clear();
-            fmt::dynamic_format_arg_store<fmt::buffered_context<char>> store;
-            store.push_back("hello");
-            store.push_back(0.0);
-            store.push_back(42);
-            store.push_back(uint8_t(64));
-            store.push_back(int64_t(65535));
-            store.push_back(-70000);
-            store.push_back(4.9014e6);
-            store.push_back(-392.5f);
-            store.push_back(392.65);
-            store.push_back(uint64_t(765));
-            fmt::vformat_to(std::back_inserter(ref[3]), "123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}", store);
-        });
-        TestCout() << "[fmt-dyn] u8 use avg[" << nsPerRun << "]ns to finish\n";
-        EXPECT_TRUE(ref[3] == ref[0]);
-    }
-
     std::string csf[3];
-    {
-        const auto nsPerRun = RunPerfTest([&]()
-        {
-            csf[0].clear();
-            Formatter<char> fmter;
-            fmter.FormatToDynamic(csf[0], "123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}",
-                "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
-        });
-        TestCout() << "[csf-dyn] u8 use avg[" << nsPerRun << "]ns to finish\n";
-        EXPECT_TRUE(csf[0] == ref[0]);
-    }
-    {
-        const auto nsPerRun = RunPerfTest([&]()
-        {
-            csf[1].clear();
-            Formatter<char> fmter;
-            fmter.FormatToStatic(csf[1], FmtString("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}"),
-                "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
-        });
-        TestCout() << "[csf-sta] u8 use avg[" << nsPerRun << "]ns to finish\n";
-        EXPECT_TRUE(csf[1] == csf[0]);
-    }
-    {
-        auto cachedFmter = FormatSpecCacher::CreateFrom(FmtString("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}"),
-            "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
-        const auto nsPerRun = RunPerfTest([&]()
-        {
-            csf[2].clear();
-            cachedFmter.Format(csf[2], "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765));
-        });
-        TestCout() << "[csf-cah] u8 use avg[" << nsPerRun << "]ns to finish\n";
-        EXPECT_TRUE(csf[2] == csf[0]);
-    }
 
+    const auto fmtdef = [&]() 
+    {
+        ref[0].clear();
+        fmt::format_to(std::back_inserter(ref[0]), FMT_STRING("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}"),
+            "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
+    };
+    const auto fmtcpl = [&]()
+    {
+        ref[1].clear();
+        fmt::format_to(std::back_inserter(ref[1]), FMT_COMPILE("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}"),
+            "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
+    };
+    const auto fmtrt = [&]()
+    {
+        ref[2].clear();
+        fmt::format_to(std::back_inserter(ref[2]), fmt::runtime("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}"),
+            "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
+    };
+    const auto fmtdyn = [&]()
+    {
+        ref[3].clear();
+        fmt::dynamic_format_arg_store<fmt::buffered_context<char>> store;
+        store.push_back("hello");
+        store.push_back(0.0);
+        store.push_back(42);
+        store.push_back(uint8_t(64));
+        store.push_back(int64_t(65535));
+        store.push_back(-70000);
+        store.push_back(4.9014e6);
+        store.push_back(-392.5f);
+        store.push_back(392.65);
+        store.push_back(uint64_t(765));
+        store.push_back(spanU64);
+        fmt::vformat_to(std::back_inserter(ref[3]), "123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}", store);
+    };
+
+    const auto csfdyn = [&]()
+    {
+        csf[0].clear();
+        Formatter<char> fmter;
+        fmter.FormatToDynamic(csf[0], "123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}",
+            "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
+    };
+    const auto csfsta = [&]()
+    {
+        csf[1].clear();
+        Formatter<char> fmter;
+        fmter.FormatToStatic(csf[1], FmtString("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}"),
+            "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
+    };
+    auto cachedFmter = FormatSpecCacher::CreateFrom(FmtString("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}"),
+        "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
+    const auto csfcah = [&]()
+    {
+        csf[2].clear();
+        cachedFmter.Format(csf[2], "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
+    };
+
+    tester.ManaulTest(
+        "fmt-def", fmtdef,
+        "fmt-cpl", fmtcpl,
+        "fmt-rt ", fmtrt,
+        "fmt-dyn", fmtdyn,
+        "csf-dyn", csfdyn,
+        "csf-sta", csfsta,
+        "csf-cah", csfcah
+    );
+
+    EXPECT_EQ(ref[1], ref[0]);
+    EXPECT_EQ(ref[2], ref[0]);
+    EXPECT_EQ(ref[3], ref[0]);
+    EXPECT_EQ(csf[0], ref[0]);
+    EXPECT_EQ(csf[1], csf[0]);
+    EXPECT_EQ(csf[2], csf[0]);
 }
 #endif

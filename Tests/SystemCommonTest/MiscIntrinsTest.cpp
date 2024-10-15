@@ -415,50 +415,17 @@ INTRIN_TEST(DigestFuncs, Sha256)
 
 #if CM_DEBUG == 0
 
-template<typename T>
-static std::vector<std::unique_ptr<T>> GenerateIntrinHost(std::string_view funcName)
-{
-    std::vector<std::unique_ptr<T>> tests;
-    for (const auto& path : T::GetSupportMap())
-    {
-        if (path.FuncName == funcName)
-        {
-            for (const auto& var : path.Variants)
-            {
-                std::pair<std::string_view, std::string_view> info{ path.FuncName, var.MethodName };
-                tests.emplace_back(std::make_unique<T>(common::span<decltype(info)>{ &info, 1 }));
-            }
-        }
-    }
-    return tests;
-}
-
-template<typename T, typename F>
-static void RunPerfTestAll(std::string_view funcName, F&& func, size_t opPerRun, uint32_t limitUs = 400000u/*0.4s*/)
-{
-    const auto tests = GenerateIntrinHost<T>(funcName);
-    for (const auto& test : tests)
-    {
-        const auto nsPerRun = RunPerfTest([&]() { func(*test); }, limitUs);
-        const auto nsPerOp = static_cast<double>(nsPerRun) / opPerRun;
-        const auto intrinMap = test->GetIntrinMap();
-        Ensures(intrinMap.size() == 1);
-        Ensures(intrinMap[0].first == funcName);
-        TestCout() << "[" << funcName << "]: [" << intrinMap[0].second << "] takes avg[" << nsPerOp << "]ns per operation\n";
-    }
-}
-
-
 template<typename Dst, typename Src>
 inline void ZExtPerfTest(std::string_view name)
 {
     std::vector<Src> inputs(512 * 512 * 4);
     // 512*512*4 = 1M test cases
     std::vector<Dst> outputs(inputs.size());
-    RunPerfTestAll<common::CopyManager>(name, [&](const common::CopyManager& host)
+    PerfTester tester(name, inputs.size(), 200u);
+    tester.FastPathTest<common::CopyManager>([&](const common::CopyManager& host)
     {
         host.ZExtCopy(outputs.data(), inputs.data(), inputs.size());
-    }, static_cast<uint32_t>(inputs.size()), 200000u);
+    });
 }
 #define ZEXT_PERF_TEST(name, dst, src) TEST(IntrinPerf, name) { ZExtPerfTest<dst, src>(#name); }
 ZEXT_PERF_TEST(ZExtCopy12, uint16_t,  uint8_t)
@@ -474,10 +441,11 @@ inline void SExtPerfTest(std::string_view name)
     std::vector<Src> inputs(512 * 512 * 4);
     // 512*512*4 = 1M test cases
     std::vector<Dst> outputs(inputs.size());
-    RunPerfTestAll<common::CopyManager>(name, [&](const common::CopyManager& host)
+    PerfTester tester(name, inputs.size(), 200u);
+    tester.FastPathTest<common::CopyManager>([&](const common::CopyManager& host)
     {
         host.SExtCopy(outputs.data(), inputs.data(), inputs.size());
-    }, static_cast<uint32_t>(inputs.size()), 200000u);
+    });
 }
 #define SEXT_PERF_TEST(name, dst, src) TEST(IntrinPerf, name) { SExtPerfTest<dst, src>(#name); }
 SEXT_PERF_TEST(SExtCopy12, int16_t,  int8_t)
@@ -493,10 +461,11 @@ inline void TruncPerfTest(std::string_view name)
     std::vector<Src> inputs(512 * 512 * 4);
     // 512*512*4 = 1M test cases
     std::vector<Dst> outputs(inputs.size());
-    RunPerfTestAll<common::CopyManager>(name, [&](const common::CopyManager& host)
+    PerfTester tester(name, inputs.size(), 200u);
+    tester.FastPathTest<common::CopyManager>([&](const common::CopyManager& host)
     {
         host.TruncCopy(outputs.data(), inputs.data(), inputs.size());
-    }, static_cast<uint32_t>(inputs.size()), 200000u);
+    });
 }
 #define TRUNC_PERF_TEST(name, dst, src) TEST(IntrinPerf, name) { TruncPerfTest<dst, src>(#name); }
 TRUNC_PERF_TEST(TruncCopy21,  uint8_t, uint16_t)
@@ -529,10 +498,11 @@ TEST(IntrinPerf, CvtF16F32)
     }
     std::vector<float> outputs;
     outputs.resize(inputs.size());
-    RunPerfTestAll<common::CopyManager>("CvtF16F32", [&](const common::CopyManager& host)
+    PerfTester tester("CvtF16F32", inputs.size());
+    tester.FastPathTest<common::CopyManager>([&](const common::CopyManager& host)
     {
         host.CopyFloat(outputs.data(), reinterpret_cast<const uint16_t*>(inputs.data()), inputs.size());
-    }, static_cast<uint32_t>(inputs.size()));
+    });
 }
 
 TEST(IntrinPerf, CvtF32F16)
@@ -563,37 +533,41 @@ TEST(IntrinPerf, CvtF32F16)
     }
     std::vector<uint16_t> outputs;
     outputs.resize(inputs.size());
-    RunPerfTestAll<common::CopyManager>("CvtF32F16", [&](const common::CopyManager& host)
-        {
-            host.CopyFloat(outputs.data(), inputs.data(), inputs.size());
-        }, static_cast<uint32_t>(inputs.size()));
+    PerfTester tester("CvtF32F16", inputs.size());
+    tester.FastPathTest<common::CopyManager>([&](const common::CopyManager& host)
+    {
+        host.CopyFloat(outputs.data(), inputs.data(), inputs.size());
+    });
 }
 
 
 TEST(IntrinPerf, PopCounts)
 {
-    RunPerfTestAll<common::MiscIntrins>("PopCounts", [&](const common::MiscIntrins& host)
-        {
-            [[maybe_unused]] const auto ret = host.PopCountRange<uint8_t>(RandVals);
-        }, static_cast<uint32_t>(sizeof(RandVals)));
+    PerfTester tester("PopCounts", sizeof(RandVals));
+    tester.FastPathTest<common::MiscIntrins>([&](const common::MiscIntrins& host)
+    {
+        [[maybe_unused]] const auto ret = host.PopCountRange<uint8_t>(RandVals);
+    });
 }
 
 TEST(IntrinPerf, Hex2Str)
 {
-    RunPerfTestAll<common::MiscIntrins>("Hex2Str", [&](const common::MiscIntrins& host)
+    PerfTester tester("Hex2Str", sizeof(RandVals));
+    tester.FastPathTest<common::MiscIntrins>([&](const common::MiscIntrins& host)
     {
         [[maybe_unused]] const auto ret = host.HexToStr(RandVals.data(), sizeof(RandVals));
-    }, static_cast<uint32_t>(sizeof(RandVals)));
+    });
 }
 
 
 TEST(IntrinPerf, Sha256)
 {
     std::vector<std::byte> inputs(1024 * 1024);
-    RunPerfTestAll<common::DigestFuncs>("Sha256", [&](const common::DigestFuncs& host)
-        {
-            host.SHA256(common::to_span(inputs));
-        }, static_cast<uint32_t>(inputs.size()));
+    PerfTester tester("Sha256", inputs.size());
+    tester.FastPathTest<common::DigestFuncs>([&](const common::DigestFuncs& host)
+    {
+        host.SHA256(common::to_span(inputs));
+    });
 }
 
 #endif

@@ -76,6 +76,7 @@ MAKE_ENUM_RANGE(LogLevel)
 
 SYSCOMMONAPI std::string GetEnvVar(const char* name) noexcept;
 // don't add SetEnv since it's rare?
+SYSCOMMONAPI std::u16string GetSystemName() noexcept;
 
 
 enum class CommonColor : uint8_t

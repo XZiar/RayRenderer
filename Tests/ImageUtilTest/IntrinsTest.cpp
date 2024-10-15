@@ -194,48 +194,16 @@ INTRIN_TEST(ColorCvt, RGBA8ToRGB8)
 
 #if CM_DEBUG == 0
 
-template<typename T>
-static std::vector<std::unique_ptr<T>> GenerateIntrinHost(std::string_view funcName)
-{
-    std::vector<std::unique_ptr<T>> tests;
-    for (const auto& path : T::GetSupportMap())
-    {
-        if (path.FuncName == funcName)
-        {
-            for (const auto& var : path.Variants)
-            {
-                std::pair<std::string_view, std::string_view> info{ path.FuncName, var.MethodName };
-                tests.emplace_back(std::make_unique<T>(common::span<decltype(info)>{ &info, 1 }));
-            }
-        }
-    }
-    return tests;
-}
-
-template<typename T, typename F>
-static void RunPerfTestAll(std::string_view funcName, F&& func, size_t opPerRun, uint32_t limitUs = 300000/*0.3s*/)
-{
-    const auto tests = GenerateIntrinHost<T>(funcName);
-    for (const auto& test : tests)
-    {
-        const auto nsPerRun = RunPerfTest([&]() { func(*test); }, limitUs);
-        const auto nsPerOp = static_cast<double>(nsPerRun) / opPerRun;
-        const auto intrinMap = test->GetIntrinMap();
-        Ensures(intrinMap.size() == 1);
-        Ensures(intrinMap[0].first == funcName);
-        TestCout() << "[" << funcName << "]: [" << intrinMap[0].second << "] takes avg[" << nsPerOp << "]ns per operation\n";
-    }
-}
-
 TEST(IntrinPerf, G8ToGA8)
 {
     constexpr uint32_t Size = 1024 * 1024;
     std::vector<uint8_t> src(Size);
     std::vector<uint16_t> dst(Size);
-    RunPerfTestAll<xziar::img::ColorConvertor>("G8ToGA8", [&](const xziar::img::ColorConvertor& host)
+    PerfTester tester("G8ToGA8", Size);
+    tester.FastPathTest<xziar::img::ColorConvertor>([&](const xziar::img::ColorConvertor& host)
     {
         host.GrayToGrayA(dst.data(), src.data(), Size);
-    }, Size);
+    });
 }
 
 TEST(IntrinPerf, G8ToRGB8)
@@ -243,10 +211,11 @@ TEST(IntrinPerf, G8ToRGB8)
     constexpr uint32_t Size = 1024 * 1024;
     std::vector<uint8_t> src(Size);
     std::vector<uint8_t> dst(Size * 3);
-    RunPerfTestAll<xziar::img::ColorConvertor>("G8ToRGB8", [&](const xziar::img::ColorConvertor& host)
-        {
-            host.GrayToRGB(dst.data(), src.data(), Size);
-        }, Size);
+    PerfTester tester("G8ToRGB8", Size);
+    tester.FastPathTest<xziar::img::ColorConvertor>([&](const xziar::img::ColorConvertor& host)
+    {
+        host.GrayToRGB(dst.data(), src.data(), Size);
+    });
 }
 
 TEST(IntrinPerf, G8ToRGBA8)
@@ -254,10 +223,11 @@ TEST(IntrinPerf, G8ToRGBA8)
     constexpr uint32_t Size = 1024 * 1024;
     std::vector<uint8_t> src(Size);
     std::vector<uint32_t> dst(Size);
-    RunPerfTestAll<xziar::img::ColorConvertor>("G8ToRGBA8", [&](const xziar::img::ColorConvertor& host)
-        {
-            host.GrayToRGBA(dst.data(), src.data(), Size);
-        }, Size);
+    PerfTester tester("G8ToRGBA8", Size);
+    tester.FastPathTest<xziar::img::ColorConvertor>([&](const xziar::img::ColorConvertor& host)
+    {
+        host.GrayToRGBA(dst.data(), src.data(), Size);
+    });
 }
 
 TEST(IntrinPerf, GA8ToRGBA8)
@@ -265,10 +235,11 @@ TEST(IntrinPerf, GA8ToRGBA8)
     constexpr uint32_t Size = 1024 * 1024;
     std::vector<uint16_t> src(Size);
     std::vector<uint32_t> dst(Size);
-    RunPerfTestAll<xziar::img::ColorConvertor>("GA8ToRGBA8", [&](const xziar::img::ColorConvertor& host)
+    PerfTester tester("GA8ToRGBA8", Size);
+    tester.FastPathTest<xziar::img::ColorConvertor>([&](const xziar::img::ColorConvertor& host)
     {
         host.GrayAToRGBA(dst.data(), src.data(), Size);
-    }, Size);
+    });
 }
 
 TEST(IntrinPerf, RGB8ToRGBA8)
@@ -276,10 +247,11 @@ TEST(IntrinPerf, RGB8ToRGBA8)
     constexpr uint32_t Size = 1024 * 1024;
     std::vector<uint8_t> src(Size * 3);
     std::vector<uint32_t> dst(Size);
-    RunPerfTestAll<xziar::img::ColorConvertor>("RGB8ToRGBA8", [&](const xziar::img::ColorConvertor& host)
+    PerfTester tester("RGB8ToRGBA8", Size);
+    tester.FastPathTest<xziar::img::ColorConvertor>([&](const xziar::img::ColorConvertor& host)
     {
         host.RGBToRGBA(dst.data(), src.data(), Size);
-    }, Size);
+    });
 }
 
 TEST(IntrinPerf, RGBA8ToRGB8)
@@ -287,10 +259,11 @@ TEST(IntrinPerf, RGBA8ToRGB8)
     constexpr uint32_t Size = 1024 * 1024;
     std::vector<uint32_t> src(Size);
     std::vector<uint8_t> dst(Size * 3);
-    RunPerfTestAll<xziar::img::ColorConvertor>("RGBA8ToRGB8", [&](const xziar::img::ColorConvertor& host)
+    PerfTester tester("RGBA8ToRGB8", Size);
+    tester.FastPathTest<xziar::img::ColorConvertor>([&](const xziar::img::ColorConvertor& host)
     {
         host.RGBAToRGB(dst.data(), src.data(), Size);
-    }, Size);
+    });
 }
 
 #endif

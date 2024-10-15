@@ -80,7 +80,7 @@ int32_t GetAndroidAPIVersion() noexcept
 
 
 #if COMMON_OS_DARWIN
-struct NSOperatingSystemVersion 
+struct NSOperatingSystemVersion
 {
     NSInteger majorVersion;
     NSInteger minorVersion;
@@ -106,7 +106,7 @@ uint32_t GetDarwinOSVersion() noexcept
 #if COMMON_OS_UNIX
 static const utsname& GetUTSName() noexcept
 {
-    static const auto name = []() 
+    static const auto name = []()
     {
         struct utsname buffer = {};
         uname(&buffer);
@@ -116,7 +116,7 @@ static const utsname& GetUTSName() noexcept
 }
 uint32_t GetUnixKernelVersion() noexcept
 {
-    static const auto ver = []() 
+    static const auto ver = []()
     {
         const auto& name = GetUTSName();
         uint32_t ver = 0;
@@ -339,6 +339,54 @@ std::string GetEnvVar(const char* name) noexcept
 }
 
 #endif
+
+
+std::u16string GetSystemName() noexcept
+{
+#if COMMON_OS_WIN
+    std::u16string str(MAX_COMPUTERNAME_LENGTH + 1, L'\0');
+    while (true)
+    {
+        DWORD size = static_cast<uint32_t>(str.size());
+        const auto ret = GetComputerNameW(reinterpret_cast<wchar_t*>(str.data()), &size);
+        if (ret)
+        {
+            str.resize(size);
+            break;
+        }
+        if (GetLastError() == ERROR_BUFFER_OVERFLOW)
+        {
+            str.resize(size + 1);
+            continue;
+        }
+        str.clear();
+        break;
+    }
+    return str;
+#elif COMMON_OS_LINUX || COMMON_OS_MACOS
+    std::string tmp(HOST_NAME_MAX, '\0');
+    while (true)
+    {
+        if (0 == gethostname(tmp.data(), tmp.size()))
+        {
+            return str::to_u16string(tmp.data(), std::char_traits<char>::length(tmp.data()), str::Encoding::UTF8);
+        }
+        switch (errno)
+        {
+        case EINVAL:
+        case ENAMETOOLONG:
+            tmp.resize(tmp.size() * 2);
+            continue;
+        default:
+            break;
+        }
+        break;
+    }
+    return {};
+#else
+    return {};
+#endif
+}
 
 
 static void LogCpuinfoMsg(mlog::LogLevel level, const char* format, va_list args) noexcept

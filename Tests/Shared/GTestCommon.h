@@ -1,5 +1,6 @@
 #pragma once
 #include "SystemCommon/SystemCommonRely.h"
+#include "common/FileBase.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/CommonRely.hpp"
 #include "3rdParty/Projects/googletest/gtest-enhanced.h"
@@ -79,29 +80,88 @@ static uint32_t Dummy_ ## func = RegisterIntrinTest \
 void func ## Fixture::InnerTest()
 
 
-template<typename F>
-static uint64_t RunPerfTest(F&& func, uint32_t limitUs = 300000/*0.3s*/)
+struct PerfTester
 {
-    std::vector<uint64_t> timeRecords;
-    timeRecords.reserve(limitUs);
-    const auto firstTime = common::SimpleTimer::getCurTimeUS();
-    while (true)
+    std::string TestName;
+    std::vector<uint64_t> TimeRecords;
+    size_t OpPerRun;
+    uint32_t LimitMs;
+
+    PerfTester(std::string_view name, size_t opPerRun = 1, uint32_t limitMs = 300/*0.3s*/): TestName(name), OpPerRun(opPerRun), LimitMs(limitMs)
+    { }
+    ~PerfTester();
+    size_t GetRunCount();
+    void PreSelectIndex(size_t idx);
+    void PostProcess(size_t partIdx, std::string_view itemVar);
+
+    template<typename F>
+    void RunUntilTime(F&& func)
     {
+        TimeRecords.clear();
+        TimeRecords.reserve(LimitMs * 1000);
+        const auto firstTime = common::SimpleTimer::getCurTime();
         common::SimpleTimer timer;
-        timer.Start();
-        func();
-        timer.Stop();
-        timeRecords.emplace_back(timer.ElapseNs());
-        const auto nowTime = common::SimpleTimer::getCurTimeUS();
-        if (nowTime - firstTime > limitUs)
-            break;
+        while (true)
+        {
+            timer.Start();
+            func();
+            timer.Stop();
+            TimeRecords.emplace_back(timer.ElapseNs());
+            const auto nowTime = common::SimpleTimer::getCurTime();
+            if (nowTime - firstTime > LimitMs)
+                break;
+        }
     }
-    std::sort(timeRecords.begin(), timeRecords.end());
-    const auto keepCount = std::max<size_t>(static_cast<size_t>(timeRecords.size() * 0.9), 1u);
-    timeRecords.resize(keepCount);
-    const auto totalNs = std::accumulate(timeRecords.begin(), timeRecords.end(), uint64_t(0));
-    return totalNs / keepCount;
-}
+    
+    template<typename T, typename F>
+    void FastPathTest(F&& func)
+    {
+        std::vector<std::unique_ptr<T>> tests;
+        for (const auto& path : T::GetSupportMap())
+        {
+            if (path.FuncName == TestName)
+            {
+                for (const auto& var : path.Variants)
+                {
+                    std::pair<std::string_view, std::string_view> info{ path.FuncName, var.MethodName };
+                    tests.emplace_back(std::make_unique<T>(common::span<decltype(info)>{ &info, 1 }));
+                }
+            }
+        }
+        for (size_t i = 0; i < GetRunCount(); ++i)
+        {
+            PreSelectIndex(i);
+            for (const auto& test : tests)
+            {
+                const auto intrinMap = test->GetIntrinMap();
+                Ensures(intrinMap.size() == 1);
+                Ensures(intrinMap[0].first == TestName);
+
+                RunUntilTime([&]() { func(*test); });
+                PostProcess(i, intrinMap[0].second);
+            }
+        }
+    }
+
+    template<typename F, typename... Args>
+    void ManualTestSingle(size_t partIdx, std::string_view name, F&& func, Args&&... args)
+    {
+        RunUntilTime(func);
+        PostProcess(partIdx, name);
+        if constexpr (sizeof...(Args) > 0)
+        {
+            ManualTestSingle(partIdx, std::forward<Args>(args)...);
+        }
+    }
+    template<typename... Args>
+    void ManaulTest(const Args&... args)
+    {
+        for (size_t i = 0; i < GetRunCount(); ++i)
+        {
+            PreSelectIndex(i);
+            ManualTestSingle(i, args...);
+        }
+    }
+};
 
 
-void ProcessTestArg(common::span<char* const> args);

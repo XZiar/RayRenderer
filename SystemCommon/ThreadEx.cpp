@@ -79,7 +79,7 @@ struct ThreadExHost final : public TopologyInfo
 #   if NTDDI_VERSION >= NTDDI_WIN10_FE
         if (Groups.size() > 1 && SupportWin11ThreadGroups()) // only when need multiple group and also avaialble
         {
-            if (affinity.SetCount() == 0) return {};
+            if (affinity.GetCount() == 0) return {};
             std::optional<std::pair<uint32_t, uint32_t>> lastSetGroup;
             for (uint32_t i = 0; i < Groups.size(); ++i)
             {
@@ -93,8 +93,8 @@ struct ThreadExHost final : public TopologyInfo
             return lastSetGroup;
         }
 #   endif
-        if (Groups.size() == 1) return std::pair{ 0u, affinity.SetCount() };
-        if (affinity.SetCount() == 0) // pick group with most cores
+        if (Groups.size() == 1) return std::pair{ 0u, affinity.GetCount() };
+        if (affinity.GetCount() == 0) // pick group with most cores
         {
             uint16_t maxGroup = 0;
             for (uint16_t i = 1; i < Groups.size(); ++i)
@@ -563,7 +563,7 @@ std::optional<ThreadAffinity> ThreadObject::GetAffinity() const
         }
         if (askCount == 0) // not set, assume all related
         {
-            Ensures(affinity.SetCount() == 0);
+            Ensures(affinity.GetCount() == 0);
         }
         else
         {
@@ -632,7 +632,7 @@ bool ThreadObject::SetAffinity(const ThreadAffinity& affinity) const
             return true;
         };
         bool success = false;
-        if (affinity.SetCount() > 0)
+        if (affinity.GetCount() > 0)
         {
             std::vector<GROUP_AFFINITY> masks(groupCount);
             for (uint32_t i = 0; i < groupCount; ++i)
@@ -804,7 +804,7 @@ static void BuildPartition(std::vector<CPUPartition>& partitions) noexcept
         part.PartitionName = tmp;
 #if COMMON_ARCH_X86
         // try to identify hybrid arch
-        const auto GetHybridType = [&](uint32_t procId) -> std::optional<uint32_t>
+        const auto GetHybridType = [&](uint32_t procId) -> std::optional<std::pair<uint32_t, bool>>
         {
             ThreadAffinity affinity;
             AssignMask(affinity, procId);
@@ -813,36 +813,53 @@ static void BuildPartition(std::vector<CPUPartition>& partitions) noexcept
             {
                 const auto reg = cpuidex(0x1au, 0);
                 if (reg.eax != 0) // it's hybrid
-                    return reg.eax;
+                {
+                    // LP-E has no L3, see https://community.intel.com/t5/Processors/Detecting-LP-E-Cores-on-Meteor-Lake-in-software/m-p/1584555/highlight/true#M70732
+                    bool hasL3 = false;
+                    for (uint32_t i = 0; i < UINT32_MAX; ++i)
+                    {
+                        const auto cacheReg = cpuidex(0x4u, i);
+                        const auto cacheType = cacheReg.eax & 0x1fu;
+                        const auto cacheLevel = (cacheReg.eax & 0xe0u) >> 5;
+                        if (cacheType == 0)
+                            break;
+                        if (cacheType == 3 /*unifed cache*/ && cacheLevel == 3)
+                        {
+                            hasL3 = true;
+                            break;
+                        }
+                    }
+                    return std::pair{ reg.eax, hasL3 };
+                }
             }
             return {};
         };
         const auto type = GetHybridType(cluster.processor_start);
         if (type.has_value())
         {
-            std::map<uint32_t, std::vector<uint32_t>> typeMap;
+            std::map<std::pair<uint32_t, bool>, std::vector<uint32_t>> typeMap;
             typeMap[*type].push_back(cluster.processor_start);
             for (uint32_t i = 1; i < cluster.processor_count; ++i)
             {
                 const auto id = cluster.processor_start + i;
                 const auto type_ = GetHybridType(id);
-                typeMap[type_.value_or(0u)].push_back(id);
+                typeMap[type_.value_or(std::pair{0u, false})].push_back(id);
             }
-            std::vector<const std::pair<const uint32_t, std::vector<uint32_t>>*> list;
+            std::vector<const std::pair<const std::pair<uint32_t, bool>, std::vector<uint32_t>>*> list;
             for (const auto& p : typeMap)
                 list.push_back(&p);
             // sequential add, sort with first id
             std::sort(list.begin(), list.end(), [](const auto lhs, const auto rhs) { return lhs->second.front() < rhs->second.front(); });
             for (const auto p : list)
             {
-                const auto key = p->first;
+                const auto [key, hasL3] = p->first;
                 CPUPartition part_ = part;
                 AssignPartition(part_, p->second);
                 std::string_view coreType;
                 switch (key >> 24)
                 {
-                case 0x20u: coreType = "Intel Atom"; break;
-                case 0x40u: coreType = "Intel Core"; break;
+                case 0x20u: coreType = hasL3 ? "Intel Atom E-Core" : "Intel Atom LP E-Core"; break;
+                case 0x40u: coreType = "Intel Core P-Core"; break;
                 default: break;
                 }
                 snprintf(tmp, sizeof(tmp), " %s %08x", coreType.empty() ? "" : coreType.data(), key);

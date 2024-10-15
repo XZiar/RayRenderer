@@ -351,6 +351,7 @@ jobs:
           echo "STATICLINKER=${{matrix.env_stalink}}" >> $GITHUB_ENV
           echo "DYNAMICLINKER=${{matrix.env_dynlink}}" >> $GITHUB_ENV
           echo "APPLINKER=${{matrix.env_applink}}" >> $GITHUB_ENV
+          echo "perfhost=ci" >> $GITHUB_ENV
           echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
           
       - name: List verbose info
@@ -379,8 +380,8 @@ jobs:
       - name: Run Tests
         run: |            
           ./x64/Release/BasicsTest
-          ./x64/Release/SystemCommonTest
-          ./x64/Release/ImageUtilTest
+          ./x64/Release/SystemCommonTest -perfreport
+          ./x64/Release/ImageUtilTest -perfreport
           ./x64/Release/NailangTest
 
       - uses: actions/upload-artifact@v4

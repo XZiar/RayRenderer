@@ -7,6 +7,9 @@
 #include <vector>
 #include <string>
 
+#if COMMON_OS_MACOS
+#   include <mach-o/dyld.h>
+#endif
 
 namespace common::file
 {
@@ -14,6 +17,85 @@ using std::string;
 using std::u16string;
 using std::byte;
 MAKE_ENABLER_IMPL(FileMappingObject)
+
+fs::path LocateCurrentExecutable() noexcept
+{
+#if COMMON_OS_WIN
+    std::vector<wchar_t> tmp(64, L'\0');
+    while (true)
+    {
+        const auto result = GetModuleFileNameW(nullptr, tmp.data(), static_cast<DWORD>(tmp.size())); // ends in '\0'
+        if (result == tmp.size())
+        {
+            const auto lastError = GetLastError();
+            if (lastError == ERROR_INSUFFICIENT_BUFFER)
+            {
+                tmp.resize(tmp.size() * 2);
+                continue;
+            }
+        }
+        if (result > 0)
+            tmp.resize(result);
+        else
+            tmp.clear();
+        break;
+    }
+#elif COMMON_OS_MACOS
+    std::vector<char> tmp(512, '\0');
+    uint32_t size = static_cast<uint32_t>(tmp.size());
+    while (true)
+    {
+        const auto result = _NSGetExecutablePath(tmp.data(), &size);
+        if (result == -1)
+        {
+            tmp.resize(size);
+            std::fill(tmp.begin(), tmp.end(), '\0');
+            continue;
+        }
+        if (result == 0)
+        {
+            const auto len = std::char_traits<char>::length(tmp.data());
+            tmp.resize(len);
+        }
+        else
+            tmp.clear();
+        break;
+    }
+#elif COMMON_OS_LINUX
+    std::vector<char> tmp(512, '\0');
+    while (true)
+    {
+        const auto result = readlink("/proc/self/exe", tmp.data(), tmp.size());
+        if (result > 0)
+        {
+            if (static_cast<size_t>(result) < tmp.size())
+            {
+                tmp.resize(result);
+                break;
+            }
+            tmp.resize(tmp.size() * 2);
+            continue;
+        }
+        tmp.clear();
+        break;
+    }
+#else
+    std::vector<char> tmp;
+#endif
+    if (!tmp.empty())
+    {
+        common::fs::path ret(tmp.begin(), tmp.end());
+        try
+        {
+            ret = fs::weakly_canonical(ret);
+        }
+        catch (...)
+        {
+        }
+        return ret.make_preferred();
+    }
+    return {};
+}
 
 
 FileMappingObject::FileMappingObject(std::shared_ptr<RawFileObject> file, const MappingFlag flag,
