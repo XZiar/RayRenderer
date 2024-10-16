@@ -57,7 +57,9 @@ struct PerfReport
         if (hostName.empty())
         {
             std::mt19937 gen(std::random_device{}());
-            hostName = common::str::Formatter<char>{}.FormatStatic(FmtString("{:08X}"), gen());
+            char tmp[16] = { '\0' };
+            snprintf(tmp, sizeof(tmp), "%08X", static_cast<uint32_t>(gen()));
+            hostName = tmp;
         }
 
         auto filename = TestName + "-perf-" + hostName + ".json";
@@ -168,7 +170,9 @@ public:
             if (testName.empty())
             {
                 std::mt19937 gen(std::random_device{}());
-                testName = common::str::Formatter<char>{}.FormatStatic(FmtString("{:08X}Test"), gen());
+                char tmp[16] = { '\0' };
+                snprintf(tmp, sizeof(tmp), "%08XTest", static_cast<uint32_t>(gen()));
+                testName = tmp;
             }
             Report = std::make_unique<PerfReport>(std::move(TestTargets), testName);
         }

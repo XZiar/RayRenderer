@@ -194,6 +194,10 @@ struct FormatterHelper : public FormatterBase
     template<typename T>
     static forceinline void ConvertSpecNoFill(fmt::format_specs& spec, const T& in) noexcept
     {
+        static_assert(fmt::align::none   == enum_cast(FormatSpec::Align::None));
+        static_assert(fmt::align::left   == enum_cast(FormatSpec::Align::Left));
+        static_assert(fmt::align::center == enum_cast(FormatSpec::Align::Middle));
+        static_assert(fmt::align::right  == enum_cast(FormatSpec::Align::Right));
         spec.width = in.Width;
         spec.precision = static_cast<int32_t>(in.Precision);
         spec.alt = in.AlterForm;
@@ -203,14 +207,8 @@ struct FormatterHelper : public FormatterBase
             spec.align = fmt::align::numeric;
         else
         {
-            SWITCH_LIKELY(in.Alignment, FormatSpec::Align::None)
-            {
-            default:
-            case FormatSpec::Align::None:   spec.align = fmt::align::none;   break;
-            case FormatSpec::Align::Left:   spec.align = fmt::align::left;   break;
-            case FormatSpec::Align::Middle: spec.align = fmt::align::center; break;
-            case FormatSpec::Align::Right:  spec.align = fmt::align::right;  break;
-            }
+            CM_ASSUME(enum_cast(in.Alignment) < 4);
+            spec.align = static_cast<fmt::align_t>(in.Alignment);
         }
     }
 
@@ -224,36 +222,44 @@ struct FormatterHelper : public FormatterBase
     template<typename Char>
     static forceinline void ConvertSpecFill(fmt::format_specs& spec, const FormatSpec& in) noexcept
     {
-        if (in.ZeroPad)
+        IF_UNLIKELY(!in.ZeroPad && in.Fill > 127)
         {
-            spec.fill = '0';
-        }
-        else IF_UNLIKELY(in.Fill != ' ') // ignore space
-        {
-            IF_LIKELY(in.Fill < 127)
+            if constexpr (sizeof(Char) == 4)
             {
-                spec.fill = static_cast<char>(in.Fill);
+                spec.fill = fmt::basic_string_view<char32_t>(reinterpret_cast<const char32_t*>(&in.Fill), 1);
+            }
+            else if constexpr (sizeof(Char) == 2)
+            {
+                // const auto [tmp, count] = ConvertFill<charset::detail::UTF16>(static_cast<char32_t>(in.Fill));
+                // spec.fill = fmt::basic_string_view<char16_t>(tmp.data(), count);
+                // currently only 16bit, simply take length as 1
+                spec.fill = fmt::basic_string_view<char32_t>(reinterpret_cast<const char32_t*>(&in.Fill), 1);
+            }
+            else if constexpr (sizeof(Char) == 1)
+            {
+                // const auto [tmp, count] = ConvertFill<charset::detail::UTF8>(static_cast<char32_t>(in.Fill));
+                // spec.fill = fmt::basic_string_view<u8ch_t>(tmp.data(), count);
+                // currently only 16bit, simply mapped to 2/3 bytes
+                uint8_t tmp[3] = { 0 };
+                if (in.Fill < 0x800u) // 2 byte
+                {
+                    tmp[0] = uint8_t(0b11000000u | (in.Fill >> 6));
+                    tmp[1] = uint8_t(0x80u | (in.Fill & 0x3f));
+                    spec.fill = fmt::basic_string_view<char>(reinterpret_cast<const char*>(tmp), 2);
+                }
+                else // 3 byte
+                {
+                    tmp[0] = uint8_t(0b11100000 | ((in.Fill >> 12) & 0x0fu));
+                    tmp[1] = uint8_t(0x80u | ((in.Fill >> 6) & 0x3f));
+                    tmp[2] = uint8_t(0x80u | (in.Fill & 0x3f));
+                    spec.fill = fmt::basic_string_view<char>(reinterpret_cast<const char*>(tmp), 3);
+                }
             }
             else
-            {
-                if constexpr (sizeof(Char) == 4)
-                {
-                    spec.fill.operator=<char32_t>(std::u32string_view(reinterpret_cast<const char32_t*>(&in.Fill), 1));
-                }
-                else if constexpr (sizeof(Char) == 2)
-                {
-                    const auto [tmp, count] = ConvertFill<charset::detail::UTF16>(static_cast<char32_t>(in.Fill));
-                    spec.fill.operator=<Char>(std::basic_string_view<Char>(reinterpret_cast<const Char*>(tmp.data()), count));
-                }
-                else if constexpr (sizeof(Char) == 1)
-                {
-                    const auto [tmp, count] = ConvertFill<charset::detail::UTF8>(static_cast<char32_t>(in.Fill));
-                    spec.fill.operator=<Char>(std::basic_string_view<Char>(reinterpret_cast<const Char*>(tmp.data()), count));
-                }
-                else
-                    static_assert(!AlwaysTrue<Char>);
-            }
+                static_assert(!AlwaysTrue<Char>);
         }
+        else
+            spec.fill = in.ZeroPad ? '0' : static_cast<char>(in.Fill);
     }
     struct FillCount
     {
@@ -290,12 +296,14 @@ struct FormatterHelper : public FormatterBase
                 spec.Fill32[0] = fill;
                 {
                     const auto [tmp, count] = ConvertFill<charset::detail::UTF16>(fill);
+                    CM_ASSUME(count < 2);
                     fillCount.Count16 = count;
                     for (uint8_t i = 0; i < count; ++i)
                         spec.Fill16[i] = tmp[i];
                 }
                 {
                     const auto [tmp, count] = ConvertFill<charset::detail::UTF8>(fill);
+                    CM_ASSUME(count < 4);
                     fillCount.Count8 = count;
                     for (uint8_t i = 0; i < count; ++i)
                         spec.Real.Fill.Fill[i] = tmp[i];
@@ -313,34 +321,35 @@ struct FormatterHelper : public FormatterBase
         ConvertSpecFill<Char>(spec, in);
         return spec;
     }
+    static_assert(fmt::sign::none  == enum_cast(FormatSpec::Sign::None));
+    static_assert(fmt::sign::minus == enum_cast(FormatSpec::Sign::Neg));
+    static_assert(fmt::sign::plus  == enum_cast(FormatSpec::Sign::Pos));
+    static_assert(fmt::sign::space == enum_cast(FormatSpec::Sign::Space));
     static forceinline constexpr fmt::sign_t ConvertSpecSign(const FormatSpec::Sign sign) noexcept
     {
-        SWITCH_LIKELY(sign, FormatSpec::Sign::None)
-        {
-        default:
-        case FormatSpec::Sign::None:  return fmt::sign::none;
-        case FormatSpec::Sign::Neg:   return fmt::sign::minus;
-        case FormatSpec::Sign::Pos:   return fmt::sign::plus;
-        case FormatSpec::Sign::Space: return fmt::sign::space;
-        }
+        CM_ASSUME(enum_cast(sign) < 4);
+        return static_cast<fmt::sign_t>(sign);
     }
     static constexpr uint32_t IntPrefixes[4] = { 0, 0, 0x1000000u | '+', 0x1000000u | ' ' };
     static forceinline constexpr uint32_t ConvertSpecIntSign(FormatSpec::Sign sign) noexcept
     {
-        switch (sign)
-        {
-        default:
-        case FormatSpec::Sign::None:  return IntPrefixes[fmt::sign::none];
-        case FormatSpec::Sign::Neg:   return IntPrefixes[fmt::sign::minus];
-        case FormatSpec::Sign::Pos:   return IntPrefixes[fmt::sign::plus];
-        case FormatSpec::Sign::Space: return IntPrefixes[fmt::sign::space];
-        }
+        CM_ASSUME(enum_cast(sign) < 4);
+        return IntPrefixes[enum_cast(sign)];
     }
     static forceinline constexpr uint32_t ConvertSpecIntSign(fmt::sign_t sign) noexcept
     {
+        CM_ASSUME(sign < 4);
         return IntPrefixes[sign];
     }
     
+    static constexpr auto IntPresentPack = BitsPackFrom<4>(
+        fmt::presentation_type::dec, // d
+        fmt::presentation_type::bin, // b
+        fmt::presentation_type::bin, // B
+        fmt::presentation_type::oct, // o
+        fmt::presentation_type::hex, // x
+        fmt::presentation_type::hex  // X
+    );
     template<typename T>
     static forceinline constexpr void FillSpecIntPresent(fmt::format_specs& out, const T& spec) noexcept
     {
@@ -357,19 +366,17 @@ struct FormatterHelper : public FormatterBase
         {
             static_assert(!AlwaysTrue<T>);
         }
-        switch (typeIdx)
-        {
-        case 0: out.type = fmt::presentation_type::dec;                   break; // d
-        case 1: out.type = fmt::presentation_type::bin;                   break; // b
-        case 2: out.type = fmt::presentation_type::bin; out.upper = true; break; // B
-        case 3: out.type = fmt::presentation_type::oct;                   break; // o
-        case 4: out.type = fmt::presentation_type::hex;                   break; // x
-        case 5: out.type = fmt::presentation_type::hex; out.upper = true; break; // X
-        default: break;
-        }
+        out.type = IntPresentPack.Get<fmt::presentation_type>(typeIdx);
+        out.upper = (typeIdx == 2 || typeIdx == 5); // B, X
         return;
     }
 
+    static constexpr auto FloatPresentPack = BitsPackFrom<4>(
+        fmt::presentation_type::general,  // gG
+        fmt::presentation_type::hexfloat, // aA
+        fmt::presentation_type::exp,      // eE
+        fmt::presentation_type::fixed     // fF
+    );
     template<typename T>
     static forceinline constexpr void FillSpecFloatPresent(fmt::format_specs& out, const T& spec) noexcept
     {
@@ -386,15 +393,8 @@ struct FormatterHelper : public FormatterBase
         {
             static_assert(!AlwaysTrue<T>);
         }
+        out.type = FloatPresentPack.Get<fmt::presentation_type>(typeIdx >> 1);
         out.upper = (typeIdx & 0x1u) ? true : false;
-        switch (typeIdx >> 1)
-        {
-        case 0: out.type = fmt::presentation_type::general;  break; // gG
-        case 1: out.type = fmt::presentation_type::hexfloat; break; // aA
-        case 2: out.type = fmt::presentation_type::exp;      break; // eE
-        case 3: out.type = fmt::presentation_type::fixed;    break; // fF
-        default: break;
-        }
         return;
     }
 
@@ -413,7 +413,7 @@ struct FormatterHelper : public FormatterBase
         }
     }
     template<typename Dst, typename Src>
-    static void PutString(std::basic_string<Dst>& ret, std::basic_string_view<Src> str, const fmt::format_specs* __restrict spec)
+    static forceinline void PutString(std::basic_string<Dst>& ret, std::basic_string_view<Src> str, const fmt::format_specs* __restrict spec)
     {
         if constexpr (std::is_same_v<Dst, Src>)
         {
@@ -1343,11 +1343,10 @@ constexpr RealSizeInfo GetSizeInfo() noexcept
         static_assert(!AlwaysTrue<T>, "unsupported type size");
 }
 template<typename T>
-forceinline static std::basic_string_view<T> BuildStr(uintptr_t ptr, size_t len) noexcept
+forceinline static std::basic_string_view<T> BuildStr(uintptr_t ptr, const size_t* lenPtr) noexcept
 {
     const auto arg = reinterpret_cast<const T*>(ptr);
-    if (len == SIZE_MAX)
-        len = std::char_traits<T>::length(arg);
+    const auto len = lenPtr ? *lenPtr : std::char_traits<T>::length(arg);
     return { arg, len };
 }
 
@@ -1459,12 +1458,8 @@ forceinline static void UniversalOnArg(Host& host, std::basic_string<Char>& dst,
     {
     case ArgRealType::String:
     {
-        uintptr_t ptr = 0;
-        size_t len = SIZE_MAX;
-        if (enum_cast(argType & ArgRealType::StrPtrBit))
-            ptr = *reinterpret_cast<const uintptr_t*>(argPtr);
-        else
-            std::tie(ptr, len) = *reinterpret_cast<const std::pair<uintptr_t, size_t>*>(argPtr);
+        const bool noLen = enum_cast(argType & ArgRealType::StrPtrBit);
+        const auto ptr = noLen ? *reinterpret_cast<const uintptr_t*>(argPtr) : reinterpret_cast<const std::pair<uintptr_t, size_t>*>(argPtr)->first;
         IF_UNLIKELY(fmtType == ArgDispType::Pointer)
         {
             host.PutPointer(dst, ptr, spec);
@@ -1472,12 +1467,13 @@ forceinline static void UniversalOnArg(Host& host, std::basic_string<Char>& dst,
         else
         {
             ABORT_CHECK(fmtType == ArgDispType::String || fmtType == ArgDispType::Any);
+            const auto lenPtr = noLen ? nullptr : &reinterpret_cast<const std::pair<uintptr_t, size_t>*>(argPtr)->second;
             switch (static_cast<RealSizeInfo>(enum_cast(intSize) & 0x3)) // remove StrPtrBit
             {
-            case RealSizeInfo::Byte1: host.PutString(dst, BuildStr<char    >(ptr, len), spec); break;
-            case RealSizeInfo::Byte2: host.PutString(dst, BuildStr<char16_t>(ptr, len), spec); break;
-            case RealSizeInfo::Byte4: host.PutString(dst, BuildStr<char32_t>(ptr, len), spec); break;
-            default: break;
+            case RealSizeInfo::Byte1: host.PutString(dst, BuildStr<char    >(ptr, lenPtr), spec); break;
+            case RealSizeInfo::Byte2: host.PutString(dst, BuildStr<char16_t>(ptr, lenPtr), spec); break;
+            case RealSizeInfo::Byte4: host.PutString(dst, BuildStr<char32_t>(ptr, lenPtr), spec); break;
+            default: CM_UNREACHABLE(); break;
             }
         }
     } return;
@@ -1556,7 +1552,7 @@ forceinline static void UniversalOnArg(Host& host, std::basic_string<Char>& dst,
             {
             case RealSizeInfo::Byte1: host.PutColorArg(dst, { false, *reinterpret_cast<const CommonColor*>(argPtr) }, spec); break;
             case RealSizeInfo::Byte4: host.PutColorArg(dst,          *reinterpret_cast<const ScreenColor*>(argPtr)  , spec); break;
-            default: break;
+            default: CM_UNREACHABLE(); break;
             }
         }
         else
@@ -1582,7 +1578,7 @@ forceinline static void UniversalOnArg(Host& host, std::basic_string<Char>& dst,
         case RealSizeInfo::Byte2: host.PutFloat(dst, static_cast<float>(*reinterpret_cast<const half_float::half*>(argPtr)), spec); break;
         case RealSizeInfo::Byte4: host.PutFloat(dst,                    *reinterpret_cast<const            float*>(argPtr) , spec); break;
         case RealSizeInfo::Byte8: host.PutFloat(dst,                    *reinterpret_cast<const           double*>(argPtr) , spec); break;
-        default: break;
+        default: CM_UNREACHABLE(); break;
         }
     } return;
     // Below are integer
@@ -1595,7 +1591,7 @@ forceinline static void UniversalOnArg(Host& host, std::basic_string<Char>& dst,
             case RealSizeInfo::Byte1: host.PutString(dst, std::   string_view{ reinterpret_cast<const char    *>(argPtr), 1 }, spec); break;
             case RealSizeInfo::Byte2: host.PutString(dst, std::u16string_view{ reinterpret_cast<const char16_t*>(argPtr), 1 }, spec); break;
             case RealSizeInfo::Byte4: host.PutString(dst, std::u32string_view{ reinterpret_cast<const char32_t*>(argPtr), 1 }, spec); break;
-            default: break;
+            default: CM_UNREACHABLE(); break;
             }
             return;
         }
@@ -1612,11 +1608,11 @@ forceinline static void UniversalOnArg(Host& host, std::basic_string<Char>& dst,
         case RealSizeInfo::Byte2: host.PutInteger(dst, static_cast<uint32_t>(*reinterpret_cast<const uint16_t*>(argPtr)), isSigned, spec); break;
         case RealSizeInfo::Byte4: host.PutInteger(dst, static_cast<uint32_t>(*reinterpret_cast<const uint32_t*>(argPtr)), isSigned, spec); break;
         case RealSizeInfo::Byte8: host.PutInteger(dst, static_cast<uint64_t>(*reinterpret_cast<const uint64_t*>(argPtr)), isSigned, spec); break;
-        default: break;
+        default: CM_UNREACHABLE(); break;
         }
     } return;
     default:
-        return;
+        CM_UNREACHABLE(); return;
     }
 }
 catch (const fmt::format_error& err)

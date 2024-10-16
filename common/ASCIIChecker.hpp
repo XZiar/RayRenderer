@@ -1,3 +1,4 @@
+#pragma once
 #include "CommonRely.hpp"
 
 namespace common
@@ -47,13 +48,14 @@ public:
         }
     }
     template<typename T>
-    [[nodiscard]] constexpr EleType operator()(const T ch, EleType defVal) const noexcept
+    [[nodiscard]] forceinline constexpr EleType operator()(const T ch, EleType defVal) const noexcept
     {
-        if (const auto ch32 = static_cast<uint32_t>(ch); ch32 & RangeMask)
-            // ch < 0 || ch >= 128
+        const auto ch32 = static_cast<uint32_t>(ch);
+        IF_UNLIKELY(ch32 & RangeMask) // ch < 0 || ch >= 128
             return defVal;
         else
         {
+            CM_ASSUME(ch32 < 128u);
             const auto ele = LUT[ch32 * N / EleBits];
             const auto ret = ele >> ((ch32 * N) % EleBits);
             return ret & KeepMask;
@@ -82,14 +84,19 @@ struct ASCIIChecker : ASCIICheckerNBit<1>
         }
     }
     template<typename T>
-    [[nodiscard]] constexpr bool operator()(const T ch) const noexcept
+    [[nodiscard]] forceinline constexpr bool operator()(const T ch) const noexcept
     {
-        if (const auto ch32 = static_cast<uint32_t>(ch); ch32 & RangeMask)
-            // ch < 0 || ch >= 128
+        const auto ch32 = static_cast<uint32_t>(ch);
+        IF_UNLIKELY(ch32 & RangeMask) // ch < 0 || ch >= 128
             return !Result;
         else
         {
+            CM_ASSUME(ch32 < 128u);
+#if COMMON_OSBIT == 32
             const auto ele = LUT[ch32 / EleBits];
+#elif COMMON_OSBIT == 64
+            const auto ele = LUT[ch32 < EleBits ? 0 : 1];
+#endif
             const auto bit = KeepMask << (ch32 % EleBits);
             return ele & bit;
         }

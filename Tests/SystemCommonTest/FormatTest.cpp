@@ -1,4 +1,4 @@
-#include "rely.h"
+﻿#include "rely.h"
 #include "SystemCommon/Format.h"
 #include "SystemCommon/FormatExtra.h"
 #include "SystemCommon/StringConvert.h"
@@ -13,6 +13,76 @@ using namespace std::string_literals;
 using namespace std::string_view_literals;
 using namespace common::str;
 using common::BaseException;
+
+
+TEST(Format, ParseUTF)
+{
+#define SingleCharTest(type, txt, ch, cnt) do                                   \
+{                                                                               \
+    uint32_t idx = 0;                                                           \
+    const auto [ret, suc] = FormatterParserCh<type>::ReadWholeUtf32(idx, txt);  \
+    EXPECT_TRUE(suc);                                                           \
+    EXPECT_EQ(ret, ch);                                                         \
+    EXPECT_EQ(idx, cnt);                                                        \
+} while(false)
+
+    SingleCharTest(char, "hi", U'h', 1u);
+    SingleCharTest(char, "\xc2\xb1", U'\xb1', 2u);
+    SingleCharTest(char, "\xcb\xa5", U'\x2e5', 2u);
+    SingleCharTest(char, "\xe6\x88\x91", U'\x6211', 3u);
+    SingleCharTest(char, "\xf0\xa4\xad\xa2", U'\x24b62', 4u);
+
+    SingleCharTest(char16_t, u"hi", U'h', 1u);
+    SingleCharTest(char16_t, u"±", U'±', 1u);
+    SingleCharTest(char16_t, u"˥", U'˥', 1u);
+    SingleCharTest(char16_t, u"我", U'我', 1u);
+    SingleCharTest(char16_t, u"𤭢", U'𤭢', 2u);
+
+    SingleCharTest(char32_t, U"hi", U'h', 1u);
+    SingleCharTest(char32_t, U"±", U'±', 1u);
+    SingleCharTest(char32_t, U"˥", U'˥', 1u);
+    SingleCharTest(char32_t, U"我", U'我', 1u);
+    SingleCharTest(char32_t, U"𤭢", U'𤭢', 1u);
+
+    SingleCharTest(wchar_t, L"hi", U'h', 1u);
+    SingleCharTest(wchar_t, L"±", U'±', 1u);
+    SingleCharTest(wchar_t, L"˥", U'˥', 1u);
+    SingleCharTest(wchar_t, L"我", U'我', 1u);
+    SingleCharTest(wchar_t, L"𤭢", U'𤭢', sizeof(wchar_t) == sizeof(char16_t) ? 2u : 1u);
+
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    SingleCharTest(char8_t, u8"hi", U'h', 1u);
+    SingleCharTest(char8_t, u8"±", U'±', 2u);
+    SingleCharTest(char8_t, u8"˥", U'˥', 2u);
+    SingleCharTest(char8_t, u8"我", U'我', 3u);
+    SingleCharTest(char8_t, u8"𤭢", U'𤭢', 4u);
+#endif
+
+#undef SingleCharTest
+
+
+#define SingleCharFail(type, txt, pos) do                                       \
+{                                                                               \
+    uint32_t idx = 0;                                                           \
+    const auto [ret, suc] = FormatterParserCh<type>::ReadWholeUtf32(idx, txt);  \
+    EXPECT_FALSE(suc);                                                          \
+    EXPECT_EQ(ret, pos);                                                        \
+} while(false)
+
+    SingleCharFail(char, "\x88\x91", 0u);           // 0b10xxxxxx
+    SingleCharFail(char, "\xc2", 0u);               // 1B for 2B
+    SingleCharFail(char, "\xe6\x88", 0u);           // 2B for 3B
+    SingleCharFail(char, "\xf0\xa4\xad", 0u);       // 3B for 4B
+    SingleCharFail(char, "\xc2\x03", 1u);           // 0b10xxxxxx
+    SingleCharFail(char, "\xf0\xa4\x0d\xa2", 2u);   // 0b10xxxxxx
+    SingleCharFail(char, "\xf0\xa4\xad\x72", 3u);   // 0b10xxxxxx
+
+    SingleCharFail(char16_t, u"\xdf01", 0u);        // surrogate low
+    SingleCharFail(char16_t, u"\xd800", 0u);        // surrogate 1B for 2B
+    SingleCharFail(char16_t, u"\xd800\x7550", 1u);  // surrogate low
+
+#undef SingleCharFail
+}
 
 
 #define CheckSuc() EXPECT_EQ(ret.ErrorPos, UINT16_MAX)
@@ -240,6 +310,46 @@ TEST(Format, ParseString)
         CheckIdxArgCount(ret, 1, 1); // an arg_id already assigned
     }
     {
+        constexpr auto ret = FormatterParser::ParseString("{:~s}"sv);
+        CheckFail(2, FillWithoutAlign);
+        CheckIdxArgCount(ret, 1, 1);
+    }
+    {
+        const auto ret = FormatterParser::ParseString("{:\x88\x91<s}"sv);
+        CheckFail(2, InvalidCodepoint);
+        CheckIdxArgCount(ret, 1, 1);
+    }
+    {
+        constexpr auto ret = FormatterParser::ParseString("{:\x88<s}"sv);
+        CheckFail(2, InvalidCodepoint);
+        CheckIdxArgCount(ret, 1, 1);
+    }
+    {
+        constexpr auto ret = FormatterParser::ParseString("{:\xf0\xa4\xad\xa2<s}"sv);
+        CheckFail(2, FillNotSingleCP);
+        CheckIdxArgCount(ret, 1, 1);
+    }
+    {
+        constexpr auto ret = FormatterParser::ParseString(u"{:\xd852\xdf62<s}"sv);
+        CheckFail(2, FillNotSingleCP);
+        CheckIdxArgCount(ret, 1, 1);
+    }
+    {
+        constexpr auto ret = FormatterParser::ParseString(u"{:\xdf52<s}"sv);
+        CheckFail(2, InvalidCodepoint);
+        CheckIdxArgCount(ret, 1, 1);
+    }
+    {
+        constexpr auto ret = FormatterParser::ParseString(u"{:\xdf52\xd862<s}"sv);
+        CheckFail(2, InvalidCodepoint);
+        CheckIdxArgCount(ret, 1, 1);
+    }
+    {
+        constexpr auto ret = FormatterParser::ParseString(U"{:𤭢<s}"sv);
+        CheckFail(2, FillNotSingleCP);
+        CheckIdxArgCount(ret, 1, 1);
+    }
+    {
         constexpr auto ret = FormatterParser::ParseString("{{"sv);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
@@ -400,6 +510,41 @@ TEST(Format, ParseString)
             .ZeroPad = true
         };
         CheckOp(IdxArg, 2, &spec2);
+        CheckOpFinish();
+    }
+    {
+        constexpr auto ret = FormatterParser::ParseString("{:0<d}{:<>d}"sv);
+        CheckSuc();
+        CheckIdxArgType(ret, 2, Integer, Integer);
+        uint16_t idx = 0;
+        FormatterParser::FormatSpec spec0
+        {
+            .Fill = '0',
+            .Type = 'd',
+            .Alignment = FormatterParser::FormatSpec::Align::Left,
+        };
+        CheckOp(IdxArg, 0, &spec0);
+        FormatterParser::FormatSpec spec1
+        {
+            .Fill = '<',
+            .Type = 'd',
+            .Alignment = FormatterParser::FormatSpec::Align::Right,
+        };
+        CheckOp(IdxArg, 1, &spec1);
+        CheckOpFinish();
+    }
+    { // utf parse fill check
+        constexpr auto ret = FormatterParser::ParseString("{:\xe6\x88\x91^d}"sv);
+        CheckSuc();
+        CheckIdxArgType(ret, 1, Integer);
+        uint16_t idx = 0;
+        FormatterParser::FormatSpec spec0
+        {
+            .Fill = 0x6211u,
+            .Type = 'd',
+            .Alignment = FormatterParser::FormatSpec::Align::Middle,
+        };
+        CheckOp(IdxArg, 0, &spec0);
         CheckOpFinish();
     }
     {
@@ -688,6 +833,12 @@ auto ToString(T&& res, Args&&... args)
     Formatter<Char> formatter;
     return formatter.FormatStatic(res, std::forward<Args>(args)...);
 }
+template<typename Char, typename... Args>
+auto ToString2(std::basic_string_view<Char> res, Args&&... args)
+{
+    Formatter<Char> formatter;
+    return formatter.FormatDynamic(res, std::forward<Args>(args)...);
+}
 TEST(Format, Formatting)
 {
     {
@@ -716,10 +867,10 @@ TEST(Format, Formatting)
         EXPECT_EQ(ret, "0x1,false");
     }
     {
-        const auto ref = fmt::format("{:d},{:d},{},{:#X}", true, (uint16_t)u'a', false, 'c');
-        const auto ret = ToString(FmtString("{:d},{:d},{},{:#X}"sv), true, u'a', false, 'c');
+        const auto ref = fmt::format("{:<<3d},{:\xe6\x88\x91^4d},{},{:#X}", true, (uint16_t)u'a', false, 'c');
+        const auto ret = ToString(FmtString("{:<<3d},{:\xe6\x88\x91^4d},{},{:#X}"sv), true, u'a', false, 'c');
         EXPECT_EQ(ret, ref);
-        EXPECT_EQ(ret, "1,97,false,0X63");
+        EXPECT_EQ(ret, "1<<,我97我,false,0X63");
     }
     {
         const auto ref = fmt::format(u"{},{},{},{},{:g},{:f},{:+010.4g},{x}"sv,
@@ -791,7 +942,8 @@ TEST(Format, MultiFormat)
 }
 
 
-#if CM_DEBUG == 0 || 1
+
+#if CM_DEBUG == 0
 TEST(Format, Perf)
 {
     PerfTester tester("FormatPerf");

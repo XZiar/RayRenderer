@@ -4,8 +4,10 @@
 #include "FormatInclude.h"
 #include "Date.h"
 #include "common/StrBase.hpp"
+#include "common/CompactPack.hpp"
 #include "common/RefHolder.hpp"
 #include "common/SharedString.hpp"
+#include "common/ASCIIChecker.hpp"
 #include <optional>
 #include <ctime>
 
@@ -37,7 +39,7 @@ struct ParseResultBase
         MissingLeftBrace, MissingRightBrace, MissingFmtSpec,
         InvalidColor, MissingColorFGBG, InvalidCommonColor, Invalid8BitColor, Invalid24BitColor,
         InvalidArgIdx, ArgIdxTooLarge, InvalidArgName, ArgNameTooLong,
-        WidthTooLarge, InvalidPrecision, PrecisionTooLarge,
+        FillNotSingleCP, FillWithoutAlign, WidthTooLarge, InvalidPrecision, PrecisionTooLarge, InvalidCodepoint,
         InvalidType, ExtraFmtSpec, IncompDateSpec, IncompTimeSpec, IncompColorSpec, IncompNumSpec, IncompType, InvalidFmt
     };
 #define SCSTR_HANDLE_PARSE_ERROR(handler)\
@@ -57,9 +59,12 @@ struct ParseResultBase
     handler(ArgIdxTooLarge,     "Arg index is too large"); \
     handler(InvalidArgName,     "Invalid name for NamedArg"); \
     handler(ArgNameTooLong,     "Arg name is too long"); \
+    handler(FillNotSingleCP,    "Fill is not single codepoint"); \
+    handler(FillWithoutAlign,   "Fill used without alignment"); \
     handler(WidthTooLarge,      "Width is too large"); \
     handler(InvalidPrecision,   "Invalid format for precision"); \
     handler(PrecisionTooLarge,  "Precision is too large"); \
+    handler(InvalidCodepoint,   "Invalid codepoint"); \
     handler(InvalidType,        "Invalid type specified for arg"); \
     handler(ExtraFmtSpec,       "Unknown extra format spec left at the end"); \
     handler(IncompDateSpec,     "Extra spec applied on date type"); \
@@ -152,6 +157,25 @@ struct FormatterParser
     static constexpr uint8_t OpIdMask = 0b11000000;
     static constexpr uint8_t OpFieldMask = 0b00110000;
     static constexpr uint8_t OpDataMask = 0b00001111;
+
+    // [7...0] for bits [4,6]
+    static constexpr auto UTF8MultiLenPack = BitsPackFrom<2>(
+        0, // 1000
+        0, // 1001
+        0, // 1010
+        0, // 1011
+        1, // 1100
+        1, // 1101
+        2, // 1110
+        3  // 1111
+    );
+    static constexpr auto UTF8MultiFirstMaskPack = BitsPackFrom<8>(
+        0x7f, // 0yyyzzzz
+        0x1f, // 110xxxyy
+        0xf,  // 1110wwww
+        0x7   // 11110uvv
+    );
+    static constexpr ASCIIChecker<true> SpecChecker = std::string_view("<>^+- #0123456789.gGaAeEfFdbBoxXcpsT@");
 
     struct FormatSpec
     {
@@ -452,7 +476,9 @@ struct FormatterParser
         }
     };
 
-    static forceinline constexpr std::optional<uint8_t> ParseHex8bit(uint32_t hex0, uint32_t hex1) noexcept
+    // following parse does not care about char->uint32 negative convert --> >0x7f is mismatch anyway
+
+    static forceinline constexpr std::optional<uint8_t> TryGetHex8bit(uint32_t hex0, uint32_t hex1) noexcept
     {
         uint32_t hex[2] = { hex0, hex1 };
         uint32_t ret = 0;
@@ -466,14 +492,43 @@ struct FormatterParser
         return static_cast<uint8_t>(ret);
     }
 
-    static forceinline constexpr bool ParseSign(FormatSpec& fmtSpec, uint32_t ch) noexcept
+    static forceinline constexpr FormatSpec::Align CheckAlign(uint32_t ch) noexcept
+    {
+        // align       ::=  "<" | ">" | "^"
+        switch (ch)
+        {
+        case '<': return FormatSpec::Align::Left;
+        case '>': return FormatSpec::Align::Right;
+        case '^': return FormatSpec::Align::Middle;
+        default:  return FormatSpec::Align::None;
+        }
+    }
+
+    static forceinline constexpr std::optional<FormatSpec::Sign> CheckSign(uint32_t ch) noexcept
     {
         // sign        ::=  "+" | "-" | " "
-             if (ch == '+') fmtSpec.SignFlag = FormatSpec::Sign::Pos;
-        else if (ch == '-') fmtSpec.SignFlag = FormatSpec::Sign::Neg;
-        else if (ch == ' ') fmtSpec.SignFlag = FormatSpec::Sign::Space;
-        else return false;
-        return true;
+        switch (ch)
+        {
+        case '+': return FormatSpec::Sign::Pos;
+        case '-': return FormatSpec::Sign::Neg;
+        case ' ': return FormatSpec::Sign::Space;
+        default:  return {};
+        }
+    }
+
+    // fmt current limit fill in 16bit for non-utf8, so apply to all
+    static forceinline constexpr bool TryPutFill(ParseResultBase& result, FormatSpec& fmtSpec, uint32_t offset, uint32_t ch) noexcept
+    {
+        IF_LIKELY(ch <= UINT16_MAX)
+        {
+            fmtSpec.Fill = ch;
+            return true;
+        }
+        else
+        {
+            result.SetError(offset, ParseResultBase::ErrorCode::FillNotSingleCP);
+            return false;
+        }
     }
 
     static constexpr auto CommonColorMap26 = []()
@@ -573,6 +628,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         }
         return { UINT32_MAX, true };
     }
+
     template<typename T>
     static constexpr bool ParseColor(T& result, size_t pos, const std::basic_string_view<Char>& str) noexcept
     {
@@ -599,7 +655,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         {
             if (str.size() == 5) // @<xff
             {
-                const auto num = ParseHex8bit(str[3], str[4]);
+                const auto num = TryGetHex8bit(str[3], str[4]);
                 IF_UNLIKELY(!num)
                 {
                     result.SetError(pos, ParseResultBase::ErrorCode::Invalid8BitColor);
@@ -612,7 +668,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                 uint8_t rgb[3] = { 0, 0, 0 };
                 for (uint8_t i = 0, j = 3; i < 3; ++i, j += 2)
                 {
-                    const auto num = ParseHex8bit(str[j], str[j + 1]);
+                    const auto num = TryGetHex8bit(str[j], str[j + 1]);
                     IF_UNLIKELY(!num)
                     {
                         result.SetError(pos, ParseResultBase::ErrorCode::Invalid24BitColor);
@@ -647,7 +703,8 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         result.SetError(pos, ParseResultBase::ErrorCode::InvalidColor);
         return false;
     }
-    static forceinline constexpr uint32_t ParseFillAlign(FormatSpec& fmtSpec, const std::basic_string_view<Char>& str) noexcept
+
+    [[deprecated]] [[maybe_unused]] static forceinline constexpr uint32_t ParseFillAlignOld(FormatSpec& fmtSpec, const std::basic_string_view<Char>& str) noexcept
     {
         // [[fill]align]
         // fill        ::=  <a character other than '{' or '}'>
@@ -671,6 +728,187 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         }
         return 0;
     }
+
+    static forceinline constexpr std::pair<uint32_t, bool> ReadWholeUtf32(uint32_t& idx, const std::basic_string_view<Char>& str) noexcept
+    {
+        if constexpr (sizeof(Char) == 1) // utf8
+        {
+            const uint8_t ch0 = str[idx++];
+            IF_LIKELY(ch0 < 0x80u)
+            {
+                return { ch0, true };
+            }
+            else
+            {
+                const auto byte0 = ch0 - 0x80u;
+                const auto len = static_cast<uint32_t>(str.size());
+                const auto leftBytes = UTF8MultiLenPack.Get<uint16_t>(byte0 >> 4);
+                IF_UNLIKELY(leftBytes == 0 || idx + leftBytes > len)
+                {
+                    return { idx - 1, false };
+                }
+                
+                auto val = static_cast<uint32_t>(UTF8MultiFirstMaskPack.Get<uint8_t>(leftBytes) & ch0) << static_cast<uint8_t>(leftBytes * 6);
+                switch (leftBytes)
+                {
+                case 3:
+                {
+                    const uint32_t ch = static_cast<uint8_t>(str[idx]);
+                    const auto tmp = ch ^ 0b10000000u; // flip highest and keep following, valid will be 00xxxxxx, larger is invalid
+                    IF_UNLIKELY(tmp > 0b00111111u)
+                    {
+                        return { idx, false };
+                    }
+                    idx++;
+                    val |= tmp << 12;
+                } [[fallthrough]];
+                case 2:
+                {
+                    const uint32_t ch = static_cast<uint8_t>(str[idx]);
+                    const auto tmp = ch ^ 0b10000000u; // flip highest and keep following, valid will be 00xxxxxx, larger is invalid
+                    IF_UNLIKELY(tmp > 0b00111111u)
+                    {
+                        return { idx, false };
+                    }
+                    idx++;
+                    val |= tmp << 6;
+                } [[fallthrough]];
+                case 1:
+                {
+                    const uint32_t ch = static_cast<uint8_t>(str[idx]);
+                    const auto tmp = ch ^ 0b10000000u; // flip highest and keep following, valid will be 00xxxxxx, larger is invalid
+                    IF_UNLIKELY(tmp > 0b00111111u)
+                    {
+                        return { idx, false };
+                    }
+                    idx++;
+                    val |= tmp;
+                } break;
+                default: CM_UNREACHABLE(); break;
+                }
+                return { val, true };
+            }
+        }
+        else if constexpr (sizeof(Char) == 2) // utf16
+        {
+            const uint16_t first = str[idx++];
+            IF_UNLIKELY(first >= 0xd800u && first <= 0xdfffu) // surrogates
+            {
+                const auto len = static_cast<uint32_t>(str.size());
+                IF_UNLIKELY(first >= 0xdc00u || idx == len)
+                {
+                    return { idx - 1, false };
+                }
+                const uint16_t second = str[idx];
+                IF_LIKELY(second >= 0xdc00u && second <= 0xdfffu)
+                {
+                    ++idx;
+                    uint32_t val = (((first & 0x3ffu) << 10) | (second & 0x3ffu)) + 0x10000u;
+                    return { val, true };
+                }
+                else
+                {
+                    return { idx, false };
+                }
+            }
+            else
+            {
+                return { first, true };
+            }
+        }
+        else if constexpr (sizeof(Char) == 4) // utf32
+        {
+            return { str[idx++], true };
+        }
+        else
+            static_assert(!AlwaysTrue<Char>);
+    }
+
+    static forceinline constexpr bool ParseFillAlign(ParseResultBase& result, FormatSpec& fmtSpec, uint32_t offset, uint32_t& idx, const std::basic_string_view<Char>& str) noexcept
+    {
+        // [[fill]align]
+        // fill        ::=  <a character other than '{' or '}'>
+        // align       ::=  "<" | ">" | "^"
+        const auto len = static_cast<uint32_t>(str.size());
+        if (len > 1)
+        {
+            if (const auto align = CheckAlign(str[1]); align != FormatSpec::Align::None) // str[0] must be Fill
+            {
+                // quick utf32 read
+                uint32_t fill = UINT32_MAX;
+                if constexpr (sizeof(Char) == 1) // utf8
+                {
+                    const auto val = static_cast<uint8_t>(str[0]);
+                    IF_UNLIKELY(val >= 0x80u) // multi
+                    {
+                        result.SetError(offset, ParseResultBase::ErrorCode::InvalidCodepoint);
+                        return false;
+                    }
+                    fill = val;
+                }
+                else if constexpr (sizeof(Char) == 2) // utf16
+                {
+                    const auto val = static_cast<uint16_t>(str[0]);
+                    IF_UNLIKELY(val >= 0xd800u && val <= 0xdfffu) // surrogates
+                    {
+                        result.SetError(offset, ParseResultBase::ErrorCode::InvalidCodepoint);
+                        return false;
+                    }
+                    fill = val;
+                }
+                else if constexpr (sizeof(Char) == 4) // utf32
+                {
+                    fill = str[0];
+                }
+                else
+                    static_assert(!AlwaysTrue<Char>);
+                IF_UNLIKELY(!TryPutFill(result, fmtSpec, offset, fill))
+                    return false;
+                fmtSpec.Alignment = align;
+                idx += 2;
+                return true;
+            }
+            if (SpecChecker(str[0])) // str[0] match a spec, but str[1] is not align, str[0] must not be fill and there must be no fill
+            {
+                if (const auto align = CheckAlign(str[0]); align != FormatSpec::Align::None)
+                {
+                    fmtSpec.Alignment = align;
+                    idx++;
+                }
+                return true;
+            }
+            // str[0] is possible fill, consider utf32 read, this utf32 is not going to be a spec
+            // for better error report, try to read whole utf32 anyway even with current fmt 16bit limitation
+            const auto [ch, suc] = ReadWholeUtf32(idx, str);
+            IF_UNLIKELY(!suc)
+            {
+                result.SetError(offset + ch, ParseResultBase::ErrorCode::InvalidCodepoint);
+                return false;
+            }
+            const auto align = idx == len ? FormatSpec::Align::None : CheckAlign(str[idx]);
+            IF_UNLIKELY(align == FormatSpec::Align::None)
+            {
+                result.SetError(offset, ParseResultBase::ErrorCode::FillWithoutAlign);
+                return false;
+            }
+            IF_UNLIKELY(!TryPutFill(result, fmtSpec, offset, ch))
+                return false;
+            fmtSpec.Alignment = align;
+            idx++;
+            return true;
+        }
+        else // must not have fill
+        {
+            if (const auto align = CheckAlign(str[0]); align != FormatSpec::Align::None)
+            {
+                // only align
+                fmtSpec.Alignment = align;
+                idx++;
+            }
+            return true;
+        }
+    }
+
     static forceinline constexpr bool ParseWidth(ParseResultBase& result, FormatSpec& fmtSpec, uint32_t offset, uint32_t& idx, const std::basic_string_view<Char>& str) noexcept
     {
         // width       ::=  integer // | "{" [arg_id] "}"
@@ -696,6 +934,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         }
         return true;
     }
+
     static forceinline constexpr bool ParsePrecision(ParseResultBase& result, FormatSpec& fmtSpec, uint32_t offset, uint32_t& idx, const std::basic_string_view<Char>& str) noexcept
     {
         // ["." precision]
@@ -731,35 +970,45 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         }
         return true;
     }
+
     static forceinline constexpr bool ParseFormatSpec(ParseResultBase& result, FormatSpec& fmtSpec, const uint32_t offset, const std::basic_string_view<Char>& str) noexcept
     {
         // format_spec ::=  [[fill]align][sign]["#"]["0"][width]["." precision][type]
         fmtSpec = {}; // clean up
         const auto len = static_cast<uint32_t>(str.size()); // hack on x86 to avoid using r64
-        uint32_t idx = ParseFillAlign(fmtSpec, str);
+        uint32_t idx = 0;
+
+        IF_UNLIKELY(!ParseFillAlign(result, fmtSpec, offset, idx, str))
+            return false;
         if (idx == len) return true;
-        if (ParseSign(fmtSpec, str[idx]))
+        
+        if (const auto sign = CheckSign(str[idx]); sign)
         {
-            if (fmtSpec.SignFlag != FormatSpec::Sign::None)
-                fmtSpec.Type.Type = ArgDispType::Numeric;
+            fmtSpec.SignFlag = *sign;
+            fmtSpec.Type.Type = ArgDispType::Numeric;
             if (++idx == len) return true;
         }
+        
         if (str[idx] == Char_NumSign)
         {
             fmtSpec.AlterForm = true;
             if (++idx == len) return true;
         }
+        
         if (str[idx] == Char_0)
         {
             fmtSpec.ZeroPad = true;
             fmtSpec.Type.Type = ArgDispType::Numeric;
             if (++idx == len) return true;
         }
+        
         IF_UNLIKELY(!ParseWidth(result, fmtSpec, offset, idx, str))
             return false;
         if (idx == len) return true;
+        
         IF_UNLIKELY(!ParsePrecision(result, fmtSpec, offset, idx, str))
             return false;
+        
         if (idx != len)
         {
             const uint32_t typestr = str[idx];

@@ -4,6 +4,8 @@
 #include "common/StrBase.hpp"
 #include <ctime>
 
+static_assert(common::detail::is_little_endian, "Format only support Little Endian");
+
 namespace common::str
 {
 
@@ -40,7 +42,7 @@ MAKE_ENUM_BITFIELD(ArgRealType)
 struct FormatSpec
 {
     enum class Align : uint8_t { None, Left, Right, Middle };
-    enum class Sign  : uint8_t { None, Pos, Neg, Space };
+    enum class Sign  : uint8_t { None, Neg, Pos, Space };
     uint32_t Fill       = ' ';
     uint32_t Precision  = 0;
     uint16_t Width      = 0;

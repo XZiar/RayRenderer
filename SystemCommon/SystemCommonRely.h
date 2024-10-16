@@ -90,7 +90,7 @@ MAKE_ENUM_BITFIELD(CommonColor)
 
 struct ScreenColor
 {
-    enum class ColorType { Default = 0, Bit8, Bit24, Common };
+    enum class ColorType : uint8_t { Default = 0, Bit8, Bit24, Common };
     uint8_t Value[3];
     ColorType Type : 4;
     bool IsBackground : 2;

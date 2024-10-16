@@ -45,6 +45,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\CLikeConfig.hpp = common\CLikeConfig.hpp
 		common\CLIViewModel.hpp = common\CLIViewModel.hpp
 		common\CommonRely.hpp = common\CommonRely.hpp
+		common\CompactPack.hpp = common\CompactPack.hpp
 		common\container.natvis = common\container.natvis
 		common\ContainerEx.hpp = common\ContainerEx.hpp
 		common\ContainerHelper.hpp = common\ContainerHelper.hpp
