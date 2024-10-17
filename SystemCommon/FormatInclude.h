@@ -116,22 +116,20 @@ struct SYSCOMMONAPI FormatterExecutor
 {
     friend FormatterBase;
 public:
+    enum class StringType : uint8_t { UTF8, UTF16, UTF32 };
+
     struct Context { };
     virtual void OnBrace(Context& context, bool isLeft);
     virtual void OnColor(Context& context, ScreenColor color);
 
-    virtual void PutString(Context& context, ::std::   string_view str, const OpaqueFormatSpec& spec) = 0;
-    virtual void PutString(Context& context, ::std::u16string_view str, const OpaqueFormatSpec& spec) = 0;
-    virtual void PutString(Context& context, ::std::u32string_view str, const OpaqueFormatSpec& spec) = 0;
+    virtual void PutString(Context& context, const void* str, size_t len, StringType type, const OpaqueFormatSpec& spec) = 0;
     virtual void PutInteger(Context& context, uint32_t val, bool isSigned, const OpaqueFormatSpec& spec) = 0;
     virtual void PutInteger(Context& context, uint64_t val, bool isSigned, const OpaqueFormatSpec& spec) = 0;
     virtual void PutFloat  (Context& context, float  val, const OpaqueFormatSpec& spec) = 0;
     virtual void PutFloat  (Context& context, double val, const OpaqueFormatSpec& spec) = 0;
     virtual void PutPointer(Context& context, uintptr_t val, const OpaqueFormatSpec& spec) = 0;
 
-    virtual void PutString(Context& context, ::std::   string_view str, const FormatSpec* spec) = 0;
-    virtual void PutString(Context& context, ::std::u16string_view str, const FormatSpec* spec) = 0;
-    virtual void PutString(Context& context, ::std::u32string_view str, const FormatSpec* spec) = 0;
+    virtual void PutString(Context& context, const void* str, size_t len, StringType type, const FormatSpec* spec) = 0;
     virtual void PutInteger(Context& context, uint32_t val, bool isSigned, const FormatSpec* spec) = 0;
     virtual void PutInteger(Context& context, uint64_t val, bool isSigned, const FormatSpec* spec) = 0;
     virtual void PutFloat  (Context& context, float  val, const FormatSpec* spec) = 0;
@@ -139,26 +137,53 @@ public:
     virtual void PutPointer(Context& context, uintptr_t val, const FormatSpec* spec) = 0;
     virtual void PutDate   (Context& context, ::std::string_view fmtStr, const DateStructure& date) = 0;
 
+
+    forceinline void PutString(Context& context, ::std::string_view str, const OpaqueFormatSpec& spec)
+    {
+        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
+    }
     forceinline void PutString(Context& context, ::std::wstring_view str, const OpaqueFormatSpec& spec)
     {
-        using Char = ::std::conditional_t<sizeof(wchar_t) == sizeof(char16_t), char16_t, char32_t>;
-        PutString(context, ::std::basic_string_view<Char>{ reinterpret_cast<const Char*>(str.data()), str.size() }, spec);
+        PutString(context, str.data(), str.size(), sizeof(wchar_t) == sizeof(char16_t) ? FormatterExecutor::StringType::UTF16 : FormatterExecutor::StringType::UTF32, spec);
     }
-    forceinline void PutString(Context& context, ::std::wstring_view str, const FormatSpec* spec)
+    forceinline void PutString(Context& context, ::std::u16string_view str, const OpaqueFormatSpec& spec)
     {
-        using Char = ::std::conditional_t<sizeof(wchar_t) == sizeof(char16_t), char16_t, char32_t>;
-        PutString(context, ::std::basic_string_view<Char>{ reinterpret_cast<const Char*>(str.data()), str.size() }, spec);
+        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF16, spec);
+    }
+    forceinline void PutString(Context& context, ::std::u32string_view str, const OpaqueFormatSpec& spec)
+    {
+        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF32, spec);
     }
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
     forceinline void PutString(Context& context, ::std::u8string_view str, const OpaqueFormatSpec& spec)
     {
-        PutString(context, ::std::string_view{ reinterpret_cast<const char*>(str.data()), str.size() }, spec);
-    }
-    forceinline void PutString(Context& context, ::std::u8string_view str, const FormatSpec* spec)
-    {
-        PutString(context, ::std::string_view{ reinterpret_cast<const char*>(str.data()), str.size() }, spec);
+        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
     }
 #endif
+
+    forceinline void PutString(Context& context, ::std::string_view str, const FormatSpec* spec)
+    {
+        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
+    }
+    forceinline void PutString(Context& context, ::std::wstring_view str, const FormatSpec* spec)
+    {
+        PutString(context, str.data(), str.size(), sizeof(wchar_t) == sizeof(char16_t) ? FormatterExecutor::StringType::UTF16 : FormatterExecutor::StringType::UTF32, spec);
+    }
+    forceinline void PutString(Context& context, ::std::u16string_view str, const FormatSpec* spec)
+    {
+        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF16, spec);
+    }
+    forceinline void PutString(Context& context, ::std::u32string_view str, const FormatSpec* spec)
+    {
+        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF32, spec);
+    }
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    forceinline void PutString(Context& context, ::std::u8string_view str, const FormatSpec* spec)
+    {
+        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
+    }
+#endif
+
     // context irrelevant
     static bool ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src, ArgRealType real, ArgDispType disp) noexcept;
     static bool ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view spectxt, ArgRealType real) noexcept;

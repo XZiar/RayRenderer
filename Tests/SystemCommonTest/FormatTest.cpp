@@ -15,15 +15,57 @@ using namespace common::str;
 using common::BaseException;
 
 
+TEST(Format, Utility)
+{
+    EXPECT_EQ(FormatterParser::CheckAlign('<'), FormatSpec::Align::Left);
+    EXPECT_EQ(FormatterParser::CheckAlign('>'), FormatSpec::Align::Right);
+    EXPECT_EQ(FormatterParser::CheckAlign('^'), FormatSpec::Align::Middle);
+    for (uint64_t i = 0; i <= 0x10ffffu; ++i)
+    {
+        switch (i)
+        {
+        case '<': [[fallthrough]];
+        case '>': [[fallthrough]];
+        case '^': continue;
+        default: break;
+        }
+        if (FormatterParser::CheckAlign(static_cast<uint32_t>(i)) != FormatSpec::Align::None)
+        {
+            EXPECT_EQ(FormatterParser::CheckAlign(static_cast<uint32_t>(i)), FormatSpec::Align::None) << "at" << i;
+        }
+    }
+
+    EXPECT_EQ(FormatterParser::CheckSign('+'), FormatSpec::Sign::Pos);
+    EXPECT_EQ(FormatterParser::CheckSign('-'), FormatSpec::Sign::Neg);
+    EXPECT_EQ(FormatterParser::CheckSign(' '), FormatSpec::Sign::Space);
+    for (uint64_t i = 0; i <= 0x10ffffu; ++i)
+    {
+        switch (i)
+        {
+        case '+': [[fallthrough]];
+        case '-': [[fallthrough]];
+        case ' ': continue;
+        default: break;
+        }
+        if (FormatterParser::CheckSign(static_cast<uint32_t>(i)) != FormatSpec::Sign::None)
+        {
+            EXPECT_EQ(FormatterParser::CheckSign(static_cast<uint32_t>(i)), FormatSpec::Sign::None) << "at" << i;
+        }
+    }
+}
+
+
 TEST(Format, ParseUTF)
 {
-#define SingleCharTest(type, txt, ch, cnt) do                                   \
-{                                                                               \
-    uint32_t idx = 0;                                                           \
-    const auto [ret, suc] = FormatterParserCh<type>::ReadWholeUtf32(idx, txt);  \
-    EXPECT_TRUE(suc);                                                           \
-    EXPECT_EQ(ret, ch);                                                         \
-    EXPECT_EQ(idx, cnt);                                                        \
+#define SingleCharTest(type, txt, ch, cnt) do                           \
+{                                                                       \
+    std::basic_string_view<type> src = txt;                             \
+    uint32_t idx = 0;                                                   \
+    const auto [ret, suc] = FormatterParserCh<type>::ReadWholeUtf32(    \
+        src.data(), idx, static_cast<uint32_t>(src.size()));            \
+    EXPECT_TRUE(suc);                                                   \
+    EXPECT_EQ(ret, ch);                                                 \
+    EXPECT_EQ(idx, cnt);                                                \
 } while(false)
 
     SingleCharTest(char, "hi", U'h', 1u);
@@ -61,12 +103,14 @@ TEST(Format, ParseUTF)
 #undef SingleCharTest
 
 
-#define SingleCharFail(type, txt, pos) do                                       \
-{                                                                               \
-    uint32_t idx = 0;                                                           \
-    const auto [ret, suc] = FormatterParserCh<type>::ReadWholeUtf32(idx, txt);  \
-    EXPECT_FALSE(suc);                                                          \
-    EXPECT_EQ(ret, pos);                                                        \
+#define SingleCharFail(type, txt, pos) do                               \
+{                                                                       \
+    std::basic_string_view<type> src = txt;                             \
+    uint32_t idx = 0;                                                   \
+    const auto [ret, suc] = FormatterParserCh<type>::ReadWholeUtf32(    \
+        src.data(), idx, static_cast<uint32_t>(src.size()));            \
+    EXPECT_FALSE(suc);                                                  \
+    EXPECT_EQ(ret, pos);                                                \
 } while(false)
 
     SingleCharFail(char, "\x88\x91", 0u);           // 0b10xxxxxx
@@ -844,6 +888,7 @@ TEST(Format, Formatting)
     {
         const auto ref = fmt::format("{},{:>6},{:_^7},{x}", "hello", "Hello", "World"sv, fmt::arg("x", "world"));
         const auto ret = ToString(FmtString("{},{:>6},{:_^7},{x}"sv), "hello", u"Hello", U"World"sv, NAMEARG("x")("world"sv));
+        //const auto ret = ToString2("{},{:>6},{:_^7},{x}"sv, "hello", u"Hello", U"World"sv, NAMEARG("x")("world"sv));
         EXPECT_EQ(ret, ref);
         EXPECT_EQ(ret, "hello, Hello,_World_,world");
     }

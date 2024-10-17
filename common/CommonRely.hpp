@@ -41,6 +41,26 @@
 #endif
 
 
+
+/* STL Test */
+
+#if defined(_LIBCPP_VERSION)
+#   define COMMON_STL_LIBCPP 1
+#   define COMMON_LIBCPP_VER _LIBCPP_VERSION
+#elif defined(_GLIBCXX_RELEASE)
+#   define COMMON_STL_LIBSTDCPP 1
+#   define COMMON_LIBSTDCPP_VER _GLIBCXX_RELEASE
+#endif
+
+#ifndef COMMON_STL_LIBCPP
+#   define COMMON_STL_LIBCPP 0
+#endif
+#ifndef COMMON_STL_LIBSTDCPP
+#   define COMMON_STL_LIBSTDCPP 0
+#endif
+
+
+
 /* OS Test */
 
 #if defined(_WIN32)
@@ -362,22 +382,6 @@ static_assert(is_big_endian != is_little_endian);
 
 
 
-/* const-eval-init */
-
-#if defined(__cpp_constinit) && __cpp_constinit >= 201907L
-#   define COMMON_CONSTINIT constinit
-#else
-#   define COMMON_CONSTINIT
-#endif
-
-#if defined(__cpp_consteval) && __cpp_consteval >= 201811L
-#   define COMMON_CONSTEVAL consteval
-#else
-#   define COMMON_CONSTEVAL constexpr
-#endif
-
-
-
 /* basic include */
 
 #define __STDC_WANT_SECURE_LIB__ 1
@@ -398,6 +402,38 @@ static_assert(is_big_endian != is_little_endian);
 #else
 #   define COMMON_OSBIT 32
 #endif
+
+
+
+/* const-eval-init */
+
+#if defined(__cpp_constinit) && __cpp_constinit >= 201907L
+#   define COMMON_CONSTINIT constinit
+#else
+#   define COMMON_CONSTINIT
+#endif
+
+#if defined(__cpp_consteval) && __cpp_consteval >= 201811L
+#   define COMMON_CONSTEVAL consteval
+#else
+#   define COMMON_CONSTEVAL constexpr
+#endif
+
+namespace common
+{
+[[nodiscard]] inline constexpr bool is_constant_evaluated([[maybe_unused]] bool defVal = false) noexcept
+{
+#if COMMON_COMPILER_CLANG && __clang_major__ == 14 && \
+    COMMON_STL_LIBSTDCPP && COMMON_LIBSTDCPP_VER >= 12 && COMMON_CPP_TIME >= 202002L
+    // Workaround for incompatibility between libstdc++ and clang-14, see https://github.com/fmtlib/fmt/issues/3247.
+    return __builtin_is_constant_evaluated();
+#elif defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
+    return std::is_constant_evaluated();
+#else
+    return defVal;
+#endif
+}
+}
 
 
 
@@ -520,7 +556,7 @@ inline constexpr bool AlwaysTrue2 = true;
 
 
 template<typename T, typename... Args>
-[[nodiscard]] constexpr bool MatchAny(const T& obj, Args... args)
+[[nodiscard]] forceinline constexpr bool MatchAny(const T& obj, Args... args)
 {
     return (... || (obj == args));
 }
@@ -596,19 +632,19 @@ public:
 
 
 template<typename T>
-[[nodiscard]] constexpr const T& max(const T& left, const T& right)
+[[nodiscard]] forceinline constexpr const T& max(const T& left, const T& right)
 {
     static_assert(std::is_arithmetic_v<T>, "only support arithmetic type");
     return left < right ? right : left;
 }
 template<typename T>
-[[nodiscard]] constexpr const T& min(const T& left, const T& right)
+[[nodiscard]] forceinline constexpr const T& min(const T& left, const T& right)
 {
     static_assert(std::is_arithmetic_v<T>, "only support arithmetic type");
     return left < right ? left : right;
 }
 template<typename T, typename U>
-[[nodiscard]] constexpr T saturate_cast(const U val)
+[[nodiscard]] forceinline constexpr T saturate_cast(const U val)
 {
     static_assert(std::is_arithmetic_v<T> && std::is_arithmetic_v<U>, "only support arithmetic type");
     constexpr bool MaxFit = static_cast<std::make_unsigned_t<U>>(std::numeric_limits<U>::max())
@@ -637,22 +673,22 @@ template<typename T, typename U>
 
 struct NonCopyable
 {
-    NonCopyable() noexcept = default;
-    ~NonCopyable() noexcept = default;
-    NonCopyable(const NonCopyable&) noexcept = delete;
-    NonCopyable& operator= (const NonCopyable&) noexcept = delete;
-    NonCopyable(NonCopyable&&) noexcept = default;
-    NonCopyable& operator= (NonCopyable&&) noexcept = default;
+    constexpr NonCopyable() noexcept = default;
+    constexpr ~NonCopyable() noexcept = default;
+    constexpr NonCopyable(const NonCopyable&) noexcept = delete;
+    constexpr NonCopyable& operator= (const NonCopyable&) noexcept = delete;
+    constexpr NonCopyable(NonCopyable&&) noexcept = default;
+    constexpr NonCopyable& operator= (NonCopyable&&) noexcept = default;
 };
 
 struct NonMovable
 {
-    NonMovable() noexcept = default;
-    ~NonMovable() noexcept = default;
-    NonMovable(NonMovable&&) noexcept = delete;
-    NonMovable& operator= (NonMovable&&) noexcept = delete;
-    NonMovable(const NonMovable&) noexcept = default;
-    NonMovable& operator= (const NonMovable&) noexcept = default;
+    constexpr NonMovable() noexcept = default;
+    constexpr ~NonMovable() noexcept = default;
+    constexpr NonMovable(NonMovable&&) noexcept = delete;
+    constexpr NonMovable& operator= (NonMovable&&) noexcept = delete;
+    constexpr NonMovable(const NonMovable&) noexcept = default;
+    constexpr NonMovable& operator= (const NonMovable&) noexcept = default;
 };
 
 
@@ -806,13 +842,12 @@ struct SkipToSpan
 };
 }
 template <typename T, size_t N>
-[[nodiscard]] constexpr auto to_span(T(&arr)[N]) noexcept
+[[nodiscard]] forceinline constexpr auto to_span(T(&arr)[N]) noexcept
 {
     return common::span<T>(arr, N);
-
 }
 template <typename T, typename Fallback = detail::CannotToSpan>
-[[nodiscard]] constexpr auto to_span(T&& arg) noexcept
+[[nodiscard]] forceinline constexpr auto to_span(T&& arg) noexcept
 {
     using U = common::remove_cvref_t<T>;
     if constexpr (common::is_span_v<U>)

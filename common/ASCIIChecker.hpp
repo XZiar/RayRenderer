@@ -1,6 +1,10 @@
 #pragma once
 #include "CommonRely.hpp"
 
+#if COMMON_COMPILER_MSVC
+#   include <intrin.h>
+#endif
+
 namespace common
 {
 
@@ -92,13 +96,26 @@ struct ASCIIChecker : ASCIICheckerNBit<1>
         else
         {
             CM_ASSUME(ch32 < 128u);
-#if COMMON_OSBIT == 32
-            const auto ele = LUT[ch32 / EleBits];
-#elif COMMON_OSBIT == 64
-            const auto ele = LUT[ch32 < EleBits ? 0 : 1];
+#if COMMON_COMPILER_MSVC && 0 // msvc seems always generate bt with memaddr, may not be better
+            if (!is_constant_evaluated(true))
+            {
+# if COMMON_OSBIT == 32
+                static_assert(sizeof(long) == sizeof(EleType));
+                return _bittest(reinterpret_cast<const long*>(&LUT[ch32 / EleBits]), static_cast<long>(ch32)); // will do mod
+# elif COMMON_OSBIT == 64
+                return _bittest64(reinterpret_cast<const __int64*>(&LUT[ch32 < EleBits ? 0 : 1]), ch32); // will do mod
 #endif
-            const auto bit = KeepMask << (ch32 % EleBits);
-            return ele & bit;
+            }
+            else
+#endif
+            {
+#if COMMON_OSBIT == 32
+                const auto ele = LUT[ch32 / EleBits];
+#elif COMMON_OSBIT == 64
+                const auto ele = ch32 < EleBits ? LUT[0] : LUT[1];
+#endif
+                return ele & (KeepMask << (ch32 % EleBits));
+            }
         }
     }
 };

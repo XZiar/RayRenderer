@@ -240,20 +240,22 @@ struct CombinedExecutor : public FormatterExecutor, protected Fmter
         Fmter::PutColor(context.Dst, color);
     }
     
-    void PutString(CTX& ctx, ::std::   string_view str, const OpaqueFormatSpec& spec) override
+    void PutString(CTX& ctx, const void* str, size_t len, StringType type, const OpaqueFormatSpec& spec) override
     {
         auto& context = static_cast<Context&>(ctx);
-        CFmter::PutString(context.Dst, str, &spec);
+        CFmter::PutString(context.Dst, str, len, type, &spec);
     }
-    void PutString(CTX& ctx, ::std::u16string_view str, const OpaqueFormatSpec& spec) override
+    forceinline void PutString(CTX& ctx, std::  string_view str, const OpaqueFormatSpec& spec)
     {
-        auto& context = static_cast<Context&>(ctx);
-        CFmter::PutString(context.Dst, str, &spec);
+        PutString(ctx, str.data(), str.size(), StringType::UTF8, spec);
     }
-    void PutString(CTX& ctx, ::std::u32string_view str, const OpaqueFormatSpec& spec) override
+    forceinline void PutString(CTX& ctx, std::u16string_view str, const OpaqueFormatSpec& spec)
     {
-        auto& context = static_cast<Context&>(ctx);
-        CFmter::PutString(context.Dst, str, &spec);
+        PutString(ctx, str.data(), str.size(), StringType::UTF16, spec);
+    }
+    forceinline void PutString(CTX& ctx, std::u32string_view str, const OpaqueFormatSpec& spec)
+    {
+        PutString(ctx, str.data(), str.size(), StringType::UTF32, spec);
     }
     void PutInteger(CTX& ctx, uint32_t val, bool isSigned, const OpaqueFormatSpec& spec) override
     {
@@ -281,20 +283,22 @@ struct CombinedExecutor : public FormatterExecutor, protected Fmter
         CFmter::PutPointer(context.Dst, val, spec);
     }
 
-    void PutString(CTX& ctx, std::   string_view str, const FormatSpec* spec) override
+    void PutString(CTX& ctx, const void* str, size_t len, StringType type, const FormatSpec* spec) override
     {
         auto& context = static_cast<Context&>(ctx);
-        Fmter::PutString(context.Dst, str, spec);
+        Fmter::PutString(context.Dst, str, len, type, spec);
     }
-    void PutString(CTX& ctx, std::u16string_view str, const FormatSpec* spec) override
+    forceinline void PutString(CTX& ctx, std::   string_view str, const FormatSpec* spec)
     {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter::PutString(context.Dst, str, spec);
+        PutString(ctx, str.data(), str.size(), StringType::UTF8, spec);
     }
-    void PutString(CTX& ctx, std::u32string_view str, const FormatSpec* spec) override
+    forceinline void PutString(CTX& ctx, std::u16string_view str, const FormatSpec* spec)
     {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter::PutString(context.Dst, str, spec);
+        PutString(ctx, str.data(), str.size(), StringType::UTF16, spec);
+    }
+    forceinline void PutString(CTX& ctx, std::u32string_view str, const FormatSpec* spec)
+    {
+        PutString(ctx, str.data(), str.size(), StringType::UTF32, spec);
     }
     void PutInteger(CTX& ctx, uint32_t val, bool isSigned, const FormatSpec* spec) override
     {

@@ -191,25 +191,30 @@ void FormatterExecutor::OnColor(Context&, ScreenColor)
 
 struct FormatterHelper : public FormatterBase
 {
+    COMMON_CONSTINIT inline static const fmt::format_specs BaseFmtSpec = {};
     template<typename T>
-    static forceinline void ConvertSpecNoFill(fmt::format_specs& spec, const T& in) noexcept
+    static forceinline fmt::format_specs ConvertSpecNoFill(const T* in) noexcept
     {
         static_assert(fmt::align::none   == enum_cast(FormatSpec::Align::None));
         static_assert(fmt::align::left   == enum_cast(FormatSpec::Align::Left));
         static_assert(fmt::align::center == enum_cast(FormatSpec::Align::Middle));
         static_assert(fmt::align::right  == enum_cast(FormatSpec::Align::Right));
-        spec.width = in.Width;
-        spec.precision = static_cast<int32_t>(in.Precision);
-        spec.alt = in.AlterForm;
-        spec.localized = false;
-        //spec.sign = fmt::sign::none;
-        if (in.ZeroPad)
-            spec.align = fmt::align::numeric;
-        else
+        fmt::format_specs spec;
+        memcpy(&spec, &BaseFmtSpec, sizeof(fmt::format_specs));
+        if (in)
         {
-            CM_ASSUME(enum_cast(in.Alignment) < 4);
-            spec.align = static_cast<fmt::align_t>(in.Alignment);
+            spec.width = in->Width;
+            spec.precision = static_cast<int32_t>(in->Precision);
+            spec.alt = in->AlterForm;
+            if (in->ZeroPad)
+                spec.align = fmt::align::numeric;
+            else
+            {
+                CM_ASSUME(enum_cast(in->Alignment) < 4);
+                spec.align = static_cast<fmt::align_t>(in->Alignment);
+            }
         }
+        return spec;
     }
 
     template<typename T>
@@ -314,11 +319,11 @@ struct FormatterHelper : public FormatterBase
         }
     }
     template<typename Char>
-    static forceinline fmt::format_specs ConvertSpecBasic(const FormatSpec& in) noexcept
+    static forceinline fmt::format_specs ConvertSpecBasic(const FormatSpec* in) noexcept
     {
-        fmt::format_specs spec;
-        ConvertSpecNoFill(spec, in);
-        ConvertSpecFill<Char>(spec, in);
+        fmt::format_specs spec = ConvertSpecNoFill(in);
+        if (in)
+            ConvertSpecFill<Char>(spec, *in);
         return spec;
     }
     static_assert(fmt::sign::none  == enum_cast(FormatSpec::Sign::None));
@@ -413,7 +418,7 @@ struct FormatterHelper : public FormatterBase
         }
     }
     template<typename Dst, typename Src>
-    static forceinline void PutString(std::basic_string<Dst>& ret, std::basic_string_view<Src> str, const fmt::format_specs* __restrict spec)
+    static forceinline void PutString(std::basic_string<Dst>& ret, const Src* __restrict str, size_t len, const fmt::format_specs* __restrict spec)
     {
         if constexpr (std::is_same_v<Dst, Src>)
         {
@@ -421,38 +426,41 @@ struct FormatterHelper : public FormatterBase
             {
                 /*auto fmtSpec = ConvertSpecBasic<Dst>(*spec);
                 fmtSpec.type = fmt::presentation_type::string;*/
-                fmt::detail::write<Dst>(std::back_inserter(ret), str, *spec);
+                fmt::detail::write<Dst>(std::back_inserter(ret), fmt::basic_string_view<Dst>(str, len), *spec);
             }
             else
-                ret.append(str);
+                ret.append(str, len);
         }
         else if constexpr (sizeof(Dst) == sizeof(Src))
         {
-            PutString<Dst, Dst>(ret, std::basic_string_view<Dst>{ reinterpret_cast<const Dst*>(str.data()), str.size() }, spec);
+            PutString<Dst, Dst>(ret, reinterpret_cast<const Dst*>(str), len, spec);
         }
         else if constexpr (std::is_same_v<Dst, char>)
         {
-            PutString<char, char>(ret, str::to_string(str, Encoding::UTF8), spec);
+            const auto newStr = str::to_string(str, len, Encoding::UTF8);
+            PutString<char, char>(ret, newStr.data(), newStr.size(), spec);
         }
         else if constexpr (std::is_same_v<Dst, char16_t>)
         {
-            PutString<char16_t, char16_t>(ret, str::to_u16string(str), spec);
+            const auto newStr = str::to_u16string(str, len);
+            PutString<char16_t, char16_t>(ret, newStr.data(), newStr.size(), spec);
         }
         else if constexpr (std::is_same_v<Dst, char32_t>)
         {
-            PutString<char32_t, char32_t>(ret, str::to_u32string(str), spec);
+            const auto newStr = str::to_u32string(str, len);
+            PutString<char32_t, char32_t>(ret, newStr.data(), newStr.size(), spec);
         }
         else if constexpr (std::is_same_v<Dst, wchar_t>)
         {
             if constexpr (sizeof(wchar_t) == sizeof(char16_t))
             {
-                const auto newStr = str::to_u16string(str);
-                PutString<wchar_t, wchar_t>(ret, std::wstring_view{ reinterpret_cast<const wchar_t*>(newStr.data()), newStr.size() }, spec);
+                const auto newStr = str::to_u16string(str, len);
+                PutString<wchar_t, wchar_t>(ret, reinterpret_cast<const wchar_t*>(newStr.data()), newStr.size(), spec);
             }
             else if constexpr (sizeof(wchar_t) == sizeof(char32_t))
             {
-                const auto newStr = str::to_u32string(str);
-                PutString<wchar_t, wchar_t>(ret, std::wstring_view{ reinterpret_cast<const wchar_t*>(newStr.data()), newStr.size() }, spec);
+                const auto newStr = str::to_u32string(str, len);
+                PutString<wchar_t, wchar_t>(ret, reinterpret_cast<const wchar_t*>(newStr.data()), newStr.size(), spec);
             }
             else
                 static_assert(!common::AlwaysTrue<Src>, "not supported");
@@ -460,7 +468,8 @@ struct FormatterHelper : public FormatterBase
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
         else if constexpr (std::is_same_v<Dst, char8_t>)
         {
-            PutString<char8_t, char8_t>(ret, str::to_u8string(str), spec);
+            const auto newStr = str::to_u8string(str, len);
+            PutString<char8_t, char8_t>(ret, newStr.data(), newStr.size(), spec);
         }
 #endif
         else
@@ -478,9 +487,8 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
     else
         FormatterHelper::ConvertSpecFill(dst, false, U' ');
 
-    fmt::format_specs spec{};
-    if (src)
-        FormatterHelper::ConvertSpecNoFill(spec, *src);
+    fmt::format_specs spec = FormatterHelper::ConvertSpecNoFill(src);
+        
     switch (const auto realType = real & ArgRealType::BaseTypeMask; realType)
     {
     case ArgRealType::String:
@@ -530,9 +538,12 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
 
 bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view spectxt, ArgRealType real) noexcept
 {
+    IF_UNLIKELY(spectxt.empty() || spectxt.size() > UINT16_MAX)
+        return false;
+
     ParseResultBase res;
     FormatterParser::FormatSpec spec_;
-    FormatterParserCh<char32_t>::ParseFormatSpec(res, spec_, 0, spectxt);
+    FormatterParserCh<char32_t>::ParseFormatSpec(res, spec_, spectxt.data(), 0, static_cast<uint32_t>(spectxt.size()));
     IF_UNLIKELY(res.ErrorPos != UINT16_MAX)
         return false;
     const auto disp = spec_.Type.Type;
@@ -541,8 +552,8 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view s
 
     FormatterHelper::ConvertSpecFill(dst, spec_.ZeroPad, static_cast<char32_t>(spec_.Fill));
 
-    fmt::format_specs spec{};
-    FormatterHelper::ConvertSpecNoFill(spec, spec_);
+    fmt::format_specs spec = FormatterHelper::ConvertSpecNoFill(&spec_);
+
     switch (const auto realType = real & ArgRealType::BaseTypeMask; realType)
     {
     case ArgRealType::String:
@@ -626,48 +637,26 @@ struct WrapSpec
 
 
 template<typename Char>
-void CommonFormatter<Char>::PutString(StrType& ret, std::string_view str, const OpaqueFormatSpec* spec)
+void CommonFormatter<Char>::PutString(StrType& ret, const void* str, size_t len, FormatterExecutor::StringType type, const OpaqueFormatSpec* spec)
 {
     if (spec)
     {
         WrapSpec<Char> fmtSpec(*spec);
-        FormatterHelper::PutString(ret, str, fmtSpec.Ptr);
+        switch (type)
+        {
+        case FormatterExecutor::StringType::UTF8:  return FormatterHelper::PutString(ret, reinterpret_cast<const char    *>(str), len, fmtSpec.Ptr);
+        case FormatterExecutor::StringType::UTF16: return FormatterHelper::PutString(ret, reinterpret_cast<const char16_t*>(str), len, fmtSpec.Ptr);
+        case FormatterExecutor::StringType::UTF32: return FormatterHelper::PutString(ret, reinterpret_cast<const char32_t*>(str), len, fmtSpec.Ptr);
+        default: CM_UNREACHABLE(); return;
+        }
     }
-    else
-        FormatterHelper::PutString<Char>(ret, str, nullptr);
-}
-template<typename Char>
-void CommonFormatter<Char>::PutString(StrType& ret, std::wstring_view str, const OpaqueFormatSpec* spec)
-{
-    if (spec)
+    switch (type)
     {
-        WrapSpec<Char> fmtSpec(*spec);
-        FormatterHelper::PutString(ret, str, fmtSpec.Ptr);
+    case FormatterExecutor::StringType::UTF8:  return FormatterHelper::PutString(ret, reinterpret_cast<const char    *>(str), len, nullptr);
+    case FormatterExecutor::StringType::UTF16: return FormatterHelper::PutString(ret, reinterpret_cast<const char16_t*>(str), len, nullptr);
+    case FormatterExecutor::StringType::UTF32: return FormatterHelper::PutString(ret, reinterpret_cast<const char32_t*>(str), len, nullptr);
+    default: CM_UNREACHABLE(); return;
     }
-    else
-        FormatterHelper::PutString<Char>(ret, str, nullptr);
-}
-template<typename Char>
-void CommonFormatter<Char>::PutString(StrType& ret, std::u16string_view str, const OpaqueFormatSpec* spec)
-{
-    if (spec)
-    {
-        WrapSpec<Char> fmtSpec(*spec);
-        FormatterHelper::PutString(ret, str, fmtSpec.Ptr);
-    }
-    else
-        FormatterHelper::PutString<Char>(ret, str, nullptr);
-}
-template<typename Char>
-void CommonFormatter<Char>::PutString(StrType& ret, std::u32string_view str, const OpaqueFormatSpec* spec)
-{
-    if (spec)
-    {
-        WrapSpec<Char> fmtSpec(*spec);
-        FormatterHelper::PutString(ret, str, fmtSpec.Ptr);
-    }
-    else
-        FormatterHelper::PutString<Char>(ret, str, nullptr);
 }
 
 template<typename Char>
@@ -785,61 +774,35 @@ inline void Formatter<Char>::PutColorArg(StrType& ret, ScreenColor color, const 
 }
 
 template<typename Char>
-void Formatter<Char>::PutString(StrType& ret, std::   string_view str, const FormatSpec* spec)
+void Formatter<Char>::PutString(StrType& ret, const void* str, size_t len, FormatterExecutor::StringType type, const FormatSpec* spec)
 {
     if (spec)
     {
-        auto fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
+        auto fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(spec);
         fmtSpec.type = fmt::presentation_type::string;
-        FormatterHelper::PutString(ret, str, &fmtSpec);
+        switch (type)
+        {
+        case FormatterExecutor::StringType::UTF8:  return FormatterHelper::PutString(ret, reinterpret_cast<const char    *>(str), len, &fmtSpec);
+        case FormatterExecutor::StringType::UTF16: return FormatterHelper::PutString(ret, reinterpret_cast<const char16_t*>(str), len, &fmtSpec);
+        case FormatterExecutor::StringType::UTF32: return FormatterHelper::PutString(ret, reinterpret_cast<const char32_t*>(str), len, &fmtSpec);
+        default: CM_UNREACHABLE(); return;
+        }
     }
-    else
-        FormatterHelper::PutString<Char>(ret, str, nullptr);
-}
-template<typename Char>
-void Formatter<Char>::PutString(StrType& ret, std::  wstring_view str, const FormatSpec* spec)
-{
-    if (spec)
+    switch (type)
     {
-        auto fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
-        fmtSpec.type = fmt::presentation_type::string;
-        FormatterHelper::PutString(ret, str, &fmtSpec);
+    case FormatterExecutor::StringType::UTF8:  return FormatterHelper::PutString(ret, reinterpret_cast<const char    *>(str), len, nullptr);
+    case FormatterExecutor::StringType::UTF16: return FormatterHelper::PutString(ret, reinterpret_cast<const char16_t*>(str), len, nullptr);
+    case FormatterExecutor::StringType::UTF32: return FormatterHelper::PutString(ret, reinterpret_cast<const char32_t*>(str), len, nullptr);
+    default: CM_UNREACHABLE(); return;
     }
-    else
-        FormatterHelper::PutString<Char>(ret, str, nullptr);
-}
-template<typename Char>
-void Formatter<Char>::PutString(StrType& ret, std::u16string_view str, const FormatSpec* spec)
-{
-    if (spec)
-    {
-        auto fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
-        fmtSpec.type = fmt::presentation_type::string;
-        FormatterHelper::PutString(ret, str, &fmtSpec);
-    }
-    else
-        FormatterHelper::PutString<Char>(ret, str, nullptr);
-}
-template<typename Char>
-void Formatter<Char>::PutString(StrType& ret, std::u32string_view str, const FormatSpec* spec)
-{
-    if (spec)
-    {
-        auto fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
-        fmtSpec.type = fmt::presentation_type::string;
-        FormatterHelper::PutString(ret, str, &fmtSpec);
-    }
-    else
-        FormatterHelper::PutString<Char>(ret, str, nullptr);
 }
 
 template<typename Char>
 void Formatter<Char>::PutInteger(StrType& ret, uint32_t val, bool isSigned, const FormatSpec* spec)
 {
-    fmt::format_specs fmtSpec = {};
+    fmt::format_specs fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(spec);
     if (spec)
     {
-        fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
         FormatterHelper::FillSpecIntPresent(fmtSpec, *spec);
     }
     const auto prefix = FormatterHelper::ProcessIntSign(val, isSigned, spec ? spec->SignFlag : FormatSpec::Sign::None);
@@ -849,10 +812,9 @@ void Formatter<Char>::PutInteger(StrType& ret, uint32_t val, bool isSigned, cons
 template<typename Char>
 void Formatter<Char>::PutInteger(StrType& ret, uint64_t val, bool isSigned, const FormatSpec* spec)
 {
-    fmt::format_specs fmtSpec = {};
+    fmt::format_specs fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(spec);
     if (spec)
     {
-        fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
         FormatterHelper::FillSpecIntPresent(fmtSpec, *spec);
     }
     const auto prefix = FormatterHelper::ProcessIntSign(val, isSigned, spec ? spec->SignFlag : FormatSpec::Sign::None);
@@ -863,10 +825,9 @@ void Formatter<Char>::PutInteger(StrType& ret, uint64_t val, bool isSigned, cons
 template<typename Char>
 void Formatter<Char>::PutFloat(StrType& ret, float val, const FormatSpec* spec)
 {
-    fmt::format_specs fmtSpec = {};
+    fmt::format_specs fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(spec);
     if (spec)
     {
-        fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
         FormatterHelper::FillSpecFloatPresent(fmtSpec, *spec);
         fmtSpec.sign = FormatterHelper::ConvertSpecSign(spec->SignFlag);
     }
@@ -875,10 +836,9 @@ void Formatter<Char>::PutFloat(StrType& ret, float val, const FormatSpec* spec)
 template<typename Char>
 void Formatter<Char>::PutFloat(StrType& ret, double val, const FormatSpec* spec)
 {
-    fmt::format_specs fmtSpec = {};
+    fmt::format_specs fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(spec);
     if (spec)
     {
-        fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
         FormatterHelper::FillSpecFloatPresent(fmtSpec, *spec);
         fmtSpec.sign = FormatterHelper::ConvertSpecSign(spec->SignFlag);
     }
@@ -888,9 +848,7 @@ void Formatter<Char>::PutFloat(StrType& ret, double val, const FormatSpec* spec)
 template<typename Char>
 void Formatter<Char>::PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec)
 {
-    fmt::format_specs fmtSpec = {};
-    if (spec)
-        fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
+    fmt::format_specs fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(spec);
     fmtSpec.type = fmt::presentation_type::pointer;
     fmt::detail::write_ptr<Char>(std::back_inserter(ret), val, &fmtSpec);
 }
@@ -1033,32 +991,7 @@ void Formatter<Char>::FormatToDynamic_(std::basic_string<Char>& dst, std::basic_
 }
 
 
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-template<typename Char>
-using SimChar = std::conditional_t<std::is_same_v<Char, char8_t>, char, Char>;
-#else
-template<typename Char>
-using SimChar = Char;
-#endif
-
-
-template<typename Char>
-static constexpr std::basic_string_view<Char> GetStrTrueFalse(bool val) noexcept
-{
-    if constexpr (std::is_same_v<Char, char>)
-        return val ? "true"sv : "false"sv;
-    else if constexpr (std::is_same_v<Char, wchar_t>)
-        return val ? L"true"sv : L"false"sv;
-    else if constexpr (std::is_same_v<Char, char16_t>)
-        return val ? u"true"sv : u"false"sv;
-    else if constexpr (std::is_same_v<Char, char32_t>)
-        return val ? U"true"sv : U"false"sv;
-    else
-        static_assert(!AlwaysTrue<Char>);
-}
-
-
-constexpr auto ShortLenMap = []() 
+static constexpr auto ShortLenMap = []() 
 {
     std::array<uint8_t, 64> ret = { 0 };
     for (uint32_t fill = 0; fill <= 3; fill++)
@@ -1230,20 +1163,10 @@ public:
         Fmter.PutColor(context.Dst, color);
     }
 
-    void PutString(CTX& ctx, ::std::   string_view str, const OpaqueFormatSpec& spec) final
+    void PutString(CTX& ctx, const void* str, size_t len, StringType type, const OpaqueFormatSpec& spec) final
     {
         auto& context = static_cast<Context&>(ctx);
-        CFmter::PutString(context.Dst, str, &spec);
-    }
-    void PutString(CTX& ctx, ::std::u16string_view str, const OpaqueFormatSpec& spec) final
-    {
-        auto& context = static_cast<Context&>(ctx);
-        CFmter::PutString(context.Dst, str, &spec);
-    }
-    void PutString(CTX& ctx, ::std::u32string_view str, const OpaqueFormatSpec& spec) final
-    {
-        auto& context = static_cast<Context&>(ctx);
-        CFmter::PutString(context.Dst, str, &spec);
+        CFmter::PutString(context.Dst, str, len, type, &spec);
     }
     void PutInteger(CTX& ctx, uint32_t val, bool isSigned, const OpaqueFormatSpec& spec) final
     {
@@ -1271,20 +1194,10 @@ public:
         CFmter::PutPointer(context.Dst, val, spec);
     }
     
-    void PutString(CTX& ctx, std::string_view str, const FormatSpec* spec) final
+    void PutString(CTX& ctx, const void* str, size_t len, StringType type, const FormatSpec* spec) final
     {
         auto& context = static_cast<Context&>(ctx);
-        Fmter.PutString(context.Dst, str, spec);
-    }
-    void PutString(CTX& ctx, std::u16string_view str, const FormatSpec* spec) final
-    {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter.PutString(context.Dst, str, spec);
-    }
-    void PutString(CTX& ctx, std::u32string_view str, const FormatSpec* spec) final
-    {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter.PutString(context.Dst, str, spec);
+        Fmter.PutString(context.Dst, str, len, type, spec);
     }
     void PutInteger(CTX& ctx, uint32_t val, bool isSigned, const FormatSpec* spec) final
     {
@@ -1448,6 +1361,9 @@ template struct Formatter<char32_t>;
 template struct Formatter<char8_t>;
 #endif
 
+static_assert(enum_cast(RealSizeInfo::Byte1) == enum_cast(FormatterExecutor::StringType::UTF8));
+static_assert(enum_cast(RealSizeInfo::Byte2) == enum_cast(FormatterExecutor::StringType::UTF16));
+static_assert(enum_cast(RealSizeInfo::Byte4) == enum_cast(FormatterExecutor::StringType::UTF32));
 
 template<typename Char, typename Host, typename Spec>
 forceinline static void UniversalOnArg(Host& host, std::basic_string<Char>& dst, std::basic_string_view<Char> fmtString, ArgDispType fmtType, const uint16_t* argPtr, ArgRealType argType, const Spec& spec, const FormatCookie& cookie) try
@@ -1468,13 +1384,16 @@ forceinline static void UniversalOnArg(Host& host, std::basic_string<Char>& dst,
         {
             ABORT_CHECK(fmtType == ArgDispType::String || fmtType == ArgDispType::Any);
             const auto lenPtr = noLen ? nullptr : &reinterpret_cast<const std::pair<uintptr_t, size_t>*>(argPtr)->second;
-            switch (static_cast<RealSizeInfo>(enum_cast(intSize) & 0x3)) // remove StrPtrBit
+            size_t len = 0;
+            const auto sizeType = static_cast<RealSizeInfo>(enum_cast(intSize) & 0x3); // remove StrPtrBit
+            switch (sizeType)
             {
-            case RealSizeInfo::Byte1: host.PutString(dst, BuildStr<char    >(ptr, lenPtr), spec); break;
-            case RealSizeInfo::Byte2: host.PutString(dst, BuildStr<char16_t>(ptr, lenPtr), spec); break;
-            case RealSizeInfo::Byte4: host.PutString(dst, BuildStr<char32_t>(ptr, lenPtr), spec); break;
+            case RealSizeInfo::Byte1: len = lenPtr ? *lenPtr : std::char_traits<char    >::length(reinterpret_cast<const char    *>(ptr)); break;
+            case RealSizeInfo::Byte2: len = lenPtr ? *lenPtr : std::char_traits<char16_t>::length(reinterpret_cast<const char16_t*>(ptr)); break;
+            case RealSizeInfo::Byte4: len = lenPtr ? *lenPtr : std::char_traits<char32_t>::length(reinterpret_cast<const char32_t*>(ptr)); break;
             default: CM_UNREACHABLE(); break;
             }
+            host.PutString(dst, reinterpret_cast<const void*>(ptr), len, static_cast<FormatterExecutor::StringType>(sizeType), spec);
         }
     } return;
     case ArgRealType::Bool:
@@ -1483,11 +1402,20 @@ forceinline static void UniversalOnArg(Host& host, std::basic_string<Char>& dst,
         if (fmtType == ArgDispType::Char)
         {
             if constexpr (sizeof(Char) == 1)
-                host.PutString(dst, val ? "Y"sv : "N"sv, spec);
+            {
+                const auto str = val ? "Y"sv : "N"sv;
+                host.PutString(dst, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
+            }
             else if constexpr (sizeof(Char) == 2)
-                host.PutString(dst, val ? u"Y"sv : u"N"sv, spec);
+            {
+                const auto str = val ? u"Y"sv : u"N"sv;
+                host.PutString(dst, str.data(), str.size(), FormatterExecutor::StringType::UTF16, spec);
+            }
             else if constexpr (sizeof(Char) == 4)
-                host.PutString(dst, val ? U"Y"sv : U"N"sv, spec);
+            {
+                const auto str = val ? U"Y"sv : U"N"sv;
+                host.PutString(dst, str.data(), str.size(), FormatterExecutor::StringType::UTF32, spec);
+            }
             else
                 static_assert(!AlwaysTrue<Char>, "unsupported char size");
         }
@@ -1498,7 +1426,23 @@ forceinline static void UniversalOnArg(Host& host, std::basic_string<Char>& dst,
         ELSE_LIKELY
         {
             ABORT_CHECK(fmtType == ArgDispType::String || fmtType == ArgDispType::Any);
-            host.PutString(dst, GetStrTrueFalse<SimChar<Char>>(val), nullptr);
+            if constexpr (sizeof(Char) == 1)
+            {
+                const auto str = val ? "true"sv : "false"sv;
+                host.PutString(dst, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
+            }
+            else if constexpr (sizeof(Char) == 2)
+            {
+                const auto str = val ? u"true"sv : u"false"sv;
+                host.PutString(dst, str.data(), str.size(), FormatterExecutor::StringType::UTF16, spec);
+            }
+            else if constexpr (sizeof(Char) == 4)
+            {
+                const auto str = val ? U"true"sv : U"false"sv;
+                host.PutString(dst, str.data(), str.size(), FormatterExecutor::StringType::UTF32, spec);
+            }
+            else
+                static_assert(!AlwaysTrue<Char>, "unsupported char size");
         }
     } return;
     case ArgRealType::Ptr:
@@ -1586,13 +1530,7 @@ forceinline static void UniversalOnArg(Host& host, std::basic_string<Char>& dst,
     {
         IF_LIKELY(fmtType == ArgDispType::Char || fmtType == ArgDispType::Any)
         {
-            switch (intSize)
-            {
-            case RealSizeInfo::Byte1: host.PutString(dst, std::   string_view{ reinterpret_cast<const char    *>(argPtr), 1 }, spec); break;
-            case RealSizeInfo::Byte2: host.PutString(dst, std::u16string_view{ reinterpret_cast<const char16_t*>(argPtr), 1 }, spec); break;
-            case RealSizeInfo::Byte4: host.PutString(dst, std::u32string_view{ reinterpret_cast<const char32_t*>(argPtr), 1 }, spec); break;
-            default: CM_UNREACHABLE(); break;
-            }
+            host.PutString(dst, argPtr, 1, static_cast<FormatterExecutor::StringType>(intSize), spec);
             return;
         }
     }
@@ -1731,21 +1669,9 @@ void FormatSpecCacherCh<Char>::FormatTo(std::basic_string<Char>& dst, span<const
         };
         const FormatSpecCacherCh<Char>& Cache;
 
-        void PutString (std::basic_string<Char>& ret, std::   string_view str, const OpaqueFormatSpec& spec)
+        void PutString(std::basic_string<Char>& ret, const void* str, size_t len, FormatterExecutor::StringType type, const OpaqueFormatSpec& spec)
         {
-            CommonFormatter<Char>::PutString(ret, str, &spec);
-        }
-        void PutString (std::basic_string<Char>& ret, std::  wstring_view str, const OpaqueFormatSpec& spec)
-        {
-            CommonFormatter<Char>::PutString(ret, str, &spec);
-        }
-        void PutString (std::basic_string<Char>& ret, std::u16string_view str, const OpaqueFormatSpec& spec)
-        {
-            CommonFormatter<Char>::PutString(ret, str, &spec);
-        }
-        void PutString (std::basic_string<Char>& ret, std::u32string_view str, const OpaqueFormatSpec& spec)
-        {
-            CommonFormatter<Char>::PutString(ret, str, &spec);
+            CommonFormatter<Char>::PutString(ret, str, len, type, &spec);
         }
         void PutInteger(std::basic_string<Char>& ret, uint32_t val, bool isSigned, const OpaqueFormatSpec& spec)
         {

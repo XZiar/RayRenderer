@@ -175,7 +175,6 @@ struct FormatterParser
         0xf,  // 1110wwww
         0x7   // 11110uvv
     );
-    static constexpr ASCIIChecker<true> SpecChecker = std::string_view("<>^+- #0123456789.gGaAeEfFdbBoxXcpsT@");
 
     struct FormatSpec
     {
@@ -495,25 +494,55 @@ struct FormatterParser
     static forceinline constexpr FormatSpec::Align CheckAlign(uint32_t ch) noexcept
     {
         // align       ::=  "<" | ">" | "^"
-        switch (ch)
+        static_assert('<' == 0b00111100 && '>' == 0b00111110 && '^' == 0b01011110);
+        // ch       : 0b00111100, 0b00111110, 0b01011110, 0b.abXXXc.
+        const auto valid = (ch & (0xffffff00u | 0b10011101u)) == 0b00011100u;
+        const uint32_t chUtf7 = static_cast<uint8_t>(ch);
+        // chRS3    : 0b00000111, 0b00000111, 0b00001011, 0b000.abXX
+        const auto chRS3 = chUtf7 >> 3;
+        // chCombine: 0b00000100, 0b00000110, 0b00001010, 0b000.abc.
+        const auto chCombine = chRS3 & chUtf7;
+        CM_ASSUME(chCombine < 0b11111u);
+        // shift2Cnt: 0b00000010, 0b00000011, 0b00000101 (2,3,5)
+        constexpr auto AlignLUT = common::BitsPackFromIndexed<2, 8>(
+            0b00000010u, FormatSpec::Align::Left,  // <
+            0b00000011u, FormatSpec::Align::Right, // >
+            0b00000101u, FormatSpec::Align::Middle // ^
+        );
+        static_assert(static_cast<uint32_t>(FormatSpec::Align::None) == 0u);
+        // exceeded val will be 0 natually, extend for consteval
+        const auto lutVal = (static_cast<uint32_t>(AlignLUT.Storage) >> chCombine) & 0x3u;
+        return CM_UNPREDICT_BOOL(valid) ? static_cast<FormatSpec::Align>(lutVal) : FormatSpec::Align::None;
+        /*switch (ch)
         {
         case '<': return FormatSpec::Align::Left;
         case '>': return FormatSpec::Align::Right;
         case '^': return FormatSpec::Align::Middle;
         default:  return FormatSpec::Align::None;
-        }
+        }*/
     }
 
-    static forceinline constexpr std::optional<FormatSpec::Sign> CheckSign(uint32_t ch) noexcept
+    static forceinline constexpr FormatSpec::Sign CheckSign(uint32_t ch) noexcept
     {
         // sign        ::=  "+" | "-" | " "
-        switch (ch)
+        static_assert('+' == 0b00101011 && '-' == 0b00101101 && ' ' == 0b00100000);
+        // ch       : 0b00101011, 0b00101101, 0b00100000, 0b..X.abcd
+        const auto valid = (ch & (0xffffff00u | 0b11110000u)) == 0b00100000u;
+        // shiftCnt : 0b00001011, 0b00001101, 0b00000000 (2,3,5)
+        constexpr auto SignLUT = common::BitsPackFromIndexed<2, 16>(
+            0b00001011u, FormatSpec::Sign::Pos,  // +
+            0b00001101u, FormatSpec::Sign::Neg,  // -
+            0b00000000u, FormatSpec::Sign::Space //  
+        );
+        const auto lutVal = SignLUT.Get<FormatSpec::Sign>(ch & 0b00001111u);
+        return CM_UNPREDICT_BOOL(valid) ? lutVal : FormatSpec::Sign::None;
+        /*switch (ch)
         {
         case '+': return FormatSpec::Sign::Pos;
         case '-': return FormatSpec::Sign::Neg;
         case ' ': return FormatSpec::Sign::Space;
-        default:  return {};
-        }
+        default:  return FormatSpec::Sign::None;
+        }*/
     }
 
     // fmt current limit fill in 16bit for non-utf8, so apply to all
@@ -729,7 +758,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         return 0;
     }
 
-    static forceinline constexpr std::pair<uint32_t, bool> ReadWholeUtf32(uint32_t& idx, const std::basic_string_view<Char>& str) noexcept
+    static forceinline constexpr std::pair<uint32_t, bool> ReadWholeUtf32(const Char* const str, uint32_t& idx, const uint32_t len) noexcept
     {
         if constexpr (sizeof(Char) == 1) // utf8
         {
@@ -741,7 +770,6 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             else
             {
                 const auto byte0 = ch0 - 0x80u;
-                const auto len = static_cast<uint32_t>(str.size());
                 const auto leftBytes = UTF8MultiLenPack.Get<uint16_t>(byte0 >> 4);
                 IF_UNLIKELY(leftBytes == 0 || idx + leftBytes > len)
                 {
@@ -794,7 +822,6 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             const uint16_t first = str[idx++];
             IF_UNLIKELY(first >= 0xd800u && first <= 0xdfffu) // surrogates
             {
-                const auto len = static_cast<uint32_t>(str.size());
                 IF_UNLIKELY(first >= 0xdc00u || idx == len)
                 {
                     return { idx - 1, false };
@@ -824,12 +851,11 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             static_assert(!AlwaysTrue<Char>);
     }
 
-    static forceinline constexpr bool ParseFillAlign(ParseResultBase& result, FormatSpec& fmtSpec, uint32_t offset, uint32_t& idx, const std::basic_string_view<Char>& str) noexcept
+    static forceinline constexpr bool ParseFillAlign(ParseResultBase& result, FormatSpec& fmtSpec, const Char* const str, uint32_t& idx, const uint32_t offset, const uint32_t len) noexcept
     {
         // [[fill]align]
         // fill        ::=  <a character other than '{' or '}'>
         // align       ::=  "<" | ">" | "^"
-        const auto len = static_cast<uint32_t>(str.size());
         if (len > 1)
         {
             if (const auto align = CheckAlign(str[1]); align != FormatSpec::Align::None) // str[0] must be Fill
@@ -868,6 +894,8 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                 idx += 2;
                 return true;
             }
+
+            constexpr ASCIIChecker<true> SpecChecker("<>^+- #0123456789.gGaAeEfFdbBoxXcpsT@");
             if (SpecChecker(str[0])) // str[0] match a spec, but str[1] is not align, str[0] must not be fill and there must be no fill
             {
                 if (const auto align = CheckAlign(str[0]); align != FormatSpec::Align::None)
@@ -879,7 +907,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             }
             // str[0] is possible fill, consider utf32 read, this utf32 is not going to be a spec
             // for better error report, try to read whole utf32 anyway even with current fmt 16bit limitation
-            const auto [ch, suc] = ReadWholeUtf32(idx, str);
+            const auto [ch, suc] = ReadWholeUtf32(str, idx, len);
             IF_UNLIKELY(!suc)
             {
                 result.SetError(offset + ch, ParseResultBase::ErrorCode::InvalidCodepoint);
@@ -909,14 +937,13 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         }
     }
 
-    static forceinline constexpr bool ParseWidth(ParseResultBase& result, FormatSpec& fmtSpec, uint32_t offset, uint32_t& idx, const std::basic_string_view<Char>& str) noexcept
+    static forceinline constexpr bool ParseWidth(ParseResultBase& result, FormatSpec& fmtSpec, const Char* str, uint32_t& idx, const uint32_t offset, const uint32_t len) noexcept
     {
         // width       ::=  integer // | "{" [arg_id] "}"
         const uint32_t firstCh = str[idx];
         if (firstCh > '0' && firstCh <= '9') // find width
         {
             uint32_t width = firstCh - '0';
-            const auto len = static_cast<uint32_t>(str.size());
             const auto [errIdx, inRange] = ParseDecTail<UINT16_MAX>(width, &str[idx], len - idx);
             IF_LIKELY(inRange)
             {
@@ -935,13 +962,12 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         return true;
     }
 
-    static forceinline constexpr bool ParsePrecision(ParseResultBase& result, FormatSpec& fmtSpec, uint32_t offset, uint32_t& idx, const std::basic_string_view<Char>& str) noexcept
+    static forceinline constexpr bool ParsePrecision(ParseResultBase& result, FormatSpec& fmtSpec, const Char* str, uint32_t& idx, const uint32_t offset, const uint32_t len) noexcept
     {
         // ["." precision]
         // precision   ::=  integer // | "{" [arg_id] "}"
         if (str[idx] == Char_Dot)
         {
-            const auto len = static_cast<uint32_t>(str.size());
             IF_LIKELY(++idx < len)
             {
                 const uint32_t firstCh = str[idx];
@@ -971,20 +997,19 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         return true;
     }
 
-    static forceinline constexpr bool ParseFormatSpec(ParseResultBase& result, FormatSpec& fmtSpec, const uint32_t offset, const std::basic_string_view<Char>& str) noexcept
+    static forceinline constexpr bool ParseFormatSpec(ParseResultBase& result, FormatSpec& fmtSpec, const Char* str, const uint32_t offset, /*to avoid using r64 on x86*/const uint32_t len) noexcept
     {
         // format_spec ::=  [[fill]align][sign]["#"]["0"][width]["." precision][type]
         fmtSpec = {}; // clean up
-        const auto len = static_cast<uint32_t>(str.size()); // hack on x86 to avoid using r64
         uint32_t idx = 0;
 
-        IF_UNLIKELY(!ParseFillAlign(result, fmtSpec, offset, idx, str))
+        IF_UNLIKELY(!ParseFillAlign(result, fmtSpec, str, idx, offset, len))
             return false;
         if (idx == len) return true;
         
-        if (const auto sign = CheckSign(str[idx]); sign)
+        if (const auto sign = CheckSign(str[idx]); sign != FormatSpec::Sign::None)
         {
-            fmtSpec.SignFlag = *sign;
+            fmtSpec.SignFlag = sign;
             fmtSpec.Type.Type = ArgDispType::Numeric;
             if (++idx == len) return true;
         }
@@ -1001,12 +1026,12 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             fmtSpec.Type.Type = ArgDispType::Numeric;
             if (++idx == len) return true;
         }
-        
-        IF_UNLIKELY(!ParseWidth(result, fmtSpec, offset, idx, str))
+
+        IF_UNLIKELY(!ParseWidth(result, fmtSpec, str, idx, offset, len))
             return false;
         if (idx == len) return true;
         
-        IF_UNLIKELY(!ParsePrecision(result, fmtSpec, offset, idx, str))
+        IF_UNLIKELY(!ParsePrecision(result, fmtSpec, str, idx, offset, len))
             return false;
         
         if (idx != len)
@@ -1208,11 +1233,11 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                 else if ((firstCh >= 'a' && firstCh <= 'z') ||
                     (firstCh >= 'A' && firstCh <= 'Z') || firstCh == '_')
                 {
+                    constexpr ASCIIChecker<true> NameArgTailChecker("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
                     for (uint32_t i = 1; i < idPartLen; ++i)
                     {
                         const auto ch = argfmt[i];
-                        IF_LIKELY((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
-                            (ch >= '0' && ch <= '9') || ch == '_')
+                        IF_LIKELY(NameArgTailChecker(ch))
                             continue;
                         ELSE_UNLIKELY
                         {
@@ -1283,8 +1308,10 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             }
             if (hasSpecSplit)
             {
-                CM_ASSUME(specSplit + 1 < argfmt.size());
-                IF_UNLIKELY(!ParseFormatSpec(result, fmtSpec, argfmtOffset + specSplit + 1, argfmt.substr(specSplit + 1)))
+                const auto moveOffset = specSplit + 1;
+                CM_ASSUME(argfmt.size() > moveOffset);
+                const auto len = static_cast<uint32_t>(argfmt.size() - moveOffset);
+                IF_UNLIKELY(!ParseFormatSpec(result, fmtSpec, argfmt.data() + moveOffset, argfmtOffset + moveOffset, len))
                     return;
             }
 
@@ -2111,13 +2138,27 @@ private:
     uint32_t SpecSize = 0;
     forceinline constexpr uint32_t ReadLengthedVal(uint32_t lenval, uint32_t val) noexcept
     {
-        switch (lenval & 0b11u)
+        if (common::is_constant_evaluated(true))
         {
-        case 1:  val = Ptr[SpecSize]; SpecSize += 1; break;
-        case 2:  val = Ptr[SpecSize + 0] | (Ptr[SpecSize + 1] << 8); SpecSize += 2; break;
-        case 3:  val = Ptr[SpecSize + 0] | (Ptr[SpecSize + 1] << 8) | (Ptr[SpecSize + 2] << 16) | (Ptr[SpecSize + 3] << 24); SpecSize += 4; break;
-        case 0:
-        default: break;
+            switch (lenval & 0b11u)
+            {
+            case 1:  val = Ptr[SpecSize]; SpecSize += 1; break;
+            case 2:  val = Ptr[SpecSize + 0] | (Ptr[SpecSize + 1] << 8); SpecSize += 2; break;
+            case 3:  val = Ptr[SpecSize + 0] | (Ptr[SpecSize + 1] << 8) | (Ptr[SpecSize + 2] << 16) | (Ptr[SpecSize + 3] << 24); SpecSize += 4; break;
+            case 0:
+            default: break;
+            }
+        }
+        else // since it's LE, simply cast-pointer and read it
+        {
+            switch (lenval & 0b11u)
+            {
+            case 1:  val = Ptr[SpecSize]; SpecSize += 1; break;
+            case 2:  val = *reinterpret_cast<const uint16_t*>(&Ptr[SpecSize]); SpecSize += 2; break;
+            case 3:  val = *reinterpret_cast<const uint32_t*>(&Ptr[SpecSize]); SpecSize += 4; break;
+            case 0:
+            default: break;
+            }
         }
         return val;
     };
@@ -2142,7 +2183,7 @@ public:
             Spec.SignFlag  = static_cast<FormatSpec::Sign> ((val0 >> 0) & 0b11);
             Spec.AlterForm = val1 & 0b10;
             Spec.ZeroPad   = val1 & 0b01;
-            if (val1 & 0b11111100)
+            IF_UNLIKELY(val1 & 0b11111100)
             {
                 Spec.Fill       = ReadLengthedVal(val1 >> 6, ' ');
                 Spec.Precision  = ReadLengthedVal(val1 >> 4, UINT32_MAX);
@@ -2172,14 +2213,27 @@ struct CommonFormatter
 {
     using StrType = std::basic_string<Char>;
 public:
-    SYSCOMMONAPI static void PutString(StrType& ret, std::   string_view str, const OpaqueFormatSpec* spec);
-    SYSCOMMONAPI static void PutString(StrType& ret, std::  wstring_view str, const OpaqueFormatSpec* spec);
-    SYSCOMMONAPI static void PutString(StrType& ret, std::u16string_view str, const OpaqueFormatSpec* spec);
-    SYSCOMMONAPI static void PutString(StrType& ret, std::u32string_view str, const OpaqueFormatSpec* spec);
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-    forceinline static void PutString(StrType& ret, std::u8string_view str, const OpaqueFormatSpec* spec)
+    SYSCOMMONAPI static void PutString(StrType& ret, const void* str, size_t len, FormatterExecutor::StringType type, const OpaqueFormatSpec* spec);
+    forceinline static void PutString(StrType& ret, std::   string_view str, const OpaqueFormatSpec* spec)
     {
-        PutString(ret, std::string_view{ reinterpret_cast<const char*>(str.data()), str.size() }, spec);
+        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
+    }
+    forceinline static void PutString(StrType& ret, std::  wstring_view str, const OpaqueFormatSpec* spec)
+    {
+        PutString(ret, str.data(), str.size(), sizeof(wchar_t) == sizeof(char16_t) ? FormatterExecutor::StringType::UTF16 : FormatterExecutor::StringType::UTF32, spec);
+    }
+    forceinline static void PutString(StrType& ret, std::u16string_view str, const OpaqueFormatSpec* spec)
+    {
+        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF16, spec);
+    }
+    forceinline static void PutString(StrType& ret, std::u32string_view str, const OpaqueFormatSpec* spec)
+    {
+        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF32, spec);
+    }
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    forceinline static void PutString(StrType& ret, std:: u8string_view str, const OpaqueFormatSpec* spec)
+    {
+        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
     }
 #endif
     SYSCOMMONAPI static void PutInteger(StrType& ret, uint32_t val, bool isSigned, const OpaqueFormatSpec& spec);
@@ -2196,14 +2250,27 @@ struct Formatter : public FormatterBase
 public:
     SYSCOMMONAPI virtual void PutColor(StrType& ret, ScreenColor color);
     SYSCOMMONAPI         void PutColorArg(StrType& ret, ScreenColor color, const FormatSpec* spec);
-    SYSCOMMONAPI virtual void PutString(StrType& ret, std::   string_view str, const FormatSpec* spec);
-    SYSCOMMONAPI virtual void PutString(StrType& ret, std::  wstring_view str, const FormatSpec* spec);
-    SYSCOMMONAPI virtual void PutString(StrType& ret, std::u16string_view str, const FormatSpec* spec);
-    SYSCOMMONAPI virtual void PutString(StrType& ret, std::u32string_view str, const FormatSpec* spec);
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-    forceinline void PutString(StrType& ret, std::u8string_view str, const FormatSpec* spec)
+    SYSCOMMONAPI virtual void PutString(StrType& ret, const void* str, size_t len, FormatterExecutor::StringType type, const FormatSpec* spec);
+    forceinline void PutString(StrType& ret, std::   string_view str, const FormatSpec* spec)
     {
-        PutString(ret, std::string_view{ reinterpret_cast<const char*>(str.data()), str.size() }, spec);
+        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
+    }
+    forceinline void PutString(StrType& ret, std::  wstring_view str, const FormatSpec* spec)
+    {
+        PutString(ret, str.data(), str.size(), sizeof(wchar_t) == sizeof(char16_t) ? FormatterExecutor::StringType::UTF16 : FormatterExecutor::StringType::UTF32, spec);
+    }
+    forceinline void PutString(StrType& ret, std::u16string_view str, const FormatSpec* spec)
+    {
+        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF16, spec);
+    }
+    forceinline void PutString(StrType& ret, std::u32string_view str, const FormatSpec* spec)
+    {
+        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF32, spec);
+    }
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    forceinline void PutString(StrType& ret, std:: u8string_view str, const FormatSpec* spec)
+    {
+        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
     }
 #endif
     SYSCOMMONAPI virtual void PutInteger(StrType& ret, uint32_t val, bool isSigned, const FormatSpec* spec);
