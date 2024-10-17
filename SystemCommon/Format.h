@@ -512,14 +512,7 @@ struct FormatterParser
         static_assert(static_cast<uint32_t>(FormatSpec::Align::None) == 0u);
         // exceeded val will be 0 natually, extend for consteval
         const auto lutVal = (static_cast<uint32_t>(AlignLUT.Storage) >> chCombine) & 0x3u;
-        return CM_UNPREDICT_BOOL(valid) ? static_cast<FormatSpec::Align>(lutVal) : FormatSpec::Align::None;
-        /*switch (ch)
-        {
-        case '<': return FormatSpec::Align::Left;
-        case '>': return FormatSpec::Align::Right;
-        case '^': return FormatSpec::Align::Middle;
-        default:  return FormatSpec::Align::None;
-        }*/
+        return (common::is_constant_evaluated(true) ? valid : CM_UNPREDICT_BOOL(valid)) ? static_cast<FormatSpec::Align>(lutVal) : FormatSpec::Align::None;
     }
 
     static forceinline constexpr FormatSpec::Sign CheckSign(uint32_t ch) noexcept
@@ -535,14 +528,7 @@ struct FormatterParser
             0b00000000u, FormatSpec::Sign::Space //  
         );
         const auto lutVal = SignLUT.Get<FormatSpec::Sign>(ch & 0b00001111u);
-        return CM_UNPREDICT_BOOL(valid) ? lutVal : FormatSpec::Sign::None;
-        /*switch (ch)
-        {
-        case '+': return FormatSpec::Sign::Pos;
-        case '-': return FormatSpec::Sign::Neg;
-        case ' ': return FormatSpec::Sign::Space;
-        default:  return FormatSpec::Sign::None;
-        }*/
+        return (common::is_constant_evaluated(true) ? valid : CM_UNPREDICT_BOOL(valid)) ? lutVal : FormatSpec::Sign::None;
     }
 
     // fmt current limit fill in 16bit for non-utf8, so apply to all

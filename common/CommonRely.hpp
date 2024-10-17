@@ -263,6 +263,33 @@ using u8ch_t = char;
 
 
 
+/* c++ version compatible defines */
+
+
+
+/* basic include */
+
+#define __STDC_WANT_SECURE_LIB__ 1
+#define __STDC_WANT_LIB_EXT1__ 1
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <numeric>
+#include <limits>
+#include <string>
+#include <string_view>
+#include <type_traits> 
+#include "3rdParty/gsl/assert"
+#include "3rdParty/gsl/util"
+
+#if UINTPTR_MAX == UINT64_MAX
+#   define COMMON_OSBIT 64
+#else
+#   define COMMON_OSBIT 32
+#endif
+
+
+
 /* endian detection */
 
 #if defined(__cpp_lib_endian) && __cpp_lib_endian >= 201907L
@@ -310,14 +337,10 @@ static_assert(is_big_endian != is_little_endian);
 
 
 
-/* c++ version compatible defines */
-
-
-
 
 /* likely-unlikely */
 
-#if defined(__has_cpp_attribute) && __has_cpp_attribute(likely)
+#if defined(__has_cpp_attribute) && __has_cpp_attribute(likely) >= 201803L && __has_cpp_attribute(unlikely) >= 201803L
 #   define IF_LIKELY(x)         if (x) [[likely]]
 #   define IF_UNLIKELY(x)       if (x) [[unlikely]]
 #   define ELSE_LIKELY          else [[likely]]
@@ -339,7 +362,9 @@ static_assert(is_big_endian != is_little_endian);
 #   define SWITCH_LIKELY(x, y)  switch (x)
 #   define CASE_LIKELY(x)       case x
 #endif
-#if COMMON_COMPILER_MSVC || COMMON_COMPILER_ICC
+#if defined(__has_cpp_attribute) && __has_cpp_attribute(assume) >= 202207L
+#   define CM_ASSUME(x) [[assume(!!(x))]]
+#elif COMMON_COMPILER_MSVC || COMMON_COMPILER_ICC
 #   define CM_ASSUME(x) __assume(!!(x))
 #elif CM_HAS_BUILTIN(__builtin_assume)
 #   define CM_ASSUME(x) __builtin_assume(!!(x))
@@ -358,7 +383,10 @@ static_assert(is_big_endian != is_little_endian);
 #   define CM_UNPREDICT(x)      x
 #   define CM_UNPREDICT_BOOL(x) static_cast<bool>(x)
 #endif
-#if COMMON_COMPILER_GCC || CM_HAS_BUILTIN(__builtin_unreachable)
+#if defined(__cpp_lib_unreachable) && __cpp_lib_unreachable >= 202202L
+#   include <utility>
+#   define CM_UNREACHABLE() ::std::unreachable()
+#elif COMMON_COMPILER_GCC || CM_HAS_BUILTIN(__builtin_unreachable)
 #   define CM_UNREACHABLE() __builtin_unreachable()
 #else
 #   define CM_UNREACHABLE() CM_ASSUME(0)
@@ -382,29 +410,6 @@ static_assert(is_big_endian != is_little_endian);
 
 
 
-/* basic include */
-
-#define __STDC_WANT_SECURE_LIB__ 1
-#define __STDC_WANT_LIB_EXT1__ 1
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <numeric>
-#include <limits>
-#include <string>
-#include <string_view>
-#include <type_traits> 
-#include "3rdParty/gsl/assert"
-#include "3rdParty/gsl/util"
-
-#if UINTPTR_MAX == UINT64_MAX
-#   define COMMON_OSBIT 64
-#else
-#   define COMMON_OSBIT 32
-#endif
-
-
-
 /* const-eval-init */
 
 #if defined(__cpp_constinit) && __cpp_constinit >= 201907L
@@ -423,8 +428,7 @@ namespace common
 {
 [[nodiscard]] inline constexpr bool is_constant_evaluated([[maybe_unused]] bool defVal = false) noexcept
 {
-#if COMMON_COMPILER_CLANG && __clang_major__ == 14 && \
-    COMMON_STL_LIBSTDCPP && COMMON_LIBSTDCPP_VER >= 12 && COMMON_CPP_TIME >= 202002L
+#if COMMON_COMPILER_CLANG && __clang_major__ == 14 && COMMON_STL_LIBSTDCPP && COMMON_LIBSTDCPP_VER >= 12 && COMMON_CPP_20
     // Workaround for incompatibility between libstdc++ and clang-14, see https://github.com/fmtlib/fmt/issues/3247.
     return __builtin_is_constant_evaluated();
 #elif defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
@@ -435,6 +439,21 @@ namespace common
 }
 }
 
+
+
+/* compiler fix */
+
+#if COMMON_COMPILER_CLANG && __clang_major__ >= 13 && __clang_major__ <= 14 && COMMON_LIBSTDCPP_VER >= 12 && COMMON_CPP_20
+// try to fix https://github.com/llvm/llvm-project/issues/55560
+namespace common::fix::detail
+{
+[[maybe_unused]] inline std::string    clang_string_workaround   (const char    * a, const char*     b) { return { a, b }; }
+[[maybe_unused]] inline std::wstring   clang_string_workaround   (const wchar_t * a, const wchar_t * b) { return { a, b }; }
+[[maybe_unused]] inline std::u16string clang_u16string_workaround(const char16_t* a, const char16_t* b) { return { a, b }; }
+[[maybe_unused]] inline std::u32string clang_u32string_workaround(const char32_t* a, const char32_t* b) { return { a, b }; }
+[[maybe_unused]] inline std::u8string  clang_u8string_workaround (const char8_t * a, const char8_t * b) { return { a, b }; }
+}
+#endif
 
 
 /* *_s fix */
@@ -674,7 +693,7 @@ template<typename T, typename U>
 struct NonCopyable
 {
     constexpr NonCopyable() noexcept = default;
-    constexpr ~NonCopyable() noexcept = default;
+    ~NonCopyable() noexcept = default;
     constexpr NonCopyable(const NonCopyable&) noexcept = delete;
     constexpr NonCopyable& operator= (const NonCopyable&) noexcept = delete;
     constexpr NonCopyable(NonCopyable&&) noexcept = default;
@@ -684,7 +703,7 @@ struct NonCopyable
 struct NonMovable
 {
     constexpr NonMovable() noexcept = default;
-    constexpr ~NonMovable() noexcept = default;
+    ~NonMovable() noexcept = default;
     constexpr NonMovable(NonMovable&&) noexcept = delete;
     constexpr NonMovable& operator= (NonMovable&&) noexcept = delete;
     constexpr NonMovable(const NonMovable&) noexcept = default;

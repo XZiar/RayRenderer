@@ -210,7 +210,7 @@ struct FormatterHelper : public FormatterBase
                 spec.align = fmt::align::numeric;
             else
             {
-                CM_ASSUME(enum_cast(in->Alignment) < 4);
+                CM_ASSUME(static_cast<uint8_t>(in->Alignment) < 4);
                 spec.align = static_cast<fmt::align_t>(in->Alignment);
             }
         }
@@ -332,18 +332,18 @@ struct FormatterHelper : public FormatterBase
     static_assert(fmt::sign::space == enum_cast(FormatSpec::Sign::Space));
     static forceinline constexpr fmt::sign_t ConvertSpecSign(const FormatSpec::Sign sign) noexcept
     {
-        CM_ASSUME(enum_cast(sign) < 4);
+        CM_ASSUME(static_cast<uint8_t>(sign) < 4);
         return static_cast<fmt::sign_t>(sign);
     }
     static constexpr uint32_t IntPrefixes[4] = { 0, 0, 0x1000000u | '+', 0x1000000u | ' ' };
     static forceinline constexpr uint32_t ConvertSpecIntSign(FormatSpec::Sign sign) noexcept
     {
-        CM_ASSUME(enum_cast(sign) < 4);
+        CM_ASSUME(static_cast<uint8_t>(sign) < 4);
         return IntPrefixes[enum_cast(sign)];
     }
     static forceinline constexpr uint32_t ConvertSpecIntSign(fmt::sign_t sign) noexcept
     {
-        CM_ASSUME(sign < 4);
+        CM_ASSUME(static_cast<uint8_t>(sign) < 4);
         return IntPrefixes[sign];
     }
     
