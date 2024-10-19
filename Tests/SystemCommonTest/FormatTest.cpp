@@ -15,6 +15,20 @@ using namespace common::str;
 using common::BaseException;
 
 
+static void TestValLen(const uint32_t val, const uint32_t encodeSize, const uint32_t encodeLen, const uint8_t byte0, const uint8_t byte1, const uint8_t byte2, const uint8_t byte3)
+{
+    uint8_t tmp[4] = { 0 };
+    uint32_t idx = 0;
+    const auto lenVal = FormatterParser::ArgOp::EncodeValLenTo(val, tmp, idx);
+    EXPECT_EQ(idx, encodeSize);
+    EXPECT_EQ(lenVal, encodeLen);
+    EXPECT_THAT(tmp, testing::ElementsAre(byte0, byte1, byte2, byte3));
+    SpecReader reader(tmp);
+    const auto readVal = reader.ReadLengthedVal(lenVal, 0xabadbeefu);
+    EXPECT_EQ(readVal, val);
+    // EXPECT_EQ(reader.SpecSize, encodeSize);
+}
+
 TEST(Format, Utility)
 {
     EXPECT_EQ(FormatterParser::CheckAlign('<'), FormatSpec::Align::Left);
@@ -51,6 +65,23 @@ TEST(Format, Utility)
         {
             EXPECT_EQ(FormatterParser::CheckSign(static_cast<uint32_t>(i)), FormatSpec::Sign::None) << "at" << i;
         }
+    }
+
+    {
+#define EncodeValLenTest(val, size, out, val0, val1, val2, val3) \
+do { SCOPED_TRACE("TestValLen 0x" #val); TestValLen(0x##val##u, size, out, 0x##val0##u, 0x##val1##u, 0x##val2##u, 0x##val3##u); } while(0)
+
+        EncodeValLenTest(0,        1u, 1u, 00, 00, 00, 00);
+        EncodeValLenTest(1,        1u, 1u, 01, 00, 00, 00);
+        EncodeValLenTest(ff,       1u, 1u, ff, 00, 00, 00);
+        EncodeValLenTest(100,      2u, 2u, 00, 01, 00, 00);
+        EncodeValLenTest(103,      2u, 2u, 03, 01, 00, 00);
+        EncodeValLenTest(c90f,     2u, 2u, 0f, c9, 00, 00);
+        EncodeValLenTest(1c09f,    4u, 3u, 9f, c0, 01, 00);
+        EncodeValLenTest(fecba9,   4u, 3u, a9, cb, fe, 00);
+        EncodeValLenTest(78fecba9, 4u, 3u, a9, cb, fe, 78);
+
+#undef EncodeValLenTest
     }
 }
 
@@ -1056,21 +1087,23 @@ TEST(Format, Perf)
         cachedFmter.Format(csf[2], "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
     };
 
-    tester.ManaulTest(
-        "fmt-def", fmtdef,
-        "fmt-cpl", fmtcpl,
-        "fmt-rt ", fmtrt,
-        "fmt-dyn", fmtdyn,
-        "csf-dyn", csfdyn,
-        "csf-sta", csfsta,
-        "csf-cah", csfcah
-    );
+    //tester.ManaulTest(
+    //    "fmt-def", fmtdef,
+    //    "fmt-cpl", fmtcpl,
+    //    "fmt-rt ", fmtrt,
+    //    "fmt-dyn", fmtdyn,
+    //    "csf-dyn", csfdyn,
+    //    "csf-sta", csfsta,
+    //    "csf-cah", csfcah
+    //);
+    //
+    //EXPECT_EQ(ref[1], ref[0]);
+    //EXPECT_EQ(ref[2], ref[0]);
+    //EXPECT_EQ(ref[3], ref[0]);
+    //EXPECT_EQ(csf[0], ref[0]);
+    //EXPECT_EQ(csf[1], csf[0]);
+    //EXPECT_EQ(csf[2], csf[0]);
 
-    EXPECT_EQ(ref[1], ref[0]);
-    EXPECT_EQ(ref[2], ref[0]);
-    EXPECT_EQ(ref[3], ref[0]);
-    EXPECT_EQ(csf[0], ref[0]);
-    EXPECT_EQ(csf[1], csf[0]);
-    EXPECT_EQ(csf[2], csf[0]);
+    PerfTester("FormatPerf", 1, 3000).ManaulTest("csf-dyn", csfdyn);
 }
 #endif

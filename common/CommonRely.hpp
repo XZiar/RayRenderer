@@ -443,17 +443,7 @@ namespace common
 
 /* compiler fix */
 
-#if COMMON_COMPILER_CLANG && __clang_major__ >= 13 && __clang_major__ <= 14 && COMMON_LIBSTDCPP_VER >= 12 && COMMON_CPP_20
-// try to fix https://github.com/llvm/llvm-project/issues/55560
-namespace common::fix::detail
-{
-[[maybe_unused]] inline std::string    clang_string_workaround   (const char    * a, const char*     b) { return { a, b }; }
-[[maybe_unused]] inline std::wstring   clang_string_workaround   (const wchar_t * a, const wchar_t * b) { return { a, b }; }
-[[maybe_unused]] inline std::u16string clang_u16string_workaround(const char16_t* a, const char16_t* b) { return { a, b }; }
-[[maybe_unused]] inline std::u32string clang_u32string_workaround(const char32_t* a, const char32_t* b) { return { a, b }; }
-[[maybe_unused]] inline std::u8string  clang_u8string_workaround (const char8_t * a, const char8_t * b) { return { a, b }; }
-}
-#endif
+
 
 
 /* *_s fix */
@@ -651,19 +641,19 @@ public:
 
 
 template<typename T>
-[[nodiscard]] forceinline constexpr const T& max(const T& left, const T& right)
+[[nodiscard]] forceinline constexpr const T& max(const T& left, const T& right) noexcept
 {
     static_assert(std::is_arithmetic_v<T>, "only support arithmetic type");
     return left < right ? right : left;
 }
 template<typename T>
-[[nodiscard]] forceinline constexpr const T& min(const T& left, const T& right)
+[[nodiscard]] forceinline constexpr const T& min(const T& left, const T& right) noexcept
 {
     static_assert(std::is_arithmetic_v<T>, "only support arithmetic type");
     return left < right ? left : right;
 }
 template<typename T, typename U>
-[[nodiscard]] forceinline constexpr T saturate_cast(const U val)
+[[nodiscard]] forceinline constexpr T saturate_cast(const U val) noexcept
 {
     static_assert(std::is_arithmetic_v<T> && std::is_arithmetic_v<U>, "only support arithmetic type");
     constexpr bool MaxFit = static_cast<std::make_unsigned_t<U>>(std::numeric_limits<U>::max())
@@ -687,6 +677,18 @@ template<typename T, typename U>
                 max(static_cast<U>(std::numeric_limits<T>::min()), val)
             ));
     }
+}
+
+template<typename T>
+[[nodiscard]] forceinline constexpr std::pair<T, T> GetMinMaxIn(const T* ptr, size_t len) noexcept
+{
+    T retMin = ptr[0], retMax = ptr[0];
+    for (size_t i = 1; i < len; ++i)
+    {
+             if (ptr[i] < retMin) retMin = ptr[i];
+        else if (ptr[i] > retMax) retMax = ptr[i];
+    }
+    return { retMin, retMax };
 }
 
 

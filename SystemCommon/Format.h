@@ -182,56 +182,68 @@ struct FormatterParser
         using Sign  = str::FormatSpec::Sign;
         struct TypeIdentifier
         {
+            // type        ::=  "a" | "A" | "b" | "B" | "c" | "d" | "e" | "E" | "f" | "F" | "g" | "G" | "o" | "p" | "s" | "x" | "X" | "T" | "@"
+            static constexpr std::string_view TypeChars = "gGaAeEfFdbBoxXcpsT@";
+            static constexpr std::pair<char, char> TypeCharMinMax = common::GetMinMaxIn(TypeChars.data(), TypeChars.size());
+            // high half for Extra, low half for Type
+            static constexpr std::array<uint8_t, TypeCharMinMax.second - TypeCharMinMax.first + 1> TypePackedInfo = []() 
+            {
+                static_assert(enum_cast(ArgDispType::Any) == 0u);
+                constexpr size_t Count = TypeCharMinMax.second - TypeCharMinMax.first + 1;
+                std::array<uint8_t, Count> ret = { };
+                for (uint32_t i = 0; i < Count; ++i)
+                    ret[i] = 0xf0;
+#define PutType(ch, type, extra) ret[ch - TypeCharMinMax.first] = static_cast<uint8_t>((enum_cast(ArgDispType::type) & 0xfu) | (static_cast<uint32_t>(extra) << 4))
+                PutType('g', Float, 0);
+                PutType('G', Float, 1);
+                PutType('a', Float, 2);
+                PutType('A', Float, 3);
+                PutType('e', Float, 4);
+                PutType('E', Float, 5);
+                PutType('f', Float, 6);
+                PutType('F', Float, 7);
+                PutType('d', Integer, 0);
+                PutType('b', Integer, 1);
+                PutType('B', Integer, 2);
+                PutType('o', Integer, 3);
+                PutType('x', Integer, 4);
+                PutType('X', Integer, 5);
+                PutType('c', Char, 0);
+                PutType('p', Pointer, 0);
+                PutType('s', String, 0);
+                PutType('T', Date, 0);
+                PutType('@', Color, 0);
+#undef PutType
+                return ret;
+            }();
+
             ArgDispType Type  = ArgDispType::Any;
             uint8_t Extra = 0;
             constexpr TypeIdentifier() noexcept {}
-            forceinline constexpr TypeIdentifier(char ch) noexcept
+            forceinline constexpr TypeIdentifier(uint8_t ch) noexcept
             {
-                static_assert(std::string_view::npos == SIZE_MAX);
-                // type        ::=  "a" | "A" | "b" | "B" | "c" | "d" | "e" | "E" | "f" | "F" | "g" | "G" | "o" | "p" | "s" | "x" | "X" | "T" | "@"
-                constexpr std::string_view types{ "gGaAeEfFdbBoxXcpsT@" };
-                const auto typeidx = static_cast<uint32_t>(types.find_first_of(ch)); // hack on x86 to avoid using r64
-                if (typeidx <= 7) // gGaAeEfF
+                IF_LIKELY(ch >= TypeCharMinMax.first && ch <= TypeCharMinMax.second)
                 {
-                    Type = ArgDispType::Float;
-                    Extra = static_cast<uint8_t>(typeidx);
+                    const auto info = TypePackedInfo[ch - TypeCharMinMax.first];
+                    Type = static_cast<ArgDispType>(info & 0xfu);
+                    Extra = static_cast<uint8_t>(static_cast<int8_t>(info) >> 4); // high bit arthmetical shift right leads to 0xff
                 }
-                else if (typeidx <= 13) // dbBoxX
-                {
-                    Type = ArgDispType::Integer;
-                    Extra = static_cast<uint8_t>(typeidx - 8);
-                }
-                else if (typeidx == 14) // c
-                {
-                    Type = ArgDispType::Char;
-                    Extra = 0x00;
-                }
-                else if (typeidx == 15) // p
-                {
-                    Type = ArgDispType::Pointer;
-                    Extra = 0x00;
-                }
-                else if (typeidx == 16) // s
-                {
-                    Type = ArgDispType::String;
-                    Extra = 0x00;
-                }
-                else if (typeidx == 17) // T
-                {
-                    Type = ArgDispType::Date;
-                    Extra = 0x00;
-                }
-                else if (typeidx == 18) // @
-                {
-                    Type = ArgDispType::Color;
-                    Extra = 0x00;
-                }
-                ELSE_UNLIKELY
-                {
+                else
                     Extra = 0xff;
-                }
             }
         };
+
+        struct NonDefaultFlags
+        {
+            static constexpr uint8_t Fill = 0b1;
+            static constexpr uint8_t Precision = 0b10;
+            static constexpr uint8_t Width = 0b100;
+            static constexpr uint8_t Alignment = 0b100;
+            static constexpr uint8_t SignFlag = 0b1000;
+            static constexpr uint8_t AlterForm = 0b10000;
+            static constexpr uint8_t ZeroPad = 0b100000;
+        };
+
         uint32_t Fill       = ' ';
         uint32_t Precision  = 0;
         uint16_t Width      = 0;
@@ -242,6 +254,7 @@ struct FormatterParser
         Sign SignFlag       = Sign::None;
         bool AlterForm      = false;
         bool ZeroPad        = false;
+        uint8_t NonDefaultFlag = 0;
     };
     
     struct BuiltinOp
@@ -336,11 +349,48 @@ struct FormatterParser
         static constexpr uint8_t FieldIndexed = 0x00;
         static constexpr uint8_t FieldNamed   = 0x20;
         static constexpr uint8_t FieldHasSpec = 0x10;
-        static forceinline constexpr uint8_t EncodeValLen(uint32_t val) noexcept
+        template<typename T>
+        static forceinline constexpr uint8_t EncodeValLenTo(const T val, uint8_t* output, uint32_t& idx) noexcept
         {
-            if (val <= UINT8_MAX)  return (uint8_t)1;
-            if (val <= UINT16_MAX) return (uint8_t)2;
-            return (uint8_t)3;
+            static_assert(std::is_unsigned_v<T>);
+            static_assert(sizeof(T) <= sizeof(uint32_t));
+            if (common::is_constant_evaluated(true))
+            {
+                output[idx++] = static_cast<uint8_t>(val);
+                if (val <= UINT8_MAX)
+                    return (uint8_t)1;
+                output[idx++] = static_cast<uint8_t>(val >> 8);
+                if constexpr (sizeof(T) > sizeof(uint16_t))
+                {
+                    if (val > UINT16_MAX)
+                    {
+                        output[idx++] = static_cast<uint8_t>(val >> 16);
+                        output[idx++] = static_cast<uint8_t>(val >> 24);
+                        return (uint8_t)3;
+                    }
+                }
+                return (uint8_t)2;
+            }
+            else
+            {
+                // Little Endian can simply copy, unused region remains 0
+                *reinterpret_cast<uint32_t*>(&output[idx]) = val;
+                IF_LIKELY(val <= UINT8_MAX)
+                {
+                    idx += 1;
+                    return (uint8_t)1;
+                }
+                else if (val <= UINT16_MAX)
+                {
+                    idx += 2;
+                    return (uint8_t)2;
+                }
+                else
+                {
+                    idx += 4;
+                    return (uint8_t)3;
+                }
+            }
         }
         static forceinline constexpr uint32_t EncodeSpec(const FormatSpec& spec, uint8_t(&output)[SpecLength[1]]) noexcept
         {
@@ -359,64 +409,68 @@ struct FormatterParser
                 bool AlterForm = false;//1
                 bool ZeroPad = false;//1
             };*/
+            CM_ASSUME(static_cast<uint8_t>(spec.Alignment) < 4);
+            CM_ASSUME(static_cast<uint8_t>(spec.SignFlag) < 4);
             spec0 |= static_cast<uint8_t>(spec.Type.Extra << 5);
-            spec0 |= static_cast<uint8_t>((enum_cast(spec.Alignment) & 0x3) << 2);
-            spec0 |= static_cast<uint8_t>((enum_cast(spec.SignFlag)  & 0x3) << 0);
+            spec0 |= static_cast<uint8_t>(enum_cast(spec.Alignment) << 2);
+            spec0 |= static_cast<uint8_t>(enum_cast(spec.SignFlag) << 0);
             uint32_t idx = 2;
             IF_UNLIKELY(spec.Fill != ' ') // + 0~4
             {
-                const auto val = EncodeValLen(spec.Fill);
-                output[idx++] = static_cast<uint8_t>(spec.Fill);
-                if (val > 1)
-                {
-                    output[idx++] = static_cast<uint8_t>(spec.Fill >> 8);
-                }
-                if (val > 2)
-                {
-                    output[idx++] = static_cast<uint8_t>(spec.Fill >> 16);
-                    output[idx++] = static_cast<uint8_t>(spec.Fill >> 24);
-                }
+                const auto val = EncodeValLenTo(spec.Fill, output, idx);
                 spec1 |= static_cast<uint8_t>(val << 6);
             }
             IF_UNLIKELY(spec.Precision != 0) // + 0~4
             {
-                const auto val = EncodeValLen(spec.Precision);
-                output[idx++] = static_cast<uint8_t>(spec.Precision);
-                if (val > 1)
-                {
-                    output[idx++] = static_cast<uint8_t>(spec.Precision >> 8);
-                }
-                if (val > 2)
-                {
-                    output[idx++] = static_cast<uint8_t>(spec.Precision >> 16);
-                    output[idx++] = static_cast<uint8_t>(spec.Precision >> 24);
-                }
+                const auto val = EncodeValLenTo(spec.Precision, output, idx);
                 spec1 |= static_cast<uint8_t>(val << 4);
             }
             IF_UNLIKELY(spec.Width != 0) // + 0~2
             {
-                const auto val = EncodeValLen(spec.Width);
-                output[idx++] = static_cast<uint8_t>(spec.Width);
-                if (val > 1)
-                {
-                    output[idx++] = static_cast<uint8_t>(spec.Width >> 8);
-                }
+                const auto val = EncodeValLenTo(spec.Width, output, idx);
                 spec1 |= static_cast<uint8_t>(val << 2);
             }
             IF_UNLIKELY(spec.FmtLen > 0) // + 0~4
             {
                 spec0 |= static_cast<uint8_t>(0x10u);
-                output[idx++] = static_cast<uint8_t>(spec.FmtOffset);
-                if (spec.FmtOffset > UINT8_MAX)
+                if (common::is_constant_evaluated(true))
                 {
-                    output[idx++] = static_cast<uint8_t>(spec.FmtOffset >> 8);
-                    spec0 |= static_cast<uint8_t>(0x80u);
+                    output[idx++] = static_cast<uint8_t>(spec.FmtOffset);
+                    if (spec.FmtOffset > UINT8_MAX)
+                    {
+                        output[idx++] = static_cast<uint8_t>(spec.FmtOffset >> 8);
+                        spec0 |= static_cast<uint8_t>(0x80u);
+                    }
+                    output[idx++] = static_cast<uint8_t>(spec.FmtLen);
+                    if (spec.FmtLen > UINT8_MAX)
+                    {
+                        output[idx++] = static_cast<uint8_t>(spec.FmtLen >> 8);
+                        spec0 |= static_cast<uint8_t>(0x40u);
+                    }
                 }
-                output[idx++] = static_cast<uint8_t>(spec.FmtLen);
-                if (spec.FmtLen > UINT8_MAX)
+                else
                 {
-                    output[idx++] = static_cast<uint8_t>(spec.FmtLen >> 8);
-                    spec0 |= static_cast<uint8_t>(0x40u);
+                    // Little Endian can simply copy, unused region remains 0
+                    *reinterpret_cast<uint16_t*>(&output[idx]) = spec.FmtOffset;
+                    IF_UNLIKELY(spec.FmtOffset > UINT8_MAX)
+                    {
+                        idx += 2;
+                        spec0 |= static_cast<uint8_t>(0x80u);
+                    }
+                    else
+                    {
+                        idx += 1;
+                    }
+                    *reinterpret_cast<uint16_t*>(&output[idx]) = spec.FmtLen;
+                    IF_UNLIKELY(spec.FmtLen > UINT8_MAX)
+                    {
+                        idx += 2;
+                        spec0 |= static_cast<uint8_t>(0x40u);
+                    }
+                    else
+                    {
+                        idx += 1;
+                    }
                 }
             }
             if (spec.AlterForm) 
@@ -537,6 +591,8 @@ struct FormatterParser
         IF_LIKELY(ch <= UINT16_MAX)
         {
             fmtSpec.Fill = ch;
+            if (ch != ' ')
+                fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::Fill;
             return true;
         }
         else
@@ -877,6 +933,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                 IF_UNLIKELY(!TryPutFill(result, fmtSpec, offset, fill))
                     return false;
                 fmtSpec.Alignment = align;
+                fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::Alignment;
                 idx += 2;
                 return true;
             }
@@ -887,6 +944,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                 if (const auto align = CheckAlign(str[0]); align != FormatSpec::Align::None)
                 {
                     fmtSpec.Alignment = align;
+                    fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::Alignment;
                     idx++;
                 }
                 return true;
@@ -908,6 +966,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             IF_UNLIKELY(!TryPutFill(result, fmtSpec, offset, ch))
                 return false;
             fmtSpec.Alignment = align;
+            fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::Alignment;
             idx++;
             return true;
         }
@@ -917,6 +976,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             {
                 // only align
                 fmtSpec.Alignment = align;
+                fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::Alignment;
                 idx++;
             }
             return true;
@@ -933,7 +993,9 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             const auto [errIdx, inRange] = ParseDecTail<UINT16_MAX>(width, &str[idx], len - idx);
             IF_LIKELY(inRange)
             {
+                CM_ASSUME(width > 0);
                 fmtSpec.Width = static_cast<uint16_t>(width);
+                fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::Width;
                 if (errIdx == UINT32_MAX) // full finish
                     idx = len;
                 else // assume successfully get a width
@@ -963,7 +1025,9 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                     const auto [errIdx, inRange] = ParseDecTail<UINT32_MAX>(precision, &str[idx], len - idx);
                     IF_LIKELY(inRange)
                     {
+                        CM_ASSUME(precision > 0);
                         fmtSpec.Precision = precision;
+                        fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::Precision;
                         if (errIdx == UINT32_MAX) // full finish
                             idx = len;
                         else // assume successfully get a width
@@ -996,6 +1060,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         if (const auto sign = CheckSign(str[idx]); sign != FormatSpec::Sign::None)
         {
             fmtSpec.SignFlag = sign;
+            fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::SignFlag;
             fmtSpec.Type.Type = ArgDispType::Numeric;
             if (++idx == len) return true;
         }
@@ -1003,12 +1068,14 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         if (str[idx] == Char_NumSign)
         {
             fmtSpec.AlterForm = true;
+            fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::AlterForm;
             if (++idx == len) return true;
         }
         
         if (str[idx] == Char_0)
         {
             fmtSpec.ZeroPad = true;
+            fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::ZeroPad;
             fmtSpec.Type.Type = ArgDispType::Numeric;
             if (++idx == len) return true;
         }
@@ -1025,7 +1092,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             const uint32_t typestr = str[idx];
             IF_LIKELY(typestr <= 127)
             {
-                const FormatSpec::TypeIdentifier type{ static_cast<char>(typestr) };
+                const FormatSpec::TypeIdentifier type{ static_cast<uint8_t>(typestr) };
                 IF_LIKELY(type.Extra != 0xff)
                 {
                     idx++;
@@ -1040,11 +1107,15 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                         }
                     }
                     // time type check
-                    if (type.Type == ArgDispType::Date)
+                    IF_UNLIKELY(type.Type == ArgDispType::Date)
                     {
                         // zeropad & signflag already checked
-                        IF_UNLIKELY(fmtSpec.AlterForm || fmtSpec.Precision != 0 || fmtSpec.Width != 0 || fmtSpec.Fill != ' ' ||
-                            fmtSpec.Alignment != FormatSpec::Align::None)
+                        constexpr uint8_t forceDefualtFlag = FormatSpec::NonDefaultFlags::AlterForm
+                            | FormatSpec::NonDefaultFlags::Precision
+                            | FormatSpec::NonDefaultFlags::Width
+                            | FormatSpec::NonDefaultFlags::Fill
+                            | FormatSpec::NonDefaultFlags::Alignment;
+                        IF_UNLIKELY(fmtSpec.NonDefaultFlag & forceDefualtFlag)
                         {
                             result.SetError(offset + idx, ParseResultBase::ErrorCode::IncompDateSpec);
                             return false;
@@ -1053,7 +1124,10 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                     else if (type.Type == ArgDispType::Color)
                     {
                         // zeropad & signflag already checked
-                        IF_UNLIKELY(fmtSpec.Precision != 0 || fmtSpec.Width != 0 || fmtSpec.Fill != ' ')
+                        constexpr uint8_t forceDefualtFlag = FormatSpec::NonDefaultFlags::Precision
+                            | FormatSpec::NonDefaultFlags::Width
+                            | FormatSpec::NonDefaultFlags::Fill;
+                        IF_UNLIKELY(fmtSpec.NonDefaultFlag & forceDefualtFlag)
                         {
                             result.SetError(offset + idx, ParseResultBase::ErrorCode::IncompColorSpec);
                             return false;
@@ -2119,10 +2193,19 @@ struct SpecReader
     friend FormatterBase;
 private:
     struct Checker;
-    const uint8_t* Ptr = nullptr;
+    const uint8_t* Ptr;
     FormatSpec Spec;
     uint32_t SpecSize = 0;
-    forceinline constexpr uint32_t ReadLengthedVal(uint32_t lenval, uint32_t val) noexcept
+    forceinline constexpr void Reset(const uint8_t* ptr) noexcept
+    {
+        Ptr = ptr;
+        SpecSize = 0;
+    }
+    [[nodiscard]] forceinline constexpr uint32_t EnsureSize() noexcept;
+public:
+    constexpr SpecReader() noexcept : Ptr(nullptr) {}
+    explicit constexpr SpecReader(const uint8_t* ptr) noexcept : Ptr(ptr) {}
+    [[nodiscard]] forceinline constexpr uint32_t ReadLengthedVal(uint32_t lenval, uint32_t val) noexcept
     {
         if (common::is_constant_evaluated(true))
         {
@@ -2148,13 +2231,6 @@ private:
         }
         return val;
     };
-    forceinline constexpr void Reset(const uint8_t* ptr) noexcept
-    {
-        Ptr = ptr;
-        SpecSize = 0;
-    }
-    [[nodiscard]] forceinline constexpr uint32_t EnsureSize() noexcept;
-public:
     [[nodiscard]] forceinline constexpr const FormatSpec* ReadSpec() noexcept
     {
         if (!Ptr)

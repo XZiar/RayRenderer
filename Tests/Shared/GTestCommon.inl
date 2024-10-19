@@ -8,6 +8,18 @@
 #include <variant>
 #include <random>
 
+#if COMMON_COMPILER_CLANG && __clang_major__ >= 13 && __clang_major__ <= 14 && COMMON_LIBSTDCPP_VER >= 12 && COMMON_CPP_20
+// try to fix https://github.com/llvm/llvm-project/issues/55560
+namespace fix::detail
+{
+[[maybe_unused]] static std::string    clang_string_workaround   (const char    * a, const char*     b) { return { a, b }; }
+[[maybe_unused]] static std::wstring   clang_string_workaround   (const wchar_t * a, const wchar_t * b) { return { a, b }; }
+[[maybe_unused]] static std::u16string clang_u16string_workaround(const char16_t* a, const char16_t* b) { return { a, b }; }
+[[maybe_unused]] static std::u32string clang_u32string_workaround(const char32_t* a, const char32_t* b) { return { a, b }; }
+[[maybe_unused]] static std::u8string  clang_u8string_workaround (const char8_t * a, const char8_t * b) { return { a, b }; }
+}
+#endif
+
 
 void TestIntrinComplete(common::span<const common::FastPathBase::PathInfo> supports, common::span<const common::FastPathBase::VarItem> intrinMap, bool isComplete)
 {
