@@ -11,8 +11,10 @@ void sighandler(int)
     common::str::Formatter<char> fmter;
     for (const auto& s : stack)
     {
-        const auto txt = fmter.FormatStatic(FmtString("{}:{} {}\n"), (std::u16string_view)s.File, s.Line, (std::u16string_view)s.Func);
-        printf("%s", txt.c_str());
+        printf("%s:%zu %s\n",
+            common::str::to_string((std::u16string_view)s.File, common::str::Encoding::UTF8).c_str(),
+            s.Line,
+            common::str::to_string((std::u16string_view)s.Func, common::str::Encoding::UTF8).c_str());
     }
     abort();
     //raise(SIGILL);

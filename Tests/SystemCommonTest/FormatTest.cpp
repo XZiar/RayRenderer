@@ -1,4 +1,5 @@
 ﻿#include "rely.h"
+#include "common/StringLinq.hpp"
 #include "SystemCommon/Format.h"
 #include "SystemCommon/FormatExtra.h"
 #include "SystemCommon/StringConvert.h"
@@ -71,22 +72,114 @@ TEST(Format, Utility)
 #define EncodeValLenTest(val, size, out, val0, val1, val2, val3) \
 do { SCOPED_TRACE("TestValLen 0x" #val); TestValLen(0x##val##u, size, out, 0x##val0##u, 0x##val1##u, 0x##val2##u, 0x##val3##u); } while(0)
 
-        EncodeValLenTest(0,        1u, 1u, 00, 00, 00, 00);
-        EncodeValLenTest(1,        1u, 1u, 01, 00, 00, 00);
-        EncodeValLenTest(ff,       1u, 1u, ff, 00, 00, 00);
-        EncodeValLenTest(100,      2u, 2u, 00, 01, 00, 00);
-        EncodeValLenTest(103,      2u, 2u, 03, 01, 00, 00);
-        EncodeValLenTest(c90f,     2u, 2u, 0f, c9, 00, 00);
-        EncodeValLenTest(1c09f,    4u, 3u, 9f, c0, 01, 00);
-        EncodeValLenTest(fecba9,   4u, 3u, a9, cb, fe, 00);
+        EncodeValLenTest(       0, 1u, 1u, 00, 00, 00, 00);
+        EncodeValLenTest(       1, 1u, 1u, 01, 00, 00, 00);
+        EncodeValLenTest(      ff, 1u, 1u, ff, 00, 00, 00);
+        EncodeValLenTest(     100, 2u, 2u, 00, 01, 00, 00);
+        EncodeValLenTest(     103, 2u, 2u, 03, 01, 00, 00);
+        EncodeValLenTest(    c90f, 2u, 2u, 0f, c9, 00, 00);
+        EncodeValLenTest(   1c09f, 4u, 3u, 9f, c0, 01, 00);
+        EncodeValLenTest(  fecba9, 4u, 3u, a9, cb, fe, 00);
         EncodeValLenTest(78fecba9, 4u, 3u, a9, cb, fe, 78);
 
 #undef EncodeValLenTest
     }
 }
 
+#define ArgIdTesterArg [[maybe_unused]] ParseResultCommon& result, [[maybe_unused]] std::string_view str, [[maybe_unused]] std::string_view part, uint32_t retcode, uint8_t argIdx, ArgDispType* dstType
+using TestArgIdTester = void(*)(ArgIdTesterArg);
+template<size_t N>
+static void TestArgId(std::string_view str, const TestArgIdTester(&tester)[N])
+{
+    ParseResultCommon result;
+    uint32_t partIdx = 0;
+    for (const auto part : common::str::SplitStream(str, ',', false))
+    {
+        if (partIdx >= N)
+        {
+            EXPECT_TRUE(partIdx < N) << "too few tester for given string: " << str;
+            break;
+        }
+        auto msg = std::string("for part [").append(std::to_string(partIdx)).append("]: [").append(part).append("]");
+        testing::ScopedTrace trace("", 0, msg);
+        const auto firstCh = part[0];
+        uint8_t argIdx = 0;
+        ArgDispType* dstType = nullptr;
+        result.ErrorPos = result.ErrorNum = 0; // clear error
+        const auto ret = FormatterParserCh<char>::ParseArgId(result, firstCh, argIdx, dstType,
+            str.data(), static_cast<uint32_t>(part.data() - str.data()), static_cast<uint32_t>(part.size()));
+        tester[partIdx++](result, str, part, ret, argIdx, dstType);
+    }
+}
 
-TEST(Format, ParseUTF)
+TEST(Format, ParseArgId)
+{
+    static constexpr auto IdxTester = [](uint32_t idx, ArgIdTesterArg)
+    {
+        EXPECT_EQ(retcode, 0u);
+        EXPECT_EQ(argIdx, idx);
+        EXPECT_EQ(dstType, nullptr);
+        EXPECT_EQ(result.ErrorPos, static_cast<uint16_t>(0));
+        EXPECT_EQ(result.ErrorNum, static_cast<uint16_t>(0));
+    };
+    static constexpr auto NamedTester = [](uint32_t idx, std::string_view name, uint32_t namedCount, ArgIdTesterArg)
+    {
+        ASSERT_EQ(part, name);
+        EXPECT_EQ(retcode, 0u);
+        EXPECT_EQ(argIdx, idx);
+        EXPECT_EQ(dstType, &result.NamedTypes[argIdx].Type);
+        EXPECT_EQ(part, str.substr(result.NamedTypes[argIdx].Offset, result.NamedTypes[argIdx].Length));
+        EXPECT_EQ(result.NamedArgCount, namedCount);
+        EXPECT_EQ(result.ErrorPos, static_cast<uint16_t>(0));
+        EXPECT_EQ(result.ErrorNum, static_cast<uint16_t>(0));
+    };
+    static constexpr auto FailedTester = [](uint32_t pos, ParseResultBase::ErrorCode err, ArgIdTesterArg)
+    {
+        EXPECT_EQ(retcode, 1u);
+        EXPECT_EQ(argIdx, 0u);
+        EXPECT_EQ(dstType, nullptr);
+        EXPECT_EQ(result.ErrorPos, static_cast<uint16_t>(pos + part.data() - str.data()));
+        EXPECT_EQ(result.ErrorNum, static_cast<uint16_t>(err));
+    };
+    static constexpr auto SkipTester = [](ArgIdTesterArg)
+    {
+        EXPECT_EQ(retcode, 2u);
+        EXPECT_EQ(argIdx, 0u);
+        EXPECT_EQ(dstType, nullptr);
+        EXPECT_EQ(result.ErrorPos, static_cast<uint16_t>(0));
+        EXPECT_EQ(result.ErrorNum, static_cast<uint16_t>(0));
+    };
+#define CheckIdxArg(idx) IdxTester(idx, result, str, part, retcode, argIdx, dstType)
+#define CheckNamedArg(idx, name, cnt) NamedTester(idx, name, cnt, result, str, part, retcode, argIdx, dstType)
+#define CheckFailed(pos, err) FailedTester(pos, ParseResultBase::ErrorCode::err, result, str, part, retcode, argIdx, dstType)
+#define CheckSkip() SkipTester(result, str, part, retcode, argIdx, dstType)
+    constexpr auto str = "0,02,3,45,618,9x,_,x,x1,pt9x,x1,@8"sv;
+    constexpr TestArgIdTester testers[] =
+    {
+        [](ArgIdTesterArg) { CheckIdxArg(0); },
+        [](ArgIdTesterArg) { CheckFailed(0, InvalidArgIdx); },
+        [](ArgIdTesterArg) { CheckIdxArg(3); },
+        [](ArgIdTesterArg) { CheckIdxArg(45); },
+        [](ArgIdTesterArg) { CheckFailed(1, ArgIdxTooLarge); },
+        [](ArgIdTesterArg) { CheckFailed(1, InvalidArgIdx); },
+        [](ArgIdTesterArg) { CheckNamedArg(0, "_", 1); },
+        [](ArgIdTesterArg) { CheckNamedArg(1, "x", 2); },
+        [](ArgIdTesterArg) { CheckNamedArg(2, "x1", 3); },
+        [](ArgIdTesterArg) { CheckNamedArg(3, "pt9x", 4); },
+        [](ArgIdTesterArg) { CheckNamedArg(2, "x1", 4); },
+        [](ArgIdTesterArg) { CheckSkip(); },
+    };
+    TestArgId(str, testers);
+#undef CheckIdxArg
+#undef CheckNamedArg
+#undef CheckFailed
+#undef CheckSkip
+}
+
+#undef ArgIdTesterArg
+
+
+TEST(Format, ReadUTF)
 {
 #define SingleCharTest(type, txt, ch, cnt) do                           \
 {                                                                       \
@@ -158,6 +251,7 @@ TEST(Format, ParseUTF)
 
 #undef SingleCharFail
 }
+
 
 
 #define CheckSuc() EXPECT_EQ(ret.ErrorPos, UINT16_MAX)
@@ -266,19 +360,20 @@ static std::string OpToString(uint8_t op)
     }
 }
 
-static void CheckOpCode(uint8_t opcode, uint8_t ref)
+static void CheckOpCode(const uint8_t* opcodes, const uint32_t idx, uint8_t ref)
 {
-    EXPECT_EQ(opcode, ref) << "opcode is " << OpToString(opcode);
+    const auto opcode = opcodes[idx];
+    EXPECT_EQ(opcode, ref) << "opcode is " << OpToString(opcode) << " at " << idx;
 }
 
-template<typename Char>
-static void CheckFmtStrOp_(const ParseResult<>& ret, uint16_t& idx, std::basic_string_view<Char> fmtStr, uint16_t offset, uint16_t length, std::basic_string_view<Char> str)
+template<uint16_t Size, typename Char>
+static void CheckFmtStrOp_(const ParseResult<Size>& ret, uint16_t& idx, std::basic_string_view<Char> fmtStr, uint16_t offset, uint16_t length, std::basic_string_view<Char> str)
 {
     ASSERT_EQ(fmtStr.substr(offset, length), str);
     uint8_t op = FormatterParser::BuiltinOp::Op | FormatterParser::BuiltinOp::FieldFmtStr;
     if (offset > UINT8_MAX) op |= FormatterParser::BuiltinOp::DataOffset16;
     if (length > UINT8_MAX) op |= FormatterParser::BuiltinOp::DataLength16;
-    CheckOpCode(ret.Opcodes[idx++], op);
+    CheckOpCode(ret.Opcodes, idx++, op);
     EXPECT_EQ(ret.Opcodes[idx++], static_cast<uint8_t>(offset));
     if (offset > UINT8_MAX)
     {
@@ -291,13 +386,15 @@ static void CheckFmtStrOp_(const ParseResult<>& ret, uint16_t& idx, std::basic_s
     }
 }
 
-static void CheckBraceOp_(const ParseResult<>& ret, uint16_t& idx, const char ch)
+template<uint16_t Size>
+static void CheckBraceOp_(const ParseResult<Size>& ret, uint16_t& idx, const char ch)
 {
-    CheckOpCode(ret.Opcodes[idx++], FormatterParser::BuiltinOp::Op | FormatterParser::BuiltinOp::FieldBrace | (ch == '{' ? 0x0 : 0x1));
+    CheckOpCode(ret.Opcodes, idx++, FormatterParser::BuiltinOp::Op | FormatterParser::BuiltinOp::FieldBrace | (ch == '{' ? 0x0 : 0x1));
 }
 
 using ColorArgData = std::variant<std::monostate, common::CommonColor, uint8_t, std::array<uint8_t, 3>>;
-static void CheckColorArgOp_(const ParseResult<>& ret, uint16_t& idx, bool isFG, ColorArgData data)
+template<uint16_t Size>
+static void CheckColorArgOp_(const ParseResult<Size>& ret, uint16_t& idx, bool isFG, ColorArgData data)
 {
     uint8_t op = FormatterParser::ColorOp::Op |
         (isFG ? FormatterParser::ColorOp::FieldForeground : FormatterParser::ColorOp::FieldBackground);
@@ -309,7 +406,7 @@ static void CheckColorArgOp_(const ParseResult<>& ret, uint16_t& idx, bool isFG,
     case 3: op |= FormatterParser::ColorOp::FieldSpecial | FormatterParser::ColorOp::DataBit24; break;
     default: ASSERT_FALSE(data.index());
     }
-    CheckOpCode(ret.Opcodes[idx++], op);
+    CheckOpCode(ret.Opcodes, idx++, op);
     if (data.index() == 2)
         EXPECT_EQ(ret.Opcodes[idx++], std::get<2>(data));
     else if (data.index() == 3)
@@ -321,10 +418,11 @@ static void CheckColorArgOp_(const ParseResult<>& ret, uint16_t& idx, bool isFG,
     }
 }
 
-static void CheckIdxArgOp_(const ParseResult<>& ret, uint16_t& idx, uint8_t argidx, const FormatterParser::FormatSpec* spec)
+template<uint16_t Size>
+static void CheckIdxArgOp_(const ParseResult<Size>& ret, uint16_t& idx, uint8_t argidx, const FormatterParser::FormatSpec* spec)
 {
     const uint8_t field = FormatterParser::ArgOp::FieldIndexed | (spec ? FormatterParser::ArgOp::FieldHasSpec : 0);
-    CheckOpCode(ret.Opcodes[idx++], FormatterParser::ArgOp::Op | field);
+    CheckOpCode(ret.Opcodes, idx++, FormatterParser::ArgOp::Op | field);
     EXPECT_EQ(ret.Opcodes[idx++], argidx);
     if (spec)
     {
@@ -336,10 +434,11 @@ static void CheckIdxArgOp_(const ParseResult<>& ret, uint16_t& idx, uint8_t argi
     }
 }
 
-static void CheckNamedArgOp_(const ParseResult<>& ret, uint16_t& idx, uint8_t argidx, const FormatterParser::FormatSpec* spec)
+template<uint16_t Size>
+static void CheckNamedArgOp_(const ParseResult<Size>& ret, uint16_t& idx, uint8_t argidx, const FormatterParser::FormatSpec* spec)
 {
     const uint8_t field = FormatterParser::ArgOp::FieldNamed | (spec ? FormatterParser::ArgOp::FieldHasSpec : 0);
-    CheckOpCode(ret.Opcodes[idx++], FormatterParser::ArgOp::Op | field);
+    CheckOpCode(ret.Opcodes, idx++, FormatterParser::ArgOp::Op | field);
     EXPECT_EQ(ret.Opcodes[idx++], argidx);
     if (spec)
     {
@@ -441,6 +540,15 @@ TEST(Format, ParseString)
         CheckOpFinish();
     }
     {
+        constexpr auto fmtStr = "H{{"sv;
+        constexpr auto ret = FormatterParser::ParseString(fmtStr);
+        CheckSuc();
+        CheckIdxArgCount(ret, 0, 0);
+        uint16_t idx = 0;
+        CheckOp(FmtStr, fmtStr, 0, 2, "H{"sv);
+        CheckOpFinish();
+    }
+    {
         constexpr auto ret = FormatterParser::ParseString("{{{{{{"sv);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
@@ -457,7 +565,7 @@ TEST(Format, ParseString)
     }
     {
         constexpr auto fmtStr = "Hello"sv;
-        constexpr auto ret = FormatterParser::ParseString(fmtStr);
+        const auto ret = FormatterParser::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
         uint16_t idx = 0;
@@ -466,7 +574,7 @@ TEST(Format, ParseString)
     }
     {
         constexpr auto fmtStr = "Hello{{"sv;
-        constexpr auto ret = FormatterParser::ParseString(fmtStr);
+        const auto ret = FormatterParser::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
         uint16_t idx = 0;
@@ -506,6 +614,18 @@ TEST(Format, ParseString)
         CheckOp(IdxArg, 3, nullptr);
         CheckOp(IdxArg, 1, nullptr);
         CheckOp(NamedArg, 0, nullptr);
+        CheckOpFinish();
+    }
+    {
+        constexpr auto fmtStr = "H}}{x1}{{o"sv;
+        constexpr auto ret = FormatterParser::ParseString(fmtStr);
+        CheckSuc();
+        CheckNamedArgs(ret, fmtStr, (Any, "x1"));
+        uint16_t idx = 0;
+        CheckOp(FmtStr, fmtStr, 0, 2, "H}"sv);
+        CheckOp(NamedArg, 0, nullptr);
+        CheckOp(Brace, '{');
+        CheckOp(FmtStr, fmtStr, 9, 1, "o"sv);
         CheckOpFinish();
     }
     {
@@ -642,19 +762,19 @@ TEST(Format, ParseString)
 #elif COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop
 #endif
-    /*[[maybe_unused]] constexpr auto parse0 = FmtString("{}"sv);
-    [[maybe_unused]] constexpr auto parse1 = FmtString("here"sv);
-    [[maybe_unused]] constexpr auto parse2 = FmtString("{3:p}xyz{@<K}"sv);*/
-    /*constexpr auto klp = []()
-    {
-        constexpr auto Result = ParseResult::ParseString("");
-        constexpr auto OpCount = Result.OpCount;
-        constexpr auto NamedArgCount = Result.NamedArgCount;
-        constexpr auto IdxArgCount = Result.IdxArgCount;
-        ParseResult::CheckErrorCompile<Result.ErrorPos, OpCount>();
-        TrimedResult<OpCount, NamedArgCount, IdxArgCount> ret(Result);
-        return ret;
-    }();*/
+    //[[maybe_unused]] constexpr auto parse0 = FmtString("{}"sv);
+    //[[maybe_unused]] constexpr auto parse1 = FmtString("here"sv);
+    //[[maybe_unused]] constexpr auto parse2 = FmtString("{3:p}xyz{@<K}"sv);
+    //constexpr auto klp = []()
+    //{
+    //    constexpr auto Result = ParseResult::ParseString("");
+    //    constexpr auto OpCount = Result.OpCount;
+    //    constexpr auto NamedArgCount = Result.NamedArgCount;
+    //    constexpr auto IdxArgCount = Result.IdxArgCount;
+    //    ParseResult::CheckErrorCompile<Result.ErrorPos, OpCount>();
+    //    TrimedResult<OpCount, NamedArgCount, IdxArgCount> ret(Result);
+    //    return ret;
+    //}();
 
 }
 
@@ -932,6 +1052,7 @@ TEST(Format, Formatting)
     {
         const auto ref = fmt::format("{},{:g},{:f},{:+010.4g},{x}", 0.0, 4.9014e6, -392.5f, 392.65, fmt::arg("x", 392.65));
         const auto ret = ToString(FmtString("{},{:g},{:f},{:+010.4g},{x}"sv), 0.0, 4.9014e6, -392.5f, 392.65, NAMEARG("x")(392.65));
+        //const auto ret = ToString2("{},{:g},{:f},{:+010.4g},{x}"sv, 0.0, 4.9014e6, -392.5f, 392.65, NAMEARG("x")(392.65));
         EXPECT_EQ(ret, ref);
         EXPECT_EQ(ret, "0,4.9014e+06,-392.500000,+0000392.6,392.65");
     }
@@ -1022,7 +1143,7 @@ TEST(Format, MultiFormat)
 #if CM_DEBUG == 0
 TEST(Format, Perf)
 {
-    PerfTester tester("FormatPerf");
+    [[maybe_unused]] PerfTester tester("FormatPerf");
     const uint64_t datU64[4] = { 996, 510, UINT32_MAX, 0 };
     common::span<const uint64_t> spanU64(datU64);
 
@@ -1087,23 +1208,23 @@ TEST(Format, Perf)
         cachedFmter.Format(csf[2], "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
     };
 
-    //tester.ManaulTest(
-    //    "fmt-def", fmtdef,
-    //    "fmt-cpl", fmtcpl,
-    //    "fmt-rt ", fmtrt,
-    //    "fmt-dyn", fmtdyn,
-    //    "csf-dyn", csfdyn,
-    //    "csf-sta", csfsta,
-    //    "csf-cah", csfcah
-    //);
-    //
-    //EXPECT_EQ(ref[1], ref[0]);
-    //EXPECT_EQ(ref[2], ref[0]);
-    //EXPECT_EQ(ref[3], ref[0]);
-    //EXPECT_EQ(csf[0], ref[0]);
-    //EXPECT_EQ(csf[1], csf[0]);
-    //EXPECT_EQ(csf[2], csf[0]);
+    tester.ManaulTest(
+        "fmt-def", fmtdef,
+        "fmt-cpl", fmtcpl,
+        "fmt-rt ", fmtrt,
+        "fmt-dyn", fmtdyn,
+        "csf-dyn", csfdyn,
+        "csf-sta", csfsta,
+        "csf-cah", csfcah
+    );
+    
+    EXPECT_EQ(ref[1], ref[0]);
+    EXPECT_EQ(ref[2], ref[0]);
+    EXPECT_EQ(ref[3], ref[0]);
+    EXPECT_EQ(csf[0], ref[0]);
+    EXPECT_EQ(csf[1], csf[0]);
+    EXPECT_EQ(csf[2], csf[0]);
 
-    PerfTester("FormatPerf", 1, 3000).ManaulTest("csf-dyn", csfdyn);
+    //PerfTester("FormatPerf", 1, 3000).ManaulTest("csf-dyn", csfdyn);
 }
 #endif

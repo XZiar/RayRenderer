@@ -42,20 +42,26 @@ inline constexpr void PackBitsByIndex(T& out, T keepMask, const uint32_t bits, c
 template<typename S, uint32_t Bits>
 struct BitsPack
 {
-    static_assert(std::is_integral_v<S>&& std::is_unsigned_v<S>);
+    static_assert(std::is_integral_v<S> && std::is_unsigned_v<S>);
     static_assert(Bits < sizeof(S) * 8);
+    static constexpr S KeepMask = (S(1) << Bits) - S(1);
     S Storage;
     constexpr BitsPack(S val) noexcept : Storage(val) {}
-    template<typename T>
+    template<typename T = S>
     [[nodiscard]] forceinline constexpr T Get(uint32_t index) const noexcept
     {
         constexpr auto OutBits = sizeof(T) * 8;
         static_assert(Bits <= OutBits);
-        using U = decltype(detail::ChooseUIntTypeByBits<OutBits>());
-        constexpr U AllOnes = static_cast<U>(~U(0));
-        constexpr U KeepMask = AllOnes >> (OutBits - Bits);
-        const auto val = Storage >> (index * Bits);
-        return static_cast<T>(static_cast<U>(val) & KeepMask);
+        if constexpr (std::is_same_v<T, bool>)
+        {
+            const auto mask = static_cast<S>(KeepMask << (index * Bits));
+            return Storage & mask;
+        }
+        else
+        {
+            const auto val = Storage >> (index * Bits);
+            return static_cast<T>(val & KeepMask);
+        }
     }
 };
 
@@ -83,6 +89,33 @@ inline constexpr auto BitsPackFromIndexed(Args&&... args) noexcept
     T val = 0;
     detail::PackBitsByIndex(val, KeepMask, Bits, std::forward<Args>(args)...);
     return BitsPack<T, Bits>(val);
+}
+
+template<size_t Count, typename... Args>
+inline constexpr auto BitsPackFromIndexes(Args&&... args) noexcept
+{
+    using T = decltype(detail::ChooseUIntTypeByBits<Count>());
+    T val = 0;
+    (..., void(val = static_cast<T>((T(1) << args) | val)));
+    return BitsPack<T, 1>(val);
+}
+
+template<size_t Count, typename U>
+inline constexpr auto BitsPackFromIndexesArray(const U* ptr, const size_t count, int64_t offset = 0) noexcept
+{
+    using T = decltype(detail::ChooseUIntTypeByBits<Count>());
+    using V = decltype(detail::ChooseUIntTypeByBits<sizeof(U)>());
+    static_assert(sizeof(U) < sizeof(int64_t));
+    T val = 0;
+    for (size_t i = 0; i < count; ++i)
+    {
+        const int64_t idx = static_cast<V>(ptr[i]) + offset;
+        if (idx > 0)
+        {
+            val = static_cast<T>((T(1) << idx) | val);
+        }
+    }
+    return BitsPack<T, 1>(val);
 }
 
 }

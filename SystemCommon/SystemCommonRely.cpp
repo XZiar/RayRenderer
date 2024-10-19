@@ -179,11 +179,9 @@ void PrintSystemVersion() noexcept
     std::u16string txt;
 #if COMMON_OS_WIN
     fmter.FormatToStatic(txt, FmtString(u"Running on Windows build [{}]\n"), GetWinBuildNumber());
-    //printf("Running on Windows build [%u]\n", GetWinBuildNumber());
 #elif COMMON_OS_ANDROID
     const auto kerVer = SplitVer3<100, 1000>(GetLinuxKernelVersion());
     fmter.FormatToStatic(txt, FmtString(u"Running on Android API [{}], Linux [{}.{}.{}]\n"), GetAndroidAPIVersion(), kerVer[0], kerVer[1], kerVer[2]);
-    //printf("Running on Android API [%d], Linux [%u.%u.%u]\n", GetAndroidAPIVersion(), kerVer[0], kerVer[1], kerVer[2]);
 #elif COMMON_OS_DARWIN
     const auto ver = SplitVer3(GetDarwinOSVersion());
     const auto kerVer = SplitVer3<100, 1000>(GetUnixKernelVersion());
@@ -208,7 +206,6 @@ void PrintSystemVersion() noexcept
     if (glibcver.has_value())
         fmter.FormatToStatic(txt, FmtString(u" glibc [{}.{}]"), (*glibcver) / 100, (*glibcver) % 100);
     txt.push_back(u'\n');
-    //printf("Running on Unix [%u.%u.%u]\n", kerVer[0], kerVer[1], kerVer[2]);
 #endif
     console::ConsoleEx::Get().Print(txt);
 }
