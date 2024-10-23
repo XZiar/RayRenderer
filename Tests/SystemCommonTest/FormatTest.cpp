@@ -1,5 +1,6 @@
 ﻿#include "rely.h"
 #include "common/StringLinq.hpp"
+#include "common/simd/SIMD128.hpp" // to enable SIMD for Format
 #include "SystemCommon/Format.h"
 #include "SystemCommon/FormatExtra.h"
 #include "SystemCommon/StringConvert.h"
@@ -9,6 +10,8 @@
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/tuple/elem.hpp>
 #include <boost/preprocessor/variadic/to_seq.hpp>
+
+#include <random>
 
 using namespace std::string_literals;
 using namespace std::string_view_literals;
@@ -85,6 +88,126 @@ do { SCOPED_TRACE("TestValLen 0x" #val); TestValLen(0x##val##u, size, out, 0x##v
 #undef EncodeValLenTest
     }
 }
+
+
+template<typename T>
+static void TestSearchFirstBrace(std::mt19937& gen)
+{
+    constexpr uint32_t size = 65536u;
+    static constexpr T checker[2] = { '{', '}' };
+    constexpr std::basic_string_view<T> target{ checker, 2 };
+    std::vector<T> data;
+    data.reserve(size);
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        auto val = gen() % 256; // only test within 256
+        // force a near search to happen
+        if (i == size - 3)
+            val = '}';
+        data.push_back(static_cast<T>(val)); 
+    }
+    std::basic_string_view<T> txt{ data.data(), size };
+    for (uint32_t idx = 0; idx < size;)
+    {
+        const auto beginOffset = idx;
+        auto idx2 = idx;
+        const auto pos = txt.find_first_of(target, idx);
+        bool isLB = false, isLB2 = false;
+        const auto findBrace = FormatterParserCh<T>::LocateFirstBrace(data.data(), idx, isLB, size);
+        const auto findBrace2 = FormatterParserCh<T>::LocateFirstBrace<false>(data.data(), idx2, isLB2, size);
+        EXPECT_EQ(findBrace, findBrace2) << "at: " << beginOffset;
+        EXPECT_EQ(idx, idx2) << "at: " << beginOffset;
+        if (findBrace)
+            EXPECT_EQ(isLB, isLB2) << "at: " << beginOffset;
+        EXPECT_LE(idx, size) << "mush not exceed size";
+        if (pos != std::string_view::npos) // find it
+        {
+            EXPECT_TRUE(findBrace) << "at: " << beginOffset;
+            EXPECT_EQ(idx, pos) << "at: " << beginOffset;
+            EXPECT_EQ(isLB, txt[pos] == '{') << "at: " << beginOffset;
+            idx++; // for next search
+        }
+        else
+        {
+            EXPECT_FALSE(findBrace) << "at: " << beginOffset;
+            EXPECT_EQ(idx, size) << "not found should give idx reach to size";
+        }
+    }
+}
+template<typename T>
+static void TestSearchColonRB(std::mt19937& gen)
+{
+    constexpr uint32_t size = 65536u;
+    std::vector<T> data;
+    data.reserve(size);
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        auto val = gen() % 256; // only test within 256
+        // force a near search to happen
+        if (i == size - 3)
+            val = ':';
+        else if (i == size - 2)
+            val = '}';
+        data.push_back(static_cast<T>(val));
+    }
+    std::basic_string_view<T> txt{ data.data(), size };
+    bool setSplit = false;
+    for (uint32_t idx = 0; idx < size;)
+    {
+        const auto beginOffset = idx;
+        auto idx2 = idx;
+        const auto posColon = txt.find_first_of(static_cast<T>(':'), idx);
+        const auto pos = txt.find_first_of(static_cast<T>('}'), idx);
+        uint32_t splitOffset = setSplit ? 1u : 0u;
+        uint32_t splitOffset2 = splitOffset;
+        const auto findRB = FormatterParserCh<T>::LocateColonAndRightBrace(data.data(), idx, splitOffset, size);
+        const auto findRB2 = FormatterParserCh<T>::LocateColonAndRightBrace<false>(data.data(), idx2, splitOffset2, size);
+        EXPECT_EQ(findRB, findRB2) << "at: " << beginOffset;
+        EXPECT_EQ(idx, idx2) << "at: " << beginOffset;
+        if (findRB)
+            EXPECT_EQ(splitOffset, splitOffset2) << "at: " << beginOffset;
+        EXPECT_LE(idx, size) << "mush not exceed size";
+        if (pos != std::string_view::npos) // find it
+        {
+            EXPECT_TRUE(findRB) << "at: " << beginOffset;
+            EXPECT_EQ(idx, pos) << "at: " << beginOffset;
+            if (!setSplit)
+            {
+                if (posColon < pos) // get colon
+                    EXPECT_EQ(splitOffset, posColon) << "at: " << beginOffset;
+                else // no colon, should be idx
+                    EXPECT_EQ(splitOffset, idx) << "at: " << beginOffset;
+            }
+            idx++; // for next search
+        }
+        else
+        {
+            EXPECT_FALSE(findRB) << "at: " << beginOffset;
+            EXPECT_EQ(idx, size) << "not found should give idx reach to size";
+        }
+        setSplit = !setSplit;
+    }
+}
+TEST(Format, ParseSearch)
+{
+    std::mt19937 gen{}; // use default constructor
+    {
+        SCOPED_TRACE("Search 1B");
+        TestSearchFirstBrace<char>(gen);
+        TestSearchColonRB<char>(gen);
+    }
+    {
+        SCOPED_TRACE("Search 2B");
+        TestSearchFirstBrace<char16_t>(gen);
+        TestSearchColonRB<char16_t>(gen);
+    }
+    {
+        SCOPED_TRACE("Search 4B");
+        TestSearchFirstBrace<char32_t>(gen);
+        TestSearchColonRB<char32_t>(gen);
+    }
+}
+
 
 #define ArgIdTesterArg [[maybe_unused]] ParseResultCommon& result, [[maybe_unused]] std::string_view str, [[maybe_unused]] std::string_view part, uint32_t retcode, uint8_t argIdx, ArgDispType* dstType
 using TestArgIdTester = void(*)(ArgIdTesterArg);
@@ -1225,6 +1348,6 @@ TEST(Format, Perf)
     EXPECT_EQ(csf[1], csf[0]);
     EXPECT_EQ(csf[2], csf[0]);
 
-    //PerfTester("FormatPerf", 1, 3000).ManaulTest("csf-dyn", csfdyn);
+    // PerfTester("FormatPerf", 1, 3000).ManaulTest("csf-dyn", csfdyn);
 }
 #endif

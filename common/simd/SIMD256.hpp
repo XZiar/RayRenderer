@@ -5,3 +5,5 @@
 #   include "SIMD256AVX.hpp"
 #else
 #endif
+
+#define COMMON_SIMD_HAS_256 1

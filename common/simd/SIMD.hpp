@@ -285,9 +285,30 @@
 
 namespace common::simd
 {
-inline constexpr auto GetSIMDIntrin() noexcept
+forceinline constexpr auto GetSIMDIntrin() noexcept
 {
     return STRINGIZE(COMMON_SIMD_INTRIN);
+}
+
+// undefined value when val == 0
+template<typename T>
+forceinline uint32_t CountTralingZero(const T& val) noexcept
+{
+    static_assert(std::is_integral_v<T>, "only allow integer");
+    static_assert(sizeof(T) <= 8, "no more than 64bit");
+#if COMMON_COMPILER_MSVC
+    unsigned long index = 0;
+    if constexpr (sizeof(T) <= 4)
+        _BitScanForward(&index, static_cast<unsigned long>(val));
+    else
+        _BitScanForward64(&index, static_cast<__int64>(val));
+    return static_cast<uint32_t>(index);
+#else
+    if constexpr (sizeof(T) <= 4)
+        return __builtin_ctz(static_cast<unsigned int>(val));
+    else
+        return __builtin_ctzl(static_cast<unsigned long>(val)); // LP64's long is 64bit
+#endif
 }
 
 struct VecDataInfo

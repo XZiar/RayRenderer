@@ -987,10 +987,10 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         }
     }
 
-    static forceinline constexpr bool ParseWidth(ParseResultBase& result, FormatSpec& fmtSpec, const Char* str, uint32_t& idx, const uint32_t offset, const uint32_t len) noexcept
+    // 0 for failed, 1 for read a num, 2 for not a num
+    static forceinline constexpr uint32_t ParseWidth(ParseResultBase& result, FormatSpec& fmtSpec, const uint32_t firstCh, const Char* str, uint32_t& idx, const uint32_t offset, const uint32_t len) noexcept
     {
         // width       ::=  integer // | "{" [arg_id] "}"
-        const uint32_t firstCh = str[idx];
         if (firstCh > '0' && firstCh <= '9') // find width
         {
             uint32_t width = firstCh - '0';
@@ -1004,21 +1004,23 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                     idx = len;
                 else // assume successfully get a width
                     idx += errIdx;
+                return 1;
             }
             ELSE_UNLIKELY // out of range
             {
                 result.SetError(offset + idx + errIdx, ParseResultBase::ErrorCode::WidthTooLarge);
-                return false;
+                return 0;
             }
         }
-        return true;
+        return 2;
     }
 
-    static forceinline constexpr bool ParsePrecision(ParseResultBase& result, FormatSpec& fmtSpec, const Char* str, uint32_t& idx, const uint32_t offset, const uint32_t len) noexcept
+    // 0 for failed, 1 for read a num, 2 for not a num
+    static forceinline constexpr uint32_t ParsePrecision(ParseResultBase& result, FormatSpec& fmtSpec, const Char ch, const Char* str, uint32_t& idx, const uint32_t offset, const uint32_t len) noexcept
     {
         // ["." precision]
         // precision   ::=  integer // | "{" [arg_id] "}"
-        if (str[idx] == Char_Dot)
+        if (ch == Char_Dot)
         {
             IF_LIKELY(++idx < len)
             {
@@ -1036,19 +1038,19 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                             idx = len;
                         else // assume successfully get a width
                             idx += errIdx;
-                        return true;
+                        return 1;
                     }
                     ELSE_UNLIKELY // out of range
                     {
                         result.SetError(offset + idx + errIdx, ParseResultBase::ErrorCode::WidthTooLarge);
-                        return false;
+                        return 0;
                     }
                 }
             }
             result.SetError(offset + idx, ParseResultBase::ErrorCode::InvalidPrecision);
-            return false;
+            return 0;
         }
-        return true;
+        return 2;
     }
 
     static forceinline constexpr bool ParseFormatSpec(ParseResultBase& result, FormatSpec& fmtSpec, const Char* str, const uint32_t offset, /*to avoid using r64 on x86*/const uint32_t len) noexcept
@@ -1061,104 +1063,115 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             return false;
         if (idx == len) return true;
         
-        if (const auto sign = CheckSign(str[idx]); sign != FormatSpec::Sign::None)
+        Char ch = str[idx];
+        if (const auto sign = CheckSign(ch); sign != FormatSpec::Sign::None)
         {
             fmtSpec.SignFlag = sign;
             fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::SignFlag;
             fmtSpec.Type.Type = ArgDispType::Numeric;
             if (++idx == len) return true;
+            ch = str[idx];
         }
         
-        if (str[idx] == Char_NumSign)
+        if (ch == Char_NumSign)
         {
             fmtSpec.AlterForm = true;
             fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::AlterForm;
             if (++idx == len) return true;
+            ch = str[idx];
         }
         
-        if (str[idx] == Char_0)
+        if (ch == Char_0)
         {
             fmtSpec.ZeroPad = true;
             fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::ZeroPad;
             fmtSpec.Type.Type = ArgDispType::Numeric;
             if (++idx == len) return true;
+            ch = str[idx];
         }
 
-        IF_UNLIKELY(!ParseWidth(result, fmtSpec, str, idx, offset, len))
+        const auto retcodeWidth = ParseWidth(result, fmtSpec, ch, str, idx, offset, len);
+        IF_UNLIKELY(retcodeWidth == 0)
             return false;
-        if (idx == len) return true;
-        
-        IF_UNLIKELY(!ParsePrecision(result, fmtSpec, str, idx, offset, len))
-            return false;
-        
-        if (idx != len)
+        if (retcodeWidth == 1) // read a num, refresh ch
         {
-            const uint32_t typestr = str[idx];
-            IF_LIKELY(typestr <= 127)
-            {
-                const FormatSpec::TypeIdentifier type{ static_cast<uint8_t>(typestr) };
-                IF_LIKELY(type.Extra != 0xff)
-                {
-                    idx++;
-                    // numeric type check
-                    if (fmtSpec.Type.Type == ArgDispType::Numeric && type.Type != ArgDispType::Custom)
-                    {
-                        const auto newType = ParseResultBase::CheckCompatible(ArgDispType::Numeric, type.Type);
-                        IF_UNLIKELY(!newType) // don't replace fmtSpec.Type.Type because if it pass, it will be [type.Type]
-                        {
-                            result.SetError(offset + idx, ParseResultBase::ErrorCode::IncompNumSpec);
-                            return false;
-                        }
-                    }
-                    // time type check
-                    IF_UNLIKELY(type.Type == ArgDispType::Date)
-                    {
-                        // zeropad & signflag already checked
-                        constexpr uint8_t forceDefualtFlag = FormatSpec::NonDefaultFlags::AlterForm
-                            | FormatSpec::NonDefaultFlags::Precision
-                            | FormatSpec::NonDefaultFlags::Width
-                            | FormatSpec::NonDefaultFlags::Fill
-                            | FormatSpec::NonDefaultFlags::Alignment;
-                        IF_UNLIKELY(fmtSpec.NonDefaultFlag & forceDefualtFlag)
-                        {
-                            result.SetError(offset + idx, ParseResultBase::ErrorCode::IncompDateSpec);
-                            return false;
-                        }
-                    }
-                    else if (type.Type == ArgDispType::Color)
-                    {
-                        // zeropad & signflag already checked
-                        constexpr uint8_t forceDefualtFlag = FormatSpec::NonDefaultFlags::Precision
-                            | FormatSpec::NonDefaultFlags::Width
-                            | FormatSpec::NonDefaultFlags::Fill;
-                        IF_UNLIKELY(fmtSpec.NonDefaultFlag & forceDefualtFlag)
-                        {
-                            result.SetError(offset + idx, ParseResultBase::ErrorCode::IncompColorSpec);
-                            return false;
-                        }
-                    }
-                    // extra field handling
-                    if (idx != len)
-                    {
-                        IF_LIKELY(type.Type == ArgDispType::Date || type.Type == ArgDispType::Custom)
-                        {
-                            fmtSpec.FmtOffset = static_cast<uint16_t>(offset + idx);
-                            fmtSpec.FmtLen = static_cast<uint16_t>(len - idx);
-                        }
-                        else
-                        {
-                            result.SetError(offset + idx, ParseResultBase::ErrorCode::ExtraFmtSpec);
-                            return false;
-                        }
-                    }
-                    fmtSpec.Type = type;
-                    return true;
-                }
-            }
-            result.SetError(offset + idx, ParseResultBase::ErrorCode::InvalidType);
-            return false;
+            if (idx == len) return true;
+            ch = str[idx];
         }
-        return true;
+        
+        const auto retcodePrec = ParsePrecision(result, fmtSpec, ch, str, idx, offset, len);
+        IF_UNLIKELY(retcodePrec == 0)
+            return false;
+        if (retcodePrec == 1) // read a num, refresh ch
+        {
+            if (idx == len) return true;
+            ch = str[idx];
+        }
+        
+        const uint32_t typestr = static_cast<std::make_unsigned_t<Char>>(ch);
+        IF_LIKELY(typestr <= 0xffu)
+        {
+            const FormatSpec::TypeIdentifier type{ static_cast<uint8_t>(typestr) };
+            IF_LIKELY(type.Extra != 0xff)
+            {
+                idx++;
+                // numeric type check
+                if (fmtSpec.Type.Type == ArgDispType::Numeric && type.Type != ArgDispType::Custom)
+                {
+                    const auto newType = ParseResultBase::CheckCompatible(ArgDispType::Numeric, type.Type);
+                    IF_UNLIKELY(!newType) // don't replace fmtSpec.Type.Type because if it pass, it will be [type.Type]
+                    {
+                        result.SetError(offset + idx, ParseResultBase::ErrorCode::IncompNumSpec);
+                        return false;
+                    }
+                }
+                // time type check
+                IF_UNLIKELY(type.Type == ArgDispType::Date)
+                {
+                    // zeropad & signflag already checked
+                    constexpr uint8_t forceDefualtFlag = FormatSpec::NonDefaultFlags::AlterForm
+                        | FormatSpec::NonDefaultFlags::Precision
+                        | FormatSpec::NonDefaultFlags::Width
+                        | FormatSpec::NonDefaultFlags::Fill
+                        | FormatSpec::NonDefaultFlags::Alignment;
+                    IF_UNLIKELY(fmtSpec.NonDefaultFlag & forceDefualtFlag)
+                    {
+                        result.SetError(offset + idx, ParseResultBase::ErrorCode::IncompDateSpec);
+                        return false;
+                    }
+                }
+                else if (type.Type == ArgDispType::Color)
+                {
+                    // zeropad & signflag already checked
+                    constexpr uint8_t forceDefualtFlag = FormatSpec::NonDefaultFlags::Precision
+                        | FormatSpec::NonDefaultFlags::Width
+                        | FormatSpec::NonDefaultFlags::Fill;
+                    IF_UNLIKELY(fmtSpec.NonDefaultFlag & forceDefualtFlag)
+                    {
+                        result.SetError(offset + idx, ParseResultBase::ErrorCode::IncompColorSpec);
+                        return false;
+                    }
+                }
+                // extra field handling
+                if (idx != len)
+                {
+                    IF_LIKELY(type.Type == ArgDispType::Date || type.Type == ArgDispType::Custom)
+                    {
+                        fmtSpec.FmtOffset = static_cast<uint16_t>(offset + idx);
+                        fmtSpec.FmtLen = static_cast<uint16_t>(len - idx);
+                    }
+                    else
+                    {
+                        result.SetError(offset + idx, ParseResultBase::ErrorCode::ExtraFmtSpec);
+                        return false;
+                    }
+                }
+                fmtSpec.Type = type;
+                return true;
+            }
+        }
+        result.SetError(offset + idx, ParseResultBase::ErrorCode::InvalidType);
+        return false;
     }
 
     static_assert(Char_a > Char_0 && Char_A > Char_0 && Char_Under > Char_0); // make sure allowed char is all above '0'
@@ -1310,6 +1323,110 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         return 2;
     }
 
+    template<bool AllowSIMD = true>
+    static forceinline constexpr bool LocateFirstBrace(const Char* str, uint32_t& idx, bool& isLB, const uint32_t size) noexcept
+    {
+#if defined(COMMON_SIMD_HAS_128)
+        if constexpr (AllowSIMD)
+        {
+            if (!common::is_constant_evaluated(true))
+            {
+                using namespace common::simd;
+                using S = std::conditional_t<sizeof(Char) != 1, std::conditional_t<sizeof(Char) != 2, U32x4, U16x8>, U8x16>;
+                using E = typename S::EleType;
+                constexpr auto step = static_cast<uint32_t>(S::Count);
+                S refLB(static_cast<E>(Char_LB)), refRB(static_cast<E>(Char_RB));
+                while (idx + step <= size)
+                {
+                    const S dat(reinterpret_cast<const E*>(str + idx));
+                    const auto checkLeft  = dat.template Compare<CompareType::Equal, MaskType::FullEle>(refLB);
+                    const auto checkRight = dat.template Compare<CompareType::Equal, MaskType::FullEle>(refRB);
+                    const auto [idxLB, maskLB] = checkLeft .template GetMaskFirstIndex<MaskType::FullEle, true>();
+                    const auto [idxRB, maskRB] = checkRight.template GetMaskFirstIndex<MaskType::FullEle, true>();
+                    if (maskLB | maskRB)
+                    {
+                        // if !maskLB, must maskRB, then cidxLB = step, cidxRB < step, cidxLB > cidxRB -> false = !isLB
+                        // if  maskLB, and !maskRB, then cidxLB < step, cidxRB = step, cidxLB < cidxRB -> true  =  isLB
+                        // if  maskLB, and  maskRB, then cidxLB < step, cidxRB < step, check idxLB < idxRB -> isLB
+                        isLB = idxLB < idxRB;
+                        const auto idxBrace = isLB ? idxLB : idxRB;
+                        idx += idxBrace;
+                        CM_ASSUME(idx < size);
+                        return true;
+                    }
+                    idx += step;
+                }
+            }
+        }
+#endif
+        {
+            while (idx < size) // short loop to reduce jump range
+            {
+                const auto ch = str[idx];
+                isLB = ch == Char_LB; // 0 when is LB
+                IF_UNLIKELY(isLB || ch == Char_RB)
+                    return true;
+                idx++;
+            }
+            return false;
+        }
+    }
+
+    template<bool AllowSIMD = true>
+    static forceinline constexpr bool LocateColonAndRightBrace(const Char* str, uint32_t& idx, uint32_t& splitOffset, const uint32_t size) noexcept
+    {
+#if defined(COMMON_SIMD_HAS_128)
+        if constexpr (AllowSIMD)
+        {
+            if (!common::is_constant_evaluated(true))
+            {
+                using namespace common::simd;
+                using S = std::conditional_t<sizeof(Char) != 1, std::conditional_t<sizeof(Char) != 2, U32x4, U16x8>, U8x16>;
+                using E = typename S::EleType;
+                constexpr auto step = static_cast<uint32_t>(S::Count);
+                S refColon(static_cast<E>(Char_Colon)), refRB(static_cast<E>(Char_RB));
+                while (idx + step <= size)
+                {
+                    const S dat(reinterpret_cast<const E*>(str + idx));
+                    const auto checkColon = dat.Compare<CompareType::Equal, MaskType::FullEle>(refColon);
+                    const auto checkRight = dat.Compare<CompareType::Equal, MaskType::FullEle>(refRB);
+                    const auto [idxCL, maskCL] = checkColon.GetMaskFirstIndex<MaskType::FullEle, true>();
+                    const auto [idxRB, maskRB] = checkRight.GetMaskFirstIndex<MaskType::FullEle, true>();
+                    const auto updOffset = maskCL ? idxCL + idx : 0;
+                    splitOffset = splitOffset ? splitOffset : updOffset;
+                    if (maskRB)
+                    {
+                        idx += idxRB;
+                        CM_ASSUME(idx < size);
+                        // splitOffset is <idx, 0, >idx, later 2 is not found and should replace to idx
+                        // splitOffset-1 becomes MAX32, >=idx, both reuslt in >=idx
+                        splitOffset = (splitOffset - 1) >= idx ? idx : splitOffset;
+                        return true;
+                    }
+                    idx += step;
+                }
+            }
+        }
+#endif
+        while (true)
+        {
+            IF_UNLIKELY(idx == size) // reach end before find RB
+                return false;
+
+            const Char ch = str[idx];
+            const auto notColon = ch ^ Char_Colon;
+            const auto notUpdateSplit = notColon | splitOffset;
+            splitOffset = notUpdateSplit ? splitOffset : idx;
+            IF_UNLIKELY(ch == Char_RB)
+            {
+                if (splitOffset == 0) // not assigned
+                    splitOffset = idx;
+                return true;
+            }
+            idx++;
+        }
+    }
+
     template<uint16_t Size>
     static constexpr void ParseString(ParseResult<Size>& result, const std::basic_string_view<Char> str_) noexcept
     {
@@ -1324,135 +1441,104 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         const auto str = str_.data();
         const auto size = static_cast<uint32_t>(size_);
         FormatSpec fmtSpec; // resued outside of loop
-        //for (uint32_t offset = 0; offset < size;)
         //uint32_t dbg = Size;
-        uint32_t offset = 0;
-        for (uint32_t idx = offset; idx < size;)
+        for (uint32_t idx = 0; idx < size;)
         {
-            CM_ASSUME(idx == offset);
-            Char ch = 0;
-            bool isLB = false; // 0 when is LB
-            while (idx < size) // short loop to reduce jump range
+            const auto searchBeginIdx = idx;
+            bool isLB = false;
+            const bool findFirstBrace = LocateFirstBrace(str, idx, isLB, size);
+            
+            IF_UNLIKELY(!findFirstBrace) // not found a Brace when reach the end
             {
-                ch = str[idx];
-                isLB = ch == Char_LB; // 0 when is LB
-                //const auto notRB = ch != Char_RB; // 0 when is RB
-                //CM_ASSUME(notLB != notRB);
-                //const auto notBrace = notLB ? notRB : notLB; // 0 when is LB or RB
-                IF_UNLIKELY(isLB || ch == Char_RB)
-                    break;
-                idx++;
-            }
-            IF_UNLIKELY(idx == size) // not found a Brace to the end
-            {
-                const auto strLen = size - offset;
-                IF_UNLIKELY(!BuiltinOp::EmitFmtStr(result, offset, strLen))
+                CM_ASSUME(idx == size);
+                const auto strLen = idx - searchBeginIdx;
+                IF_UNLIKELY(!BuiltinOp::EmitFmtStr(result, searchBeginIdx, strLen))
                     return;
                 break;
             }
             
             // isBrace
+            CM_ASSUME(idx < size);
             //result.Opcodes[--dbg] = static_cast<uint8_t>(idx);
-            const auto idxBegin = idx;
-            IF_UNLIKELY(idx + 1 == size)
+            const auto firstBraceIdx = idx;
+            IF_UNLIKELY(idx + 1 == size) // last char is brace
             {
-                return result.SetError(idxBegin, isLB ? ParseResultBase::ErrorCode::MissingRightBrace : ParseResultBase::ErrorCode::MissingLeftBrace);
+                return result.SetError(firstBraceIdx, isLB ? ParseResultBase::ErrorCode::MissingRightBrace : ParseResultBase::ErrorCode::MissingLeftBrace);
             }
 
             const Char nextCh = str[++idx];
-            const uint32_t needEmitBrace = nextCh == ch ? 1u : 0u;
-            if (const auto checkedLen = idxBegin - offset; checkedLen > 0) // need emit FmtStr
+            CM_ASSUME(idx < size);
+            const uint32_t needEmitBrace = nextCh == (isLB ? Char_LB : Char_RB) ? 1u : 0u;
+            if (const auto checkedLen = firstBraceIdx - searchBeginIdx; checkedLen > 0) // need emit FmtStr
             {
                 //result.Opcodes[--dbg] = static_cast<uint8_t>(1u);
                 const auto strLen = checkedLen + needEmitBrace;
-                IF_UNLIKELY(!BuiltinOp::EmitFmtStr(result, offset, strLen))
+                IF_UNLIKELY(!BuiltinOp::EmitFmtStr(result, searchBeginIdx, strLen))
                     return;
+                IF_UNLIKELY(needEmitBrace)
+                {
+                    idx += 1; // eat extra brace "{{" or "}}"
+                    continue; // continue searching
+                }
             }
             else IF_UNLIKELY(needEmitBrace) // need emit only Brace
             {
                 //result.Opcodes[--dbg] = static_cast<uint8_t>(3u);
-                IF_UNLIKELY(!BuiltinOp::EmitBrace(result, idxBegin, isLB))
+                IF_UNLIKELY(!BuiltinOp::EmitBrace(result, firstBraceIdx, isLB))
                     return;
-            }
-            IF_UNLIKELY(needEmitBrace) // already emmitted
-            {
-                //result.Opcodes[--dbg] = static_cast<uint8_t>(2u);
                 idx += 1; // eat brace "{{" or "}}"
-                offset = idx;
                 continue; // continue searching
             }
             //result.Opcodes[--dbg] = static_cast<uint8_t>(4u);
             IF_UNLIKELY(!isLB) // is RB and is not emit
             {
-                return result.SetError(idxBegin, ParseResultBase::ErrorCode::MissingLeftBrace);
+                return result.SetError(firstBraceIdx, ParseResultBase::ErrorCode::MissingLeftBrace);
             }
 
-            //CM_ASSUME(notLB == 0);
-            //CM_ASSUME(notRB);
-            //CM_ASSUME(ch == Char_LB);
-            //CM_ASSUME(nextCh != Char_LB);
-
+            CM_ASSUME(isLB);
             //result.Opcodes[--dbg] = static_cast<uint8_t>(5u);
             IF_LIKELY(nextCh == Char_RB) // "{}"
             {
                 //result.Opcodes[--dbg] = static_cast<uint8_t>(6u);
                 IF_UNLIKELY(result.NextArgIdx >= ParseResultCommon::IdxArgSlots)
                 {
-                    return result.SetError(idxBegin, ParseResultBase::ErrorCode::TooManyIdxArg);
+                    return result.SetError(firstBraceIdx, ParseResultBase::ErrorCode::TooManyIdxArg);
                 }
                 const auto argIdx = result.NextArgIdx++;
                 result.IdxArgCount = std::max(result.NextArgIdx, result.IdxArgCount);
-                IF_UNLIKELY(!ArgOp::EmitDefault(result, idxBegin, argIdx))
+                IF_UNLIKELY(!ArgOp::EmitDefault(result, firstBraceIdx, argIdx))
                     return;
-                idx += 1; // eat "{}"
-                offset = idx;
+                idx += 1; // eat '}'
                 continue; // continue searching
             }
 
             //result.Opcodes[--dbg] = static_cast<uint8_t>(7u);
+            const auto argfmtOffset = idx++; // move to next char
+            uint32_t splitOffset = nextCh == Char_Colon ? argfmtOffset : 0u;
             // to find RB
-            uint32_t splitIdx = nextCh == Char_Colon ? idx : 0;
-            uint32_t idx2 = idx + 1;
-            for (; idx2 < size; idx2++)
+            const auto findRB = LocateColonAndRightBrace(str, idx, splitOffset, size);
+            IF_UNLIKELY(!findRB)
             {
-                //CM_ASSUME(idx2 > 1);
-                const Char ch2 = str[idx2];
+                return result.SetError(firstBraceIdx, ParseResultBase::ErrorCode::MissingRightBrace);
+            }
 
-                const auto notColon = ch2 ^ Char_Colon;
-                const auto notUpdateSplit = notColon | splitIdx;
-                splitIdx = notUpdateSplit ? splitIdx : idx2;
-                IF_UNLIKELY(ch2 == Char_RB)
-                    break;
-            }
-            //CM_ASSUME(idx2 > idx);
-            //CM_ASSUME(idx2 > 1);
-            //result.Opcodes[--dbg] = static_cast<uint8_t>(idx2);
-            //result.Opcodes[--dbg] = static_cast<uint8_t>(8u);
-            IF_UNLIKELY(idx2 == size)
-            {
-                return result.SetError(idxBegin, ParseResultBase::ErrorCode::MissingRightBrace);
-            }
+            CM_ASSUME(idx < size);
             //result.Opcodes[--dbg] = static_cast<uint8_t>(9u);
-            IF_UNLIKELY(splitIdx + 1 == idx2) // xxx:}
-            {
-                return result.SetError(idxBegin, ParseResultBase::ErrorCode::MissingFmtSpec);
+            IF_UNLIKELY(splitOffset + 1 == idx) // no split then 0+1 == 1 < idx
+            {  // xxx:}
+                return result.SetError(firstBraceIdx, ParseResultBase::ErrorCode::MissingFmtSpec);
             }
+            // splitOffset < idx - 1 || splitOffset == idx
             //result.Opcodes[--dbg] = static_cast<uint8_t>(10u);
-            // '{' at idx-1, '}' at idx2, ':' at splitIdx if splitIdx > 0
-            //CM_ASSUME(argfmtLen > 0);
 
             // begin arg parsing
-            // CM_ASSUME(argfmtOffset + argfmtLen < str.size());
-            // const auto argfmt = str.substr(argfmtOffset, argfmtLen);
             uint8_t argIdx = 0;
             ArgDispType* dstType = nullptr;
 
-            const auto argfmtOffset = idx;
-            const auto argfmtLen = idx2 - idx;
-            const auto splitIdxDiff = splitIdx - idx;
-            const auto idPartLen = splitIdx ? splitIdxDiff : argfmtLen;
-            if (idPartLen > 0) // has arg_id
+            const auto hasSplit = splitOffset < idx;
+            if (splitOffset != argfmtOffset) // has arg_id, no split will be idx and not equal
             {
+                const auto idPartLen = splitOffset - argfmtOffset;
                 const auto retcode = ParseArgId(result, nextCh, argIdx, dstType, str, argfmtOffset, idPartLen);
                 IF_UNLIKELY(retcode > 0) // error or skip
                 {
@@ -1460,13 +1546,13 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                     {
                         if (nextCh == Char_At) // Color
                         {
-                            IF_UNLIKELY(splitIdx) // has split
+                            IF_UNLIKELY(hasSplit) // has split
                             {
                                 return result.SetError(argfmtOffset, ParseResultBase::ErrorCode::InvalidColor);
                             }
-                            IF_LIKELY(ParseColor(result, argfmtOffset, { str + argfmtOffset, argfmtLen }))
+                            IF_LIKELY(ParseColor(result, argfmtOffset, { str + argfmtOffset, idPartLen }))
                             {
-                                idx = offset = idx2 + 1; // eat "{xxx}"
+                                idx += 1; // eat '}'
                                 continue;
                             }
                         }
@@ -1477,10 +1563,10 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             }
             else // idPartLen == 0
             {
-                CM_ASSUME(splitIdx > 0);
+                CM_ASSUME(hasSplit);
                 IF_UNLIKELY(result.NextArgIdx >= ParseResultCommon::IdxArgSlots)
                 {
-                    return result.SetError(offset, ParseResultBase::ErrorCode::TooManyIdxArg);
+                    return result.SetError(searchBeginIdx, ParseResultBase::ErrorCode::TooManyIdxArg);
                 }
                 argIdx = result.NextArgIdx++;
             }
@@ -1493,16 +1579,16 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             }
             CM_ASSUME(dstType);
 
-            if (splitIdx)
+            if (hasSplit)
             {
-                const auto specOffset = splitIdx + 1;
-                IF_UNLIKELY(!ParseFormatSpec(result, fmtSpec, str + specOffset, specOffset, idx2 - specOffset))
+                const auto specOffset = splitOffset + 1;
+                IF_UNLIKELY(!ParseFormatSpec(result, fmtSpec, str + specOffset, specOffset, idx - specOffset))
                     return;
             }
 
-            IF_UNLIKELY(!ArgOp::Emit(&result, offset, splitIdx ? &fmtSpec : nullptr, dstType, argIdx, isNamed))
+            IF_UNLIKELY(!ArgOp::Emit(&result, searchBeginIdx, hasSplit ? &fmtSpec : nullptr, dstType, argIdx, isNamed))
                 return;
-            idx = offset = idx2 + 1; // eat "{xxx}"
+            idx += 1; // eat '}'
         }
     }
 };

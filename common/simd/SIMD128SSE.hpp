@@ -37,7 +37,7 @@ template<> forceinline __m128i VECCALL AsType(__m128d from) noexcept { return _m
 template<> forceinline __m128d VECCALL AsType(__m128d from) noexcept { return from; }
 
 
-inline constexpr int CmpTypeImm(CompareType cmp) noexcept
+forceinline constexpr int CmpTypeImm(CompareType cmp) noexcept
 {
     switch (cmp)
     {
@@ -51,7 +51,7 @@ inline constexpr int CmpTypeImm(CompareType cmp) noexcept
     }
 }
 
-inline constexpr int RoundModeImm(RoundMode mode) noexcept
+forceinline constexpr int RoundModeImm(RoundMode mode) noexcept
 {
     switch (mode)
     {
@@ -61,6 +61,73 @@ inline constexpr int RoundModeImm(RoundMode mode) noexcept
     case RoundMode::ToNegInf:   return _MM_FROUND_TO_NEG_INF; 
     default:                    return _MM_FROUND_CUR_DIRECTION;
     }
+}
+
+// always use TZCNT since additional logic wull make it compatible when fallback as BSF. AMD is better in TZCNT
+// for gcc/clang, use inline assembly to avoid target mismatch
+template<size_t Count>
+forceinline std::pair<uint32_t, uint32_t> VECCALL SignBitToIdx(const uint32_t signbits) noexcept
+{
+#if COMMON_SIMD_LV >= 150 // FMA means Haswell/Gracemont/Piledriver or newer, should garuantee TZCNT(BMI1) support
+    if constexpr (Count == 16)
+    {
+#   if COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
+        uint16_t result;
+        __asm__("tzcnt %w1, %w0" : "=r"(result) : "r"(signbits));
+#   else
+        uint16_t result = _tzcnt_u16(static_cast<uint16_t>(signbits));
+#   endif
+        return { result, signbits };
+    }
+    else if constexpr (Count == 32)
+    {
+#   if COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
+        uint32_t result;
+        __asm__("tzcnt %1, %0" : "=r"(result) : "r"(signbits));
+#   else
+        uint32_t result = _tzcnt_u32(signbits);
+#   endif
+        return { result, signbits };
+    }
+    else if constexpr (Count == 64)
+    {
+#   if COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
+        uint64_t result;
+        __asm__("tzcnt %q1, %q0" : "=r"(result) : "r"((uint64_t)signbits));
+#   else
+        uint64_t result = _tzcnt_u64(signbits);
+#   endif
+        return { static_cast<uint32_t>(result), signbits };
+    }
+    else
+#endif
+    // more flexible support with count, though not needed
+    if constexpr (Count < 32)
+    {
+        constexpr auto extraMask = 1u << Count;
+        const auto fixedbits = signbits | extraMask;
+#   if COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
+        uint32_t result;
+        __asm__("tzcnt %1, %0" : "=r"(result) : "r"(fixedbits));
+#   else
+        uint32_t result = _tzcnt_u32(fixedbits);
+#   endif
+        return { result, signbits };
+    }
+    else if constexpr (Count < 64)
+    {
+        constexpr auto extraMask = uint64_t(1u) << Count;
+        const auto fixedbits = signbits | extraMask;
+#   if COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
+        uint64_t result;
+        __asm__("tzcnt %q1, %q0" : "=r"(result) : "r"(fixedbits));
+#   else
+        uint64_t result = _tzcnt_u32(fixedbits);
+#   endif
+        return { static_cast<uint32_t>(result), signbits };
+    }
+    else
+        static_assert(!AlwaysTrue2<Count>);
 }
 
 
@@ -108,6 +175,14 @@ struct SSE128Common : public CommonOperators<T>
     {
         return _mm_xor_si128(Data, _mm_set1_epi8(-1));
     }
+
+    // shuffle operations
+    template<MaskType Msk, bool NeedSignBits = false>
+    forceinline std::pair<uint32_t, uint32_t> VECCALL GetMaskFirstIndex() const noexcept
+    {
+        const auto signbits = static_cast<const T*>(this)->ExtractSignBit();
+        return SignBitToIdx<Count>(signbits);
+    }
     forceinline T VECCALL MoveHiToLo() const noexcept { return _mm_srli_si128(Data, 8); }
     forceinline bool VECCALL IsAllZero() const noexcept
     {
@@ -130,6 +205,10 @@ public:
         Base(_mm_set_epi64x(static_cast<int64_t>(hi), static_cast<int64_t>(lo))) { }
 
     // shuffle operations
+    forceinline uint32_t VECCALL ExtractSignBit() const noexcept
+    {
+        return _mm_movemask_pd(_mm_castsi128_pd(this->Data));
+    }
     template<uint8_t Lo, uint8_t Hi>
     forceinline T VECCALL Shuffle() const noexcept
     {
@@ -300,6 +379,10 @@ public:
         Base(_mm_setr_epi32(static_cast<int32_t>(lo0), static_cast<int32_t>(lo1), static_cast<int32_t>(lo2), static_cast<int32_t>(hi3))) { }
 
     // shuffle operations
+    forceinline uint32_t VECCALL ExtractSignBit() const noexcept
+    {
+        return _mm_movemask_ps(_mm_castsi128_ps(this->Data));
+    }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
     forceinline T VECCALL Shuffle() const noexcept
     {
@@ -432,6 +515,13 @@ public:
         Base(_mm_setr_epi16(static_cast<int16_t>(lo0), static_cast<int16_t>(lo1), static_cast<int16_t>(lo2), static_cast<int16_t>(lo3), static_cast<int16_t>(lo4), static_cast<int16_t>(lo5), static_cast<int16_t>(lo6), static_cast<int16_t>(hi7))) { }
 
     // shuffle operations
+    forceinline uint32_t VECCALL ExtractSignBit() const noexcept
+    {
+        const auto zero = _mm_setzero_si128();
+        const auto lo = _mm_unpacklo_epi16(zero, this->Data), hi = _mm_unpackhi_epi16(zero, this->Data);
+        const uint32_t lobit = _mm_movemask_ps(_mm_castsi128_ps(lo)), hibit = _mm_movemask_ps(_mm_castsi128_ps(hi));
+        return (hibit << 4) | lobit; // no valid LEA anyway
+    }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
     forceinline T VECCALL Shuffle() const noexcept
     {
@@ -611,6 +701,10 @@ public:
             static_cast<int8_t>(lo14), static_cast<int8_t>(hi15))) { }
 
     // shuffle operations
+    forceinline uint32_t VECCALL ExtractSignBit() const noexcept
+    {
+        return _mm_movemask_epi8(this->Data);
+    }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Hi15>
     forceinline T VECCALL Shuffle() const noexcept
     {
@@ -774,6 +868,16 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
     forceinline void VECCALL Save(double *ptr) const noexcept { _mm_storeu_pd(ptr, Data); }
 
     // shuffle operations
+    template<MaskType Msk, bool NeedSignBits = false>
+    forceinline std::pair<uint32_t, uint32_t> VECCALL GetMaskFirstIndex() const noexcept
+    {
+        const auto signbits = ExtractSignBit();
+        return detail::SignBitToIdx<Count>(signbits);
+    }
+    forceinline uint32_t VECCALL ExtractSignBit() const noexcept
+    {
+        return _mm_movemask_pd(this->Data);
+    }
     template<uint8_t Lo, uint8_t Hi>
     forceinline F64x2 VECCALL Shuffle() const noexcept
     {
@@ -965,6 +1069,16 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     forceinline void VECCALL Save(float *ptr) const noexcept { _mm_storeu_ps(ptr, Data); }
 
     // shuffle operations
+    template<MaskType Msk, bool NeedSignBits = false>
+    forceinline std::pair<uint32_t, uint32_t> VECCALL GetMaskFirstIndex() const noexcept
+    {
+        const auto signbits = ExtractSignBit();
+        return detail::SignBitToIdx<Count>(signbits);
+    }
+    forceinline uint32_t VECCALL ExtractSignBit() const noexcept
+    {
+        return _mm_movemask_ps(this->Data);
+    }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
     forceinline F32x4 VECCALL Shuffle() const noexcept
     {

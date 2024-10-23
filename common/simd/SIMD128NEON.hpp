@@ -196,7 +196,7 @@ struct Neon128Common : public CommonOperators<T>
     }
     forceinline T VECCALL MoveHiToLo() const noexcept
     {
-        return AsType<SIMDType>(vdupq_lane_u64(AsType<uint64x2_t>(Data), 0));
+        return AsType<SIMDType>(vextq_u64(AsType<uint64x2_t>(Data), vdupq_n_u64(0), 1));
     }
     forceinline bool VECCALL IsAllZero() const noexcept
     {
@@ -223,6 +223,24 @@ template<typename T, typename SIMDType>
 struct Shuffle64Common
 {
     // shuffle operations
+    template<MaskType Msk, bool NeedSignBits = false>
+    forceinline std::pair<uint32_t, uint32_t> VECCALL GetMaskFirstIndex() const noexcept
+    {
+        const auto data = AsType<uint64x2_t>(static_cast<const T*>(this)->Data);
+        const int64_t lo = vgetq_lane_s64(data, 0), hi = vgetq_lane_s64(data, 1);
+        const uint32_t idx = lo < 0 ? 0u : (hi < 0 ? 1u : 2u);
+        uint32_t ret = lo < 0 ? 1u : 0u;
+        if (hi < 0) ret |= 2u;
+        return { idx, ret };
+    }
+    forceinline uint32_t VECCALL ExtractSignBit() const noexcept
+    {
+        const auto data = AsType<uint64x2_t>(static_cast<const T*>(this)->Data);
+        const int64_t lo = vgetq_lane_s64(data, 0), hi = vgetq_lane_s64(data, 1);
+        uint32_t ret = lo < 0 ? 1u : 0u;
+        if (hi < 0) ret |= 2u;
+        return ret;
+    }
     template<uint8_t Idx>
     forceinline T VECCALL Broadcast() const noexcept
     {
@@ -403,6 +421,64 @@ template<typename T, typename SIMDType>
 struct Shuffle32Common
 {
     // shuffle operations
+    template<MaskType Msk, bool NeedSignBits = false>
+    forceinline std::pair<uint32_t, uint32_t> VECCALL GetMaskFirstIndex() const noexcept
+    {
+        if constexpr (Msk == MaskType::FullEle)
+        {
+            const auto data = AsType<uint64x2_t>(static_cast<const T*>(this)->Data);
+            // 32 10
+            const auto combined2 = vshrn_n_u64(data, 16);
+            const auto sign16bits = vget_lane_u64(vreinterpret_u64_u32(combined2), 0);
+            const auto idx = CountTralingZero(sign16bits) >> 4;
+            if constexpr (NeedSignBits)
+            {
+                uint32_t signbits = static_cast<uint32_t>(sign16bits & 0x1u);
+                if (sign16bits & 0x10000u) signbits |= 0x2u;
+                if (sign16bits & 0x100000000u) signbits |= 0x4u;
+                if (sign16bits & 0x1000000000000u) signbits |= 0x8u;
+                return { idx, signbits };
+            }
+            else
+                return { idx, sign16bits ? 1u : 0u };
+        }
+        else
+        {
+            if constexpr (NeedSignBits)
+            {
+                const auto signbits = ExtractSignBit();
+                return { CountTralingZero(signbits), signbits };
+            }
+            else
+            {
+                const auto data = AsType<uint64x2_t>(static_cast<const T*>(this)->Data);
+                const uint64_t lo = vgetq_lane_u64(data, 0), hi = vgetq_lane_u64(data, 1);
+                const auto bit0 = lo & 0x80000000u, bit1 = lo & 0x8000000000000000u, bit2 = hi & 0x80000000u, bit3 = hi & 0x8000000000000000u;
+                uint32_t idx = bit0 ? 0u : (bit1 ? 1u : (bit2 ? 2u : (bit3 ? 3u : 4u)));
+                const auto bit01 = lo & 0x8000000080000000u, bit23 = hi & 0x8000000080000000u;
+                uint32_t ret = (bit01 | bit23) ? 1u : 0u;
+                return { idx, ret };
+            }
+        }
+    }
+    forceinline uint32_t VECCALL ExtractSignBit() const noexcept
+    {
+        const auto data = AsType<uint64x2_t>(static_cast<const T*>(this)->Data);
+        const uint64_t lo = vgetq_lane_u64(data, 0), hi = vgetq_lane_u64(data, 1);
+        const auto bit0 = lo & 0x80000000u, bit1 = lo & 0x8000000000000000u, bit2 = hi & 0x80000000u, bit3 = hi & 0x8000000000000000u;
+        uint32_t ret = bit0 ? 1u : 0u;
+        if (bit1) ret |= 2u;
+        if (bit2) ret |= 4u;
+        if (bit3) ret |= 8u;
+        return ret;
+        // USHR,USRA seems high latency, above can be less latency(more inst) when not piepeliened
+        // // xxx .......3 xxx .......2 | xxx .......1 xxx .......0
+        // const auto leastBits = AsType<uint64x2_t>(vshrq_n_u32(AsType<uint32x4_t>(static_cast<const T*>(this)->Data), 31));
+        // // xxx .......3 xxx ......32 | xxx .......1 xxx ......10
+        // const auto leastBits2 = AsType<uint8x16_t>(vsraq_n_u64(leastBits, leastBits, 31));
+        // const uint32_t lo = vgetq_lane_u8(leastBits2, 0), hi = vgetq_lane_u8(leastBits2, 8);
+        // return (hi << 2) + lo;
+    }
     template<uint8_t Idx>
     forceinline T VECCALL Broadcast() const noexcept
     {
@@ -648,6 +724,49 @@ struct alignas(16) Common16x8 : public Neon128Common<T, SIMDType, E, 8>
 {
     using Neon128Common<T, SIMDType, E, 8>::Neon128Common;
     // shuffle operations
+    template<MaskType Msk, bool NeedSignBits = false>
+    forceinline std::pair<uint32_t, uint32_t> VECCALL GetMaskFirstIndex() const noexcept
+    {
+        if constexpr (Msk == MaskType::FullEle)
+        {
+            const auto data = AsType<uint32x4_t>(this->Data);
+            // 76 54 32 10
+            const auto combined2 = vshrn_n_u32(data, 8);
+            const auto sign8bits = vget_lane_u64(vreinterpret_u64_u16(combined2), 0);
+            const auto idx = CountTralingZero(sign8bits) >> 3;
+            if constexpr (NeedSignBits)
+            {
+                // .......1 .......0
+                const auto least8bits = sign8bits & 0x0101010101010101u;
+                // ......43 ......32 ......21 ......10
+                const auto least8bits2 = least8bits | (least8bits >> 7);
+                // .......7 ......76 .....765 ....7654 ....6543 ....5432 ....4321 ....3210
+                const auto least8bits4 = least8bits2 | (least8bits2 >> 14);
+                // .......7 ......76 .....765 ....7654 ...76543 ..765432 .7654321 76543210
+                const auto least8bits8 = least8bits4 | (least8bits4 >> 28);
+                uint32_t signbits = static_cast<uint8_t>(least8bits8);
+                return { idx, signbits };
+            }
+            else
+                return { idx, sign8bits ? 1u : 0u };
+        }
+        else
+        {
+            const auto signbits = ExtractSignBit();
+            return { CountTralingZero(signbits), signbits };
+        }
+    }
+    forceinline uint32_t VECCALL ExtractSignBit() const noexcept
+    {
+        // x .......3 x .......2 | x .......1 x .......0
+        const auto leastBits = AsType<uint32x4_t>(vshrq_n_u16(AsType<uint16x8_t>(this->Data), 15));
+        // x .......7 x ......76 x .......5 x ......54 | x .......3 x ......32 x .......1 x ......10
+        const auto leastBits2 = AsType<uint64x2_t>(vsraq_n_u32(leastBits, leastBits, 15));
+        // x .......7 x ......76 x .....7.5 x ....7654 | x .......3 x ......32 x .....3.1 x ....3210
+        const auto leastBits4 = AsType<uint8x16_t>(vsraq_n_u64(leastBits2, leastBits2, 30));
+        const uint32_t lo = vgetq_lane_u8(leastBits4, 0), hi = vgetq_lane_u8(leastBits4, 8);
+        return (hi << 4) + lo;
+    }
     template<uint8_t Idx>
     forceinline T VECCALL Broadcast() const noexcept
     {
@@ -878,6 +997,55 @@ struct alignas(16) Common8x16 : public Neon128Common<T, SIMDType, E, 16>
 {
     using Neon128Common<T, SIMDType, E, 16>::Neon128Common;
     // shuffle operations
+    template<MaskType Msk, bool NeedSignBits = false>
+    forceinline std::pair<uint32_t, uint32_t> VECCALL GetMaskFirstIndex() const noexcept
+    {
+        if constexpr (Msk == MaskType::FullEle)
+        {
+            const auto data = AsType<uint16x8_t>(this->Data);
+            // fe dc ba 98 76 54 32 10
+            const auto combined2 = vshrn_n_u16(data, 4);
+            const auto sign4bits = vget_lane_u64(vreinterpret_u64_u8(combined2), 0);
+            const auto idx = CountTralingZero(sign4bits) >> 2;
+            if constexpr (NeedSignBits)
+            {
+                // ...3...2 ...1...0
+                const auto least4bits = sign4bits & 0x1111111111111111u;
+                // ..87..76 ..65..54 ..43..32 ..21..10
+                const auto least4bits2 = least4bits | (least4bits >> 3);
+                // ...f..fe .fedfedc edcbdcba cba9ba98 a9879876 87657654 65435432 43213210
+                const auto least4bits4 = least4bits2 | (least4bits2 >> 6);
+                // XX Xfedc XX Xba98 XX X7654 XX X3210
+                const auto clean4bits4 = least4bits4 & 0x000f000f000f000fu;
+                // XX Xfedc XX fedcba98 XX ba987654 XX 76543210
+                const auto clean4bits8 = clean4bits4 | (clean4bits4 >> 12);
+                // XX Xfedc XX fedcba98 Xfedc ba987654 fedcba98 76543210
+                const auto clean4bits16 = clean4bits8 | (clean4bits8 >> 24);
+                uint32_t signbits = static_cast<uint16_t>(clean4bits16);
+                return { idx, signbits };
+            }
+            else
+                return { idx, sign4bits ? 1u : 0u };
+        }
+        else
+        {
+            const auto signbits = ExtractSignBit();
+            return { CountTralingZero(signbits), signbits };
+        }
+    }
+    forceinline uint32_t VECCALL ExtractSignBit() const noexcept
+    {
+        // .......3 .......2 | .......1 .......0
+        const auto leastBits  = AsType<uint16x8_t>(vshrq_n_u8(AsType<uint8x16_t>(this->Data), 7));
+        // .......7 ......76 .......5 ......54 | .......3 ......32 .......1 ......10
+        const auto leastBits2 = AsType<uint32x4_t>(vsraq_n_u16(leastBits,  leastBits,   7));
+        // .......f ......fe .....f.d ....fedc .......b ......ba .....b.9 ....ba98 | .......7 ......76 .....7.5 ....7654 .......3 ......32 .....3.1 ....3210
+        const auto leastBits4 = AsType<uint64x2_t>(vsraq_n_u32(leastBits2, leastBits2, 14));
+        // .......f ......fe .....f.d ....fedc ...f...b ..fe..ba .f.d.b.9 fedcba98 | .......7 ......76 .....7.5 ....7654 ...7...3 ..76..32 .7.5.3.1 76543210
+        const auto leastBits8 = AsType<uint8x16_t>(vsraq_n_u64(leastBits4, leastBits4, 28));
+        const uint32_t lo = vgetq_lane_u8(leastBits8, 0), hi = vgetq_lane_u8(leastBits8, 8);
+        return (hi << 8) + lo;
+    }
     template<uint8_t Idx>
     forceinline T VECCALL Broadcast() const noexcept
     {

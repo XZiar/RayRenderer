@@ -1,4 +1,5 @@
 #include "SystemCommonPch.h"
+#include "common/simd/SIMD128.hpp"
 #include "Format.h"
 #include "FormatExtra.h"
 #include "StringFormat.h"

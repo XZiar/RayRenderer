@@ -914,6 +914,44 @@ static void TestSEL(const T* ptr)
     }
 }
 
+template<typename T>
+static void TestMSK(const T* ptr)
+{
+    using U = typename T::EleType;
+    const U ValTrue = GetAllOnes<U>(), ValFalse = 0;
+    ForKItem(1)
+    {
+        const auto data0 = ptr[k + 0];
+        T data1;
+        uint32_t signRef = 0, firstIdx = T::Count;
+        bool hasSet = false;
+        for (uint32_t i = 0; i < T::Count; ++i)
+        {
+            const auto msb = CheckMSB(data0.Val[i]);
+            data1.Val[i] = msb ? ValTrue : ValFalse;
+            if (msb)
+            {
+                signRef |= (1u << i);
+                firstIdx = std::min(i, firstIdx);
+                hasSet = true;
+            }
+        }
+        const auto output0 = data0.ExtractSignBit();
+        const auto [idx0, find0] = data0.template GetMaskFirstIndex<MaskType::SigBit , true>();
+        const auto [idx1, find1] = data0.template GetMaskFirstIndex<MaskType::SigBit , false>();
+        const auto [idx2, find2] = data1.template GetMaskFirstIndex<MaskType::FullEle, true>();
+        const auto [idx3, find3] = data1.template GetMaskFirstIndex<MaskType::FullEle, false>();
+        EXPECT_EQ(output0, signRef) << "when testing ExtractSignBit";
+        EXPECT_EQ(find0, signRef) << "when testing GetMaskFirstIndex SigBit";
+        EXPECT_EQ(find2, signRef) << "when testing GetMaskFirstIndex FullEle";
+        EXPECT_EQ(bool(find1), hasSet) << "when testing GetMaskFirstIndex SigBit";
+        EXPECT_EQ(bool(find3), hasSet) << "when testing GetMaskFirstIndex FullEle";
+        EXPECT_EQ(idx0, firstIdx) << "when testing GetMaskFirstIndex SigBit";
+        EXPECT_EQ(idx1, firstIdx) << "when testing GetMaskFirstIndex SigBit";
+        EXPECT_EQ(idx2, firstIdx) << "when testing GetMaskFirstIndex FullEle";
+        EXPECT_EQ(idx3, firstIdx) << "when testing GetMaskFirstIndex FullEle";
+    }
+}
 
 template<typename T>
 T SwapEndian(const T val)
@@ -981,7 +1019,7 @@ enum class TestItem : uint32_t
     Add = 0x1, Sub = 0x2, SatAdd = 0x4, SatSub = 0x8, Mul = 0x10, MulLo = 0x20, MulHi = 0x40, MulX = 0x80, 
     Div = 0x100, Neg = 0x200, Abs = 0x400, Min = 0x800, Max = 0x1000, SLL = 0x2000, SLLV = 0x4000, SRL = 0x8000, SRLV = 0x10000, SRA = 0x20000,
     And = 0x100000, Or = 0x200000, Xor = 0x400000, AndNot = 0x800000, Not = 0x1000000, FMA = 0x2000000, Rnd = 0x4000000,
-    SWE = 0x10000000, SEL = 0x20000000, Load = 0x40000000
+    SWE = 0x10000000, SEL = 0x20000000, MSK = 0x40000000, Load = 0x80000000
 };
 MAKE_ENUM_BITFIELD(TestItem)
 
@@ -995,7 +1033,7 @@ public:
 #define AddItem(r, data, x) if constexpr (HAS_FIELD(Items, TestItem::x)) \
     BOOST_PP_CAT(Test,x)<T>(GetRandPtr<T, typename T::EleType>());
 #define AddItems(...) BOOST_PP_SEQ_FOR_EACH(AddItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
-        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SLLV, SRL, SRLV, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL, FMA, Rnd, Load)
+        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SLLV, SRL, SRLV, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL, MSK, FMA, Rnd, Load)
 #undef AddItems
 #undef AddItem
     }
