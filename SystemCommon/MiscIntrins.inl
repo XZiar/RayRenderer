@@ -1071,27 +1071,39 @@ struct Sha256Round_SHANIAVX2 : public Sha256Round_SHANI
     {
         static_assert(SHA256RoundProcControl[0][0] == false && SHA256RoundProcControl[0][1] == false &&
             SHA256RoundProcControl[0 + 1][0] == true && SHA256RoundProcControl[0 + 1][0 + 1] == false); // FF, TF
+        static_assert(SHA256RoundProcControl[2][0] == true && SHA256RoundProcControl[2][1] == false &&
+            SHA256RoundProcControl[2 + 1][0] == true && SHA256RoundProcControl[2 + 1][0 + 1] == true); // TF, TT
+
         const U32x8 adderLH01(SHA256RoundAdders[0]);
         const auto msgAddLH01 = msg01 + adderLH01;
         const auto msgShufLH01 = msgAddLH01.ShuffleLane<2, 3, 0, 0>(); // _mm256_shuffle_epi32(msgAddLH, 0x0E);
-        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH01.GetLoLane());
-        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLH01.GetLoLane());
-        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH01.GetHiLane());
-        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLH01.GetHiLane());
-        msg1 = msg01.GetHiLane();
-        msg0 = _mm_sha256msg1_epu32(msg01.GetLoLane(), msg1);
+        const U32x4 msgAddLo01  = msgAddLH01.GetLoLane(),  msgAddHi01  = msgAddLH01.GetHiLane();
+        const U32x4 msgShufLo01 = msgShufLH01.GetLoLane(), msgShufHi01 = msgShufLH01.GetHiLane();
 
-        static_assert(SHA256RoundProcControl[2][0] == true && SHA256RoundProcControl[2][1] == false &&
-            SHA256RoundProcControl[2 + 1][0] == true && SHA256RoundProcControl[2 + 1][0 + 1] == true); // TF, TT
         const U32x8 adderLH23(SHA256RoundAdders[2]);
         const auto msgAddLH23 = msg23 + adderLH23;
         const auto msgShufLH23 = msgAddLH23.ShuffleLane<2, 3, 0, 0>(); // _mm256_shuffle_epi32(msgAddLH, 0x0E);
-        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH23.GetLoLane());
-        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLH23.GetLoLane());
-        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH23.GetHiLane());
-        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLH23.GetHiLane());
+        const U32x4 msgAddLo23  = msgAddLH23.GetLoLane(),  msgAddHi23  = msgAddLH23.GetHiLane();
+        const U32x4 msgShufLo23 = msgShufLH23.GetLoLane(), msgShufHi23 = msgShufLH23.GetHiLane();
+
+        msg1 = msg01.GetHiLane();
         msg2 = msg23.GetLoLane();
         msg3 = msg23.GetHiLane();
+        const U32x4 msg01Lo = msg01.GetLoLane();
+
+        // below is SSE only, sha256 has no VEX form. zeroupper for new cpus.(goldencove+)
+        _mm256_zeroupper();
+
+        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLo01);
+        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLo01);
+        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddHi01);
+        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufHi01);
+        msg0 = _mm_sha256msg1_epu32(msg01Lo, msg1);
+
+        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLo23);
+        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLo23);
+        State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddHi23);
+        State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufHi23);
         const U32x4 tmp = _mm_alignr_epi8(msg3, msg2, 4);
         msg1 = _mm_sha256msg1_epu32(msg1, msg2);
         msg0 = _mm_sha256msg2_epu32(msg0 + tmp, msg3);

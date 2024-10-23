@@ -1480,6 +1480,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             }
             idx++;
         }
+        return false;
     }
 
     template<uint16_t Size>
