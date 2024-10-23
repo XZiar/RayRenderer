@@ -85,7 +85,7 @@ python3 xzbuild buildall UtilTest
 
 ## Dependency
 
-* [gsl](https://github.com/microsoft/GSL) `submodule` master
+* [gsl](https://github.com/microsoft/GSL) `submodule` 4.1.0
   
   [MIT License](https://github.com/microsoft/GSL/blob/main/LICENSE)
 

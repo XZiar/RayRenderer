@@ -113,12 +113,14 @@ static void TestSearchFirstBrace(std::mt19937& gen)
         auto idx2 = idx;
         const auto pos = txt.find_first_of(target, idx);
         bool isLB = false, isLB2 = false;
-        const auto findBrace = FormatterParserCh<T>::LocateFirstBrace(data.data(), idx, isLB, size);
-        const auto findBrace2 = FormatterParserCh<T>::LocateFirstBrace<false>(data.data(), idx2, isLB2, size);
+        const auto findBrace  = FormatterParserCh<T>::template LocateFirstBrace<true >(data.data(), idx, isLB, size);
+        const auto findBrace2 = FormatterParserCh<T>::template LocateFirstBrace<false>(data.data(), idx2, isLB2, size);
         EXPECT_EQ(findBrace, findBrace2) << "at: " << beginOffset;
         EXPECT_EQ(idx, idx2) << "at: " << beginOffset;
         if (findBrace)
+        {
             EXPECT_EQ(isLB, isLB2) << "at: " << beginOffset;
+        }
         EXPECT_LE(idx, size) << "mush not exceed size";
         if (pos != std::string_view::npos) // find it
         {
@@ -160,12 +162,14 @@ static void TestSearchColonRB(std::mt19937& gen)
         const auto pos = txt.find_first_of(static_cast<T>('}'), idx);
         uint32_t splitOffset = setSplit ? 1u : 0u;
         uint32_t splitOffset2 = splitOffset;
-        const auto findRB = FormatterParserCh<T>::LocateColonAndRightBrace(data.data(), idx, splitOffset, size);
-        const auto findRB2 = FormatterParserCh<T>::LocateColonAndRightBrace<false>(data.data(), idx2, splitOffset2, size);
+        const auto findRB  = FormatterParserCh<T>::template LocateColonAndRightBrace<true> (data.data(), idx, splitOffset, size);
+        const auto findRB2 = FormatterParserCh<T>::template LocateColonAndRightBrace<false>(data.data(), idx2, splitOffset2, size);
         EXPECT_EQ(findRB, findRB2) << "at: " << beginOffset;
         EXPECT_EQ(idx, idx2) << "at: " << beginOffset;
         if (findRB)
+        {
             EXPECT_EQ(splitOffset, splitOffset2) << "at: " << beginOffset;
+        }
         EXPECT_LE(idx, size) << "mush not exceed size";
         if (pos != std::string_view::npos) // find it
         {

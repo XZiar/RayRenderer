@@ -112,12 +112,12 @@ template<typename T, typename Judger>
     if constexpr (std::is_pointer_v<U>)
     {
         auto sv = std::basic_string_view(source);
-        using Char = typename decltype(sv)::value_type;
+        using Char = std::remove_cv_t<typename decltype(sv)::value_type>;
         return detail::ToSplitStream<Char>(sv, std::forward<Judger>(judger), keepblank);
     }
     else if constexpr (common::has_valuetype_v<U>)
     {
-        using Char = typename U::value_type;
+        using Char = std::remove_cv_t<typename U::value_type>;
         if constexpr (std::is_rvalue_reference_v<T>)
         {
             return detail::ToSplitStream<Char>(std::move(source), std::forward<Judger>(judger), keepblank);

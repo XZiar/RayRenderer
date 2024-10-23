@@ -25,7 +25,7 @@ template<typename T>
         return std::basic_string_view(val);
     else if constexpr (common::has_valuetype_v<U>)
     {
-        using Char = typename U::value_type;
+        using Char = std::remove_cv_t<typename U::value_type>;
         if constexpr (std::is_constructible_v<std::basic_string_view<Char>, T>)
             return std::basic_string_view<Char>(std::forward<T>(val));
         else if constexpr (std::is_convertible_v<T, std::basic_string_view<Char>>)

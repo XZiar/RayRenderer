@@ -118,7 +118,7 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
             self.flags += ["-m64" if env["bits"] == 64 else "-m32"]
         self.optimize = "-O2" if env["target"] == "Release" else "-O0"
         if env["compiler"] == "clang":
-            self.flags += ["-Wno-newline-eof"]
+            self.flags += ["-Wno-newline-eof", "-Wno-c++23-attribute-extensions"]
         if env["target"] == "Release":
             self.defines += ["NDEBUG"]
             self.lto = env["paras"].get("lto", "on") == "on"

@@ -8,7 +8,6 @@
 void sighandler(int)
 {
     const auto stack = common::GetStack();
-    common::str::Formatter<char> fmter;
     for (const auto& s : stack)
     {
         printf("%s:%zu %s\n",

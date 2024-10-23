@@ -430,7 +430,7 @@ struct Shuffle32Common
             // 32 10
             const auto combined2 = vshrn_n_u64(data, 16);
             const auto sign16bits = vget_lane_u64(vreinterpret_u64_u32(combined2), 0);
-            const auto idx = CountTralingZero(sign16bits) >> 4;
+            const auto idx = sign16bits ? CountTralingZero(sign16bits) >> 4 : 4u;
             if constexpr (NeedSignBits)
             {
                 uint32_t signbits = static_cast<uint32_t>(sign16bits & 0x1u);
@@ -447,7 +447,8 @@ struct Shuffle32Common
             if constexpr (NeedSignBits)
             {
                 const auto signbits = ExtractSignBit();
-                return { CountTralingZero(signbits), signbits };
+                const auto ctzbits = signbits | 0x10u;
+                return { CountTralingZero(ctzbits), signbits };
             }
             else
             {
@@ -733,7 +734,7 @@ struct alignas(16) Common16x8 : public Neon128Common<T, SIMDType, E, 8>
             // 76 54 32 10
             const auto combined2 = vshrn_n_u32(data, 8);
             const auto sign8bits = vget_lane_u64(vreinterpret_u64_u16(combined2), 0);
-            const auto idx = CountTralingZero(sign8bits) >> 3;
+            const auto idx = sign8bits ? CountTralingZero(sign8bits) >> 3 : 8u;
             if constexpr (NeedSignBits)
             {
                 // .......1 .......0
@@ -753,7 +754,8 @@ struct alignas(16) Common16x8 : public Neon128Common<T, SIMDType, E, 8>
         else
         {
             const auto signbits = ExtractSignBit();
-            return { CountTralingZero(signbits), signbits };
+            const auto ctzbits = signbits | 0x100u;
+            return { CountTralingZero(ctzbits), signbits };
         }
     }
     forceinline uint32_t VECCALL ExtractSignBit() const noexcept
@@ -1006,7 +1008,7 @@ struct alignas(16) Common8x16 : public Neon128Common<T, SIMDType, E, 16>
             // fe dc ba 98 76 54 32 10
             const auto combined2 = vshrn_n_u16(data, 4);
             const auto sign4bits = vget_lane_u64(vreinterpret_u64_u8(combined2), 0);
-            const auto idx = CountTralingZero(sign4bits) >> 2;
+            const auto idx = sign4bits ? CountTralingZero(sign4bits) >> 2 : 16u;
             if constexpr (NeedSignBits)
             {
                 // ...3...2 ...1...0
@@ -1030,7 +1032,8 @@ struct alignas(16) Common8x16 : public Neon128Common<T, SIMDType, E, 16>
         else
         {
             const auto signbits = ExtractSignBit();
-            return { CountTralingZero(signbits), signbits };
+            const auto ctzbits = signbits | 0x10000u;
+            return { CountTralingZero(ctzbits), signbits };
         }
     }
     forceinline uint32_t VECCALL ExtractSignBit() const noexcept

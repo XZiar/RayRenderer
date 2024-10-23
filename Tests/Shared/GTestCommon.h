@@ -10,6 +10,10 @@
 #include <string_view>
 #include <algorithm>
 
+#if COMMON_COMPILER_GCC && COMMON_GCC_VER >= 120000 && COMMON_GCC_VER <= 130000 // gcc12 has many false-positive warning
+#   pragma GCC diagnostic ignored "-Wfree-nonheap-object"
+#endif
+
 
 template<typename T>
 uint32_t RegisterIntrinTest(const char* testsuite, const char* fileName, const int fileLine)

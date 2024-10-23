@@ -1388,10 +1388,10 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                 while (idx + step <= size)
                 {
                     const S dat(reinterpret_cast<const E*>(str + idx));
-                    const auto checkColon = dat.Compare<CompareType::Equal, MaskType::FullEle>(refColon);
-                    const auto checkRight = dat.Compare<CompareType::Equal, MaskType::FullEle>(refRB);
-                    const auto [idxCL, maskCL] = checkColon.GetMaskFirstIndex<MaskType::FullEle, true>();
-                    const auto [idxRB, maskRB] = checkRight.GetMaskFirstIndex<MaskType::FullEle, true>();
+                    const auto checkColon = dat.template Compare<CompareType::Equal, MaskType::FullEle>(refColon);
+                    const auto checkRight = dat.template Compare<CompareType::Equal, MaskType::FullEle>(refRB);
+                    const auto [idxCL, maskCL] = checkColon.template GetMaskFirstIndex<MaskType::FullEle, true>();
+                    const auto [idxRB, maskRB] = checkRight.template GetMaskFirstIndex<MaskType::FullEle, true>();
                     const auto updOffset = maskCL ? idxCL + idx : 0;
                     splitOffset = splitOffset ? splitOffset : updOffset;
                     if (maskRB)
