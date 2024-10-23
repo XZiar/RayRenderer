@@ -118,7 +118,11 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
             self.flags += ["-m64" if env["bits"] == 64 else "-m32"]
         self.optimize = "-O2" if env["target"] == "Release" else "-O0"
         if env["compiler"] == "clang":
-            self.flags += ["-Wno-newline-eof", "-Wno-c++23-attribute-extensions"]
+            self.flags += ["-Wno-newline-eof"]
+            if env["clangVer"] >= 190000: # added P1774R8
+                self.flags += ["-Wno-c++23-attribute-extensions"]
+            if env["clangVer"] >= 140000: # added diagnostics, see https://releases.llvm.org/14.0.0/tools/clang/docs/ReleaseNotes.html#improvements-to-clang-s-diagnostics
+                self.flags += ["-Wno-c++20-attribute-extensions"]
         if env["target"] == "Release":
             self.defines += ["NDEBUG"]
             self.lto = env["paras"].get("lto", "on") == "on"

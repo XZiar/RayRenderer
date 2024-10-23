@@ -87,6 +87,30 @@ do { SCOPED_TRACE("TestValLen 0x" #val); TestValLen(0x##val##u, size, out, 0x##v
 
 #undef EncodeValLenTest
     }
+
+#define ParseDecTailTest(str, limit, suc, output, err) do                               \
+{                                                                                       \
+    std::string_view txt = str;                                                         \
+    uint32_t val = txt[0] - '0';                                                        \
+    const auto [errIdx, inRange] = FormatterParserCh<char>::template ParseDecTail<limit>\
+        (val, txt.data(), static_cast<uint32_t>(txt.size()));                           \
+    EXPECT_EQ(inRange, suc);                                                            \
+    EXPECT_EQ(val, output);                                                             \
+    EXPECT_EQ(errIdx, err);                                                             \
+} while(0)
+
+    ParseDecTailTest("6553", 65536,  true, 6553u, 4u);
+    ParseDecTailTest("6553", 6553,   true, 6553u, 4u);
+    ParseDecTailTest("6553", 6552,  false,  655u, 2u);
+    ParseDecTailTest("6553", 655,   false,  655u, 2u);
+    ParseDecTailTest("6553", 654,   false,   65u, 1u);
+    ParseDecTailTest("6553", 65,    false,   65u, 1u);
+    ParseDecTailTest("6553", 64,    false,    6u, 0u);
+    ParseDecTailTest("655x", 6552,   true,  655u, 3u);
+    ParseDecTailTest("6x53", 6553,   true,    6u, 1u);
+    ParseDecTailTest("65x3", 65536,  true,   65u, 2u);
+
+#undef ParseDecTailTest
 }
 
 

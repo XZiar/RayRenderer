@@ -682,26 +682,72 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
     template<uint32_t Limit>
     static forceinline constexpr std::pair<uint32_t, bool> ParseDecTail(uint32_t& val, const Char* __restrict dec, uint32_t len) noexcept
     {
+        constexpr uint32_t DigitCount = common::GetDigitCount(Limit, 10);
+        static_assert(DigitCount > 1);
         constexpr auto limit1 = Limit / 10;
         constexpr auto limitLast = Limit % 10;
         CM_ASSUME(val < 10);
-        // limit make sure [i] will not overflow, also expects str len <= UINT32_MAX
-        for (uint32_t i = 1; i < len; ++i)
+
+        // fully unrolled
+        const uint32_t safecount = len > DigitCount - 1 ? DigitCount - 1 : len;
+        for (uint32_t i = 1; i < safecount; ++i)
         {
             const uint32_t ch = dec[i];
             if (ch >= '0' && ch <= '9')
             {
                 const auto num = ch - '0';
-                IF_UNLIKELY(val > limit1 || (val == limit1 && num > limitLast))
-                {
-                    return { i - 1, false };
-                }
                 val = val * 10 + num;
             }
             else
                 return { i, true };
         }
-        return { UINT32_MAX, true };
+        if (!(len > DigitCount - 1)) // reach to end of len, now i == len
+            return { len, true };
+        // reach to safe end, now i == DigitCount - 1
+        {
+            const uint32_t ch = dec[DigitCount - 1];
+            if (ch >= '0' && ch <= '9')
+            {
+                const auto num = ch - '0';
+                IF_UNLIKELY(val > limit1 || (val == limit1 && num > limitLast))
+                {
+                    return { DigitCount - 1 - 1, false };
+                }
+                val = val * 10 + num;
+            }
+            else
+                return { DigitCount - 1, true };
+        }
+        // no more digit allowed
+        if (DigitCount < len)
+        {
+            const uint32_t ch = dec[DigitCount];
+            IF_UNLIKELY(ch >= '0' && ch <= '9')
+                return { DigitCount - 1, false };
+            else
+                return { DigitCount, true };
+        }
+        else
+            return { len, true };
+
+        //// limit make sure [i] will not overflow, also expects str len <= UINT32_MAX
+        //for (uint32_t i = 1; i < len; ++i)
+        //{
+        //    const uint32_t ch = dec[i];
+        //    if (ch >= '0' && ch <= '9')
+        //    {
+        //        const auto num = ch - '0';
+        //
+        //        IF_UNLIKELY(val > limit1 || (val == limit1 && num > limitLast))
+        //        {
+        //            return { i - 1, false };
+        //        }
+        //        val = val * 10 + num;
+        //    }
+        //    else
+        //        return { i, true };
+        //}
+        //return { UINT32_MAX, true };
     }
 
     template<typename T>
@@ -1000,10 +1046,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                 CM_ASSUME(width > 0);
                 fmtSpec.Width = static_cast<uint16_t>(width);
                 fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::Width;
-                if (errIdx == UINT32_MAX) // full finish
-                    idx = len;
-                else // assume successfully get a width
-                    idx += errIdx;
+                idx += errIdx;
                 return 1;
             }
             ELSE_UNLIKELY // out of range
@@ -1034,10 +1077,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                         CM_ASSUME(precision > 0);
                         fmtSpec.Precision = precision;
                         fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::Precision;
-                        if (errIdx == UINT32_MAX) // full finish
-                            idx = len;
-                        else // assume successfully get a width
-                            idx += errIdx;
+                        idx += errIdx;
                         return 1;
                     }
                     ELSE_UNLIKELY // out of range
@@ -1081,22 +1121,37 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             ch = str[idx];
         }
         
-        if (ch == Char_0)
+        uint32_t chOffset0 = ch - Char_0;
+        if (chOffset0 == 0) // '0'
         {
             fmtSpec.ZeroPad = true;
             fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::ZeroPad;
             fmtSpec.Type.Type = ArgDispType::Numeric;
             if (++idx == len) return true;
             ch = str[idx];
+            chOffset0 = ch - Char_0;
         }
 
-        const auto retcodeWidth = ParseWidth(result, fmtSpec, ch, str, idx, offset, len);
-        IF_UNLIKELY(retcodeWidth == 0)
-            return false;
-        if (retcodeWidth == 1) // read a num, refresh ch
+        // width       ::=  integer // | "{" [arg_id] "}"
+        if (chOffset0 <= 9) // number, find width
         {
-            if (idx == len) return true;
-            ch = str[idx];
+            uint32_t width = chOffset0;
+            const auto [errIdx, inRange] = ParseDecTail<UINT16_MAX>(width, &str[idx], len - idx);
+            IF_LIKELY(inRange)
+            {
+                CM_ASSUME(width > 0);
+                fmtSpec.Width = static_cast<uint16_t>(width);
+                fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::Width;
+                idx += errIdx;
+
+                if (idx == len) return true;
+                ch = str[idx];
+            }
+            ELSE_UNLIKELY // out of range
+            {
+                result.SetError(offset + idx + errIdx, ParseResultBase::ErrorCode::WidthTooLarge);
+                return false;
+            }
         }
         
         const auto retcodePrec = ParsePrecision(result, fmtSpec, ch, str, idx, offset, len);
@@ -1108,8 +1163,8 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
             ch = str[idx];
         }
         
-        const uint32_t typestr = static_cast<std::make_unsigned_t<Char>>(ch);
-        IF_LIKELY(typestr <= 0xffu)
+        const uint32_t typestr = ch;
+        IF_LIKELY(typestr <= static_cast<uint32_t>(FormatSpec::TypeIdentifier::TypeCharMinMax.second))
         {
             const FormatSpec::TypeIdentifier type{ static_cast<uint8_t>(typestr) };
             IF_LIKELY(type.Extra != 0xff)
@@ -1140,7 +1195,7 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                         return false;
                     }
                 }
-                else if (type.Type == ArgDispType::Color)
+                else IF_UNLIKELY(type.Type == ArgDispType::Color)
                 {
                     // zeropad & signflag already checked
                     constexpr uint8_t forceDefualtFlag = FormatSpec::NonDefaultFlags::Precision
@@ -1254,8 +1309,8 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                 }
                 else
                 {
-                    const auto [errIdx, inRange] = ParseDecTail<>(id, str + offset, size);
-                    IF_UNLIKELY(errIdx != UINT32_MAX) // not full finish
+                    const auto [errIdx, inRange] = ParseDecTail<ParseResultCommon::IdxArgSlots>(id, str + offset, size);
+                    if (!inRange || errIdx != size) // not full finish
                     {
                         result.SetError(offset + errIdx, inRange ? ParseResultBase::ErrorCode::InvalidArgIdx : ParseResultBase::ErrorCode::ArgIdxTooLarge);
                         return 1;

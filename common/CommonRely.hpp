@@ -577,6 +577,16 @@ template<typename T>
     static_assert(std::is_unsigned_v<T>, "only for unsigned type");
     return (num & (num - 1)) == 0; 
 }
+[[nodiscard]] forceinline constexpr uint32_t GetDigitCount(size_t num, const size_t base)
+{
+    uint32_t count = 1;
+    while (num >= base)
+    {
+        count++;
+        num = num / base;
+    }
+    return count;
+}
 
 
 
