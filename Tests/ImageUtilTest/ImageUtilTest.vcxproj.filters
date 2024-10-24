@@ -7,6 +7,9 @@
     <ClCompile Include="rely.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="ResizeTest.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

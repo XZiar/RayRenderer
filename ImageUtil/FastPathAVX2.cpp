@@ -9,6 +9,11 @@
 #include "common/simd/SIMD128.hpp"
 #include "common/simd/SIMD256.hpp"
 
+#define IMGU_FASTPATH_STB 1
+#define STBIR_AVX2 1
+#define STBIR_FP16C 1
+#define STBIR_USE_FMA 1
+
 #include "ColorConvert.inl"
 
 
@@ -20,4 +25,9 @@ DEFINE_FASTPATH_PARTIAL(ColorConvertor, AVX2)
     REGISTER_FASTPATH_VARIANTS(GA8ToRGBA8,  AVX2);
     // REGISTER_FASTPATH_VARIANTS(RGB8ToRGBA8, AVX2);
     // REGISTER_FASTPATH_VARIANTS(RGBA8ToRGB8, AVX2);
+}
+
+DEFINE_FASTPATH_PARTIAL(STBResize, AVX2)
+{
+    REGISTER_FASTPATH_VARIANTS(DoResize, AVX2);
 }

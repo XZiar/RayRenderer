@@ -1,9 +1,11 @@
 #include "ImageUtilPch.h"
 #include "ImageCore.h"
 #include "ColorConvert.h"
+#include "SystemCommon/FormatExtra.h"
 
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include "stb/deprecated/stb_image_resize.h"
+// #define STB_IMAGE_RESIZE2_IMPLEMENTATION
+// #define STB_IMAGE_RESIZE_STATIC
+#include "stb/stb_image_resize2.h"
 
 
 namespace xziar::img
@@ -223,26 +225,68 @@ Image Image::ResizeTo(uint32_t width, uint32_t height, const bool isSRGB, const 
 {
     if (width == 0 && height == 0)
         COMMON_THROW(BaseException, u"image size cannot be all zero!");
+    /*if (mulAlpha && !HAS_FIELD(DataType, ImageDataType::ALPHA_MASK))
+        ImgLog().Warning(u"Asks for premultiplied alpha for non-alpha source, ignored");*/
+    if (isSRGB && HAS_FIELD(DataType, ImageDataType::FLOAT_MASK))
+        ImgLog().Warning(u"Asks for sRGB handling for float type, ignored");
+
     width = width == 0 ? (uint32_t)((uint64_t)height * Width / Height) : width;
     height = height == 0 ? (uint32_t)((uint64_t)width * Height / Width) : height;
     Image output(DataType);
     output.SetSize(width, height);
 
-    const auto datatype = HAS_FIELD(DataType, ImageDataType::FLOAT_MASK) ? STBIR_TYPE_FLOAT : STBIR_TYPE_UINT8;
-    const int32_t channel = HAS_FIELD(DataType, ImageDataType::FLOAT_MASK) ? ElementSize / sizeof(float) : ElementSize;
-    int flag = 0;
-    if (HAS_FIELD(DataType, ImageDataType::ALPHA_MASK))
+    const auto datatype = HAS_FIELD(DataType, ImageDataType::FLOAT_MASK) ? STBIR_TYPE_FLOAT : 
+        (isSRGB ? STBIR_TYPE_UINT8_SRGB : STBIR_TYPE_UINT8);
+    stbir_pixel_layout pixLayout = STBIR_1CHANNEL;
+    switch (REMOVE_MASK(DataType, ImageDataType::FLOAT_MASK))
     {
-        if (!mulAlpha)
-            flag |= STBIR_FLAG_ALPHA_PREMULTIPLIED;
+    case ImageDataType::GRAY: pixLayout = STBIR_1CHANNEL; break;
+    case ImageDataType::RGB:  pixLayout = STBIR_RGB; break;
+    case ImageDataType::BGR:  pixLayout = STBIR_BGR; break;
+    case ImageDataType::RGBA: pixLayout = mulAlpha ? STBIR_RGBA_PM : STBIR_RGBA; break;
+    case ImageDataType::BGRA: pixLayout = mulAlpha ? STBIR_BGRA_PM : STBIR_BGRA; break;
+    case ImageDataType::GA:   pixLayout = mulAlpha ? STBIR_RA_PM   : STBIR_RA; break;
+    default:
+        COMMON_THROW(BaseException, u"unsupported datatype!");
     }
-    else
-        flag |= STBIR_ALPHA_CHANNEL_NONE;
-    stbir_resize(Data, (int32_t)Width, (int32_t)Height, 0, output.GetRawPtr(), (int32_t)width, (int32_t)height, 0,
-        datatype, channel, ElementSize - 1, flag,
-        STBIR_EDGE_REFLECT, STBIR_EDGE_REFLECT, STBIR_FILTER_TRIANGLE, STBIR_FILTER_TRIANGLE,
-        isSRGB ? STBIR_COLORSPACE_SRGB : STBIR_COLORSPACE_LINEAR, nullptr);
 
+    static const STBResize& resizer = []() -> const STBResize&
+    {
+        const auto& stbResizer = STBResize::Get();
+        std::string pathtxt;
+        common::str::Formatter<char> fmter;
+        const auto selections = stbResizer.GetIntrinMap();
+        for (const auto& pathinfo : STBResize::GetSupportMap())
+        {
+            fmter.FormatToStatic(pathtxt, FmtString("\n--[{}] get paths:"), pathinfo.FuncName.View);
+            std::string_view uses;
+            for (const auto item : selections)
+                if (item.first == pathinfo.FuncName.View)
+                {
+                    uses = item.second;
+                    break;
+                }
+            const auto& syntax = common::str::FormatterCombiner::Combine(FmtString(" {}"), FmtString(" [{}]"));
+            for (const auto& methods : pathinfo.Variants)
+                syntax(methods.MethodName.View == uses ? 1 : 0).To(pathtxt, fmter, methods.MethodName.View);
+        }
+        ImgLog().Verbose(u"Loaded STBResizer:{}\n", pathtxt);
+        return stbResizer;
+    }();
+
+    STBResize::ResizeInfo info
+    {
+        .Input = Data,
+        .Output = output.GetRawPtr(),
+        .InputSizes = { Width, Height },
+        .OutputSizes = { width, height },
+        .Layout = static_cast<uint8_t>(pixLayout),
+        .Datatype = static_cast<uint8_t>(datatype),
+        .Edge = static_cast<uint8_t>(STBIR_EDGE_REFLECT),
+        .Filter = static_cast<uint8_t>(STBIR_FILTER_TRIANGLE),
+    };
+    resizer.Resize(info);
+    
     return output;
 }
 
@@ -283,17 +327,14 @@ Image Image::ConvertToFloat(const float floatRange) const
         newimg.SetSize(Width, Height);
         common::CopyEx.CopyToFloat(reinterpret_cast<float*>(newimg.Data), reinterpret_cast<const uint8_t*>(Data),
             Size, floatRange);
-        // convert::U8sToFloat1s(reinterpret_cast<float*>(newimg.Data), Data, Size, floatRange);
         return newimg;
     }
     else
     {
         Image newimg(REMOVE_MASK(DataType, ImageDataType::FLOAT_MASK));
         newimg.SetSize(Width, Height);
-        const auto floatCount = Size / sizeof(float);
         common::CopyEx.CopyFromFloat(reinterpret_cast<uint8_t*>(newimg.Data), reinterpret_cast<const float*>(Data),
             Size, floatRange);
-        //convert::Float1sToU8s(newimg.Data, reinterpret_cast<const float*>(Data), floatCount, floatRange);
         return newimg;
     }
 }

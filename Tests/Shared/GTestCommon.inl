@@ -153,6 +153,7 @@ class GTestEnvironment : public ::testing::Environment
 private:
     static inline std::unique_ptr<PerfReport> Report = {};
     std::vector<const common::CPUPartition*> TestTargets;
+    std::vector<std::string_view> TestArgs;
     bool EnableReport = false;
 public:
     common::fs::path ExePath;
@@ -252,6 +253,8 @@ public:
             {
                 EnableReport = true;
             }
+            else
+                TestArgs.emplace_back(arg);
         }
         const auto thisThread = common::ThreadObject::GetCurrentThreadObject();
         thisThread.SetQoS(common::ThreadQoS::High);
@@ -304,6 +307,8 @@ public:
                 printf("Current affinity: %s\n", affinity->ToString().c_str());
         }
     }
+
+    common::span<const std::string_view> GetTestArgs() const noexcept { return TestArgs; }
 
     static PerfReport* GetReport()
     {

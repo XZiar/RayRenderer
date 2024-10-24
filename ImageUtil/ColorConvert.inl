@@ -3,7 +3,23 @@
 #include "ColorConvert.h"
 #include "common/simd/SIMD.hpp"
 
+
+#if COMMON_COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4505)
+#endif
+#ifdef IMGU_FASTPATH_STB
+#   define STB_IMAGE_RESIZE2_IMPLEMENTATION
+#   define STB_IMAGE_RESIZE_STATIC
+#   include "stb/stb_image_resize2.h"
+#endif
+#if COMMON_COMPILER_MSVC
+#   pragma warning(pop)
+#endif
+
 #include <bit>
+
+#define DoResizeInfo (void)(const ::xziar::img::STBResize::ResizeInfo& info)
 
 #define G8ToGA8Info     (void)(uint16_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha)
 #define G8ToRGB8Info    (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count)
@@ -18,10 +34,38 @@ namespace
 using namespace common::simd;
 using namespace COMMON_SIMD_NAMESPACE;
 using ::xziar::img::ColorConvertor;
+using ::xziar::img::STBResize;
 
+DEFINE_FASTPATHS(STBResize, DoResize)
 
 DEFINE_FASTPATHS(ColorConvertor, G8ToGA8, G8ToRGB8, G8ToRGBA8, GA8ToRGBA8, RGB8ToRGBA8, RGBA8ToRGB8)
 
+
+#ifdef IMGU_FASTPATH_STB
+forceinline void CallStbResize(const ::xziar::img::STBResize::ResizeInfo& info)
+{
+    ::stbir_resize(info.Input, static_cast<int32_t>(info.InputSizes.first), static_cast<int32_t>(info.InputSizes.second), 0,
+        info.Output, static_cast<int32_t>(info.OutputSizes.first), static_cast<int32_t>(info.OutputSizes.second), 0,
+        static_cast<stbir_pixel_layout>(info.Layout), static_cast<stbir_datatype>(info.Datatype), static_cast<stbir_edge>(info.Edge), static_cast<stbir_filter>(info.Filter));
+}
+# if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
+DEFINE_FASTPATH_METHOD(DoResize, AVX2)
+{
+    CallStbResize(info);
+}
+# elif (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20) || (COMMON_ARCH_ARM && COMMON_SIMD_LV >= 10)
+#   if COMMON_ARCH_X86
+#     define ALGO SSE2
+#   else
+#     define ALGO NEON
+#   endif
+DEFINE_FASTPATH_METHOD(DoResize, ALGO)
+{
+    CallStbResize(info);
+}
+#   undef ALGO
+# endif
+#endif
 
 template<typename Proc, auto F, typename Src, typename Dst, typename... Args>
 forceinline void ProcessLOOP4(Dst* __restrict dest, const Src* __restrict src, size_t count, Args&&... args) noexcept

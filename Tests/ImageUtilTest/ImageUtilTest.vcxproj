@@ -55,6 +55,7 @@
   <ItemGroup>
     <ClCompile Include="IntrinsTest.cpp" />
     <ClCompile Include="rely.cpp" />
+    <ClCompile Include="ResizeTest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rely.h" />

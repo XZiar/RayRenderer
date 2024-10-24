@@ -16,6 +16,7 @@ common::span<const std::byte> GetRandVals() noexcept
     return { reinterpret_cast<const std::byte*>(RandVals.data()), RandVals.size() };
 }
 
+void TestResizeImage(std::string filepath);
 
 int main(int argc, char **argv)                  
 {
@@ -24,5 +25,13 @@ int main(int argc, char **argv)
     env->ProcessTestArg({ argv, static_cast<size_t>(argc) });
     printf("Running main() from %s\n", env->ExePath.empty() ? __FILE__ : env->ExePath.string().c_str());
     testing::AddGlobalTestEnvironment(env);
+    for (const auto arg : env->GetTestArgs())
+    {
+        if (arg.starts_with("-testimg="))
+        {
+            TestResizeImage(std::string(arg.substr(9)));
+            return 0;
+        }
+    }
     return RUN_ALL_TESTS();
 }

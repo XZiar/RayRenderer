@@ -18,6 +18,7 @@ DEFINE_FASTPATH_SCOPE(SSE42)
     return true;
 }
 DECLARE_FASTPATH_PARTIALS(ColorConvertor, AVX512, AVX2, SSE42)
+DECLARE_FASTPATH_PARTIALS(STBResize, AVX2, SSE42)
 #elif COMMON_ARCH_ARM
 #   if COMMON_OSBIT == 64
 DEFINE_FASTPATH_SCOPE(A64)
@@ -25,12 +26,14 @@ DEFINE_FASTPATH_SCOPE(A64)
     return common::CheckCPUFeature("asimd");
 }
 DECLARE_FASTPATH_PARTIALS(ColorConvertor, A64)
+DECLARE_FASTPATH_PARTIALS(STBResize, A64)
 #   else
 DEFINE_FASTPATH_SCOPE(A32)
 {
     return common::CheckCPUFeature("asimd");
 }
 DECLARE_FASTPATH_PARTIALS(ColorConvertor, A32)
+DECLARE_FASTPATH_PARTIALS(STBResize, A32)
 #   endif
 #endif
 
@@ -50,6 +53,14 @@ const ColorConvertor& ColorConvertor::Get() noexcept
 {
     static ColorConvertor convertor;
     return convertor;
+}
+
+DEFINE_FASTPATH_BASIC(STBResize, DoResize)
+
+const STBResize& STBResize::Get() noexcept
+{
+    static STBResize resizer;
+    return resizer;
 }
 
 

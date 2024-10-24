@@ -63,4 +63,36 @@ public:
 };
 
 
+class STBResize final : public common::RuntimeFastPath<STBResize>
+{
+    friend ::common::fastpath::PathHack;
+public:
+    struct ResizeInfo
+    {
+        const void* Input;
+        void* Output;
+        std::pair<uint32_t, uint32_t> InputSizes;
+        std::pair<uint32_t, uint32_t> OutputSizes;
+        uint8_t Layout;
+        uint8_t Datatype;
+        uint8_t Edge;
+        uint8_t Filter;
+    };
+private:
+    void(*DoResize)(const ResizeInfo& info) noexcept = nullptr;
+public:
+    IMGUTILAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
+    IMGUTILAPI STBResize(common::span<const VarItem> requests = {}) noexcept;
+    IMGUTILAPI ~STBResize();
+    IMGUTILAPI [[nodiscard]] bool IsComplete() const noexcept final;
+
+    forceinline void Resize(const ResizeInfo& info) const noexcept
+    {
+        DoResize(info);
+    }
+
+    IMGUTILAPI static const STBResize& Get() noexcept;
+};
+
+
 }

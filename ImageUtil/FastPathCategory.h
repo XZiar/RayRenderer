@@ -7,6 +7,17 @@ using ::common::CheckCPUFeature;
 
 
 struct LOOP : ::common::fastpath::FuncVarBase {};
+struct SSE2
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("sse2");
+#else
+        return false;
+#endif
+    }
+};
 struct SIMD128
 {
     static bool RuntimeCheck() noexcept
