@@ -4,7 +4,10 @@
 #include "common/simd/SIMD.hpp"
 
 
-#if COMMON_COMPILER_MSVC
+#if COMMON_COMPILER_GCC
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wunused-function"
+#elif COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4505)
 #endif
@@ -13,7 +16,9 @@
 #   define STB_IMAGE_RESIZE_STATIC
 #   include "stb/stb_image_resize2.h"
 #endif
-#if COMMON_COMPILER_MSVC
+#if COMMON_COMPILER_GCC
+#   pragma GCC diagnostic pop
+#elif COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 
@@ -49,6 +54,7 @@ forceinline void CallStbResize(const ::xziar::img::STBResize::ResizeInfo& info)
         static_cast<stbir_pixel_layout>(info.Layout), static_cast<stbir_datatype>(info.Datatype), static_cast<stbir_edge>(info.Edge), static_cast<stbir_filter>(info.Filter));
 }
 # if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
+#   pragma message("Compiling stb_image_resize2 with AVX2")
 DEFINE_FASTPATH_METHOD(DoResize, AVX2)
 {
     CallStbResize(info);
@@ -56,8 +62,10 @@ DEFINE_FASTPATH_METHOD(DoResize, AVX2)
 # elif (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20) || (COMMON_ARCH_ARM && COMMON_SIMD_LV >= 10)
 #   if COMMON_ARCH_X86
 #     define ALGO SSE2
+#     pragma message("Compiling stb_image_resize2 with SSE2")
 #   else
 #     define ALGO NEON
+#     pragma message("Compiling stb_image_resize2 with NEON")
 #   endif
 DEFINE_FASTPATH_METHOD(DoResize, ALGO)
 {

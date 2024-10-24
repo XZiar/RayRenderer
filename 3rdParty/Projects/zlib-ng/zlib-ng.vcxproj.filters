@@ -20,31 +20,37 @@
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="$(RealSourceDir)\arch\generic\adler32_c.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\generic\adler32_fold_c.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\generic\chunkset_c.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\generic\compare256_c.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\generic\crc32_braid_c.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\generic\crc32_fold_c.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\generic\slide_hash_c.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\adler32.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\adler32_fold.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\chunkset.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\compare256.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\compress.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\cpu_features.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\crc32_braid.c">
+    <ClCompile Include="$(RealSourceDir)\crc32.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\crc32_braid_comb.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\crc32_fold.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\deflate.c">
@@ -89,9 +95,6 @@
     <ClCompile Include="$(RealSourceDir)\insert_string_roll.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\slide_hash.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\trees.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -99,6 +102,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\zutil.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\cpu_features.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\gzlib.c">
@@ -146,9 +152,6 @@
     <ClCompile Include="$(RealSourceDir)\arch\x86\crc32_vpclmulqdq.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\arch\x86\insert_string_sse42.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\arch\x86\slide_hash_avx2.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -164,6 +167,9 @@
     <ClCompile Include="$(RealSourceDir)\arch\arm\arm_features.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClInclude Include="$(RealSourceDir)\arch\arm\arm_functions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClCompile Include="$(RealSourceDir)\arch\arm\chunkset_neon.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -171,9 +177,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\arch\arm\crc32_acle.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\arch\arm\insert_string_acle.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\arch\arm\slide_hash_neon.c">
@@ -208,7 +211,7 @@
     <ClInclude Include="$(RealSourceDir)\compare256_rle.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\cpu_features.h">
+    <ClInclude Include="$(RealSourceDir)\arch_functions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\crc32_braid_p.h">
@@ -218,9 +221,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\crc32_braid_tbl.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\crc32_fold.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\deflate.h">
@@ -262,6 +262,12 @@
     <ClInclude Include="$(RealSourceDir)\trees_tbl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\fallback_builtins.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\cpu_features.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="$(RealSourceDir)\zbuild.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -277,13 +283,7 @@
     <ClInclude Include="$(RealSourceDir)\arch\x86\adler32_avx2_p.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\arch\x86\adler32_avx2_tpl.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="$(RealSourceDir)\arch\x86\adler32_avx512_p.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\arch\x86\adler32_avx512_tpl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\arch\x86\adler32_ssse3_p.h">
@@ -298,10 +298,13 @@
     <ClInclude Include="$(RealSourceDir)\arch\x86\crc32_pclmulqdq_tpl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\zlib_name_mangling.h">
+    <ClInclude Include="$(RealSourceDir)\arch\x86\x86_functions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\arch\x86\x86_features.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\arch\generic\generic_functions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

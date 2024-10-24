@@ -17,10 +17,6 @@
         {
             "incpath": [".", "$(BuildDir)", "../zlib-ng", "$(BuildDir)/../zlib-ng"]
         },
-        "asm":
-        {
-            "sources":[{"ifeq": {"arch": "arm"}, "+": "arm/*.S"}]
-        },
         "c":
         {
             "sources": 
@@ -32,7 +28,7 @@
             ],
             "defines":
             [
-                {"ifeq": {"arch": "x86"}, "+": "PNG_INTEL_SSE"},
+                {"ifeq": {"arch": "x86"}, "+": "PNG_INTEL_SSE_OPT=1"},
                 {"ifeq": {"platform": "ARM64"}, "+": "PNG_ARM_NEON_OPT=2"},
                 {"ifeq": {"arch": "arm"}, "+": "PNG_ARM_NEON_API_SUPPORTED"}
             ]

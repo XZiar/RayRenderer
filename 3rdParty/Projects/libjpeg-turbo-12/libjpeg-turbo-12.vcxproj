@@ -73,9 +73,6 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\nasm.props" />
-  </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
   <ImportGroup Label="PropertySheets">
@@ -110,10 +107,6 @@
       <Command>
       </Command>
     </PreBuildEvent>
-    <NASM>
-      <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
-      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
-    </NASM>
     <Lib>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -140,10 +133,6 @@
       <Command>
       </Command>
     </PreBuildEvent>
-    <NASM>
-      <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
-      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
-    </NASM>
     <Lib>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -166,10 +155,6 @@
       <Command>
       </Command>
     </PreBuildEvent>
-    <NASM>
-      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\i386;%(IncludePaths)</IncludePaths>
-      <PreprocessorDefinitions>WIN32</PreprocessorDefinitions>
-    </NASM>
     <Lib>
       <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
@@ -191,10 +176,6 @@
       <Command>
       </Command>
     </PreBuildEvent>
-    <NASM>
-      <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
-      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
-    </NASM>
     <Lib>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -216,10 +197,6 @@
       <Command>
       </Command>
     </PreBuildEvent>
-    <NASM>
-      <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
-      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
-    </NASM>
     <Lib>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -247,10 +224,6 @@
       <Command>
       </Command>
     </PreBuildEvent>
-    <NASM>
-      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\i386;%(IncludePaths)</IncludePaths>
-      <PreprocessorDefinitions>WIN32</PreprocessorDefinitions>
-    </NASM>
     <Lib>
       <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
@@ -322,7 +295,4 @@
     <ClInclude Include="$(RealSourceDir)\turbojpeg.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\nasm.targets" />
-  </ImportGroup>
 </Project>

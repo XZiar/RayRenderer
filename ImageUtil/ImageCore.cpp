@@ -260,7 +260,7 @@ Image Image::ResizeTo(uint32_t width, uint32_t height, const bool isSRGB, const 
         {
             fmter.FormatToStatic(pathtxt, FmtString("\n--[{}] get paths:"), pathinfo.FuncName.View);
             std::string_view uses;
-            for (const auto item : selections)
+            for (const auto& item : selections)
                 if (item.first == pathinfo.FuncName.View)
                 {
                     uses = item.second;

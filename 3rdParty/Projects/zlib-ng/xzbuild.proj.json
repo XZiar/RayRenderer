@@ -17,26 +17,27 @@
         {
             "defines": 
             [
-                {"ifeq": {"arch": "x86"},           "+": ["X86_FEATURES", "X86_NOCHECK_SSE2", "X86_SSE2"]},
-                {"ifeq": {"arch": "arm"},           "+": ["ARM_FEATURES", "ARM_AUXV_HAS_CRC32"]},
+                {"ifeq": {"arch": "x86"},           "+": ["X86_FEATURES", "X86_NOCHECK_SSE2", "X86_SSE2", "X86_HAVE_XSAVE_INTRIN"]},
+                {"ifeq": {"arch": "arm"},           "+": ["ARM_FEATURES", "ARM_ASM_HWCAP", "ARM_AUXV_HAS_CRC32"]},
                 {"ifin": {"arch": "arm"}, "iflt": {"bits": 64}, "+": ["ARM_AUXV_HAS_NEON"]},
                 {"ifin": {"intrin": "avx512vnni"},  "+": ["X86_AVX512VNNI"]},
-                {"ifin": {"intrin": "avx32"},       "+": ["X86_AVX512", "X86_MASK_INTRIN"]},
+                {"ifin": {"intrin": "avx32"},       "+": ["X86_AVX512"]},
                 {"ifin": {"intrin": "avx2"},        "+": ["X86_AVX2"]},
                 {"ifin": {"intrin": "sse42"},       "+": ["X86_SSE42", "X86_SSE42_CRC_INTRIN"]},
                 {"ifin": {"intrin": "ssse3"},       "+": ["X86_SSSE3"]},
                 {"ifin": [["intrin", "pclmul"], ["intrin", "avx32"]], "+": ["X86_VPCLMULQDQ_CRC"]},
                 {"ifin": [["intrin", "pclmul"], ["intrin", "ssse3"]], "+": ["X86_PCLMULQDQ_CRC"]},
                 {"ifin": {"intrin": "neon"},        "+": ["ARM_NEON", "ARM_NEON_HASLD4"]},
-                {"ifin": {"intrin": "acle_crc"}, "ifge": {"armArch": 8}, "+": ["ARM_ACLE"]},
+                {"ifin": {"intrin": "acle_crc"}, "ifge": {"armArch": 8}, "+": ["ARM_ACLE", "HAVE_ARM_ACLE_H"]},
                 "HAVE_VISIBILITY_HIDDEN", "HAVE_VISIBILITY_INTERNAL", "HAVE_BUILTIN_CTZ", "HAVE_BUILTIN_CTZL",
                 "_LARGEFILE64_SOURCE=1", "__USE_LARGEFILE64", "HAVE_UNISTD_H", "HAVE_STDARG_H", "HAVE_SYS_AUXV_H",
-                "HAVE_ATTRIBUTE_ALIGNED", "HAVE_THREAD_LOCAL",
+                "HAVE_ATTRIBUTE_ALIGNED",
                 "ZLIB_COMPAT", "WITH_GZFILEOP"
             ],
             "sources":
             [
                 "*.c", 
+                "arch/generic/*.c", 
                 "../Projects/zlib-ng/gzread.c",
                 {"ifeq": {"arch": "x86"}, "+": "arch/x86/*.c"},
                 {
@@ -57,7 +58,7 @@
                 {
                     "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "sse42"}, 
                     "dir": "arch/x86",
-                    "-": ["adler32_sse42.c", "insert_string_sse42.c"]
+                    "-": ["adler32_sse42.c"]
                 },
                 {
                     "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "ssse3"}, 
@@ -79,7 +80,7 @@
                 {
                     "ifeq": {"arch": "arm"}, "ifnin": {"intrin": "acle_crc"}, 
                     "dir": "arch/arm",
-                    "-": ["crc32_acle.c", "insert_string_acle.c"]
+                    "-": ["crc32_acle.c"]
                 }
             ],
             "incpath": [".", "$(BuildDir)"]

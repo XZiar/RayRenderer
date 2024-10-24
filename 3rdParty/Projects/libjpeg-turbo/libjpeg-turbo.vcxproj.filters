@@ -189,6 +189,9 @@
     <ClCompile Include="$(RealSourceDir)\jmemnobs.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\jpeg_nbits.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\jquant1.c">
       <Filter>源文件</Filter>
     </ClCompile>

@@ -24,10 +24,6 @@ Enum enhancement.
 
 It also has experiemental compile-time reflection support based on `FUNCSIG` macro. The idea comes from [magic_enum](https://github.com/Neargye/magic_enum).
 
-### [Exception](./Exceptions.hpp)
-
-Custom Exception model, inherit from std::runtime_error, with support of nested-exception, strong-type, Unicode message, arbitrary extra data...
-
 ### [Linq](./Linq.hpp) `**Deprecated**`
 
 C#-like Linq implementation. It is compile-time based.

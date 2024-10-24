@@ -1,5 +1,8 @@
 /* libjpeg-turbo build number */
-#define BUILD  "20230206"
+#define BUILD  "20241024"
+
+/* How to hide global symbols. */
+#define HIDDEN  __attribute__((visibility("hidden")))
 
 /* Compiler's inline keyword */
 #undef inline
@@ -8,7 +11,7 @@
 #define PACKAGE_NAME  "libjpeg-turbo"
 
 /* Version number of package */
-#define VERSION  "2.1.90"
+#define VERSION  "3.0.4"
 
 #if defined(_MSC_VER)
 /* How to obtain function inlining. */

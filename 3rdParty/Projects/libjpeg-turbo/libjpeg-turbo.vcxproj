@@ -101,15 +101,12 @@
       <CompileAs>CompileAsC</CompileAs>
       <ConformanceMode>true</ConformanceMode>
       <CompileAsManaged>false</CompileAsManaged>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
-    <PreBuildEvent>
-      <Command>
-      </Command>
-    </PreBuildEvent>
     <NASM>
       <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
       <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
@@ -131,15 +128,12 @@
       <CompileAs>CompileAsC</CompileAs>
       <ConformanceMode>true</ConformanceMode>
       <CompileAsManaged>false</CompileAsManaged>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
-    <PreBuildEvent>
-      <Command>
-      </Command>
-    </PreBuildEvent>
     <NASM>
       <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
       <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
@@ -161,11 +155,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ConformanceMode>true</ConformanceMode>
       <CompileAsManaged>false</CompileAsManaged>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <PreBuildEvent>
-      <Command>
-      </Command>
-    </PreBuildEvent>
     <NASM>
       <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\i386;%(IncludePaths)</IncludePaths>
       <PreprocessorDefinitions>WIN32</PreprocessorDefinitions>
@@ -186,11 +177,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ConformanceMode>true</ConformanceMode>
       <CompileAsManaged>false</CompileAsManaged>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <PreBuildEvent>
-      <Command>
-      </Command>
-    </PreBuildEvent>
     <NASM>
       <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
       <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
@@ -211,11 +199,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ConformanceMode>true</ConformanceMode>
       <CompileAsManaged>false</CompileAsManaged>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <PreBuildEvent>
-      <Command>
-      </Command>
-    </PreBuildEvent>
     <NASM>
       <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
       <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
@@ -238,15 +223,12 @@
       <CompileAs>CompileAsC</CompileAs>
       <ConformanceMode>true</ConformanceMode>
       <CompileAsManaged>false</CompileAsManaged>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
-    <PreBuildEvent>
-      <Command>
-      </Command>
-    </PreBuildEvent>
     <NASM>
       <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\i386;%(IncludePaths)</IncludePaths>
       <PreprocessorDefinitions>WIN32</PreprocessorDefinitions>
@@ -310,6 +292,7 @@
     <ClCompile Include="$(RealSourceDir)\jutils.c" />
     <ClCompile Include="$(RealSourceDir)\jmemmgr.c" />
     <ClCompile Include="$(RealSourceDir)\jmemnobs.c" />
+    <ClCompile Include="$(RealSourceDir)\jpeg_nbits.c" />
     <ClCompile Include="$(RealSourceDir)\jaricom.c" />
     <ClCompile Include="$(RealSourceDir)\jcarith.c" />
     <ClCompile Include="$(RealSourceDir)\jdarith.c" />

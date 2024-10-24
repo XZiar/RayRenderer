@@ -76,6 +76,7 @@
                 "jutils.c", 
                 "jmemmgr.c", 
                 "jmemnobs.c", 
+                "jpeg_nbits.c", 
                 "jaricom.c", 
                 "jcarith.c", 
                 "jdarith.c", 
