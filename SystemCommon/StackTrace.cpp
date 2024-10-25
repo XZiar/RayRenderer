@@ -3,12 +3,25 @@
 #include "ThreadEx.h"
 #include "SystemCommon/StringConvert.h"
 #include "common/SharedString.hpp"
-#if COMMON_OS_WIN
+#if defined(__cpp_lib_stacktrace) && __cpp_lib_stacktrace >= 202011L
+# define CM_ST_STD 1
+# include <stacktrace>
+using Frame = std::stacktrace_entry;
+using Trace = std::basic_stacktrace;
+# pragma message("Compiling SystemCommon with std stacktrace[" STRINGIZE(__cpp_lib_stacktrace) "]" )
+#else
+# if COMMON_OS_WIN
 #   define BOOST_STACKTRACE_USE_WINDBG_CACHED 1
-#elif !COMMON_COMPILER_CLANG // no idea how to cleanly make clang find backtrace
+# elif !COMMON_COMPILER_CLANG // no idea how to cleanly make clang find backtrace
 #   define BOOST_STACKTRACE_USE_BACKTRACE 1
+# endif
+# define CM_ST_STD 0
+# include <boost/stacktrace.hpp>
+# include <boost/version.hpp>
+using Frame = boost::stacktrace::frame;
+using Trace = boost::stacktrace::stacktrace;
+# pragma message("Compiling SystemCommon with boost stacktrace[" STRINGIZE(BOOST_LIB_VERSION) "]" )
 #endif
-#include <boost/stacktrace.hpp>
 #include <unordered_map>
 #include <thread>
 #include <condition_variable>
@@ -20,8 +33,8 @@
 namespace common
 {
 
-using FrameRequest = std::pair<const boost::stacktrace::frame*, StackTraceItem*>;
-using StackRequest = std::pair<const boost::stacktrace::stacktrace*, std::vector<StackTraceItem>*>;
+using FrameRequest = std::pair<const Frame*, StackTraceItem*>;
+using StackRequest = std::pair<const Trace*, std::vector<StackTraceItem>*>;
 
 
 class StackExplainer
@@ -36,7 +49,7 @@ private:
     std::variant<std::monostate, FrameRequest, StackRequest> Request;
     uintptr_t ExitCallback = 0;
     bool ShouldRun;
-    SharedString<char16_t> CachedFileName(const boost::stacktrace::frame& frame)
+    SharedString<char16_t> CachedFileName(const Frame& frame)
     {
         auto fileName = frame.source_file();
         if (const auto it = FileCache.find(fileName); it != FileCache.end())
@@ -71,12 +84,18 @@ public:
                 } break;
                 case 2:
                 {
-                    const auto [stks, output] = std::get<2>(Request);
-                    for (auto frame = stks->begin(); frame != stks->end(); ++frame)
+                    const auto [st, output] = std::get<2>(Request);
+                    for (const auto& frame : *st)
                     {
                         try
                         {
-                            output->emplace_back(CachedFileName(*frame), str::to_u16string(frame->name()), frame->source_line());
+                            output->emplace_back(CachedFileName(frame), 
+#if CM_ST_STD
+                                str::to_u16string(frame.description()),
+#else
+                                str::to_u16string(frame.name()),
+#endif
+                                frame.source_line());
                         }
                         catch (...)
                         {
@@ -110,7 +129,7 @@ public:
         }
         ExitCleaner::UnRegisterCleaner(ExitCallback);
     }
-    std::vector<StackTraceItem> Explain(const boost::stacktrace::stacktrace& st) noexcept
+    std::vector<StackTraceItem> Explain(const Trace& st) noexcept
     {
         std::vector<StackTraceItem> ret;
         std::unique_lock<std::mutex> callerLock(CallerMutex);
@@ -123,7 +142,7 @@ public:
         }
         return ret;
     }
-    StackTraceItem Explain(const boost::stacktrace::frame& frame) noexcept
+    StackTraceItem Explain(const Frame& frame) noexcept
     {
         StackTraceItem ret;
         std::unique_lock<std::mutex> callerLock(CallerMutex);
@@ -149,7 +168,11 @@ std::vector<StackTraceItem> GetStack(size_t skip) noexcept
 #ifdef _DEBUG
     skip += 3;
 #endif
-    boost::stacktrace::stacktrace st(skip, UINT32_MAX);
+#if CM_ST_STD
+    auto st = Trace::current((skip, UINT32_MAX);
+#else
+    Trace st(skip, UINT32_MAX);
+#endif
     return StackExplainer::GetExplainer().Explain(st);
 }
 
@@ -158,10 +181,14 @@ AlignedBuffer GetDelayedStack(size_t skip) noexcept
 #ifdef _DEBUG
     skip += 3;
 #endif
-    boost::stacktrace::stacktrace st(skip, UINT32_MAX);
-    const auto& stacks = st.as_vector();
-    AlignedBuffer ret(stacks.size() * sizeof(boost::stacktrace::frame), alignof(boost::stacktrace::frame));
-    memcpy_s(ret.GetRawPtr(), ret.GetSize(), stacks.data(), stacks.size() * sizeof(boost::stacktrace::frame));
+#if CM_ST_STD
+    auto st = Trace::current((skip, UINT32_MAX);
+#else
+    Trace st(skip, UINT32_MAX);
+#endif
+    AlignedBuffer ret(st.size() * sizeof(Frame), alignof(Frame));
+    for (size_t i = 0; i < st.size(); ++i)
+        ret.GetRawPtr<Frame>()[i] = st[i];
     return ret;
 }
 
@@ -172,13 +199,13 @@ StackTraceItem ExceptionBasicInfo::GetStack(size_t idx) const noexcept
         return StackTrace[idx];
     else
     {
-        const auto ptr = DelayedStacks.GetRawPtr<boost::stacktrace::frame>();
+        const auto ptr = DelayedStacks.GetRawPtr<Frame>();
         return StackExplainer::GetExplainer().Explain(ptr[idx - StackTrace.size()]);
     }
 }
 size_t ExceptionBasicInfo::GetStackCount() const noexcept
 {
-    return StackTrace.size() + DelayedStacks.GetSize() / sizeof(boost::stacktrace::frame);
+    return StackTrace.size() + DelayedStacks.GetSize() / sizeof(Frame);
 }
 
 

@@ -6,10 +6,10 @@
 #include "OpenCLUtil/oclKernelDebug.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "SystemCommon/StringConvert.h"
+#include "SystemCommon/CharConvs.h"
 #include "common/Linq2.hpp"
 #include "common/StringLinq.hpp"
 #include "common/StrParsePack.hpp"
-#include "common/CharConvs.hpp"
 #include "common/StringEx.hpp"
 #include <iostream>
 #include <deque>

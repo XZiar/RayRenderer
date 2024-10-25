@@ -4,7 +4,7 @@
     "description": "common library for some system-level utilities",
     "dependency": 
     [
-        "uchardet", "boost.context", "date", "cpuinfo"
+        "uchardet", "boost.charconv", "boost.context", "date", "cpuinfo"
     ],
     "library": 
     {

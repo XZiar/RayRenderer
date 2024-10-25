@@ -90,6 +90,9 @@
     <ClCompile Include="FastPathARMA64.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="CharConvs.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SystemCommonRely.h">
@@ -198,6 +201,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FastPathCategory.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="CharConvs.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

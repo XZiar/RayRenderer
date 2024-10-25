@@ -164,6 +164,7 @@
       <PrecompiledHeaderFile>SystemCommonPch.h</PrecompiledHeaderFile>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <SupportJustMyCode>true</SupportJustMyCode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -188,6 +189,7 @@
       <PrecompiledHeaderFile>SystemCommonPch.h</PrecompiledHeaderFile>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <SupportJustMyCode>true</SupportJustMyCode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -211,6 +213,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>SystemCommonPch.h</PrecompiledHeaderFile>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <SupportJustMyCode>true</SupportJustMyCode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -220,6 +223,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AsyncManager.cpp" />
+    <ClCompile Include="CharConvs.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="ConsoleEx.cpp" />
     <ClCompile Include="DynamicLibrary.cpp" />
     <ClCompile Include="Exceptions.cpp">
@@ -282,6 +293,7 @@
   <ItemGroup>
     <ClInclude Include="AsyncManager.h" />
     <ClInclude Include="AsyncAgent.h" />
+    <ClInclude Include="CharConvs.h" />
     <ClInclude Include="ConsoleEx.h" />
     <ClInclude Include="CopyEx.h" />
     <ClInclude Include="Date.h" />
@@ -318,6 +330,9 @@
     <ClInclude Include="UnInterface.h" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\3rdParty\Projects\boost.charconv\boost.charconv.vcxproj">
+      <Project>{e908a1b2-da99-4d18-a2e5-ff3257e6c2c7}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\3rdParty\Projects\boost.context\boost.context.vcxproj">
       <Project>{e308a1b2-da99-4d69-a2e5-ff5b57e6efc7}</Project>
     </ProjectReference>

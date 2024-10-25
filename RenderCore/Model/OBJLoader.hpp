@@ -1,7 +1,7 @@
 #pragma once
 #include "RenderCoreRely.h"
 #include "SystemCommon/StringDetect.h"
-#include "common/CharConvs.hpp"
+#include "SystemCommon/CharConvs.h"
 
 namespace dizz::detail
 {

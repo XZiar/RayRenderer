@@ -90,3 +90,6 @@
 [submodule "3rdParty/cpuinfo"]
 	path = 3rdParty/cpuinfo
 	url = https://github.com/pytorch/cpuinfo.git
+[submodule "3rdParty/boost.charconv"]
+	path = 3rdParty/boost.charconv
+	url = https://github.com/boostorg/charconv.git

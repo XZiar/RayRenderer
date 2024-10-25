@@ -88,10 +88,10 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=300;OPENCL_ICD_LOADER_VERSION_MAJOR=3;OPENCL_ICD_LOADER_VERSION_MINOR=0;OPENCL_ICD_LOADER_VERSION_REV=5;CL_ENABLE_LAYERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=300;OPENCL_ICD_LOADER_VERSION_MAJOR=3;OPENCL_ICD_LOADER_VERSION_MINOR=0;OPENCL_ICD_LOADER_VERSION_REV=6;CL_NO_NON_ICD_DISPATCH_EXTENSION_PROTOTYPES;CL_ENABLE_LAYERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=300;OPENCL_ICD_LOADER_VERSION_MAJOR=3;OPENCL_ICD_LOADER_VERSION_MINOR=0;OPENCL_ICD_LOADER_VERSION_REV=5;CL_ENABLE_LAYERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=300;OPENCL_ICD_LOADER_VERSION_MAJOR=3;OPENCL_ICD_LOADER_VERSION_MINOR=0;OPENCL_ICD_LOADER_VERSION_REV=6;CL_NO_NON_ICD_DISPATCH_EXTENSION_PROTOTYPES;CL_ENABLE_LAYERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -224,7 +224,6 @@
     <ClInclude Include="$(RealSourceDir)\icd_envvars.h" />
     <ClInclude Include="$(RealSourceDir)\icd_platform.h" />
     <ClInclude Include="$(RealSourceDir)\icd_version.h" />
-    <ClInclude Include="$(RealSourceDir)\cl_icdl_private.h" />
     <ClInclude Include="$(RealSourceDir)\windows\adapter.h" />
     <ClInclude Include="$(RealSourceDir)\windows\icd_windows.h" />
     <ClInclude Include="$(RealSourceDir)\windows\icd_windows_apppackage.h" />

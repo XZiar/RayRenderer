@@ -42,25 +42,6 @@
 
 
 
-/* STL Test */
-
-#if defined(_LIBCPP_VERSION)
-#   define COMMON_STL_LIBCPP 1
-#   define COMMON_LIBCPP_VER _LIBCPP_VERSION
-#elif defined(_GLIBCXX_RELEASE)
-#   define COMMON_STL_LIBSTDCPP 1
-#   define COMMON_LIBSTDCPP_VER _GLIBCXX_RELEASE
-#endif
-
-#ifndef COMMON_STL_LIBCPP
-#   define COMMON_STL_LIBCPP 0
-#endif
-#ifndef COMMON_STL_LIBSTDCPP
-#   define COMMON_STL_LIBSTDCPP 0
-#endif
-
-
-
 /* OS Test */
 
 #if defined(_WIN32)
@@ -192,6 +173,25 @@
 #endif
 #ifndef COMMON_CPP_03
 #   define COMMON_CPP_03 0
+#endif
+
+
+
+/* STL Test, need to include any header first */
+
+#if defined(_LIBCPP_VERSION)
+#   define COMMON_STL_LIBCPP 1
+#   define COMMON_LIBCPP_VER _LIBCPP_VERSION
+#elif defined(_GLIBCXX_RELEASE)
+#   define COMMON_STL_LIBSTDCPP 1
+#   define COMMON_LIBSTDCPP_VER _GLIBCXX_RELEASE
+#endif
+
+#ifndef COMMON_STL_LIBCPP
+#   define COMMON_STL_LIBCPP 0
+#endif
+#ifndef COMMON_STL_LIBSTDCPP
+#   define COMMON_STL_LIBSTDCPP 0
 #endif
 
 

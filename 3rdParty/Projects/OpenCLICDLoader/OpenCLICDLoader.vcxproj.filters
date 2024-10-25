@@ -30,9 +30,6 @@
     <ClInclude Include="$(RealSourceDir)\icd_version.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\cl_icdl_private.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="$(RealSourceDir)\windows\adapter.h">
       <Filter>头文件</Filter>
     </ClInclude>

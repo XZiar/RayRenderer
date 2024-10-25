@@ -406,6 +406,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shared", "Shared", "{7F67B3
 		Tests\Shared\GTestCommon.inl = Tests\Shared\GTestCommon.inl
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "boost.charconv", "3rdParty\Projects\boost.charconv\boost.charconv.vcxproj", "{E908A1B2-DA99-4D18-A2E5-FF3257E6C2C7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -767,6 +769,14 @@ Global
 		{3EDD7EC9-C90D-31C0-6D8C-8A6E251333E5}.Release|ARM64.Build.0 = Release|ARM64
 		{3EDD7EC9-C90D-31C0-6D8C-8A6E251333E5}.Release|x64.ActiveCfg = Release|x64
 		{3EDD7EC9-C90D-31C0-6D8C-8A6E251333E5}.Release|x64.Build.0 = Release|x64
+		{E908A1B2-DA99-4D18-A2E5-FF3257E6C2C7}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{E908A1B2-DA99-4D18-A2E5-FF3257E6C2C7}.Debug|ARM64.Build.0 = Debug|ARM64
+		{E908A1B2-DA99-4D18-A2E5-FF3257E6C2C7}.Debug|x64.ActiveCfg = Debug|x64
+		{E908A1B2-DA99-4D18-A2E5-FF3257E6C2C7}.Debug|x64.Build.0 = Debug|x64
+		{E908A1B2-DA99-4D18-A2E5-FF3257E6C2C7}.Release|ARM64.ActiveCfg = Release|ARM64
+		{E908A1B2-DA99-4D18-A2E5-FF3257E6C2C7}.Release|ARM64.Build.0 = Release|ARM64
+		{E908A1B2-DA99-4D18-A2E5-FF3257E6C2C7}.Release|x64.ActiveCfg = Release|x64
+		{E908A1B2-DA99-4D18-A2E5-FF3257E6C2C7}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -837,6 +847,7 @@ Global
 		{03AB567F-05FF-3782-BE15-D7BCB3DD0FE5} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{3EDD7EC9-C90D-31C0-6D8C-8A6E251333E5} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 		{7F67B343-A49C-412C-A2E1-7B6AF760C60B} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
+		{E908A1B2-DA99-4D18-A2E5-FF3257E6C2C7} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

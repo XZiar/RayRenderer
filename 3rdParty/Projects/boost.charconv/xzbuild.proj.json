@@ -1,0 +1,24 @@
+{
+    "name": "boost.charconv",
+    "type": "static",
+    "description": "C++11 compatible charconv",
+    "dependency": [],
+    "srcPath": "../../boost.charconv/src",
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cxx":
+        {
+            "defines": ["BOOST_CHARCONV_SOURCE"]
+        },
+        "cpp":
+        {
+            "sources": ["from_chars.cpp", "to_chars.cpp"],
+            "incpath": ["../include"]
+        }
+    }
+}

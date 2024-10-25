@@ -2,6 +2,7 @@
 
 #include "NailangRely.h"
 
+#include "SystemCommon/CharConvs.h"
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/MiscIntrins.h"
 #include "SystemCommon/Format.h"
@@ -14,7 +15,6 @@
 #include "common/StaticLookup.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/StrParsePack.hpp"
-#include "common/CharConvs.hpp"
 #include "common/AlignedBase.hpp"
 
 #include <boost/container/small_vector.hpp>
