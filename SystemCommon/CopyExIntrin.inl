@@ -601,23 +601,23 @@ DEFINE_FASTPATH_METHOD(TruncCopy84, SSSE3)
 #endif
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41
-DEFINE_FASTPATH_METHOD(SExtCopy12, SSSE41)
+DEFINE_FASTPATH_METHOD(SExtCopy12, SSE41)
 {
     CastSIMD4<DefaultCast<I8x16, I16x8>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(SExtCopy14, SSSE41)
+DEFINE_FASTPATH_METHOD(SExtCopy14, SSE41)
 {
     CastSIMD4<DefaultCast<I8x16, I32x4>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(SExtCopy24, SSSE41)
+DEFINE_FASTPATH_METHOD(SExtCopy24, SSE41)
 {
     CastSIMD4<DefaultCast<I16x8, I32x4>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(SExtCopy28, SSSE41)
+DEFINE_FASTPATH_METHOD(SExtCopy28, SSE41)
 {
     CastSIMD4<DefaultCast<I16x8, I64x2>, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(SExtCopy48, SSSE41)
+DEFINE_FASTPATH_METHOD(SExtCopy48, SSE41)
 {
     CastSIMD4<DefaultCast<I32x4, I64x2>, &Func<LOOP>>(dest, src, count);
 }
@@ -670,23 +670,23 @@ DEFINE_FASTPATH_METHOD(ZExtCopy48, AVX2)
 }
 DEFINE_FASTPATH_METHOD(SExtCopy12, AVX2)
 {
-    CastSIMD4<DefaultCast<I8x32, I16x16>, &Func<SSSE41>>(dest, src, count);
+    CastSIMD4<DefaultCast<I8x32, I16x16>, &Func<SSE41>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(SExtCopy14, AVX2)
 {
-    CastSIMD4<DefaultCast<I8x32, I32x8>, &Func<SSSE41>>(dest, src, count);
+    CastSIMD4<DefaultCast<I8x32, I32x8>, &Func<SSE41>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(SExtCopy24, AVX2)
 {
-    CastSIMD4<DefaultCast<I16x16, I32x8>, &Func<SSSE41>>(dest, src, count);
+    CastSIMD4<DefaultCast<I16x16, I32x8>, &Func<SSE41>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(SExtCopy28, AVX2)
 {
-    CastSIMD4<DefaultCast<I16x16, I64x4>, &Func<SSSE41>>(dest, src, count);
+    CastSIMD4<DefaultCast<I16x16, I64x4>, &Func<SSE41>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(SExtCopy48, AVX2)
 {
-    CastSIMD4<DefaultCast<I32x8, I64x4>, &Func<SSSE41>>(dest, src, count);
+    CastSIMD4<DefaultCast<I32x8, I64x4>, &Func<SSE41>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(TruncCopy21, AVX2)
 {
@@ -918,11 +918,11 @@ struct F3216Cast_SSE41
         out.Save(dst);
     }
 };
-DEFINE_FASTPATH_METHOD(CvtF16F32, SSSE41)
+DEFINE_FASTPATH_METHOD(CvtF16F32, SSE41)
 {
     CastSIMD2<F1632Cast_SSE41, &Func<LOOP>>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(CvtF32F16, SSSE41)
+DEFINE_FASTPATH_METHOD(CvtF32F16, SSE41)
 {
     CastSIMD2<F3216Cast_SSE41, &Func<LOOP>>(dest, src, count);
 }

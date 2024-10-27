@@ -339,5 +339,69 @@ Image Image::ConvertToFloat(const float floatRange) const
     }
 }
 
+Image Image::ExtractChannel(uint8_t channel, bool keepAlpha) const
+{
+    if (HAS_FIELD(DataType, ImageDataType::FLOAT_MASK))
+        COMMON_THROW(BaseException, u"not support extract channel from float image");
+
+    uint32_t chLimit = 0;
+    switch (DataType)
+    {
+    case ImageDataType::GRAY: chLimit = 1; break;
+    case ImageDataType::RGB:  [[fallthrough]];
+    case ImageDataType::BGR:  chLimit = 3; break;
+    case ImageDataType::RGBA: [[fallthrough]];
+    case ImageDataType::BGRA: chLimit = 4; break;
+    case ImageDataType::GA:   chLimit = 2; break;
+    default:
+        COMMON_THROW(BaseException, u"unsupported datatype!");
+    }
+    if (channel >= chLimit)
+        COMMON_THROW(BaseException, u"invalid channel index when extract channel");
+
+    if (HAS_FIELD(DataType, ImageDataType::ALPHA_MASK) && keepAlpha)
+    {
+        if (channel == chLimit - 1) // alpha channel
+        {
+            if (DataType == ImageDataType::GA)
+                COMMON_THROW(BaseException, u"unsupported extracting alpha from GA!");
+            keepAlpha = false;
+        }
+    }
+
+    if (REMOVE_MASK(DataType, ImageDataType::ALPHA_MASK) == ImageDataType::BGR)
+    {
+        if (channel == 0) channel = 2;
+        else if (channel == 2) channel = 0;
+    }
+
+    if (DataType == ImageDataType::GRAY) return *this;
+    Ensures(chLimit == 2 || chLimit == 3 || chLimit == 4);
+
+    Image newimg(ImageDataType::GRAY | (keepAlpha ? ImageDataType::ALPHA_MASK : ImageDataType::EMPTY_MASK));
+    newimg.SetSize(Width, Height);
+    const auto& cvter = ColorConvertor::Get();
+    switch (chLimit)
+    {
+    case 2:
+        Ensures(channel == 0u);
+        cvter.GrayAToGray(newimg.GetRawPtr<uint8_t>(), GetRawPtr<uint16_t>(), PixelCount());
+        break;
+    case 3:
+        Ensures(channel < 3u);
+        cvter.RGBGetChannel(newimg.GetRawPtr<uint8_t>(), GetRawPtr<uint8_t>(), PixelCount(), channel);
+        break;
+    case 4:
+        Ensures(channel < 4u);
+        cvter.RGBAGetChannel(newimg.GetRawPtr<uint8_t>(), GetRawPtr<uint32_t>(), PixelCount(), channel);
+        break;
+    default:
+        break;
+    }
+
+    return newimg;
+}
+
+
 }
 

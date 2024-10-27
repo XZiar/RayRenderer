@@ -19,19 +19,18 @@
             "sources": 
             [
                 "*.cpp",
-                {"ifeq": {"arch": "x86"}, "-": ["FastPathARMv7.cpp", "FastPathARMA32.cpp", "FastPathARMA64.cpp"]},
+                {"ifeq": {"arch": "x86"}, "-": ["FastPathARMA32.cpp", "FastPathARMA64.cpp"]},
                 {"ifeq": {"arch": "arm"}, "-": ["FastPathSSE42.cpp", "FastPathAVX2.cpp", "FastPathAVX512.cpp"]},
-                {"ifeq": {"arch": "arm", "bits": 64}, "-": ["FastPathARMv7.cpp", "FastPathARMA32.cpp"]},
+                {"ifeq": {"arch": "arm", "bits": 64}, "-": ["FastPathARMA32.cpp"]},
                 {"ifeq": {"arch": "arm", "bits": 32}, "-": ["FastPathARMA64.cpp"]}
             ],
             "defines": ["IMGUTIL_EXPORT"],
             "pch": "ImageUtilPch.h",
             "arch":
             [
-                {"file": "FastPathARMv7.cpp",   "+": "arch=armv7-a+neon-vfpv4"},
                 {"file": "FastPathARMA32.cpp",  "+": "arch=armv8-a+crc+simd+crypto"},
                 {"file": "FastPathARMA64.cpp",  "+": "arch=armv8-a+crc+simd+crypto"},
-                {"file": "FastPathSSE42.cpp",   "+": "sse4.2,bmi2,bmi,waitpkg,lzcnt,popcnt,sha,f16c"},
+                {"file": "FastPathSSE42.cpp",   "+": "sse4.2,waitpkg,lzcnt,popcnt,sha,f16c"},
                 {"file": "FastPathAVX2.cpp",    "+": "avx2,fma,avx,bmi2,bmi,waitpkg,lzcnt,popcnt,sha,f16c"},
                 {"file": "FastPathAVX512.cpp",  "+": "avx512f,avx512vl,avx512bw,avx512dq,avx512vbmi2,avx512vbmi,avx2,fma,avx,bmi2,bmi,sse4.2,waitpkg,lzcnt,popcnt,sha,f16c"}
             ],

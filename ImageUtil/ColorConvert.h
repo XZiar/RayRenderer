@@ -18,6 +18,16 @@ private:
     void(*GA8ToRGBA8 )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGB8ToRGBA8)(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
     void(*RGBA8ToRGB8)(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToR8  )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToG8  )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToB8  )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToA8  )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB8ToR8   )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB8ToG8   )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB8ToB8   )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToRA8 )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToGA8 )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToBA8 )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
 public:
     IMGUTILAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
     IMGUTILAPI ColorConvertor(common::span<const VarItem> requests = {}) noexcept;
@@ -57,6 +67,40 @@ public:
     forceinline void RGBAToRGB(uint8_t* const dest, const uint32_t* src, const size_t count) const noexcept
     {
         RGBA8ToRGB8(dest, src, count);
+    }
+
+    forceinline void RGBAGetChannel(uint8_t* const dest, const uint32_t* src, const size_t count, const uint8_t channel) const noexcept
+    {
+        switch (channel)
+        {
+        case 0: return RGBA8ToR8(dest, src, count);
+        case 1: return RGBA8ToG8(dest, src, count);
+        case 2: return RGBA8ToB8(dest, src, count);
+        case 3: return RGBA8ToA8(dest, src, count);
+        default: return;
+        }
+    }
+
+    forceinline void RGBGetChannel(uint8_t* const dest, const uint8_t* src, const size_t count, const uint8_t channel) const noexcept
+    {
+        switch (channel)
+        {
+        case 0: return RGB8ToR8(dest, src, count);
+        case 1: return RGB8ToG8(dest, src, count);
+        case 2: return RGB8ToB8(dest, src, count);
+        default: return;
+        }
+    }
+
+    forceinline void RGBAGetChannelAlpha(uint16_t* const dest, const uint32_t* src, const size_t count, const uint8_t channel) const noexcept
+    {
+        switch (channel)
+        {
+        case 0: return RGBA8ToRA8(dest, src, count);
+        case 1: return RGBA8ToGA8(dest, src, count);
+        case 2: return RGBA8ToBA8(dest, src, count);
+        default: return;
+        }
     }
 
     IMGUTILAPI static const ColorConvertor& Get() noexcept;

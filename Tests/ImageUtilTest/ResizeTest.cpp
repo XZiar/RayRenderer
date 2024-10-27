@@ -1,6 +1,7 @@
 #include "rely.h"
 #include "ImageUtil/ImageUtil.h"
 #include "ImageUtil/ImageCore.h"
+#include "ImageUtil/ColorConvert.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/ConsoleEx.h"
@@ -42,5 +43,15 @@ void TestResizeImage(std::string filepath)
     auto img1sq = img1.ResizeTo(w / 3, w / 3, true);
     WriteImage(img1sq, folder / (basename + "-rgb-sq.bmp"));
     logger.Info(u"write rgb square img\n");
+
+    auto img1r = img1.ExtractChannel(0);
+    WriteImage(img1r, folder / (basename + "-r.bmp"));
+    logger.Info(u"write R channel\n");
+    auto img1g = img1.ExtractChannel(1);
+    WriteImage(img1g, folder / (basename + "-g.bmp"));
+    logger.Info(u"write G channel\n");
+    auto img1b = img1.ExtractChannel(2);
+    WriteImage(img1b, folder / (basename + "-b.bmp"));
+    logger.Info(u"write B channel\n");
 
 }

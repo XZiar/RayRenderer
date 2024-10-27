@@ -146,6 +146,9 @@ public:
     [[nodiscard]] Image Region(const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
     [[nodiscard]] Image ConvertTo(const ImageDataType dataType, const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
     [[nodiscard]] Image ConvertToFloat(const float floatRange = 1) const;
+    ///<summary>Pick single channel from image</summary>  
+    ///<param name="channel">channel</param>
+    [[nodiscard]] Image ExtractChannel(uint8_t channel, bool keepAlpha = false) const;
 };
 
 class IMGUTILAPI ImageView : protected Image

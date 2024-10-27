@@ -43,7 +43,7 @@ struct SSSE3
 #endif
     }
 };
-struct SSSE41
+struct SSE41
 {
     static bool RuntimeCheck() noexcept
     {
