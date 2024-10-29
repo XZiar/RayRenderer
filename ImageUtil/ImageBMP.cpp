@@ -34,13 +34,17 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, bool needF
                 case ImageDataType::BGRA:
                     memcpy_s(imgrow, irowsize, bufptr, frowsize); break;
                 case ImageDataType::RGBA:
-                    convert::BGRAsToRGBAs(imgrow, bufptr, width); break;
+                    ColorConvertor::Get().RGBAToBGRA(reinterpret_cast<uint32_t*>(imgrow), reinterpret_cast<const uint32_t*>(bufptr), width);
+                    break;
+                    //convert::BGRAsToRGBAs(imgrow, bufptr, width); break;
                 case ImageDataType::BGR:
                     ColorConvertor::Get().RGBAToRGB(reinterpret_cast<uint8_t*>(imgrow), reinterpret_cast<const uint32_t*>(bufptr), width);
                     break;
                     //convert::BGRAsToBGRs(imgrow, bufptr, width); break;
                 case ImageDataType::RGB:
-                    convert::BGRAsToRGBs(imgrow, bufptr, width); break;
+                    ColorConvertor::Get().RGBAToBGR(reinterpret_cast<uint8_t*>(imgrow), reinterpret_cast<const uint32_t*>(bufptr), width);
+                    break;
+                    //convert::BGRAsToRGBs(imgrow, bufptr, width); break;
                 default:
                     return;
                 }
@@ -58,13 +62,16 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, bool needF
                 case ImageDataType::BGR:
                     memcpy_s(imgrow, irowsize, bufptr, frowsize); break;
                 case ImageDataType::RGB:
-                    convert::BGRsToRGBs(imgrow, bufptr, width); break;
+                    ColorConvertor::Get().RGBToBGR(reinterpret_cast<uint8_t*>(imgrow), reinterpret_cast<const uint8_t*>(bufptr), width);
+                    //convert::BGRsToRGBs(imgrow, bufptr, width); break;
                 case ImageDataType::BGRA:
                     ColorConvertor::Get().RGBToRGBA(reinterpret_cast<uint32_t*>(imgrow), reinterpret_cast<const uint8_t*>(bufptr), width);
                     break;
                     //convert::BGRsToBGRAs(imgrow, bufptr, width); break;
                 case ImageDataType::RGBA:
-                    convert::BGRsToRGBAs(imgrow, bufptr, width); break;
+                    ColorConvertor::Get().BGRToRGBA(reinterpret_cast<uint32_t*>(imgrow), reinterpret_cast<const uint8_t*>(bufptr), width);
+                    break;
+                    //convert::BGRsToRGBAs(imgrow, bufptr, width); break;
                 default:
                     return;
                 }
@@ -111,7 +118,8 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, bool needF
 
             const bool isOutputRGB = REMOVE_MASK(dataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::RGB;
             if (isOutputRGB)
-                convert::BGRAsToRGBAs(palette.GetRawPtr(), paletteCount);//to RGBA
+                ColorConvertor::Get().RGBAToBGRA(palette.GetRawPtr<uint32_t>(), palette.GetRawPtr<uint32_t>(), paletteCount);
+                //convert::BGRAsToRGBAs(palette.GetRawPtr(), paletteCount);//to RGBA
 
             const auto bufptr = buffer.GetRawPtr();
             const auto pltptr = palette.GetRawPtr<uint32_t>();
@@ -136,7 +144,10 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, bool needF
                     for (uint32_t col = 0; col < width; ++col)
                     {
                         const uint32_t color = pltptr[std::to_integer<uint8_t>(bufptr[col])];
-                        convert::CopyRGBAToRGB(destPtr, color);
+                        *destPtr++ = static_cast<std::byte>(color >> 0);
+                        *destPtr++ = static_cast<std::byte>(color >> 8);
+                        *destPtr++ = static_cast<std::byte>(color >> 16);
+                        //convert::CopyRGBAToRGB(destPtr, color);
                     }
                 }
             }
@@ -272,12 +283,14 @@ void BmpWriter::Write(const Image& image, const uint8_t)
                 Stream.Write(frowsize, rowptr);
             else if(needAlpha)
             {
-                convert::BGRAsToRGBAs(bufptr, rowptr, image.GetWidth());
+                ColorConvertor::Get().RGBAToBGRA(reinterpret_cast<uint32_t*>(bufptr), reinterpret_cast<const uint32_t*>(rowptr), image.GetWidth());
+                //convert::BGRAsToRGBAs(bufptr, rowptr, image.GetWidth());
                 Stream.Write(frowsize, bufptr);
             }
             else
             {
-                convert::BGRsToRGBs(bufptr, rowptr, image.GetWidth());
+                ColorConvertor::Get().RGBToBGR(reinterpret_cast<uint8_t*>(bufptr), reinterpret_cast<const uint8_t*>(rowptr), image.GetWidth());
+                //convert::BGRsToRGBs(bufptr, rowptr, image.GetWidth());
                 Stream.Write(frowsize, bufptr);
             }
         }

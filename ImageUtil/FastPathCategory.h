@@ -40,6 +40,17 @@ struct NEON
 #endif
     }
 };
+struct NEONA64
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_ARM && COMMON_OSBIT == 64
+        return CheckCPUFeature("asimd");
+#else
+        return false;
+#endif
+    }
+};
 struct SSSE3
 {
     static bool RuntimeCheck() noexcept

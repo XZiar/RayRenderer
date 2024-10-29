@@ -100,16 +100,16 @@ public:
                 auto * __restrict srcPtr = destPtr + count;
                 reader.Read(3 * count, srcPtr);
                 if (isOutputRGB)
-                    convert::BGRsToRGBAs(destPtr, srcPtr, count);
+                    ColorConvertor::Get().BGRToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), count);
                 else
                     ColorConvertor::Get().RGBToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), count);
-                    //convert::RGBsToRGBAs(destPtr, srcPtr, count);
             }break;
         case 32:
             {//BGRA
                 reader.Read(4 * count, output.GetRawPtr());
                 if (isOutputRGB)
-                    convert::BGRAsToRGBAs(output.GetRawPtr(), count);
+                    ColorConvertor::Get().RGBAToBGRA(output.GetRawPtr<uint32_t>(), output.GetRawPtr<uint32_t>(), count);
+                    //convert::BGRAsToRGBAs(output.GetRawPtr(), count);
             }break;
         }
     }
@@ -144,7 +144,8 @@ public:
             {
                 reader.Read(3 * count, output.GetRawPtr());
                 if (isOutputRGB)
-                    convert::BGRsToRGBs(output.GetRawPtr(), count);
+                    ColorConvertor::Get().RGBToBGR(output.GetRawPtr<uint8_t>(), output.GetRawPtr<uint8_t>(), count);
+                    //convert::BGRsToRGBs(output.GetRawPtr(), count);
             }break;
         case 32://BGRA
             {
@@ -154,10 +155,9 @@ public:
                 {
                     reader.Read(4 * output.GetWidth(), tmp.GetRawPtr());
                     if (isOutputRGB)
-                        convert::BGRAsToRGBs(output.GetRawPtr(row), tmp.GetRawPtr(), count);
+                        ColorConvertor::Get().RGBAToBGR(output.GetRawPtr<uint8_t>(row), tmp.GetRawPtr<uint32_t>(), count);
                     else
                         ColorConvertor::Get().RGBAToRGB(output.GetRawPtr<uint8_t>(row), tmp.GetRawPtr<uint32_t>(), count);
-                        //convert::RGBAsToRGBs(output.GetRawPtr(row), tmp.GetRawPtr(), count);
                 }
             }break;
         }
@@ -307,7 +307,8 @@ public:
                 len -= size;
                 const auto flag = byte(size - 1);
                 writer.Write(flag);
-                convert::BGRsToRGBs(buffer.GetRawPtr(), ptr, size);
+                ColorConvertor::Get().RGBToBGR(buffer.GetRawPtr<uint8_t>(), reinterpret_cast<const uint8_t*>(ptr), size);
+                //convert::BGRsToRGBs(buffer.GetRawPtr(), ptr, size);
                 ptr += 3 * size;
                 writer.Write(3 * size, buffer.GetRawPtr());
             }
@@ -339,7 +340,8 @@ public:
                 len -= size;
                 const auto flag = byte(size - 1);
                 writer.Write(flag);
-                convert::BGRAsToRGBAs(buffer.GetRawPtr(), ptr, size);
+                ColorConvertor::Get().RGBAToBGRA(buffer.GetRawPtr<uint32_t>(), reinterpret_cast<const uint32_t*>(ptr), size);
+                //convert::BGRAsToRGBAs(buffer.GetRawPtr(), ptr, size);
                 ptr += 4 * size;
                 writer.Write(4 * size, buffer.GetRawPtr());
             }

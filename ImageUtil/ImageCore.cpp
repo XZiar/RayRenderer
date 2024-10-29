@@ -181,11 +181,13 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
                 break;
             case 3://change byte-order and add alpha(plain-add, see above) 
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::RGBsToBGRAs(destPtr, srcPtr, pixcnt);
+                    ColorConvertor::Get().BGRToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
+                    //convert::RGBsToBGRAs(destPtr, srcPtr, pixcnt);
                 break;
             case 4://change byte-order only(plain copy, see above*2)
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::BGRAsToRGBAs(destPtr, srcPtr, pixcnt);
+                    ColorConvertor::Get().RGBAToBGRA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint32_t*>(srcPtr), pixcnt);
+                    //convert::BGRAsToRGBAs(destPtr, srcPtr, pixcnt);
                 break;
             }
         }
@@ -204,11 +206,13 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
                 break;
             case 3://change byte-order only(plain copy, see above*2)
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::BGRsToRGBs(destPtr, srcPtr, pixcnt);
+                    ColorConvertor::Get().RGBToBGR(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
+                    //convert::BGRsToRGBs(destPtr, srcPtr, pixcnt);
                 break;
             case 4://change byte-order and remove alpha(plain-add, see above) 
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::RGBAsToBGRs(destPtr, srcPtr, pixcnt);
+                    ColorConvertor::Get().RGBAToBGR(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint32_t*>(srcPtr), pixcnt);
+                    //convert::RGBAsToBGRs(destPtr, srcPtr, pixcnt);
                 break;
             }
         }

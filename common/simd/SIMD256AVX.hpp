@@ -162,6 +162,7 @@ private:
     using AVX256Common = detail::AVX256Common<T, L, E, 4>;
 public:
     using AVX256Common::AVX256Common;
+    using AVX256Common::BroadcastLane;
     forceinline Common64x4(const E val) noexcept : AVX256Common(_mm256_set1_epi64x(static_cast<int64_t>(val))) { }
     forceinline Common64x4(const E lo0, const E lo1, const E lo2, const E hi3) noexcept :
         AVX256Common(_mm256_setr_epi64x(static_cast<int64_t>(lo0), static_cast<int64_t>(lo1), static_cast<int64_t>(lo2), static_cast<int64_t>(hi3))) { }
@@ -320,6 +321,7 @@ private:
     using AVX256Common = detail::AVX256Common<T, L, E, 8>;
 public:
     using AVX256Common::AVX256Common;
+    using AVX256Common::BroadcastLane;
     forceinline Common32x8(const E val) noexcept : AVX256Common(_mm256_set1_epi32(static_cast<int32_t>(val))) { }
     forceinline Common32x8(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7) noexcept :
         AVX256Common(_mm256_setr_epi32(static_cast<int32_t>(lo0), static_cast<int32_t>(lo1), static_cast<int32_t>(lo2), static_cast<int32_t>(lo3), static_cast<int32_t>(lo4), static_cast<int32_t>(lo5), static_cast<int32_t>(lo6), static_cast<int32_t>(hi7))) { }
@@ -436,6 +438,7 @@ private:
     using AVX256Common = detail::AVX256Common<T, L, E, 16>;
 public:
     using AVX256Common::AVX256Common;
+    using AVX256Common::BroadcastLane;
     forceinline Common16x16(const E val) noexcept : AVX256Common(_mm256_set1_epi16(static_cast<int16_t>(val))) { }
     forceinline Common16x16(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7,
         const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E hi15) noexcept :
@@ -612,6 +615,7 @@ private:
     using AVX256Common = detail::AVX256Common<T, L, E, 32>;
 public:
     using AVX256Common::AVX256Common;
+    using AVX256Common::BroadcastLane;
     forceinline Common8x32(const E val) noexcept : AVX256Common(_mm256_set1_epi8(static_cast<int8_t>(val))) { }
     forceinline Common8x32(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7,
         const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E lo15,
