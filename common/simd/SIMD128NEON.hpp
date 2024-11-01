@@ -320,6 +320,16 @@ struct Shuffle64Common
             return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_u64(mask)));
         }
     }
+    template<uint8_t Count>
+    forceinline T VECCALL MoveToLoWith(const T& hi) const noexcept
+    {
+        static_assert(Count <= 2, "move count should be in [0,2]");
+        if constexpr (Count == 0)
+            return *this;
+        else if constexpr (Count == 2)
+            return hi;
+        return AsType<SIMDType>(vextq_u64(AsType<uint64x2_t>(static_cast<const T*>(this)->Data), AsType<uint64x2_t>(hi.Data), Count));
+    }
 };
 
 
@@ -623,6 +633,16 @@ struct Shuffle32Common
             return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_u64(mask)));
         }
     }
+    template<uint8_t Count>
+    forceinline T VECCALL MoveToLoWith(const T& hi) const noexcept
+    {
+        static_assert(Count <= 4, "move count should be in [0,4]");
+        if constexpr (Count == 0)
+            return *this;
+        else if constexpr (Count == 4)
+            return hi;
+        return AsType<SIMDType>(vextq_u32(AsType<uint32x4_t>(static_cast<const T*>(this)->Data), AsType<uint32x4_t>(hi.Data), Count));
+    }
 };
 
 
@@ -908,6 +928,16 @@ struct alignas(16) Common16x8 : public Neon128Common<T, SIMDType, E, 8>
             return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_u64(mask)));
         }
     }
+    template<uint8_t Count>
+    forceinline T VECCALL MoveToLoWith(const T& hi) const noexcept
+    {
+        static_assert(Count <= 8, "move count should be in [0,8]");
+        if constexpr (Count == 0)
+            return *this;
+        else if constexpr (Count == 8)
+            return hi;
+        return AsType<SIMDType>(vextq_u16(AsType<uint16x8_t>(this->Data), AsType<uint16x8_t>(hi.Data), Count));
+    }
 
     // arithmetic operations
     forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const noexcept
@@ -1120,6 +1150,16 @@ struct alignas(16) Common8x16 : public Neon128Common<T, SIMDType, E, 16>
             constexpr uint64_t mask[2] = { ::common::simd::detail::FullMask64[Mask & 0xff], ::common::simd::detail::FullMask64[(Mask >> 8) & 0xff] };
             return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_u64(mask)));
         }
+    }
+    template<uint8_t Count>
+    forceinline T VECCALL MoveToLoWith(const T& hi) const noexcept
+    {
+        static_assert(Count <= 16, "move count should be in [0,16]");
+        if constexpr (Count == 0)
+            return *this;
+        else if constexpr (Count == 16)
+            return hi;
+        return AsType<SIMDType>(vextq_u8(AsType<uint8x16_t>(this->Data), AsType<uint8x16_t>(hi.Data), Count));
     }
 
     // arithmetic operations

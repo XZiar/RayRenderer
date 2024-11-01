@@ -27,6 +27,10 @@ RegisterSIMDBaseTest(I16x16, 320, SLLV, SRLV);
 RegisterSIMDBaseTest(U16x16, 320, SLLV, SRLV);
 RegisterSIMDBaseTest(I16x8,  320, SLLV, SRLV);
 RegisterSIMDBaseTest(U16x8,  320, SLLV, SRLV);
+RegisterSIMDBaseTest(I8x32,  320, SEL);
+RegisterSIMDBaseTest(U8x32,  320, SEL);
+RegisterSIMDBaseTest(I8x16,  320, SEL);
+RegisterSIMDBaseTest(U8x16,  320, SEL);
 
 
 RegisterSIMDCastTest(U32x8,  320, F64x4, U8x32);

@@ -12,26 +12,32 @@ class ColorConvertor final : public common::RuntimeFastPath<ColorConvertor>
     friend ::common::fastpath::PathHack;
 private:
     common::CopyManager CopyEx;
-    void(*G8ToGA8     )(uint16_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
-    void(*G8ToRGB8    )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
-    void(*G8ToRGBA8   )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
-    void(*GA8ToRGBA8  )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGB8ToRGBA8 )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
-    void(*BGR8ToRGBA8 )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
-    void(*RGBA8ToRGB8 )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToBGR8 )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGB8ToBGR8  )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToBGRA8)(uint32_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToR8   )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToG8   )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToB8   )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToA8   )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGB8ToR8    )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
-    void(*RGB8ToG8    )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
-    void(*RGB8ToB8    )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToRA8  )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToGA8  )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToBA8  )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*G8ToGA8           )(uint16_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
+    void(*G8ToRGB8          )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
+    void(*G8ToRGBA8         )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
+    void(*GA8ToRGBA8        )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB8ToRGBA8       )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
+    void(*BGR8ToRGBA8       )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
+    void(*RGBA8ToRGB8       )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToBGR8       )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB8ToBGR8        )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToBGRA8      )(uint32_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToR8         )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToG8         )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToB8         )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToA8         )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB8ToR8          )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB8ToG8          )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB8ToB8          )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToRA8        )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToGA8        )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA8ToBA8        )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB555ToRGB8      )(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*BGR555ToRGB8      )(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB555ToRGBA8     )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*BGR555ToRGBA8     )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB5551ToRGBA8    )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*BGR5551ToRGBA8    )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
 public:
     IMGUTILAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
     IMGUTILAPI ColorConvertor(common::span<const VarItem> requests = {}) noexcept;
@@ -125,6 +131,26 @@ public:
         case 2: return RGBA8ToBA8(dest, src, count);
         default: return;
         }
+    }
+
+    forceinline void RGB555ToRGB(uint8_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        RGB555ToRGB8(dest, src, count);
+    }
+
+    forceinline void BGR555ToRGB(uint8_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        BGR555ToRGB8(dest, src, count);
+    }
+
+    forceinline void RGB555ToRGBA(uint32_t* const dest, const uint16_t* src, const size_t count, const bool hasAlpha = false) const noexcept
+    {
+        (hasAlpha ? RGB5551ToRGBA8 : RGB555ToRGBA8)(dest, src, count);
+    }
+
+    forceinline void BGR555ToRGBA(uint32_t* const dest, const uint16_t* src, const size_t count, const bool hasAlpha = false) const noexcept
+    {
+        (hasAlpha ? BGR5551ToRGBA8 : BGR555ToRGBA8)(dest, src, count);
     }
 
     IMGUTILAPI static const ColorConvertor& Get() noexcept;

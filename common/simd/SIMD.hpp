@@ -311,6 +311,39 @@ forceinline uint32_t CountTralingZero(const T& val) noexcept
 #endif
 }
 
+#if COMMON_COMPILER_GCC
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+// undfined value when count >= 64
+forceinline uint64_t Shift128Left(const uint64_t hi, const uint64_t lo, uint8_t count) noexcept
+{
+    CM_ASSUME(count < 64);
+#if COMMON_COMPILER_MSVC && COMMON_ARCH_X86 && COMMON_OSBIT == 64
+    return __shiftleft128(lo, hi, count);
+#elif COMMON_COMPILER_GCC | COMMON_COMPILER_CLANG
+    const auto val = (static_cast<unsigned __int128>(hi) << 64) | static_cast<unsigned __int128>(lo);
+    return static_cast<uint64_t>((val << count) >> 64);
+#else
+    return (hi << count) | (lo >> (64 - count));
+#endif
+}
+forceinline uint64_t Shift128Right(const uint64_t hi, const uint64_t lo, uint8_t count) noexcept
+{
+    CM_ASSUME(count < 64);
+#if COMMON_COMPILER_MSVC && COMMON_ARCH_X86 && COMMON_OSBIT == 64
+    return __shiftright128(lo, hi, count);
+#elif COMMON_COMPILER_GCC | COMMON_COMPILER_CLANG
+    const auto val = (static_cast<unsigned __int128>(hi) << 64) | static_cast<unsigned __int128>(lo);
+    return static_cast<uint64_t>(val >> count);
+#else
+    return (hi << (64 - count)) | (lo >> count);
+#endif
+}
+#if COMMON_COMPILER_GCC
+#   pragma GCC diagnostic pop
+#endif
+
 struct VecDataInfo
 {
     enum class DataTypes : uint8_t { Empty = 0, Custom, Unsigned, Signed, Float, BFloat };

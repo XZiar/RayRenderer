@@ -55,8 +55,62 @@ inline constexpr uint8_t GetPermuteMask(uint8_t lo, uint8_t hi)
 }
 
 
+template<typename T, typename E>
+struct AVX256Shared : public CommonOperators<T>
+{
+    // shuffle operations
+    template<uint8_t Lo, uint8_t Hi>
+    forceinline T VECCALL PermuteLane(const T& other) const noexcept
+    {
+        static_assert(Lo <= 4 && Hi <= 4, "permute index should be in [0,4]");
+        constexpr auto imm8 = detail::GetPermuteMask(Lo, Hi);
+        if constexpr (std::is_same_v<E, double>)
+            return _mm256_permute2f128_pd(static_cast<const T*>(this)->Data, other, imm8);
+        else if constexpr (std::is_same_v<E, float>)
+            return _mm256_permute2f128_ps(static_cast<const T*>(this)->Data, other, imm8);
+        else
+#if COMMON_SIMD_LV >= 200
+            return _mm256_permute2x128_si256(static_cast<const T*>(this)->Data, other, imm8);
+#else
+            return _mm256_permute2f128_si256(static_cast<const T*>(this)->Data, other, imm8);
+#endif
+    }
+    template<uint8_t Lo, uint8_t Hi>
+    forceinline T VECCALL PermuteLane() const noexcept
+    {
+        static_assert(Lo <= 2 && Hi <= 2, "permute index should be in [0,2]");
+        constexpr auto imm8 = detail::GetPermuteMask<2>(Lo, Hi);
+        if constexpr (std::is_same_v<E, double>)
+            return _mm256_permute2f128_pd(static_cast<const T*>(this)->Data, static_cast<const T*>(this)->Data, imm8);
+        else if constexpr (std::is_same_v<E, float>)
+            return _mm256_permute2f128_ps(static_cast<const T*>(this)->Data, static_cast<const T*>(this)->Data, imm8);
+        else
+#if COMMON_SIMD_LV >= 200
+            return _mm256_permute2x128_si256(static_cast<const T*>(this)->Data, static_cast<const T*>(this)->Data, imm8);
+#else
+            return _mm256_permute2f128_si256(static_cast<const T*>(this)->Data, static_cast<const T*>(this)->Data, imm8);
+#endif
+    }
+    forceinline T VECCALL ZipLo(const T& other) const noexcept
+    {
+        const auto lolane = static_cast<const T*>(this)->ZipLoLane(other), hilane = static_cast<const T*>(this)->ZipHiLane(other);
+        return lolane.template PermuteLane<0, 2>(hilane);
+    }
+    forceinline T VECCALL ZipHi(const T& other) const noexcept
+    {
+        const auto lolane = static_cast<const T*>(this)->ZipLoLane(other), hilane = static_cast<const T*>(this)->ZipHiLane(other);
+        return lolane.template PermuteLane<1, 3>(hilane);
+    }
+    forceinline Pack<T, 2> VECCALL Zip(const T& other) const noexcept
+    {
+        const auto lolane = static_cast<const T*>(this)->ZipLoLane(other), hilane = static_cast<const T*>(this)->ZipHiLane(other);
+        return { lolane.template PermuteLane<0, 2>(hilane), lolane.template PermuteLane<1, 3>(hilane) };
+    }
+};
+
+
 template<typename T, typename L, typename E, size_t N>
-struct AVX256Common : public CommonOperators<T>
+struct AVX256Common : public AVX256Shared<T, E>
 {
     static_assert(std::is_same_v<typename L::VecType, __m128i>);
     static_assert(std::is_same_v<typename L::EleType, E> && L::Count * 2 == N);
@@ -83,17 +137,6 @@ struct AVX256Common : public CommonOperators<T>
     forceinline constexpr operator const __m256i& () const noexcept { return Data; }
 
 #if COMMON_SIMD_LV >= 200
-    forceinline T VECCALL ZipLo(const T& other) const noexcept
-    {
-        const auto lolane = static_cast<const T*>(this)->ZipLoLane(other), hilane = static_cast<const T*>(this)->ZipHiLane(other);
-        return _mm256_permute2x128_si256(lolane, hilane, 0x20);
-    }
-    forceinline T VECCALL ZipHi(const T& other) const noexcept
-    {
-        const auto lolane = static_cast<const T*>(this)->ZipLoLane(other), hilane = static_cast<const T*>(this)->ZipHiLane(other);
-        return _mm256_permute2x128_si256(lolane, hilane, 0x31);
-    }
-
     // logic operations
     forceinline T VECCALL And(const T& other) const noexcept
     {
@@ -120,11 +163,12 @@ struct AVX256Common : public CommonOperators<T>
 #endif
     forceinline L VECCALL GetLoLane() const noexcept
     {
-#if COMMON_SIMD_LV >= 200
-        return _mm256_extracti128_si256(Data, 0);
-#else
-        return _mm256_extractf128_si256(Data, 0);
-#endif
+        return _mm256_castsi256_si128(Data);
+//#if COMMON_SIMD_LV >= 200
+//        return _mm256_extracti128_si256(Data, 0);
+//#else
+//        return _mm256_extractf128_si256(Data, 0);
+//#endif
     }
     forceinline L VECCALL GetHiLane() const noexcept
     {
@@ -722,6 +766,9 @@ public:
             return *static_cast<const T*>(this);
         else if constexpr (Mask == 0xffffffffu)
             return other;
+# if COMMON_SIMD_LV >= 320
+        return _mm256_mask_blend_epi8(Mask, this->Data, other.Data);
+# else
         else if constexpr ((Mask & 0xaaaaaaaau) == ((Mask & 0x55555555) << 1)) // actually 16bit
         {
             constexpr uint16_t mask16 = static_cast<uint16_t>(TrimMask(Mask, 32, 2));
@@ -754,6 +801,7 @@ public:
             return _mm256_blendv_epi8(this->Data, other.Data, _mm256_loadu_si256(reinterpret_cast<const __m256i*>(mask)));
 #   endif
         }
+# endif
     }
 
     // arithmetic operations
@@ -817,7 +865,7 @@ public:
 }
 
 
-struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
+struct alignas(__m256d) F64x4 : public detail::AVX256Shared<F64x4, double>
 {
     using EleType = double;
     using VecType = __m256d;
@@ -846,20 +894,6 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
     forceinline static F64x4 VECCALL Combine(const F64x2& lo, const F64x2& hi) noexcept { return Pack<F64x2, 2>{lo, hi}; }
 
     // shuffle operations
-    template<uint8_t Lo, uint8_t Hi>
-    forceinline F64x4 VECCALL PermuteLane(const F64x4& other) const noexcept
-    {
-        static_assert(Lo <= 4 && Hi <= 4, "permute index should be in [0,4]");
-        constexpr auto imm8 = detail::GetPermuteMask(Lo, Hi);
-        return _mm256_permute2f128_pd(Data, other, imm8);
-    }
-    template<uint8_t Lo, uint8_t Hi>
-    forceinline F64x4 VECCALL PermuteLane() const noexcept
-    {
-        static_assert(Lo <= 2 && Hi <= 2, "permute index should be in [0,2]");
-        constexpr auto imm8 = detail::GetPermuteMask<2>(Lo, Hi);
-        return _mm256_permute2f128_pd(Data, Data, imm8);
-    }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
     forceinline F64x4 VECCALL Shuffle() const noexcept
     {
@@ -929,16 +963,6 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
     }
     forceinline F64x4 VECCALL ZipLoLane(const F64x4& other) const noexcept { return _mm256_unpacklo_pd(this->Data, other); }
     forceinline F64x4 VECCALL ZipHiLane(const F64x4& other) const noexcept { return _mm256_unpackhi_pd(this->Data, other); }
-    forceinline F64x4 VECCALL ZipLo(const F64x4& other) const noexcept
-    {
-        const auto lolane = ZipLoLane(other), hilane = ZipHiLane(other);
-        return lolane.PermuteLane<0, 2>(hilane);
-    }
-    forceinline F64x4 VECCALL ZipHi(const F64x4& other) const noexcept
-    {
-        const auto lolane = ZipLoLane(other), hilane = ZipHiLane(other);
-        return lolane.PermuteLane<1, 3>(hilane);
-    }
     template<MaskType Msk>
     forceinline F64x4 VECCALL SelectWith(const F64x4& other, F64x4 mask) const noexcept
     {
@@ -1104,12 +1128,12 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
         return _mm256_round_pd(Data, imm8);
     }
 
-    forceinline F64x2 VECCALL GetLoLane() const noexcept { return _mm256_extractf128_pd(Data, 0); }
+    forceinline F64x2 VECCALL GetLoLane() const noexcept { return _mm256_castpd256_pd128(Data); /*_mm256_extractf128_pd(Data, 0);*/ }
     forceinline F64x2 VECCALL GetHiLane() const noexcept { return _mm256_extractf128_pd(Data, 1); }
 };
 
 
-struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
+struct alignas(__m256) F32x8 : public detail::AVX256Shared<F32x8, float>
 {
     using EleType = float;
     using VecType = __m256;
@@ -1139,20 +1163,6 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
     forceinline static F32x8 Combine(const F32x4& lo, const F32x4& hi) noexcept { return Pack<F32x4, 2>{lo, hi}; }
 
     // shuffle operations
-    template<uint8_t Lo, uint8_t Hi>
-    forceinline F32x8 VECCALL PermuteLane(const F32x8& other) const noexcept
-    {
-        static_assert(Lo <= 4 && Hi <= 4, "permute index should be in [0,4]");
-        constexpr auto imm8 = detail::GetPermuteMask(Lo, Hi);
-        return _mm256_permute2f128_ps(Data, other, imm8);
-    }
-    template<uint8_t Lo, uint8_t Hi>
-    forceinline F32x8 VECCALL PermuteLane() const noexcept
-    {
-        static_assert(Lo <= 2 && Hi <= 2, "permute index should be in [0,2]");
-        constexpr auto imm8 = detail::GetPermuteMask<2>(Lo, Hi);
-        return _mm256_permute2f128_ps(Data, Data, imm8);
-    }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
     forceinline F32x8 VECCALL ShuffleLane() const noexcept // no cross lane
     {
@@ -1241,16 +1251,6 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
     }
     forceinline F32x8 VECCALL ZipLoLane(const F32x8& other) const noexcept { return _mm256_unpacklo_ps(this->Data, other); }
     forceinline F32x8 VECCALL ZipHiLane(const F32x8& other) const noexcept { return _mm256_unpackhi_ps(this->Data, other); }
-    forceinline F32x8 VECCALL ZipLo(const F32x8& other) const noexcept
-    {
-        const auto lolane = ZipLoLane(other), hilane = ZipHiLane(other);
-        return lolane.PermuteLane<0, 2>(hilane);
-    }
-    forceinline F32x8 VECCALL ZipHi(const F32x8& other) const noexcept
-    {
-        const auto lolane = ZipLoLane(other), hilane = ZipHiLane(other);
-        return lolane.PermuteLane<1, 3>(hilane);
-    }
     template<MaskType Msk>
     forceinline F32x8 VECCALL SelectWith(const F32x8& other, F32x8 mask) const noexcept
     {
@@ -1420,7 +1420,7 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
         return _mm256_round_ps(Data, imm8);
     }
 
-    forceinline F32x4 VECCALL GetLoLane() const noexcept { return _mm256_extractf128_ps(Data, 0); }
+    forceinline F32x4 VECCALL GetLoLane() const noexcept { return _mm256_castps256_ps128(Data); /*_mm256_extractf128_ps(Data, 0);*/ }
     forceinline F32x4 VECCALL GetHiLane() const noexcept { return _mm256_extractf128_ps(Data, 1); }
 };
 

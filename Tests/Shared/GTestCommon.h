@@ -166,6 +166,17 @@ struct PerfTester
             ManualTestSingle(i, args...);
         }
     }
+
+
+    template<typename T, typename F, typename... Args>
+    static void DoFastPath(F T::* func, std::string_view name, size_t opPerRun, uint32_t limitMs, Args&&... args)
+    {
+        PerfTester tester(name, opPerRun, limitMs);
+        tester.FastPathTest<T>([&](const T& host)
+        {
+            (host.*func)(std::forward<Args>(args)...);
+        });
+    }
 };
 
 

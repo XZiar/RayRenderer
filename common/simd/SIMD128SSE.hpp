@@ -262,6 +262,16 @@ public:
         return _mm_blend_epi16(this->Data, other.Data, (Mask & 0b1 ? 0xf : 0x0) | (Mask & 0b10 ? 0xf0 : 0x00));
 #endif
     }
+    template<uint8_t Count>
+    forceinline T VECCALL MoveToLoWith(const T& hi) const noexcept
+    {
+        static_assert(Count <= 2, "move count should be in [0,2]");
+        if constexpr (Count == 0)
+            return *this;
+        else if constexpr (Count == 2)
+            return hi;
+        return _mm_alignr_epi8(this->Data, hi.Data, Count * 8);
+    }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const noexcept { return _mm_add_epi64(this->Data, other.Data); }
@@ -430,6 +440,16 @@ public:
             (Mask & 0b10 ? 0b1100 : 0) | (Mask & 0b100 ? 0b110000 : 0) | (Mask & 0b1000 ? 0b11000000 : 0));
 #endif
     }
+    template<uint8_t Count>
+    forceinline T VECCALL MoveToLoWith(const T& hi) const noexcept
+    {
+        static_assert(Count <= 4, "move count should be in [0,4]");
+        if constexpr (Count == 0)
+            return *this;
+        else if constexpr (Count == 4)
+            return hi;
+        return _mm_alignr_epi8(this->Data, hi.Data, Count * 4);
+    }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const noexcept { return _mm_add_epi32(this->Data, other.Data); }
@@ -584,6 +604,16 @@ public:
     forceinline T VECCALL SelectWith(const T& other) const noexcept
     {
         return _mm_blend_epi16(this->Data, other.Data, Mask);
+    }
+    template<uint8_t Count>
+    forceinline T VECCALL MoveToLoWith(const T& hi) const noexcept
+    {
+        static_assert(Count <= 8, "move count should be in [0,8]");
+        if constexpr (Count == 0)
+            return *this;
+        else if constexpr (Count == 8)
+            return hi;
+        return _mm_alignr_epi8(this->Data, hi.Data, Count * 2);
     }
 
     // arithmetic operations
@@ -769,7 +799,9 @@ public:
             return other;
         else
         {
-#ifdef CMSIMD_LESS_SPACE
+#if COMMON_SIMD_LV >= 320
+            return _mm_mask_blend_epi8(Mask, this->Data, other.Data);
+#elif defined(CMSIMD_LESS_SPACE)
             const auto mask = _mm_insert_epi64(_mm_loadu_si64(&::common::simd::detail::FullMask64[Mask & 0xff]), static_cast<int64_t>(::common::simd::detail::FullMask64[(Mask >> 8) & 0xff]), 1);
             return _mm_blendv_epi8(this->Data, other.Data, mask);
 #else
@@ -777,6 +809,16 @@ public:
             return _mm_blendv_epi8(this->Data, other.Data, _mm_loadu_si128(reinterpret_cast<const __m128i*>(mask)));
 #endif
         }
+    }
+    template<uint8_t Count>
+    forceinline T VECCALL MoveToLoWith(const T& hi) const noexcept
+    {
+        static_assert(Count <= 16, "move count should be in [0,16]");
+        if constexpr (Count == 0)
+            return *this;
+        else if constexpr (Count == 16)
+            return hi;
+        return _mm_alignr_epi8(this->Data, hi.Data, Count);
     }
 
     // arithmetic operations
@@ -918,6 +960,16 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
     {
         static_assert(Mask <= 0b11, "Only allow 2 bits");
         return _mm_blend_pd(this->Data, other.Data, Mask);
+    }
+    template<uint8_t Count>
+    forceinline F64x2 VECCALL MoveToLoWith(const F64x2& hi) const noexcept
+    {
+        static_assert(Count <= 2, "move count should be in [0,2]");
+        if constexpr (Count == 0)
+            return *this;
+        else if constexpr (Count == 2)
+            return hi;
+        return _mm_castsi128_pd(_mm_alignr_epi8(_mm_castpd_si128(this->Data), _mm_castpd_si128(hi.Data), Count * 8));
     }
 
     // compare operations
@@ -1121,6 +1173,16 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     {
         static_assert(Mask <= 0b1111, "Only allow 4 bits");
         return _mm_blend_ps(this->Data, other.Data, Mask);
+    }
+    template<uint8_t Count>
+    forceinline F32x4 VECCALL MoveToLoWith(const F32x4& hi) const noexcept
+    {
+        static_assert(Count <= 4, "move count should be in [0,4]");
+        if constexpr (Count == 0)
+            return *this;
+        else if constexpr (Count == 4)
+            return hi;
+        return _mm_castsi128_ps(_mm_alignr_epi8(_mm_castps_si128(this->Data), _mm_castps_si128(hi.Data), Count * 8));
     }
 
     // compare operations
