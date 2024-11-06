@@ -36,7 +36,7 @@ public:
 class IMGUTILAPI PngSupport : public ImgSupport
 {
 public:
-    PngSupport() : ImgSupport(u"Png") {}
+    PngSupport() : ImgSupport(u"Libpng") {}
     virtual ~PngSupport() override {}
     [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
     {

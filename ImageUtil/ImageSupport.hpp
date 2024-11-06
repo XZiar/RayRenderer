@@ -48,6 +48,8 @@ inline uint32_t RegistImageSupport()
     return RegistImageSupport(std::make_shared<T>());
 }
 
+IMGUTILAPI std::vector<std::shared_ptr<const ImgSupport>> GetImageSupport(const std::u16string& ext, const ImageDataType dataType, const bool isRead) noexcept;
+
 }
 
 #if COMMON_COMPILER_MSVC

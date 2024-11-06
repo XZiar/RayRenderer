@@ -139,29 +139,26 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
         auto pixcnt = copypix;
         if (isCopyWholeRow)
             pixcnt *= rowcnt, rowcnt = 1;
+        const auto& cvter = ColorConvertor::Get();
         if (diff == ImageDataType::ALPHA_MASK)//remove/add alpha only
         {
             switch (src.ElementSize)
             {
             case 4://remove alpha, 4->3
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    ColorConvertor::Get().RGBAToRGB(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint32_t*>(srcPtr), pixcnt);
-                    //convert::RGBAsToRGBs(destPtr, srcPtr, pixcnt);
+                    cvter.RGBAToRGB(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint32_t*>(srcPtr), pixcnt);
                 break;
             case 3://add alpha, 3->4
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    ColorConvertor::Get().RGBToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
-                    //convert::RGBsToRGBAs(destPtr, srcPtr, pixcnt);
+                    cvter.RGBToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
                 break;
             case 2://remove alpha, 2->1
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    ColorConvertor::Get().GrayAToGray(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint16_t*>(srcPtr), pixcnt);
-                    //convert::GrayAsToGrays(destPtr, srcPtr, pixcnt);
+                    cvter.GrayAToGray(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint16_t*>(srcPtr), pixcnt);
                 break;
             case 1://add alpha, 1->2
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    ColorConvertor::Get().GrayToGrayA(reinterpret_cast<uint16_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
-                    //convert::GraysToGrayAs(destPtr, srcPtr, pixcnt);
+                    cvter.GrayToGrayA(reinterpret_cast<uint16_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
                 break;
             }
         }
@@ -171,23 +168,19 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
             {
             case 1:
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    ColorConvertor::Get().GrayToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
-                    //convert::GraysToRGBAs(destPtr, srcPtr, pixcnt);
+                    cvter.GrayToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
                 break;
             case 2:
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    ColorConvertor::Get().GrayAToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint16_t*>(srcPtr), pixcnt);
-                    //convert::GrayAsToRGBAs(destPtr, srcPtr, pixcnt);
+                    cvter.GrayAToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint16_t*>(srcPtr), pixcnt);
                 break;
             case 3://change byte-order and add alpha(plain-add, see above) 
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    ColorConvertor::Get().BGRToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
-                    //convert::RGBsToBGRAs(destPtr, srcPtr, pixcnt);
+                    cvter.BGRToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
                 break;
             case 4://change byte-order only(plain copy, see above*2)
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    ColorConvertor::Get().RGBAToBGRA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint32_t*>(srcPtr), pixcnt);
-                    //convert::BGRAsToRGBAs(destPtr, srcPtr, pixcnt);
+                    cvter.RGBAToBGRA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint32_t*>(srcPtr), pixcnt);
                 break;
             }
         }
@@ -197,8 +190,7 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
             {
             case 1:
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    ColorConvertor::Get().GrayToRGB(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
-                    //convert::GraysToRGBs(destPtr, srcPtr, pixcnt);
+                    cvter.GrayToRGB(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
                 break;
             case 2:
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
@@ -206,13 +198,11 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
                 break;
             case 3://change byte-order only(plain copy, see above*2)
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    ColorConvertor::Get().RGBToBGR(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
-                    //convert::BGRsToRGBs(destPtr, srcPtr, pixcnt);
+                    cvter.RGBToBGR(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
                 break;
             case 4://change byte-order and remove alpha(plain-add, see above) 
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    ColorConvertor::Get().RGBAToBGR(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint32_t*>(srcPtr), pixcnt);
-                    //convert::RGBAsToBGRs(destPtr, srcPtr, pixcnt);
+                    cvter.RGBAToBGR(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint32_t*>(srcPtr), pixcnt);
                 break;
             }
         }

@@ -46,7 +46,7 @@ public:
 class IMGUTILAPI JpegSupport : public ImgSupport
 {
 public:
-    JpegSupport() : ImgSupport(u"Jpeg") {}
+    JpegSupport() : ImgSupport(u"LibjpegTurbo") {}
     virtual ~JpegSupport() override {}
     [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
     {

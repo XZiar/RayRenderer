@@ -15,7 +15,7 @@ using common::io::RandomInputStream;
 using common::io::RandomOutputStream;
 
 
-TgaReader::TgaReader(RandomInputStream& stream) : Stream(stream)
+TgaReader::TgaReader(RandomInputStream& stream) : Stream(stream), Header{}
 {
 }
 
@@ -27,16 +27,16 @@ bool TgaReader::Validate()
         return false;
     switch (Header.ColorMapType)
     {
-    case 1://paletted image
+    case 1: // paletted image
         if (REMOVE_MASK(Header.ImageType, TGAImgType::RLE_MASK) != TGAImgType::COLOR_MAP)
             return false;
         if (Header.PixelDepth != 8 && Header.PixelDepth != 16)
             return false;
         break;
-    case 0://color image
+    case 0: // color image
         if (REMOVE_MASK(Header.ImageType, TGAImgType::RLE_MASK) == TGAImgType::GRAY)
         {
-            if (Header.PixelDepth != 8)//gray must be 8 bit
+            if (Header.PixelDepth != 8) // gray must be 8 bit
                 return false;
         }
         else if (REMOVE_MASK(Header.ImageType, TGAImgType::RLE_MASK) == TGAImgType::COLOR)
@@ -50,8 +50,8 @@ bool TgaReader::Validate()
     default:
         return false;
     }
-    Width = (int16_t)convert::ParseWordLE(Header.Width);
-    Height = (int16_t)convert::ParseWordLE(Header.Height);
+    Width = (int16_t)util::ParseWordLE(Header.Width);
+    Height = (int16_t)util::ParseWordLE(Header.Height);
     if (Width < 1 || Height < 1)
         return false;
     return true;
@@ -66,51 +66,49 @@ public:
     {
         if (output.GetElementSize() != 4)
             return;
+        const auto& cvter = ColorConvertor::Get();
         switch (colorDepth)
         {
         case 8:
             {
                 AlignedBuffer tmp(count);
                 reader.Read(count, tmp.GetRawPtr());
-                //auto * __restrict destPtr = output.GetRawPtr();
-                //convert::GraysToRGBAs(destPtr, tmp.GetRawPtr(), count);
-                ColorConvertor::Get().GrayToRGBA(output.GetRawPtr<uint32_t>(), tmp.GetRawPtr<uint8_t>(), count);
-            }break;
+                cvter.GrayToRGBA(output.GetRawPtr<uint32_t>(), tmp.GetRawPtr<uint8_t>(), count);
+            } break;
         case 15:
             {
                 const auto tmp = reader.template ReadToVector<uint16_t>(count);
                 uint32_t * __restrict destPtr = output.GetRawPtr<uint32_t>();
                 if (isOutputRGB)
-                    convert::BGR15ToRGBAs(destPtr, tmp.data(), tmp.size());
+                    cvter.BGR555ToRGBA(destPtr, tmp.data(), tmp.size(), false);
                 else
-                    convert::RGB15ToRGBAs(destPtr, tmp.data(), tmp.size());
-            }break;
+                    cvter.RGB555ToRGBA(destPtr, tmp.data(), tmp.size(), false);
+            } break;
         case 16:
             {
                 const auto tmp = reader.template ReadToVector<uint16_t>(count);
                 uint32_t * __restrict destPtr = output.GetRawPtr<uint32_t>();
                 if (isOutputRGB)
-                    convert::BGR16ToRGBAs(destPtr, tmp.data(), count);
+                    cvter.BGR555ToRGBA(destPtr, tmp.data(), tmp.size(), true);
                 else
-                    convert::RGB16ToRGBAs(destPtr, tmp.data(), count);
-            }break;
-        case 24://BGR
+                    cvter.RGB555ToRGBA(destPtr, tmp.data(), tmp.size(), true);
+            } break;
+        case 24: // BGR
             {
                 auto * __restrict destPtr = output.GetRawPtr();
                 auto * __restrict srcPtr = destPtr + count;
                 reader.Read(3 * count, srcPtr);
                 if (isOutputRGB)
-                    ColorConvertor::Get().BGRToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), count);
+                    cvter.BGRToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), count);
                 else
-                    ColorConvertor::Get().RGBToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), count);
-            }break;
-        case 32:
-            {//BGRA
+                    cvter.RGBToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), count);
+            } break;
+        case 32: // BGRA
+            {
                 reader.Read(4 * count, output.GetRawPtr());
                 if (isOutputRGB)
-                    ColorConvertor::Get().RGBAToBGRA(output.GetRawPtr<uint32_t>(), output.GetRawPtr<uint32_t>(), count);
-                    //convert::BGRAsToRGBAs(output.GetRawPtr(), count);
-            }break;
+                    cvter.RGBAToBGRA(output.GetRawPtr<uint32_t>(), output.GetRawPtr<uint32_t>(), count);
+            } break;
         }
     }
 
@@ -119,35 +117,32 @@ public:
     {
         if (output.GetElementSize() != 3)
             return;
-        //auto& color16Map = isOutputRGB ? convert::BGR16ToRGBAMapper : convert::RGB16ToRGBAMapper;
+        const auto& cvter = ColorConvertor::Get();
         switch (colorDepth)
         {
         case 8:
             {
                 AlignedBuffer tmp(count);
                 reader.Read(count, tmp.GetRawPtr());
-                //auto * __restrict destPtr = output.GetRawPtr();
-                //convert::GraysToRGBs(destPtr, tmp.GetRawPtr(), count);
-                ColorConvertor::Get().GrayToRGB(output.GetRawPtr<uint8_t>(), tmp.GetRawPtr<uint8_t>(), count);
-            }break;
+                cvter.GrayToRGB(output.GetRawPtr<uint8_t>(), tmp.GetRawPtr<uint8_t>(), count);
+            } break;
         case 15:
         case 16:
             {
                 const auto tmp = reader.template ReadToVector<uint16_t>(count);
-                auto * __restrict destPtr = output.GetRawPtr();
+                auto * __restrict destPtr = output.GetRawPtr<uint8_t>();
                 if (isOutputRGB)
-                    convert::BGR15ToRGBs(destPtr, tmp.data(), count);
+                    cvter.BGR555ToRGB(destPtr, tmp.data(), tmp.size());
                 else
-                    convert::RGB15ToRGBs(destPtr, tmp.data(), count);
-            }break;
-        case 24://BGR
+                    cvter.RGB555ToRGB(destPtr, tmp.data(), tmp.size());
+            } break;
+        case 24: // BGR
             {
                 reader.Read(3 * count, output.GetRawPtr());
                 if (isOutputRGB)
-                    ColorConvertor::Get().RGBToBGR(output.GetRawPtr<uint8_t>(), output.GetRawPtr<uint8_t>(), count);
-                    //convert::BGRsToRGBs(output.GetRawPtr(), count);
-            }break;
-        case 32://BGRA
+                    cvter.RGBToBGR(output.GetRawPtr<uint8_t>(), output.GetRawPtr<uint8_t>(), count);
+            } break;
+        case 32: // BGRA
             {
                 Image tmp(ImageDataType::RGBA);
                 tmp.SetSize(output.GetWidth(), 1);
@@ -155,11 +150,11 @@ public:
                 {
                     reader.Read(4 * output.GetWidth(), tmp.GetRawPtr());
                     if (isOutputRGB)
-                        ColorConvertor::Get().RGBAToBGR(output.GetRawPtr<uint8_t>(row), tmp.GetRawPtr<uint32_t>(), count);
+                        cvter.RGBAToBGR(output.GetRawPtr<uint8_t>(row), tmp.GetRawPtr<uint32_t>(), count);
                     else
-                        ColorConvertor::Get().RGBAToRGB(output.GetRawPtr<uint8_t>(row), tmp.GetRawPtr<uint32_t>(), count);
+                        cvter.RGBAToRGB(output.GetRawPtr<uint8_t>(row), tmp.GetRawPtr<uint32_t>(), count);
                 }
-            }break;
+            } break;
         }
     }
 
@@ -236,7 +231,6 @@ public:
             {
                 reader.Read(count, image.GetRawPtr() + count);
                 ColorConvertor::Get().GrayToGrayA(image.GetRawPtr<uint16_t>(), image.GetRawPtr<uint8_t>() + count, count);
-                //convert::GraysToGrayAs(image.GetRawPtr(), image.GetRawPtr() + count, count);
             }
             else
             {
@@ -301,14 +295,14 @@ public:
         else
         {
             AlignedBuffer buffer(3 * 128);
+            const auto& cvter = ColorConvertor::Get();
             while (len)
             {
                 const auto size = std::min(128u, len);
                 len -= size;
                 const auto flag = byte(size - 1);
                 writer.Write(flag);
-                ColorConvertor::Get().RGBToBGR(buffer.GetRawPtr<uint8_t>(), reinterpret_cast<const uint8_t*>(ptr), size);
-                //convert::BGRsToRGBs(buffer.GetRawPtr(), ptr, size);
+                cvter.RGBToBGR(buffer.GetRawPtr<uint8_t>(), reinterpret_cast<const uint8_t*>(ptr), size);
                 ptr += 3 * size;
                 writer.Write(3 * size, buffer.GetRawPtr());
             }
@@ -334,14 +328,14 @@ public:
         else
         {
             AlignedBuffer buffer(4 * 128);
+            const auto& cvter = ColorConvertor::Get();
             while (len)
             {
                 const auto size = std::min(128u, len);
                 len -= size;
                 const auto flag = byte(size - 1);
                 writer.Write(flag);
-                ColorConvertor::Get().RGBAToBGRA(buffer.GetRawPtr<uint32_t>(), reinterpret_cast<const uint32_t*>(ptr), size);
-                //convert::BGRAsToRGBAs(buffer.GetRawPtr(), ptr, size);
+                cvter.RGBAToBGRA(buffer.GetRawPtr<uint32_t>(), reinterpret_cast<const uint32_t*>(ptr), size);
                 ptr += 4 * size;
                 writer.Write(4 * size, buffer.GetRawPtr());
             }
@@ -692,10 +686,10 @@ void TgaWriter::Write(const Image& image, const uint8_t)
     header.ColorMapType = 0;
     header.ImageType = detail::TGAImgType::RLE_MASK | (image.IsGray() ? detail::TGAImgType::GRAY : detail::TGAImgType::COLOR);
     memset(&header.ColorMapData, 0x0, 5);//5 bytes for color map spec
-    convert::WordToLE(header.OriginHorizontal, 0);
-    convert::WordToLE(header.OriginVertical, 0);
-    convert::WordToLE(header.Width, (uint16_t)image.GetWidth());
-    convert::WordToLE(header.Height, (uint16_t)image.GetHeight());
+    util::WordToLE(header.OriginHorizontal, 0);
+    util::WordToLE(header.OriginVertical, 0);
+    util::WordToLE(header.Width, (uint16_t)image.GetWidth());
+    util::WordToLE(header.Height, (uint16_t)image.GetHeight());
     header.PixelDepth = image.GetElementSize() * 8;
     header.ImageDescriptor = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK) ? 0x28 : 0x20;
     

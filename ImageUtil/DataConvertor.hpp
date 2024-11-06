@@ -11,61 +11,7 @@
 namespace xziar::img::convert
 {
 
-inline uint16_t ParseWordLE(const std::byte * __restrict data) 
-{ 
-    return static_cast<uint16_t>((std::to_integer<uint16_t>(data[1]) << 8) + std::to_integer<uint16_t>(data[0]));
-}
-inline uint16_t ParseWordBE(const std::byte * __restrict data) 
-{ 
-    return static_cast<uint16_t>(std::to_integer<uint16_t>(data[1]) + std::to_integer<uint16_t>(data[0] << 8));
-}
-inline void WordToLE(std::byte * __restrict output, const uint16_t data) 
-{ 
-    output[0] = std::byte(data & 0xff); output[1] = std::byte(data >> 8);
-}
-inline void WordToBE(std::byte * __restrict output, const uint16_t data) 
-{ 
-    output[1] = std::byte(data & 0xff); output[0] = std::byte(data >> 8);
-}
-inline uint32_t ParseDWordLE(const std::byte * __restrict data)
-{ 
-    return static_cast<uint32_t>(
-        (std::to_integer<uint32_t>(data[3]) << 24) + 
-        (std::to_integer<uint32_t>(data[2]) << 16) + 
-        (std::to_integer<uint32_t>(data[1]) << 8) + 
-        (std::to_integer<uint32_t>(data[0])));
-}
-inline uint32_t ParseDWordBE(const std::byte * __restrict data)
-{
-    return static_cast<uint32_t>(
-        (std::to_integer<uint32_t>(data[3])) + 
-        (std::to_integer<uint32_t>(data[2]) << 8) + 
-        (std::to_integer<uint32_t>(data[1]) << 16) + 
-        (std::to_integer<uint32_t>(data[0]) << 24));
-}
-inline void DWordToLE(std::byte * __restrict output, const uint32_t data)
-{ 
-    output[0] = std::byte(data & 0xff); output[1] = std::byte(data >> 8); output[2] = std::byte(data >> 16); output[3] = std::byte(data >> 24);
-}
-inline void DWordToBE(std::byte * __restrict output, const uint32_t data)
-{ 
-    output[3] = std::byte(data & 0xff); output[2] = std::byte(data >> 8); output[1] = std::byte(data >> 16); output[0] = std::byte(data >> 24);
-}
 
-template<typename T>
-inline T EmptyStruct()
-{
-    T obj;
-    memset(&obj, 0, sizeof(T));
-    return obj;
-}
-
-
-inline void FixAlpha(size_t count, uint32_t* __restrict destPtr)
-{
-    while (count--)
-        (*destPtr++) |= 0xff000000u;
-}
 
 inline void CopyRGBAToRGB(std::byte * __restrict &destPtr, const uint32_t color)
 {

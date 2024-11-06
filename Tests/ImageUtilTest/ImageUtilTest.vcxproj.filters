@@ -10,6 +10,9 @@
     <ClCompile Include="ResizeTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="ReadWriteTest.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />
@@ -21,10 +24,24 @@
     <Filter Include="Source">
       <UniqueIdentifier>{c4e37ba6-c1f4-416b-b2c4-9d7e8d28b535}</UniqueIdentifier>
     </Filter>
+    <Filter Include="imgs">
+      <UniqueIdentifier>{e0b5164c-a1b2-4471-ab0f-649694e49da6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rely.h">
       <Filter>Header</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="imgs\bmp-rgba.bmp">
+      <Filter>imgs</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
 </Project>

@@ -37,7 +37,25 @@ struct BmpInfo
     uint32_t PaletteUsed;
     uint32_t PaletteImportant;
 };
-constexpr size_t BMP_INFO_SIZE = sizeof(BmpInfo);
+struct BmpInfoV4 : public BmpInfo
+{
+    uint32_t MaskRed;
+    uint32_t MaskGreen;
+    uint32_t MaskBlue;
+    uint32_t MaskAlpha;
+    uint32_t ColorSpace;
+    uint32_t CIEEndPoint[3][3];
+    uint16_t GammaRed[2];
+    uint16_t GammaGreen[2];
+    uint16_t GammaBlue[2];
+};
+struct BmpInfoV5 : public BmpInfoV4
+{
+    uint32_t Intent;
+    uint32_t ProfileData;
+    uint32_t ProfileSize;
+    uint32_t Reserved;
+};
 #pragma pack(pop)
 }
 
@@ -46,7 +64,9 @@ class IMGUTILAPI BmpReader : public ImgReader
 private:
     common::io::RandomInputStream& Stream;
     detail::BmpHeader Header;
-    detail::BmpInfo Info;
+    detail::BmpInfoV5 Info;
+    bool HasAlpha = false;
+    bool IsRGB = false;
 public:
     BmpReader(common::io::RandomInputStream& stream);
     virtual ~BmpReader() override {};
@@ -70,7 +90,7 @@ public:
 
 class IMGUTILAPI BmpSupport : public ImgSupport {
 public:
-    BmpSupport();
+    BmpSupport() : ImgSupport(u"ZexBmp") {}
     virtual ~BmpSupport() override {}
     [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
     {

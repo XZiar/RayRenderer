@@ -2,7 +2,6 @@
 
 #include "ImageUtilRely.h"
 #include "ImageSupport.hpp"
-#include "DataConvertor.hpp"
 
 
 namespace xziar::img::tga
@@ -44,8 +43,8 @@ struct ColorMapInfo
     uint8_t ColorDepth;
     ColorMapInfo(const TgaHeader& header)
     {
-        Offset = img::convert::ParseWordLE(header.ColorMapData.ColorMapOffset);
-        Size = img::convert::ParseWordLE(header.ColorMapData.ColorMapCount);
+        Offset = util::ParseWordLE(header.ColorMapData.ColorMapOffset);
+        Size = util::ParseWordLE(header.ColorMapData.ColorMapCount);
         ColorDepth = header.ColorMapData.ColorEntryDepth;
     }
 };
@@ -56,7 +55,7 @@ class IMGUTILAPI TgaReader : public ImgReader
 private:
     common::io::RandomInputStream& Stream;
     detail::TgaHeader Header;
-    int32_t Width, Height;
+    int32_t Width = 0, Height = 0;
 public:
     TgaReader(common::io::RandomInputStream& stream);
     virtual ~TgaReader() override {};
@@ -79,7 +78,7 @@ class IMGUTILAPI TgaSupport : public ImgSupport
     friend class TgaReader;
     friend class TgaWriter;
 public:
-    TgaSupport() : ImgSupport(u"Tga") {}
+    TgaSupport() : ImgSupport(u"ZexTga") {}
     virtual ~TgaSupport() override {}
     [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
     {

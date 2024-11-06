@@ -49,16 +49,21 @@ bool UnRegistImageSupport(const std::shared_ptr<ImgSupport>& support) noexcept
 }
 
 
-static vector<std::reference_wrapper<const ImgSupport>> GenerateSupportList(const u16string& ext, const ImageDataType dataType, const bool isRead, const bool allowDisMatch)
+static vector<std::shared_ptr<const ImgSupport>> GenerateSupportList(const u16string& ext, const ImageDataType dataType, const bool isRead, const bool allowDisMatch)
 {
     const auto lock = AcuireSupportLock().ReadScope();
     return common::linq::FromIterable(SUPPORT_MAP())
-        .Select([&](const auto& support) { return std::pair(std::cref(*support), support->MatchExtension(ext, dataType, isRead)); })
+        .Select([&](const auto& support) { return std::pair<std::shared_ptr<const ImgSupport>, uint8_t>{support, support->MatchExtension(ext, dataType, isRead)}; })
         .Where([=](const auto& spPair) { return allowDisMatch || spPair.second > 0; })
         .OrderBy([](const auto& l, const auto& r) { return l.second > r.second; })
         .Select([](const auto& spPair) { return spPair.first; })
         .ToVector();
 }
+std::vector<std::shared_ptr<const ImgSupport>> GetImageSupport(const u16string& ext, const ImageDataType dataType, const bool isRead) noexcept
+{
+    return GenerateSupportList(ext, dataType, isRead, false);
+}
+
 
 static u16string GetExtName(const common::fs::path& path)
 {
@@ -85,23 +90,23 @@ Image ReadImage(RandomInputStream& stream, const std::u16string& ext, const Imag
 {
     const auto extName = common::str::ToUpperEng(ext, common::str::Encoding::UTF16LE);
     auto testList = GenerateSupportList(extName, dataType, true, true);
-    for (const ImgSupport& support : testList)
+    for (const auto& support : testList)
     {
         try
         {
-            auto reader = support.GetReader(stream, extName);
+            auto reader = support->GetReader(stream, extName);
             if (!reader->Validate())
             {
                 stream.SetPos(0);
                 continue;
             }
-            ImgLog().Debug(u"Using [{}]\n", support.Name);
+            ImgLog().Debug(u"Using [{}]\n", support->Name);
             auto img = reader->Read(dataType);
             return img;
         }
         catch (const BaseException& be)
         {
-            ImgLog().Warning(u"Read Image using {} receive error {}\n", support.Name, be.Message());
+            ImgLog().Warning(u"Read Image using {} receive error {}\n", support->Name, be.Message());
         }
     }
     COMMON_THROW(BaseException, u"cannot read image");
@@ -118,19 +123,19 @@ void WriteImage(const Image& image, RandomOutputStream& stream, const std::u16st
 {
     const auto extName = common::str::ToUpperEng(ext, common::str::Encoding::UTF16LE);
     auto testList = GenerateSupportList(extName, image.GetDataType(), false, false);
-    for (const ImgSupport& support : testList)
+    for (const auto& support : testList)
     {
         try
         {
-            auto writer = support.GetWriter(stream, extName);
-            ImgLog().Debug(u"Using [{}]\n", support.Name);
+            auto writer = support->GetWriter(stream, extName);
+            ImgLog().Debug(u"Using [{}]\n", support->Name);
             writer->Write(image, quality);
             stream.Flush();
             return;
         }
         catch (const BaseException& be)
         {
-            ImgLog().Warning(u"Write Image using {} receive error {}\n", support.Name, be.Message());
+            ImgLog().Warning(u"Write Image using {} receive error {}\n", support->Name, be.Message());
         }
     }
     COMMON_THROW(BaseException, u"cannot write image");

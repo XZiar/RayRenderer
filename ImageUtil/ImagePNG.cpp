@@ -86,19 +86,18 @@ static void ReadPng(void *pngStruct, const uint32_t passes, Image& image, const 
     //post process, add alpha
     auto *rowPtr = image.GetRawPtr();
     const size_t lineStep = image.GetElementSize() * image.GetWidth();
+    const auto& cvter = ColorConvertor::Get();
     timer.Start();
     if (isColor)
+    {
         for (uint32_t row = 0; row < image.GetHeight(); row++, rowPtr += lineStep)
-        {
-            ColorConvertor::Get().RGBToRGBA(reinterpret_cast<uint32_t*>(rowPtr), reinterpret_cast<const uint8_t*>(rowPtr + image.GetWidth()), image.GetWidth());
-            //convert::RGBsToRGBAs(destPtr, srcPtr, image.GetWidth());
-        }
+            cvter.RGBToRGBA(reinterpret_cast<uint32_t*>(rowPtr), reinterpret_cast<const uint8_t*>(rowPtr + image.GetWidth()), image.GetWidth());
+    }
     else
+    {
         for (uint32_t row = 0; row < image.GetHeight(); row++, rowPtr += lineStep)
-        {
-            ColorConvertor::Get().GrayToGrayA(reinterpret_cast<uint16_t*>(rowPtr), reinterpret_cast<const uint8_t*>(rowPtr + image.GetWidth()), image.GetWidth());
-            //convert::GraysToGrayAs(destPtr, srcPtr, image.GetWidth());
-        }
+            cvter.GrayToGrayA(reinterpret_cast<uint16_t*>(rowPtr), reinterpret_cast<const uint8_t*>(rowPtr + image.GetWidth()), image.GetWidth());
+    }
     timer.Stop();
     ImgLog().Debug(u"[png]post add alpha cost {} ms\n", timer.ElapseMs());
 }

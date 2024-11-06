@@ -213,9 +213,9 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
         print(f"defined output to [{outfile}]")
 
     env["intrin"] = set(i[1] for i in _intrinMap.items() if i[0] in defs)
-    if all(k in _intrinAVX31 for k in defs):
+    if all(k in defs for k in _intrinAVX31):
         env["intrin"].add("avx31")
-    if all(k in _intrinAVX32 for k in defs):
+    if all(k in defs for k in _intrinAVX32):
         env["intrin"].add("avx32")
     if "__ANDROID__" in defs:
         env["android"] = True

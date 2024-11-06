@@ -1,5 +1,6 @@
 #include "rely.h"
 #include "../Shared/GTestCommon.inl"
+#include "common/ResourceHelper.inl"
 #include <random>
 
 
@@ -20,6 +21,7 @@ void TestResizeImage(std::string filepath);
 
 int main(int argc, char **argv)                  
 {
+    common::ResourceHelper::Init(nullptr);
     const auto env = new GTestEnvironment();
     testing::InitGoogleTest(&argc, argv);
     env->ProcessTestArg({ argv, static_cast<size_t>(argc) });

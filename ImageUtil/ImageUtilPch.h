@@ -6,7 +6,7 @@
 #endif
 #include "ColorConvert.h"
 #include "DataConvertor.hpp"
-#include "RGB15Converter.hpp"
+//#include "RGB15Converter.hpp"
 
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/FileEx.h"

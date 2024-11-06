@@ -14,6 +14,10 @@
         {
             "incpath": ["$(SolutionDir)/3rdParty/googletest/googletest/include/", "$(SolutionDir)/3rdParty/googletest/googlemock/include/"],
             "sources": ["*.cpp"]
+        },
+        "rc":
+        {
+            "sources": ["*.rc"]
         }
     }
 }

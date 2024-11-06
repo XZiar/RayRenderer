@@ -284,9 +284,9 @@ Image JpegReader::Read(const ImageDataType dataType)
     }
     if (needAlpha)
     {
+        const auto& cvter = ColorConvertor::Get();
         for (uint32_t row = 0; row < image.GetHeight(); ++row)
-            ColorConvertor::Get().RGBToRGBA(image.GetRawPtr<uint32_t>(row), reinterpret_cast<const uint8_t*>(ptrs[row]), image.GetWidth());
-            //convert::RGBsToRGBAs(image.GetRawPtr(row), ptrs[row], image.GetWidth());
+            cvter.RGBToRGBA(image.GetRawPtr<uint32_t>(row), reinterpret_cast<const uint8_t*>(ptrs[row]), image.GetWidth());
     }
 
     jpeg_finish_decompress(decompStruct);

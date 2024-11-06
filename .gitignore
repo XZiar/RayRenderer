@@ -258,3 +258,6 @@ kernel*_ispc*.h
 /xzbuild/__pycache__
 
 xzbuild.user.json
+SolutionInclude.props
+
+Thumbs.db

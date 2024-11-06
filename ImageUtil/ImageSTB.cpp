@@ -103,7 +103,8 @@ bool StbReader::Validate()
     else if (stbi__png_test(context))
         TestedType = ImgType::PNG;
     else if (stbi__bmp_test(context))
-        TestedType = ImgType::BMP;
+        return false; // skip due to known issue https://github.com/nothings/stb/issues/1716
+        // TestedType = ImgType::BMP;
     else if (stbi__pic_test(context))
         TestedType = ImgType::PIC;
     else if (stbi__tga_test(context))
