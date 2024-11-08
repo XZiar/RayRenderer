@@ -1287,12 +1287,12 @@ struct RGB3To4_SSSE3
         const auto out0 = mid0.Or(Alpha);
         out0.Save(dst);
 
-        const U8x16 dat1_ = _mm_alignr_epi8(dat1, dat0, 12);
+        const U8x16 dat1_ = dat0.MoveToLoWith<12>(dat1);
         const U32x4 mid1 = _mm_shuffle_epi8(dat1_, shuffleMask0);
         const auto out1 = mid1.Or(Alpha);
         out1.Save(dst + 4);
 
-        const U8x16 dat2_ = _mm_alignr_epi8(dat2, dat1, 8);
+        const U8x16 dat2_ = dat1.MoveToLoWith<8>(dat2);
         const U32x4 mid2 = _mm_shuffle_epi8(dat2_, shuffleMask0); 
         const auto out2 = mid2.Or(Alpha);
         out2.Save(dst + 8);
@@ -1318,11 +1318,11 @@ struct RGB4To3_SSSE3
         const U8x16 mid89ab = dat2.As<U8x16>().Shuffle<        0,         0,         0,         0, IdxR +  0, IdxG +  0, IdxB +  0, IdxR +  4, IdxG +  4, IdxB +  4, IdxR +  8, IdxG +  8, IdxB + 8, IdxR + 12, IdxG + 12, IdxB + 12>();
         const U8x16 midcdef = dat3.As<U8x16>().Shuffle<IdxR +  0, IdxG +  0, IdxB +  0, IdxR +  4, IdxG +  4, IdxB +  4, IdxR +  8, IdxG +  8, IdxB +  8, IdxR + 12, IdxG + 12, IdxB + 12,       15,        15,        15,        15>();
 
-        const U8x16 out0 = _mm_alignr_epi8(mid4567, mid0123, 4);
+        const U8x16 out0 = mid0123.MoveToLoWith<4>(mid4567);
         out0.Save(dst);
         const U8x16 out1 = F32x4(_mm_shuffle_ps(mid4567.As<F32x4>(), mid89ab.As<F32x4>(), 0b10011001)).As<U8x16>();
         out1.Save(dst + 16);
-        const U8x16 out2 = _mm_alignr_epi8(midcdef, mid89ab, 12);
+        const U8x16 out2 = mid89ab.MoveToLoWith<12>(midcdef);
         out2.Save(dst + 32);
     }
 };
@@ -1336,19 +1336,19 @@ struct RGBToBGR_SSSE3
         const U8x16 dat2(src + 32);
 
         const auto mid0 = dat0.Shuffle<0, 2, 1, 0, 5, 4, 3, 8, 7, 6, 11, 10, 9, 14, 13, 12>(); // x000111222333444
-        const auto merge01 = _mm_alignr_epi8(dat1, dat0, 15); // 555666777888999a
+        const auto merge01 = dat0.MoveToLoWith<15>(dat1); // 555666777888999a
         const U8x16 mid01 = _mm_shuffle_epi8(merge01, _mm_setr_epi8(2, 1, 0, 5, 4, 3, 8, 7, 6, 11, 10, 9, 14, 13, 12, -1)); // 555666777888999.
-        const auto merge12 = _mm_alignr_epi8(dat2, dat1, 1); // 5666777888999aaa
+        const auto merge12 = dat1.MoveToLoWith<1>(dat2); // 5666777888999aaa
         const U8x16 mid12 = _mm_shuffle_epi8(merge12, _mm_setr_epi8(-1, 3, 2, 1, 6, 5, 4, 9, 8, 7, 12, 11, 10, 15, 14, 13)); // .666777888999aaa
         const auto mid2 = dat2.Shuffle<3, 2, 1, 6, 5, 4, 9, 8, 7, 12, 11, 10, 15, 14, 13, 0>(); // bbbcccdddeeefffx
-        const U8x16 mid1lo = _mm_bsrli_si128(mid01, 1);
-        const U8x16 mid1hi = _mm_bslli_si128(mid12, 1);
+        const U8x16 mid1lo = mid01.MoveToLo<1>();
+        const U8x16 mid1hi = mid12.MoveToHi<1>();
 
-        const U8x16 out0 = _mm_alignr_epi8(mid01, mid0, 1);
+        const U8x16 out0 = mid0.MoveToLoWith<1>(mid01);
         out0.Save(dst);
         const auto out1 = mid1lo.Or(mid1hi);
         out1.Save(dst + 16);
-        const U8x16 out2 = _mm_alignr_epi8(mid2, mid12, 15);
+        const U8x16 out2 = mid12.MoveToLoWith<15>(mid2);
         out2.Save(dst + 32);
     }
 };

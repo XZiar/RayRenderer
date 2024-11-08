@@ -1,6 +1,7 @@
 #include "ImageUtilPch.h"
 #include "ImageCore.h"
 #include "ColorConvert.h"
+#include "DataConvertor.hpp"
 #include "SystemCommon/FormatExtra.h"
 
 // #define STB_IMAGE_RESIZE2_IMPLEMENTATION
@@ -30,7 +31,8 @@ void Image::FlipVertical()
     auto rowUp = Data, rowDown = Data + (Height - 1) * lineStep;
     while (rowUp < rowDown)
     {
-        convert::Swap2Buffer(rowUp, rowDown, lineStep);
+        common::CopyEx.Swap2Region<false>(rowUp, rowDown, lineStep);
+        // convert::Swap2Buffer(rowUp, rowDown, lineStep);
         rowUp += lineStep, rowDown -= lineStep;
     }
 }
@@ -43,7 +45,8 @@ void Image::FlipHorizontal()
     {
         for (uint32_t row = 0; row < Height; ++row)
         {
-            convert::ReverseBuffer4(ptr, Width);
+            common::CopyEx.ReverseRegion(reinterpret_cast<uint32_t*>(ptr), Width);
+            // convert::ReverseBuffer4(ptr, Width);
             ptr += lineStep;
         }
     }
@@ -51,7 +54,8 @@ void Image::FlipHorizontal()
     {
         for (uint32_t row = 0; row < Height; ++row)
         {
-            convert::ReverseBuffer3(ptr, Width);
+            common::CopyEx.ReverseRegion(reinterpret_cast<std::array<uint8_t, 3>*>(ptr), Width);
+            // convert::ReverseBuffer3(ptr, Width);
             ptr += lineStep;
         }
     }
@@ -66,11 +70,13 @@ void Image::Rotate180()
     const auto count = Width * Height;
     if (ElementSize == 4)
     {
-        convert::ReverseBuffer4(Data, count);
+        common::CopyEx.ReverseRegion(reinterpret_cast<uint32_t*>(Data), count);
+        // convert::ReverseBuffer4(Data, count);
     }
     else if (ElementSize == 3)
     {
-        convert::ReverseBuffer3(Data, count);
+        common::CopyEx.ReverseRegion(reinterpret_cast<std::array<uint8_t, 3>*>(Data), count);
+        // convert::ReverseBuffer3(Data, count);
     }
     else
     {

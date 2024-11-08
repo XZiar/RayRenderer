@@ -183,7 +183,23 @@ struct SSE128Common : public CommonOperators<T>
         const auto signbits = static_cast<const T*>(this)->ExtractSignBit();
         return SignBitToIdx<Count>(signbits);
     }
-    forceinline T VECCALL MoveHiToLo() const noexcept { return _mm_srli_si128(Data, 8); }
+    template<uint8_t Cnt>
+    forceinline T VECCALL MoveToHi() const noexcept
+    {
+        static_assert(Cnt <= N, "move count should be in [0, N]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == N) return AllZero();
+        else return _mm_slli_si128(Data, Cnt * sizeof(E));
+    }
+    template<uint8_t Cnt>
+    forceinline T VECCALL MoveToLo() const noexcept
+    {
+        static_assert(Cnt <= N, "move count should be in [0, N]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == N) return AllZero();
+        else return _mm_srli_si128(Data, Cnt * sizeof(E));
+    }
+    forceinline T VECCALL MoveHiToLo() const noexcept { return MoveToLo<N / 2>(); }
     forceinline bool VECCALL IsAllZero() const noexcept
     {
         return _mm_testz_si128(Data, Data) != 0;
@@ -267,10 +283,10 @@ public:
     {
         static_assert(Count <= 2, "move count should be in [0,2]");
         if constexpr (Count == 0)
-            return *this;
+            return this->Data;
         else if constexpr (Count == 2)
             return hi;
-        return _mm_alignr_epi8(this->Data, hi.Data, Count * 8);
+        return _mm_alignr_epi8(hi.Data, this->Data, Count * 8);
     }
 
     // arithmetic operations
@@ -445,10 +461,10 @@ public:
     {
         static_assert(Count <= 4, "move count should be in [0,4]");
         if constexpr (Count == 0)
-            return *this;
+            return this->Data;
         else if constexpr (Count == 4)
             return hi;
-        return _mm_alignr_epi8(this->Data, hi.Data, Count * 4);
+        return _mm_alignr_epi8(hi.Data, this->Data, Count * 4);
     }
 
     // arithmetic operations
@@ -610,10 +626,10 @@ public:
     {
         static_assert(Count <= 8, "move count should be in [0,8]");
         if constexpr (Count == 0)
-            return *this;
+            return this->Data;
         else if constexpr (Count == 8)
             return hi;
-        return _mm_alignr_epi8(this->Data, hi.Data, Count * 2);
+        return _mm_alignr_epi8(hi.Data, this->Data, Count * 2);
     }
 
     // arithmetic operations
@@ -815,10 +831,10 @@ public:
     {
         static_assert(Count <= 16, "move count should be in [0,16]");
         if constexpr (Count == 0)
-            return *this;
+            return this->Data;
         else if constexpr (Count == 16)
             return hi;
-        return _mm_alignr_epi8(this->Data, hi.Data, Count);
+        return _mm_alignr_epi8(hi.Data, this->Data, Count);
     }
 
     // arithmetic operations
@@ -961,15 +977,31 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
         static_assert(Mask <= 0b11, "Only allow 2 bits");
         return _mm_blend_pd(this->Data, other.Data, Mask);
     }
-    template<uint8_t Count>
+    template<size_t Cnt>
+    forceinline F64x2 VECCALL MoveToHi() const noexcept
+    {
+        static_assert(Cnt <= 2, "move count  should be in [0,2]");
+        if constexpr (Cnt == 0) return *this;
+        else if constexpr (Cnt == 2) return AllZero();
+        else return _mm_castsi128_pd(_mm_slli_si128(_mm_castpd_si128(Data), Cnt * 8));
+    }
+    template<size_t Cnt>
+    forceinline F64x2 VECCALL MoveToLo() const noexcept
+    {
+        static_assert(Cnt <= 2, "move count  should be in [0,2]");
+        if constexpr (Cnt == 0) return *this;
+        else if constexpr (Cnt == 2) return AllZero();
+        else return _mm_castsi128_pd(_mm_srli_si128(_mm_castpd_si128(Data), Cnt * 8));
+    }
+    template<uint8_t Cnt>
     forceinline F64x2 VECCALL MoveToLoWith(const F64x2& hi) const noexcept
     {
-        static_assert(Count <= 2, "move count should be in [0,2]");
-        if constexpr (Count == 0)
+        static_assert(Cnt <= 2, "move count should be in [0,2]");
+        if constexpr (Cnt == 0)
             return *this;
-        else if constexpr (Count == 2)
+        else if constexpr (Cnt == 2)
             return hi;
-        return _mm_castsi128_pd(_mm_alignr_epi8(_mm_castpd_si128(this->Data), _mm_castpd_si128(hi.Data), Count * 8));
+        return _mm_castsi128_pd(_mm_alignr_epi8(_mm_castpd_si128(hi.Data), _mm_castpd_si128(this->Data), Cnt * 8));
     }
 
     // compare operations
@@ -1174,15 +1206,31 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
         static_assert(Mask <= 0b1111, "Only allow 4 bits");
         return _mm_blend_ps(this->Data, other.Data, Mask);
     }
-    template<uint8_t Count>
+    template<uint8_t Cnt>
+    forceinline F32x4 VECCALL MoveToHi() const noexcept
+    {
+        static_assert(Cnt <= 4, "move count  should be in [0,4]");
+        if constexpr (Cnt == 0) return *this;
+        else if constexpr (Cnt == 4) return AllZero();
+        else return _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(Data), Cnt * 4));
+    }
+    template<uint8_t Cnt>
+    forceinline F32x4 VECCALL MoveToLo() const noexcept
+    {
+        static_assert(Cnt <= 4, "move count  should be in [0,4]");
+        if constexpr (Cnt == 0) return *this;
+        else if constexpr (Cnt == 4) return AllZero();
+        else return _mm_castsi128_ps(_mm_srli_si128(_mm_castps_si128(Data), Cnt * 4));
+    }
+    template<uint8_t Cnt>
     forceinline F32x4 VECCALL MoveToLoWith(const F32x4& hi) const noexcept
     {
-        static_assert(Count <= 4, "move count should be in [0,4]");
-        if constexpr (Count == 0)
+        static_assert(Cnt <= 4, "move count should be in [0,4]");
+        if constexpr (Cnt == 0)
             return *this;
-        else if constexpr (Count == 4)
+        else if constexpr (Cnt == 4)
             return hi;
-        return _mm_castsi128_ps(_mm_alignr_epi8(_mm_castps_si128(this->Data), _mm_castps_si128(hi.Data), Count * 8));
+        return _mm_castsi128_ps(_mm_alignr_epi8(_mm_castps_si128(hi.Data), _mm_castps_si128(Data), Cnt * 4));
     }
 
     // compare operations

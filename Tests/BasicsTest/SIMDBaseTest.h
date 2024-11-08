@@ -1011,15 +1011,69 @@ static void TestLoad(const T* ptr)
     }
 }
 
+template<size_t N, typename T>
+static void TestMoveTo(const T& dat)
+{
+    using U = typename T::EleType;
+    const auto outLo = dat.MoveToLo<N>();
+    const auto outHi = dat.MoveToHi<N>();
+    std::array<U, T::Count> refLo = { 0 };
+    std::array<U, T::Count> refHi = { 0 };
+    for (uint8_t i = 0; i < T::Count - N; ++i)
+        refLo[i] = dat.Val[i + N];
+    for (uint8_t i = N; i < T::Count; ++i)
+        refHi[i] = dat.Val[i - N];
+    EXPECT_THAT(outLo.Val, MatchVec(refLo)) << "when testing MoveToLo<" << N <<">";
+    EXPECT_THAT(outHi.Val, MatchVec(refHi)) << "when testing MoveToHi<" << N <<">";
+    if constexpr (N < T::Count)
+        TestMoveTo<N + 1>(dat);
+}
+
+template<size_t N, typename T>
+static void TestMoveWith(const T& datLo, const T& datHi)
+{
+    using U = typename T::EleType;
+    const auto out = datLo.MoveToLoWith<N>(datHi);
+    std::array<U, T::Count> ref = { 0 };
+    for (uint8_t i = 0; i < T::Count; ++i)
+    {
+        if (i + N < T::Count) ref[i] = datLo.Val[i + N];
+        else ref[i] = datHi.Val[i + N - T::Count];
+    }
+    EXPECT_THAT(out.Val, MatchVec(ref)) << "when testing MoveToLoWith<" << N << ">";
+    if constexpr (N < T::Count)
+        TestMoveWith<N + 1>(datLo, datHi);
+}
+
+template<typename T>
+static void TestMove(const T* ptr)
+{
+    using U = typename T::EleType;
+    {
+        ForKItem(1)
+        {
+            const auto data = ptr[k];
+            TestMoveTo<0>(data);
+        }
+    }
+    {
+        ForKItem(2)
+        {
+            const auto data0 = ptr[k + 0], data1 = ptr[k + 1];
+            TestMoveWith<0>(data0, data1);
+        }
+    }
+}
+
 
 #undef ForKItem
 
-enum class TestItem : uint32_t
+enum class TestItem : uint64_t
 {
     Add = 0x1, Sub = 0x2, SatAdd = 0x4, SatSub = 0x8, Mul = 0x10, MulLo = 0x20, MulHi = 0x40, MulX = 0x80, 
     Div = 0x100, Neg = 0x200, Abs = 0x400, Min = 0x800, Max = 0x1000, SLL = 0x2000, SLLV = 0x4000, SRL = 0x8000, SRLV = 0x10000, SRA = 0x20000,
     And = 0x100000, Or = 0x200000, Xor = 0x400000, AndNot = 0x800000, Not = 0x1000000, FMA = 0x2000000, Rnd = 0x4000000,
-    SWE = 0x10000000, SEL = 0x20000000, MSK = 0x40000000, Load = 0x80000000
+    SWE = 0x10000000u, SEL = 0x20000000u, MSK = 0x40000000u, Load = 0x80000000u, Move = 0x100000000u
 };
 MAKE_ENUM_BITFIELD(TestItem)
 
@@ -1033,7 +1087,7 @@ public:
 #define AddItem(r, data, x) if constexpr (HAS_FIELD(Items, TestItem::x)) \
     BOOST_PP_CAT(Test,x)<T>(GetRandPtr<T, typename T::EleType>());
 #define AddItems(...) BOOST_PP_SEQ_FOR_EACH(AddItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
-        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SLLV, SRL, SRLV, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL, MSK, FMA, Rnd, Load)
+        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SLLV, SRL, SRLV, SRA, Max, And, Or, Xor, AndNot, Not, FMA, Rnd, SWE, SEL, MSK, Load, Move)
 #undef AddItems
 #undef AddItem
     }

@@ -9,6 +9,12 @@
 static_assert(::common::detail::is_little_endian, "unsupported std::byte order (non little endian)");
 
 
+#define SwapRegionInfo  (void)(uint8_t* srcA, uint8_t* srcB, size_t count)
+#define Reverse1Info    (void)(uint8_t * dat, size_t count)
+#define Reverse2Info    (void)(uint16_t* dat, size_t count)
+#define Reverse3Info    (void)(uint8_t * dat, size_t count)
+#define Reverse4Info    (void)(uint32_t* dat, size_t count)
+#define Reverse8Info    (void)(uint64_t* dat, size_t count)
 #define Broadcast2Info  (void)(uint16_t* dest, const uint16_t src, size_t count)
 #define Broadcast4Info  (void)(uint32_t* dest, const uint32_t src, size_t count)
 #define ZExtCopy12Info  (void)(uint16_t* dest, const uint8_t* src, size_t count)
@@ -57,6 +63,7 @@ using float16_t = uint16_t;
 
 
 DEFINE_FASTPATHS(CopyManager,
+    SwapRegion, Reverse1, Reverse2, Reverse3, Reverse4, Reverse8,
     Broadcast2, Broadcast4,
     ZExtCopy12, ZExtCopy14, ZExtCopy24, ZExtCopy28, ZExtCopy48,
     SExtCopy12, SExtCopy14, SExtCopy24, SExtCopy28, SExtCopy48,
@@ -66,6 +73,128 @@ DEFINE_FASTPATHS(CopyManager,
     CvtF16F32, CvtF32F16, CvtF32F64, CvtF64F32)
 
 
+DEFINE_FASTPATH_METHOD(SwapRegion, LOOP)
+{
+    while (count >= 8)
+    {
+        const auto ptrA = reinterpret_cast<uint64_t*>(srcA), ptrB = reinterpret_cast<uint64_t*>(srcB);
+        const auto datA = *ptrA, datB = *ptrB;
+        *ptrA = datB; *ptrB = datA;
+        srcA += 8; srcB += 8; count -= 8;
+    }
+    CM_ASSUME(count < 8);
+    if (count)
+    {
+        uint8_t tmp[8] = {};
+        memcpy_s(tmp, 8, srcA, count);
+        memcpy_s(srcA, count, srcB, count);
+        memcpy_s(srcB, count, tmp, count);
+    }
+}
+template<typename P, size_t M, typename T>
+static void ReverseBatch(T* dat, size_t cnt)
+{
+    constexpr auto Step = sizeof(decltype(P::Load(dat))) / sizeof(T);
+    constexpr auto Batch = Step / M;
+    auto head = dat, tail = dat + cnt * M;
+    size_t count = cnt / Batch;
+    while (count >= 4)
+    {
+        tail -= 2 * Step;
+        const auto dat0 = P::Load(head), dat1 = P::Load(head + Step), dat2 = P::Load(tail), dat3 = P::Load(tail + Step);
+        const auto mid0 = P::Rev(dat0), mid1 = P::Rev(dat1), mid2 = P::Rev(dat2), mid3 = P::Rev(dat3);
+        P::Save(mid3, head);
+        P::Save(mid2, head + Step);
+        P::Save(mid1, tail);
+        P::Save(mid0, tail + Step);
+        head += 2 * Step; count -= 4;
+    }
+    if (count >= 2)
+    {
+        tail -= Step;
+        const auto mid = P::Rev(P::Load(tail));
+        P::Save(P::Rev(P::Load(head)), tail);
+        P::Save(mid, head);
+        head += Step; count -= 2;
+    }
+    if (const auto left = cnt % (2 * Batch); left)
+    {
+        const auto processed = (cnt - left) / 2;
+        P::Next(dat + processed * M, left);
+    }
+}
+template<typename T>
+struct RevBy64
+{
+    static forceinline uint64_t Load(const T* ptr) noexcept { return *reinterpret_cast<const uint64_t*>(ptr); }
+    static forceinline void Save(uint64_t val, T* ptr) noexcept { *reinterpret_cast<uint64_t*>(ptr) = val; }
+};
+template<typename T>
+struct RevByVec
+{
+    using E = typename T::EleType;
+    static forceinline T Load(const E* ptr) noexcept { return T(ptr); }
+    static forceinline void Save(const T& val, E* ptr) noexcept { val.Save(ptr); }
+};
+DEFINE_FASTPATH_METHOD(Reverse1, LOOP)
+{
+    struct Rev1 : public RevBy64<uint8_t>
+    {
+        static forceinline uint64_t Rev(uint64_t val) noexcept
+        {
+#if COMMON_COMPILER_MSVC
+            return _byteswap_uint64(val);
+#elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
+            return __builtin_bswap64(val);
+#endif
+        }
+        static forceinline void Next(uint8_t* dat, size_t count) noexcept
+        {
+            for (size_t i = 0, j = count - 1; i + 1 <= j; ++i, --j)
+                std::swap(dat[i], dat[j]);
+        }
+    };
+    ReverseBatch<Rev1, 1>(dat, count);
+}
+DEFINE_FASTPATH_METHOD(Reverse2, LOOP)
+{
+    struct Rev2 : public RevBy64<uint16_t>
+    {
+        static forceinline uint64_t Rev(uint64_t val) noexcept
+        {
+            const auto new0 = val >> 48;
+            const auto new1 = (val >> 16) & 0xffff0000u;
+            const auto new2 = (val << 16) & 0xffff00000000u;
+            const auto new3 = val << 48;
+            return new0 | new1 | new2 | new3;
+        }
+        static forceinline void Next(uint16_t* dat, size_t count) noexcept
+        {
+            for (size_t i = 0, j = count - 1; i + 1 <= j; ++i, --j)
+                std::swap(dat[i], dat[j]);
+        }
+    };
+    ReverseBatch<Rev2, 1>(dat, count);
+}
+DEFINE_FASTPATH_METHOD(Reverse3, LOOP)
+{
+    for (size_t i = 0, j = 3 * (count - 1); i + 3 <= j; i += 3, j -= 3)
+    {
+        std::swap(dat[i + 0], dat[j + 0]);
+        std::swap(dat[i + 1], dat[j + 1]);
+        std::swap(dat[i + 2], dat[j + 2]);
+    }
+}
+DEFINE_FASTPATH_METHOD(Reverse4, LOOP)
+{
+    for (size_t i = 0, j = count - 1; i + 1 <= j; ++i, --j)
+        std::swap(dat[i], dat[j]);
+}
+DEFINE_FASTPATH_METHOD(Reverse8, LOOP)
+{
+    for (size_t i = 0, j = count - 1; i + 1 <= j; ++i, --j)
+        std::swap(dat[i], dat[j]);
+}
 DEFINE_FASTPATH_METHOD(Broadcast2, LOOP)
 {
     const uint64_t data = src * 0x0001000100010001u;
@@ -299,6 +428,48 @@ DEFINE_FASTPATH_METHOD(CvtF64F32, LOOP)
 }
 
 
+template<typename T, auto F>
+forceinline void SwapX8(uint8_t* __restrict srcA, uint8_t* __restrict srcB, size_t count) noexcept // assume 16 SIMD register
+{
+    constexpr auto N = T::Count;
+#define SWAP_VEC do { const T datA(srcA), datB(srcB); datA.Save(srcB); datB.Save(srcA); srcA += N, srcB += N; } while(0)
+    while (count >= N * 8)
+    {
+        SWAP_VEC;
+        SWAP_VEC;
+        SWAP_VEC;
+        SWAP_VEC;
+        SWAP_VEC;
+        SWAP_VEC;
+        SWAP_VEC;
+        SWAP_VEC;
+        count -= N * 8;
+    }
+    switch (count / (N * 8))
+    {
+    case 7: SWAP_VEC;
+        [[fallthrough]];
+    case 6: SWAP_VEC;
+        [[fallthrough]];
+    case 5: SWAP_VEC;
+        [[fallthrough]];
+    case 4: SWAP_VEC;
+        [[fallthrough]];
+    case 3: SWAP_VEC;
+        [[fallthrough]];
+    case 2: SWAP_VEC;
+        [[fallthrough]];
+    case 1: SWAP_VEC;
+        [[fallthrough]];
+    default: break;
+    }
+#undef SWAP_VEC
+    count = count % (N * 8);
+    CM_ASSUME(count < (N * 8));
+    if (count)
+        F(srcA, srcB, count);
+}
+
 template<typename T, auto F, typename Src, typename Dst>
 forceinline void BroadcastSIMD4(Dst* dest, const Src src, size_t count) noexcept
 {
@@ -467,6 +638,10 @@ DEFINE_FASTPATH_METHOD(func, algo)                                      \
 
 #if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20) || (COMMON_ARCH_ARM && COMMON_SIMD_LV >= 10)
 
+DEFINE_FASTPATH_METHOD(SwapRegion, SIMD128)
+{
+    SwapX8<U8x16, &Func<LOOP>>(srcA, srcB, count);
+}
 DEFINE_FASTPATH_METHOD(Broadcast2, SIMD128)
 {
     BroadcastSIMD4<U16x8, &Func<LOOP>>(dest, src, count);
@@ -569,7 +744,153 @@ DEFINE_FASTPATH_METHOD(TruncCopy84, SIMD128)
 }
 #endif
 
+#if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 200
+DEFINE_FASTPATH_METHOD(Reverse3, SIMD128)
+{
+    struct Rev3
+    {
+        static forceinline Pack<U8x16, 3> Load(const uint8_t* ptr) noexcept { return { U8x16(ptr), U8x16(ptr + 16), U8x16(ptr + 32) }; }
+        static forceinline void Save(const Pack<U8x16, 3>& val, uint8_t* ptr) noexcept { val[0].Save(ptr); val[1].Save(ptr + 16); val[2].Save(ptr + 32); }
+        static forceinline Pack<U8x16, 3> Rev(const Pack<U8x16, 3>& val) noexcept
+        {
+            // 000 111 222 333 444 5
+            // 55 666 777 888 999 aa
+            // a bbb ccc ddd eee fff
+
+            alignas(16) constexpr uint8_t idxes0[] = { 17, 12, 13, 14,  9, 10, 11,  6,  7,  8,  3,  4,  5,  0,  1,  2 };
+            const auto shuffle0 = vld1q_u8(idxes0);
+            alignas(16) constexpr uint8_t idxes1[] = { 31, 32, 27, 28, 29, 24, 25, 26, 21, 22, 23, 18, 19, 20, 15, 16 };
+            const auto shuffle1 = vld1q_u8(idxes1);
+            alignas(16) constexpr uint8_t idxes2[] = { 29, 30, 31, 26, 27, 28, 23, 24, 25, 20, 21, 22, 17, 18, 19, 14 };
+            const auto shuffle2 = vld1q_u8(idxes2);
+
+            uint8x16x2_t mid01, mid12;
+            mid01.val[0] = val[0]; mid01.val[1] = val[1];
+            mid12.val[0] = val[1]; mid12.val[1] = val[2];
+            const auto out0 = vqtbl2q_u8(mid12, shuffle2);
+            const auto out2 = vqtbl2q_u8(mid01, shuffle0);
+            uint8x16x3_t mid012;
+            mid012.val[0] = val[0]; mid012.val[1] = val[1]; mid012.val[2] = val[2];
+            const auto out1 = vqtbl3q_u8(mid012, shuffle1);
+
+            return { out0, out1, out2 };
+        }
+        static forceinline void Next(uint8_t* dat, size_t count) noexcept
+        {
+            Func<LOOP>(dat, count);
+        }
+    };
+    ReverseBatch<Rev3, 3>(dat, count);
+}
+#endif
+
+#if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31) || (COMMON_ARCH_ARM && COMMON_SIMD_LV >= 10)
+# if COMMON_ARCH_X86
+#   define ALGO SSSE3
+# else
+#   define ALGO SIMD128
+# endif
+DEFINE_FASTPATH_METHOD(Reverse1, ALGO)
+{
+    struct Rev1 : public RevByVec<U8x16>
+    {
+        static forceinline U8x16 Rev(const U8x16& val) noexcept
+        {
+            return val.Shuffle<15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0>();
+        }
+        static forceinline void Next(uint8_t* dat, size_t count) noexcept
+        {
+            Func<LOOP>(dat, count);
+        }
+    };
+    ReverseBatch<Rev1, 1>(dat, count);
+}
+DEFINE_FASTPATH_METHOD(Reverse2, ALGO)
+{
+    struct Rev2 : public RevByVec<U16x8>
+    {
+        static forceinline U16x8 Rev(const U16x8& val) noexcept
+        {
+            return val.Shuffle<7, 6, 5, 4, 3, 2, 1, 0>();
+        }
+        static forceinline void Next(uint16_t* dat, size_t count) noexcept
+        {
+            Func<LOOP>(dat, count);
+        }
+    };
+    ReverseBatch<Rev2, 1>(dat, count);
+}
+DEFINE_FASTPATH_METHOD(Reverse4, ALGO)
+{
+    struct Rev4 : public RevByVec<U32x4>
+    {
+        static forceinline U32x4 Rev(const U32x4& val) noexcept
+        {
+            return val.Shuffle<3, 2, 1, 0>();
+        }
+        static forceinline void Next(uint32_t* dat, size_t count) noexcept
+        {
+            Func<LOOP>(dat, count);
+        }
+    };
+    ReverseBatch<Rev4, 1>(dat, count);
+}
+DEFINE_FASTPATH_METHOD(Reverse8, ALGO)
+{
+    struct Rev8 : public RevByVec<U64x2>
+    {
+        static forceinline U64x2 Rev(const U64x2& val) noexcept
+        {
+            return val.Shuffle<1, 0>();
+        }
+        static forceinline void Next(uint64_t* dat, size_t count) noexcept
+        {
+            Func<LOOP>(dat, count);
+        }
+    };
+    ReverseBatch<Rev8, 1>(dat, count);
+}
+# undef ALGO
+#endif
+
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
+DEFINE_FASTPATH_METHOD(Reverse3, SSSE3)
+{
+    struct Rev3
+    {
+        static forceinline Pack<U8x16, 3> Load(const uint8_t* ptr) noexcept { return { U8x16(ptr), U8x16(ptr + 16), U8x16(ptr + 32) }; }
+        static forceinline void Save(const Pack<U8x16, 3>& val, uint8_t* ptr) noexcept { val[0].Save(ptr); val[1].Save(ptr + 16); val[2].Save(ptr + 32); }
+        static forceinline Pack<U8x16, 3> Rev(const Pack<U8x16, 3>& val) noexcept
+        {
+            // 000 111 222 333 444 5
+            // 55 666 777 888 999 aa
+            // a bbb ccc ddd eee fff
+            const auto mid2 = val[0].Shuffle<12, 13, 14, 9, 10, 11, 6, 7, 8, 3, 4, 5, 0, 1, 2, 0>(); // 444 333 222 111 000 x
+            const auto mid0 = val[2].Shuffle<15, 13, 14, 15, 10, 11, 12, 7, 8, 9, 4, 5, 6, 1, 2, 3>(); // x fff eee ddd ccc bbb
+
+            const auto merge01 = val[0].MoveToLoWith<15>(val[1]); // 555 666 777 888 999 a
+            const auto merge12 = val[1].MoveToLoWith< 1>(val[2]); // 5 666 777 888 999 aaa
+
+            const U8x16 shuffle01 = _mm_setr_epi8(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 1, 2);
+            const auto mid12 = merge01.Shuffle(shuffle01); // - --- --- --- --- 555
+            const U8x16 shuffle12 = _mm_setr_epi8(13, 14, 15, 10, 11, 12, 7, 8, 9, 4, 5, 6, 1, 2, 3, -1);
+            const auto mid01 = merge12.Shuffle(shuffle12); // aaa 999 888 777 666 -
+
+            const auto out1 = mid01.MoveToLo<1>().Or(mid12.MoveToHi<1>()); // aa 999 888 777 666 55
+            // x 999 888 777 666 555 444 333 222 111 000 x
+            const auto out2 = mid12.MoveToLoWith<15>(mid2); // 5 444 333 222 111 000
+            // x fff eee ddd ccc bbb aaa 999 888 777 666 x
+            const auto out0 = mid0.MoveToLoWith< 1>(mid01); // fff eee ddd ccc bbb a
+
+            return { out0, out1, out2 };
+        }
+        static forceinline void Next(uint8_t* dat, size_t count) noexcept
+        {
+            Func<LOOP>(dat, count);
+        }
+    };
+    ReverseBatch<Rev3, 3>(dat, count);
+}
 DEFINE_FASTPATH_METHOD(ZExtCopy14, SSSE3)
 {
     CastSIMD4<DefaultCast<U8x16, U32x4>, &Func<LOOP>>(dest, src, count);
@@ -598,6 +919,7 @@ DEFINE_FASTPATH_METHOD(TruncCopy84, SSSE3)
 {
     CastSIMD4<DefaultCast<U64x2, U32x4>, &Func<LOOP>>(dest, src, count);
 }
+
 #endif
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41
@@ -624,6 +946,10 @@ DEFINE_FASTPATH_METHOD(SExtCopy48, SSE41)
 #endif
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
+DEFINE_FASTPATH_METHOD(SwapRegion, AVX)
+{
+    SwapX8<U8x32, &Func<SIMD128>>(srcA, srcB, count);
+}
 DEFINE_FASTPATH_METHOD(Broadcast2, AVX)
 {
     BroadcastSIMD4<U16x16, &Func<SIMD128>>(dest, src, count);
@@ -648,6 +974,68 @@ DEFINE_FASTPATH_METHOD(CvtF64F32, AVX)
 #endif
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
+
+DEFINE_FASTPATH_METHOD(Reverse1, AVX2)
+{
+    struct Rev1 : public RevByVec<U8x32>
+    {
+        static forceinline U8x32 Rev(const U8x32& val) noexcept
+        {
+            return val.ShuffleLane<15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0>().PermuteLane<1, 0>();
+        }
+        static forceinline void Next(uint8_t* dat, size_t count) noexcept
+        {
+            Func<SSSE3>(dat, count);
+        }
+    };
+    ReverseBatch<Rev1, 1>(dat, count);
+}
+DEFINE_FASTPATH_METHOD(Reverse2, AVX2)
+{
+    struct Rev2 : public RevByVec<U16x16>
+    {
+        static forceinline U16x16 Rev(const U16x16& val) noexcept
+        {
+            return val.ShuffleLane<7, 6, 5, 4, 3, 2, 1, 0>().PermuteLane<1, 0>();
+        }
+        static forceinline void Next(uint16_t* dat, size_t count) noexcept
+        {
+            Func<SSSE3>(dat, count);
+        }
+    };
+    ReverseBatch<Rev2, 1>(dat, count);
+}
+DEFINE_FASTPATH_METHOD(Reverse4, AVX2)
+{
+    struct Rev4 : public RevByVec<U32x8>
+    {
+        static forceinline U32x8 Rev(const U32x8& val) noexcept
+        {
+            return val.Shuffle<7, 6, 5, 4, 3, 2, 1, 0>();
+        }
+        static forceinline void Next(uint32_t* dat, size_t count) noexcept
+        {
+            Func<SSSE3>(dat, count);
+        }
+    };
+    ReverseBatch<Rev4, 1>(dat, count);
+}
+DEFINE_FASTPATH_METHOD(Reverse8, AVX2)
+{
+    struct Rev8 : public RevByVec<U64x4>
+    {
+        static forceinline U64x4 Rev(const U64x4& val) noexcept
+        {
+            return val.Shuffle<3, 2, 1, 0>();
+        }
+        static forceinline void Next(uint64_t* dat, size_t count) noexcept
+        {
+            Func<SSSE3>(dat, count);
+        }
+    };
+    ReverseBatch<Rev8, 1>(dat, count);
+}
+
 DEFINE_FASTPATH_METHOD(ZExtCopy12, AVX2)
 {
     CastSIMD4<DefaultCast<U8x32, U16x16>, &Func<SIMD128>>(dest, src, count);

@@ -69,6 +69,66 @@ alignas(32) const std::array<uint8_t, 2048> RandVals = []()
 }();
 
 
+static void SwapTest(const common::CopyManager& intrin, size_t count, size_t gap)
+{
+    const auto total = count * 2 + gap;
+    if (total > RandVals.size()) return;
+    std::vector<uint8_t> dat(RandVals.begin(), RandVals.begin() + total);
+    const auto ret = intrin.Swap2Region(dat.data(), dat.data() + count + gap, count);
+    ASSERT_TRUE(ret);
+    const common::span<const uint8_t> out(dat);
+    const auto outA = out.subspan(0, count);
+    const auto outGap = out.subspan(count, gap);
+    const auto outB = out.subspan(count + gap, count);
+    EXPECT_THAT(outA, testing::ElementsAreArray(RandVals.data() + count + gap, count)) << "when test on [" << count << "] elements";
+    EXPECT_THAT(outGap, testing::ElementsAreArray(RandVals.data() + count, gap)) << "when test on [" << count << "] elements";
+    EXPECT_THAT(outB, testing::ElementsAreArray(RandVals.data(), count)) << "when test on [" << count << "] elements";
+}
+INTRIN_TEST(CopyEx, SwapRegion)
+{
+    SwapTest(*Intrin, 3, 0);
+    SwapTest(*Intrin, 14, 1);
+    SwapTest(*Intrin, 17, 0);
+    SwapTest(*Intrin, 35, 0);
+    SwapTest(*Intrin, 68, 0);
+    SwapTest(*Intrin, 69, 5);
+    SwapTest(*Intrin, 127, 2);
+    SwapTest(*Intrin, 139, 0);
+    SwapTest(*Intrin, 144, 16);
+    SwapTest(*Intrin, 256, 0);
+    SwapTest(*Intrin, 256, 7);
+    SwapTest(*Intrin, 399, 0);
+}
+
+
+template<typename T>
+static void ReverseTest(const common::CopyManager& intrin)
+{
+    constexpr size_t Max = RandVals.size() / sizeof(T);
+    constexpr size_t sizes[] = { 0,1,2,3,4,7,8,9,15,16,17,30,32,34,61,64,67,252,256,260,509,512,517,1001,1024,1031,2098 };
+    for (const auto size : sizes)
+    {
+        const auto count = std::min(Max, size);
+        const auto first = reinterpret_cast<const T*>(RandVals.data());
+        const auto last = first + count;
+        std::vector<T> dat(first, last);
+        std::vector<T> ref(dat.rbegin(), dat.rend());
+        intrin.ReverseRegion(dat.data(), count);
+        EXPECT_THAT(dat, testing::ElementsAreArray(ref)) << "when test on [" << count << "] elements";
+        if (size >= Max) break;
+    }
+}
+#define REV_TEST(size, ...) INTRIN_TEST(CopyEx, Reverse##size)  \
+{                                                               \
+    ReverseTest<__VA_ARGS__>(*Intrin);                          \
+}
+REV_TEST(1, uint8_t)
+REV_TEST(2, uint16_t)
+REV_TEST(3, std::array<uint8_t, 3>)
+REV_TEST(4, uint32_t)
+REV_TEST(8, uint64_t)
+
+
 template<typename Src, typename Dst, size_t Max, typename F>
 static void CastTest(const Src* src, const std::array<Dst, Max>& ref, F&& func)
 {
@@ -414,6 +474,31 @@ INTRIN_TEST(DigestFuncs, Sha256)
 
 
 #if CM_DEBUG == 0
+
+TEST(IntrinPerf, SwapRegion)
+{
+    constexpr uint32_t count = 512 * 512;
+    std::vector<uint8_t> inputs(count * 2 + 512);
+    // 512*512 = 256K test cases
+    PerfTester::DoFastPath(&common::CopyManager::Swap2Region<false>, "SwapRegion", count, 200,
+        inputs.data(), inputs.data() + count + 512, count);
+}
+
+template<typename T>
+inline void ReversePerf(std::string_view name)
+{
+    constexpr uint32_t count = 1024 * 1024;
+    std::vector<T> inputs(count);
+    // 1024*1024 = 1M test cases
+    PerfTester::DoFastPath(&common::CopyManager::ReverseRegion<T>, name, count, 200, inputs.data(), count);
+}
+#define REV_PERF_TEST(name, ...) TEST(IntrinPerf, name) { ReversePerf<__VA_ARGS__>(#name); }
+REV_PERF_TEST(Reverse1, uint8_t)
+REV_PERF_TEST(Reverse2, uint16_t)
+REV_PERF_TEST(Reverse3, std::array<uint8_t, 3>)
+REV_PERF_TEST(Reverse4, uint32_t)
+REV_PERF_TEST(Reverse8, uint64_t)
+
 
 template<typename Dst, typename Src>
 inline void ZExtPerfTest(std::string_view name)

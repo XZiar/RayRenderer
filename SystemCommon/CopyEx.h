@@ -11,6 +11,12 @@ class CopyManager final : public RuntimeFastPath<CopyManager>
 {
     friend ::common::fastpath::PathHack;
 private:
+    void(*SwapRegion )(uint8_t* srcA, uint8_t* srcB, size_t count) noexcept = nullptr;
+    void(*Reverse1   )(uint8_t * dat, size_t count) noexcept = nullptr;
+    void(*Reverse2   )(uint16_t* dat, size_t count) noexcept = nullptr;
+    void(*Reverse3   )(uint8_t * dat, size_t count) noexcept = nullptr;
+    void(*Reverse4   )(uint32_t* dat, size_t count) noexcept = nullptr;
+    void(*Reverse8   )(uint64_t* dat, size_t count) noexcept = nullptr;
     void(*Broadcast2 )(uint16_t* dest, const uint16_t src, size_t count) noexcept = nullptr;
     void(*Broadcast4 )(uint32_t* dest, const uint32_t src, size_t count) noexcept = nullptr;
     void(*ZExtCopy12 )(uint16_t* dest, const uint8_t* src, size_t count) noexcept = nullptr;
@@ -49,6 +55,42 @@ public:
     SYSCOMMONAPI CopyManager(common::span<const VarItem> requests = {}) noexcept;
     SYSCOMMONAPI ~CopyManager();
     SYSCOMMONAPI [[nodiscard]] bool IsComplete() const noexcept final;
+
+    template<bool Check = true>
+    [[nodiscard]] forceinline std::conditional_t<Check, bool, void> Swap2Region(void* const srcA, void* const srcB, const size_t bytes) const noexcept
+    {
+        const auto ptrA = reinterpret_cast<uint8_t*>(srcA), ptrB = reinterpret_cast<uint8_t*>(srcB);
+        if constexpr (Check)
+        {
+            const size_t diff = ptrA > ptrB ? ptrA - ptrB : ptrB - ptrA;
+            if (diff < bytes) return false;
+            if ((ptrA + bytes < ptrA) || (ptrB + bytes < ptrB)) return false;
+        }
+        SwapRegion(ptrA, ptrB, bytes);
+        if constexpr (Check)
+            return true;
+    }
+
+    template<typename T>
+    forceinline void ReverseRegion(T* const dat, const size_t count) const noexcept
+    {
+        if (!count) return;
+        if constexpr (sizeof(T) == 1)
+            Reverse1(reinterpret_cast<uint8_t *>(dat), count);
+        else if constexpr (sizeof(T) == 2)
+            Reverse2(reinterpret_cast<uint16_t*>(dat), count);
+        else if constexpr (sizeof(T) == 3)
+            Reverse3(reinterpret_cast<uint8_t*>(dat), count);
+        else if constexpr (sizeof(T) == 4)
+            Reverse4(reinterpret_cast<uint32_t*>(dat), count);
+        else if constexpr (sizeof(T) == 8)
+            Reverse8(reinterpret_cast<uint64_t*>(dat), count);
+        else
+        {
+            for (size_t i = 0, j = count - 1; i + 1 <= j; ++i, --j)
+                std::swap(dat[i], dat[j]);
+        }
+    }
 
     template<typename T>
     forceinline void BroadcastMany(T* const dest, const T& src, const size_t count) const noexcept

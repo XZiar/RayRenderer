@@ -2,7 +2,6 @@
 
 #include "ImageUtilRely.h"
 #include "ImageSupport.hpp"
-#include "DataConvertor.hpp"
 
 
 namespace xziar::img::jpeg

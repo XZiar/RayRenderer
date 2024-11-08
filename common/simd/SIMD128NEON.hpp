@@ -194,10 +194,23 @@ struct Neon128Common : public CommonOperators<T>
     {
         return AsType<SIMDType>(vmvnq_u32(AsType<uint32x4_t>(Data)));
     }
-    forceinline T VECCALL MoveHiToLo() const noexcept
+    template<size_t Cnt>
+    forceinline T VECCALL MoveToHi() const noexcept
     {
-        return AsType<SIMDType>(vextq_u64(AsType<uint64x2_t>(Data), vdupq_n_u64(0), 1));
+        static_assert(Cnt <= N, "shift should be in [0, N]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == N) return AllZero();
+        else return AsType<SIMDType>(vextq_u8(vdupq_n_u8(0), AsType<uint8x16_t>(Data), Cnt * sizeof(E)));
     }
+    template<size_t Cnt>
+    forceinline T VECCALL MoveToLo() const noexcept
+    {
+        static_assert(Cnt <= N, "shift should be in [0, N]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == N) return AllZero();
+        else return AsType<SIMDType>(vextq_u8(AsType<uint8x16_t>(Data), vdupq_n_u8(0), Cnt * sizeof(E)));
+    }
+    forceinline T VECCALL MoveHiToLo() const noexcept { return MoveToLo<N / 2>(); }
     forceinline bool VECCALL IsAllZero() const noexcept
     {
 #if COMMON_SIMD_LV >= 200
@@ -325,10 +338,11 @@ struct Shuffle64Common
     {
         static_assert(Count <= 2, "move count should be in [0,2]");
         if constexpr (Count == 0)
-            return *this;
+            return *static_cast<const T*>(this);
         else if constexpr (Count == 2)
             return hi;
-        return AsType<SIMDType>(vextq_u64(AsType<uint64x2_t>(static_cast<const T*>(this)->Data), AsType<uint64x2_t>(hi.Data), Count));
+        else
+            return AsType<SIMDType>(vextq_u64(AsType<uint64x2_t>(static_cast<const T*>(this)->Data), AsType<uint64x2_t>(hi.Data), Count));
     }
 };
 
@@ -638,10 +652,11 @@ struct Shuffle32Common
     {
         static_assert(Count <= 4, "move count should be in [0,4]");
         if constexpr (Count == 0)
-            return *this;
+            return *static_cast<const T*>(this);
         else if constexpr (Count == 4)
             return hi;
-        return AsType<SIMDType>(vextq_u32(AsType<uint32x4_t>(static_cast<const T*>(this)->Data), AsType<uint32x4_t>(hi.Data), Count));
+        else
+            return AsType<SIMDType>(vextq_u32(AsType<uint32x4_t>(static_cast<const T*>(this)->Data), AsType<uint32x4_t>(hi.Data), Count));
     }
 };
 
@@ -933,10 +948,11 @@ struct alignas(16) Common16x8 : public Neon128Common<T, SIMDType, E, 8>
     {
         static_assert(Count <= 8, "move count should be in [0,8]");
         if constexpr (Count == 0)
-            return *this;
+            return this->Data;
         else if constexpr (Count == 8)
             return hi;
-        return AsType<SIMDType>(vextq_u16(AsType<uint16x8_t>(this->Data), AsType<uint16x8_t>(hi.Data), Count));
+        else
+            return AsType<SIMDType>(vextq_u16(AsType<uint16x8_t>(this->Data), AsType<uint16x8_t>(hi.Data), Count));
     }
 
     // arithmetic operations
@@ -1156,10 +1172,11 @@ struct alignas(16) Common8x16 : public Neon128Common<T, SIMDType, E, 16>
     {
         static_assert(Count <= 16, "move count should be in [0,16]");
         if constexpr (Count == 0)
-            return *this;
+            return this->Data;
         else if constexpr (Count == 16)
             return hi;
-        return AsType<SIMDType>(vextq_u8(AsType<uint8x16_t>(this->Data), AsType<uint8x16_t>(hi.Data), Count));
+        else
+            return AsType<SIMDType>(vextq_u8(AsType<uint8x16_t>(this->Data), AsType<uint8x16_t>(hi.Data), Count));
     }
 
     // arithmetic operations

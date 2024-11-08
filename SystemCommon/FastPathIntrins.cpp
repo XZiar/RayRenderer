@@ -44,6 +44,7 @@ namespace common
 {
 
 DEFINE_FASTPATH_BASIC(CopyManager,
+    SwapRegion, Reverse1, Reverse2, Reverse3, Reverse4, Reverse8,
     Broadcast2, Broadcast4,
     ZExtCopy12, ZExtCopy14, ZExtCopy24, ZExtCopy28, ZExtCopy48,
     SExtCopy12, SExtCopy14, SExtCopy24, SExtCopy28, SExtCopy48,
