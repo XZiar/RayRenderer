@@ -36,6 +36,7 @@
 #define G8ToGA8Info         (void)(uint16_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha)
 #define G8ToRGB8Info        (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count)
 #define G8ToRGBA8Info       (void)(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha)
+#define GA8ToRGB8Info       (void)(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count)
 #define GA8ToRGBA8Info      (void)(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count)
 #define RGB8ToRGBA8Info     (void)(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha)
 #define BGR8ToRGBA8Info     (void)(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha)
@@ -71,7 +72,7 @@ using ::xziar::img::STBResize;
 DEFINE_FASTPATHS(STBResize, DoResize)
 
 DEFINE_FASTPATHS(ColorConvertor, 
-    G8ToGA8, G8ToRGB8, G8ToRGBA8, GA8ToRGBA8, 
+    G8ToGA8, G8ToRGB8, G8ToRGBA8, GA8ToRGB8, GA8ToRGBA8,
     RGB8ToRGBA8, BGR8ToRGBA8, RGBA8ToRGB8, RGBA8ToBGR8, 
     RGB8ToBGR8, RGBA8ToBGRA8, 
     RGBA8ToR8, RGBA8ToG8, RGBA8ToB8, RGBA8ToA8, RGB8ToR8, RGB8ToG8, RGB8ToB8, 
@@ -244,6 +245,41 @@ DEFINE_FASTPATH_METHOD(G8ToRGBA8, LOOP)
         break;
     }
 #undef LOOP_GRAY_RGBA
+}
+DEFINE_FASTPATH_METHOD(GA8ToRGB8, LOOP)
+{
+#define LOOP_GRAYA_RGB do { const auto tmp = static_cast<uint8_t>(*src++); *dest++ = tmp; *dest++ = tmp; *dest++ = tmp; count--; } while(0)
+    while (count >= 8)
+    {
+        LOOP_GRAYA_RGB;
+        LOOP_GRAYA_RGB;
+        LOOP_GRAYA_RGB;
+        LOOP_GRAYA_RGB;
+        LOOP_GRAYA_RGB;
+        LOOP_GRAYA_RGB;
+        LOOP_GRAYA_RGB;
+        LOOP_GRAYA_RGB;
+    }
+    switch (count)
+    {
+    case 7: LOOP_GRAYA_RGB;
+        [[fallthrough]];
+    case 6: LOOP_GRAYA_RGB;
+        [[fallthrough]];
+    case 5: LOOP_GRAYA_RGB;
+        [[fallthrough]];
+    case 4: LOOP_GRAYA_RGB;
+        [[fallthrough]];
+    case 3: LOOP_GRAYA_RGB;
+        [[fallthrough]];
+    case 2: LOOP_GRAYA_RGB;
+        [[fallthrough]];
+    case 1: LOOP_GRAYA_RGB;
+        [[fallthrough]];
+    default:
+        break;
+    }
+#undef LOOP_GRAYA_RGB
 }
 DEFINE_FASTPATH_METHOD(GA8ToRGBA8, LOOP)
 {
@@ -756,6 +792,36 @@ struct G2RGBA_BMI2
         reinterpret_cast<uint64_t*>(dst)[1] = rgb23 | Alpha;
     }
 };
+struct GA2RGB_BMI2
+{
+    static constexpr size_t M = 8, N = 24, K = 8;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat0123 = reinterpret_cast<const uint64_t*>(src)[0] & 0x00ff00ff00ff00ffu;
+        const auto dat4567 = reinterpret_cast<const uint64_t*>(src)[1] & 0x00ff00ff00ff00ffu;
+
+        constexpr uint64_t mask0 = 0xffff00ffff00ffffu;
+        const auto val012 = _pdep_u64(dat0123, mask0); // 0..1..2.
+        const auto out0 = val012 * 0x010101u;
+        
+        const auto dat3456 = ::common::simd::Shift128Right(dat4567, dat0123, 3 * 2 * 8);
+        constexpr uint64_t mask1 = 0xff00ffff00ffff00u;
+        const auto val345 = _pdep_u64(dat3456, mask1); // .3..4..5
+        const auto val2 = static_cast<uint8_t>(dat0123 >> (2 * 2 * 8));
+        const auto out1 = (val345 * 0x010101u) | val2;
+
+        const auto dat67 = dat4567 >> (2 * 2 * 8);
+        constexpr uint64_t mask2 = 0x00ffff00ffff0000u;
+        const auto val67 = _pdep_u64(dat67, mask2); // ..6..7..
+        const uint32_t val5 = static_cast<uint8_t>(dat4567 >> (1 * 2 * 8));
+        const auto val55 = (val5 << 8) | val5;
+        const auto out2 = (val67 * 0x010101u) | val55;
+
+        reinterpret_cast<uint64_t*>(dst)[0] = out0;
+        reinterpret_cast<uint64_t*>(dst)[1] = out1;
+        reinterpret_cast<uint64_t*>(dst)[2] = out2;
+    }
+};
 struct GA2RGBA_BMI2
 {
     static constexpr size_t M = 4, N = 4, K = 4;
@@ -976,6 +1042,10 @@ DEFINE_FASTPATH_METHOD(G8ToRGB8, BMI2)
 DEFINE_FASTPATH_METHOD(G8ToRGBA8, BMI2)
 {
     ProcessLOOP4<G2RGBA_BMI2, &Func<LOOP>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(GA8ToRGB8, BMI2)
+{
+    ProcessLOOP4<GA2RGB_BMI2, &Func<LOOP>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(GA8ToRGBA8, BMI2)
 {
@@ -1530,10 +1600,30 @@ DEFINE_FASTPATH_METHOD(RGBA8ToBA8, SSE41)
 # else
 #   define ALGO SIMD128
 # endif
+struct PPCAT(GA2RGB_, ALGO)
+{
+    static constexpr size_t M = 16, N = 48, K = 16;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat0 = U16x8(src).As<U8x16>(); // 0011223344556677
+        const auto dat1 = U16x8(src + 8).As<U8x16>(); // 8899aabbccddeeff
+        const auto out0 = dat0.Shuffle<0, 0, 0, 2, 2, 2, 4, 4, 4, 6, 6, 6, 8, 8, 8, 10>(); // 0001112223334445
+        const auto mid01 = dat0.MoveToLoWith<10>(dat1); // 5566778899aabbcc
+        const auto out1 = mid01.Shuffle<0, 0, 2, 2, 2, 4, 4, 4, 6, 6, 6, 8, 8, 8, 10, 10>(); // 55666777888999aa
+        const auto out2 = dat1.Shuffle<4, 6, 6, 6, 8, 8, 8, 10, 10, 10, 12, 12, 12, 14, 14, 14>(); // abbbcccdddeeefff
+        out0.Save(dst);
+        out1.Save(dst + 16);
+        out2.Save(dst + 32);
+    }
+};
+DEFINE_FASTPATH_METHOD(GA8ToRGB8, ALGO)
+{
+    ProcessLOOP4<PPCAT(GA2RGB_, ALGO), &Func<LOOP>>(dest, src, count);
+}
 struct PPCAT(GA2RGBA_, ALGO)
 {
     static constexpr size_t M = 8, N = 8, K = 8;
-    forceinline void operator()(uint32_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    forceinline void operator()(uint32_t * __restrict dst, const uint16_t * __restrict src) const noexcept
     {
         const auto dat = U16x8(src).As<U8x16>();
         const auto out0 = dat.Shuffle<0, 0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6, 6, 6, 7>();
@@ -1590,6 +1680,19 @@ struct G2RGBA_NEON
         out4.val[2] = dat;
         out4.val[3] = Alpha;
         vst4q_u8(reinterpret_cast<uint8_t*>(dst), out4);
+    }
+};
+struct GA2RGB_NEON
+{
+    static constexpr size_t M = 16, N = 48, K = 16;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat = vld2q_u8(reinterpret_cast<const uint8_t*>(src));
+        uint8x16x3_t out3;
+        out3.val[0] = dat.val[0];
+        out3.val[1] = dat.val[0];
+        out3.val[2] = dat.val[0];
+        vst3q_u8(dst, out3);
     }
 };
 struct GA2RGBA_NEON
@@ -1710,6 +1813,10 @@ DEFINE_FASTPATH_METHOD(G8ToRGB8, NEON)
 DEFINE_FASTPATH_METHOD(G8ToRGBA8, NEON)
 {
     ProcessLOOP4<G2RGBA_NEON, &Func<LOOP>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(GA8ToRGB8, NEON)
+{
+    ProcessLOOP4<GA2RGB_NEON, &Func<LOOP>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(GA8ToRGBA8, NEON)
 {
@@ -1931,6 +2038,29 @@ struct G2RGBA_256_2
         out3.Save(dst + 24);
     }
 };
+struct GA2RGB_256
+{
+    static constexpr size_t M = 32, N = 96, K = 32;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat0 = U16x16(src).As<U8x32>(); // 0011223344556677 8899aabbccddeeff
+        const auto dat1 = U16x16(src + 16).As<U8x32>(); // 0011223344556677 8899aabbccddeeff
+        const auto dat01Lo = dat0.PermuteLane<0, 2>(dat1); // 0011223344556677
+        const auto dat01Hi = dat0.PermuteLane<1, 3>(dat1); // 8899aabbccddeeff
+
+        const auto val0 = dat01Lo.ShuffleLane<0, 0, 0, 2, 2, 2, 4, 4, 4, 6, 6, 6, 8, 8, 8, 10>(); // 0001112223334445
+        const auto mid01 = dat01Lo.MoveLaneToLoWith<10>(dat01Hi); // 5566778899aabbcc
+        const auto val1 = mid01.ShuffleLane<0, 0, 2, 2, 2, 4, 4, 4, 6, 6, 6, 8, 8, 8, 10, 10>(); // 55666777888999aa
+        const auto val2 = dat01Hi.ShuffleLane<4, 6, 6, 6, 8, 8, 8, 10, 10, 10, 12, 12, 12, 14, 14, 14>(); // abbbcccdddeeefff
+
+        const auto out0 = val0.PermuteLane<0, 2>(val1);
+        const auto out1 = val2.PermuteLane<0, 3>(val0);
+        const auto out2 = val1.PermuteLane<1, 3>(val2);
+        out0.Save(dst);
+        out1.Save(dst + 32);
+        out2.Save(dst + 64);
+    }
+};
 struct GA2RGBA_256
 {
     static constexpr size_t M = 16, N = 16, K = 16;
@@ -2149,6 +2279,37 @@ struct RGBAToBGRA_256
         out3.Save(dst + 24);
     }
 };
+template<int8_t Idx>
+struct KeepChannel3_1_256
+{
+    static constexpr size_t M = 96, N = 32, K = 32;
+    forceinline void operator()(uint8_t* __restrict dst, const uint8_t* __restrict src) const noexcept
+    {
+        const U8x32 dat0(src);
+        const U8x32 dat1(src + 32);
+        const U8x32 dat2(src + 64);
+
+        const auto shuffleMask0 = _mm256_setr_epi8(
+            Idx + 0, Idx + 3, Idx + 6, Idx + 9, Idx + 12, Idx > 0 ? -1 : Idx + 15,      -1,      -1,      -1,       -1,                      -1, -1, -1, -1, -1, -1,
+                 -1,      -1,      -1,      -1,       -1,                 Idx - 1, Idx + 2, Idx + 5, Idx + 8, Idx + 11, Idx > 1 ? -1 : Idx + 14, -1, -1, -1, -1, -1);
+        const auto shuffleMask1 = _mm256_setr_epi8(
+                 -1,      -1,      -1,      -1,       -1,                      -1,      -1,      -1,      -1,       -1, Idx > 1 ? 0 : -1, Idx + 1, Idx + 4, Idx + 7, Idx + 10, Idx + 13,
+            Idx + 0, Idx + 3, Idx + 6, Idx + 9, Idx + 12, Idx > 0 ? -1 : Idx + 15,      -1,      -1,      -1,       -1,               -1,      -1,      -1,      -1,       -1,       -1);
+        const auto shuffleMask2 = _mm256_setr_epi8(
+                 -1,      -1,      -1,      -1,       -1, Idx - 1, Idx + 2, Idx + 5, Idx + 8, Idx + 11, Idx > 1 ? -1 : Idx + 14,      -1,      -1,      -1,       -1,       -1,
+                 -1,      -1,      -1,      -1,       -1,      -1,      -1,      -1,      -1,       -1, Idx > 1 ?  0 :       -1, Idx + 1, Idx + 4, Idx + 7, Idx + 10, Idx + 13);
+
+        const U8x32 mid0l1l = _mm256_shuffle_epi8(dat0, shuffleMask0);
+        const U8x32 mid2l0h = _mm256_shuffle_epi8(dat1, shuffleMask1);
+        const U8x32 mid1h2h = _mm256_shuffle_epi8(dat2, shuffleMask2);
+
+        const auto mix0l2h = mid0l1l.PermuteLane<0, 3>(mid1h2h);
+        const auto mix1l1h = mid0l1l.PermuteLane<1, 2>(mid1h2h);
+
+        const auto out = mix0l2h.Or(mid2l0h).Or(mix1l1h);
+        out.Save(dst);
+    }
+};
 template<uint8_t Idx>
 struct KeepChannel4_1_256
 {
@@ -2318,6 +2479,10 @@ DEFINE_FASTPATH_METHOD(G8ToRGBA8, AVX22)
 {
     ProcessLOOP4<G2RGBA_256_2, &Func<SIMD128>>(dest, src, count, alpha);
 }
+DEFINE_FASTPATH_METHOD(GA8ToRGB8, AVX2)
+{
+    ProcessLOOP4<GA2RGB_256, &Func<SSSE3>>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(GA8ToRGBA8, AVX2)
 {
     ProcessLOOP4<GA2RGBA_256, &Func<SSSE3>>(dest, src, count);
@@ -2365,6 +2530,18 @@ DEFINE_FASTPATH_METHOD(RGBA8ToB8, AVX2)
 DEFINE_FASTPATH_METHOD(RGBA8ToA8, AVX2)
 {
     ProcessLOOP4<KeepChannel4_1_256<3>, &Func<SSSE3>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToR8, AVX2)
+{
+    ProcessLOOP4<KeepChannel3_1_256<0>, &Func<SSE41>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToG8, AVX2)
+{
+    ProcessLOOP4<KeepChannel3_1_256<1>, &Func<SSE41>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToB8, AVX2)
+{
+    ProcessLOOP4<KeepChannel3_1_256<2>, &Func<SSE41>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToRA8, AVX2)
 {

@@ -15,6 +15,7 @@ private:
     void(*G8ToGA8           )(uint16_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
     void(*G8ToRGB8          )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
     void(*G8ToRGBA8         )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
+    void(*GA8ToRGB8         )(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*GA8ToRGBA8        )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGB8ToRGBA8       )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
     void(*BGR8ToRGBA8       )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
@@ -57,6 +58,11 @@ public:
     forceinline void GrayToRGBA(uint32_t* const dest, const uint8_t* src, const size_t count, const std::byte alpha = std::byte(0xff)) const noexcept
     {
         G8ToRGBA8(dest, src, count, alpha);
+    }
+
+    forceinline void GrayAToRGB(uint8_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        GA8ToRGB8(dest, src, count);
     }
 
     forceinline void GrayAToRGBA(uint32_t* const dest, const uint16_t* src, const size_t count) const noexcept

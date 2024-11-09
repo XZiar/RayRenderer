@@ -10,7 +10,6 @@
 #define IDR_IMG_TGA_RGB                 114
 #define IDR_IMG_TGA_RLE_RGB             115
 
-// 新对象的下一组默认值
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS

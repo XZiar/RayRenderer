@@ -1015,8 +1015,8 @@ template<size_t N, typename T>
 static void TestMoveTo(const T& dat)
 {
     using U = typename T::EleType;
-    const auto outLo = dat.MoveToLo<N>();
-    const auto outHi = dat.MoveToHi<N>();
+    const auto outLo = dat.template MoveToLo<N>();
+    const auto outHi = dat.template MoveToHi<N>();
     std::array<U, T::Count> refLo = { 0 };
     std::array<U, T::Count> refHi = { 0 };
     for (uint8_t i = 0; i < T::Count - N; ++i)
@@ -1028,12 +1028,33 @@ static void TestMoveTo(const T& dat)
     if constexpr (N < T::Count)
         TestMoveTo<N + 1>(dat);
 }
-
+template<size_t N, typename T>
+static void TestMoveLaneTo(const T& dat)
+{
+    using U = typename T::EleType;
+    const auto outLo = dat.template MoveLaneToLo<N>();
+    const auto outHi = dat.template MoveLaneToHi<N>();
+    std::array<U, T::Count> refLo = { 0 };
+    std::array<U, T::Count> refHi = { 0 };
+    constexpr uint8_t C = T::Count / T::LaneCount;
+    for (uint8_t j = 0; j < T::LaneCount; ++j)
+    {
+        const uint8_t offset = static_cast<uint8_t>(j * C);
+        for (uint8_t i = 0; i < C - N; ++i)
+            refLo[offset + i] = dat.Val[offset + i + N];
+        for (uint8_t i = N; i < C; ++i)
+            refHi[offset + i] = dat.Val[offset + i - N];
+    }
+    EXPECT_THAT(outLo.Val, MatchVec(refLo)) << "when testing MoveLaneToLo<" << N <<">";
+    EXPECT_THAT(outHi.Val, MatchVec(refHi)) << "when testing MoveLaneToHi<" << N <<">";
+    if constexpr (N < C)
+        TestMoveLaneTo<N + 1>(dat);
+}
 template<size_t N, typename T>
 static void TestMoveWith(const T& datLo, const T& datHi)
 {
     using U = typename T::EleType;
-    const auto out = datLo.MoveToLoWith<N>(datHi);
+    const auto out = datLo.template MoveToLoWith<N>(datHi);
     std::array<U, T::Count> ref = { 0 };
     for (uint8_t i = 0; i < T::Count; ++i)
     {
@@ -1044,6 +1065,34 @@ static void TestMoveWith(const T& datLo, const T& datHi)
     if constexpr (N < T::Count)
         TestMoveWith<N + 1>(datLo, datHi);
 }
+template<size_t N, typename T>
+static void TestMoveLaneWith(const T& datLo, const T& datHi)
+{
+    using U = typename T::EleType;
+    const auto out = datLo.template MoveLaneToLoWith<N>(datHi);
+    std::array<U, T::Count> ref = { 0 };
+    constexpr uint8_t C = T::Count / T::LaneCount;
+    for (uint8_t j = 0; j < T::LaneCount; ++j)
+    {
+        const uint8_t offset = static_cast<uint8_t>(j * C);
+        for (uint8_t i = 0; i < C; ++i)
+        {
+            if (i + N < C) ref[offset + i] = datLo.Val[offset + i + N];
+            else ref[offset + i] = datHi.Val[offset + i + N - C];
+        }
+    }
+    EXPECT_THAT(out.Val, MatchVec(ref)) << "when testing MoveToLoWith<" << N << ">";
+    if constexpr (N < C)
+        TestMoveLaneWith<N + 1>(datLo, datHi);
+}
+
+namespace detail
+{
+template<typename T>
+using LaneCheck = decltype(T::LaneCount);
+}
+template<typename T>
+inline constexpr bool is_multilane_v = is_detected_v<detail::LaneCheck, T>;
 
 template<typename T>
 static void TestMove(const T* ptr)
@@ -1053,14 +1102,16 @@ static void TestMove(const T* ptr)
         ForKItem(1)
         {
             const auto data = ptr[k];
-            TestMoveTo<0>(data);
+            if constexpr (is_multilane_v<T>) TestMoveLaneTo<0>(data);
+            else TestMoveTo<0>(data);
         }
     }
     {
         ForKItem(2)
         {
             const auto data0 = ptr[k + 0], data1 = ptr[k + 1];
-            TestMoveWith<0>(data0, data1);
+            if constexpr (is_multilane_v<T>) TestMoveLaneWith<0>(data0, data1);
+            else TestMoveWith<0>(data0, data1);
         }
     }
 }

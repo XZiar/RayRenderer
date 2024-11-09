@@ -1,9 +1,5 @@
 #pragma once
 #include "ImageUtilRely.h"
-#include "common/simd/SIMD.hpp"
-#if COMMON_SIMD_LV >= 20
-#   define IMGU_USE_SIMD
-#endif
 #include "ColorConvert.h"
 
 #include "SystemCommon/MiniLogger.h"

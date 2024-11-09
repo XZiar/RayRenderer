@@ -186,7 +186,7 @@ struct SSE128Common : public CommonOperators<T>
     template<uint8_t Cnt>
     forceinline T VECCALL MoveToHi() const noexcept
     {
-        static_assert(Cnt <= N, "move count should be in [0, N]");
+        static_assert(Cnt <= N, "move count should be in [0,N]");
         if constexpr (Cnt == 0) return Data;
         else if constexpr (Cnt == N) return AllZero();
         else return _mm_slli_si128(Data, Cnt * sizeof(E));
@@ -194,12 +194,21 @@ struct SSE128Common : public CommonOperators<T>
     template<uint8_t Cnt>
     forceinline T VECCALL MoveToLo() const noexcept
     {
-        static_assert(Cnt <= N, "move count should be in [0, N]");
+        static_assert(Cnt <= N, "move count should be in [0,N]");
         if constexpr (Cnt == 0) return Data;
         else if constexpr (Cnt == N) return AllZero();
         else return _mm_srli_si128(Data, Cnt * sizeof(E));
     }
     forceinline T VECCALL MoveHiToLo() const noexcept { return MoveToLo<N / 2>(); }
+    template<uint8_t Cnt>
+    forceinline T VECCALL MoveToLoWith(const T& hi) const noexcept
+    {
+        static_assert(Cnt <= N, "move count should be in [0,N]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == N) return hi;
+        return _mm_alignr_epi8(hi.Data, Data, Cnt * sizeof(E));
+    }
+
     forceinline bool VECCALL IsAllZero() const noexcept
     {
         return _mm_testz_si128(Data, Data) != 0;
@@ -277,16 +286,6 @@ public:
 #else
         return _mm_blend_epi16(this->Data, other.Data, (Mask & 0b1 ? 0xf : 0x0) | (Mask & 0b10 ? 0xf0 : 0x00));
 #endif
-    }
-    template<uint8_t Count>
-    forceinline T VECCALL MoveToLoWith(const T& hi) const noexcept
-    {
-        static_assert(Count <= 2, "move count should be in [0,2]");
-        if constexpr (Count == 0)
-            return this->Data;
-        else if constexpr (Count == 2)
-            return hi;
-        return _mm_alignr_epi8(hi.Data, this->Data, Count * 8);
     }
 
     // arithmetic operations
@@ -456,16 +455,6 @@ public:
             (Mask & 0b10 ? 0b1100 : 0) | (Mask & 0b100 ? 0b110000 : 0) | (Mask & 0b1000 ? 0b11000000 : 0));
 #endif
     }
-    template<uint8_t Count>
-    forceinline T VECCALL MoveToLoWith(const T& hi) const noexcept
-    {
-        static_assert(Count <= 4, "move count should be in [0,4]");
-        if constexpr (Count == 0)
-            return this->Data;
-        else if constexpr (Count == 4)
-            return hi;
-        return _mm_alignr_epi8(hi.Data, this->Data, Count * 4);
-    }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const noexcept { return _mm_add_epi32(this->Data, other.Data); }
@@ -620,16 +609,6 @@ public:
     forceinline T VECCALL SelectWith(const T& other) const noexcept
     {
         return _mm_blend_epi16(this->Data, other.Data, Mask);
-    }
-    template<uint8_t Count>
-    forceinline T VECCALL MoveToLoWith(const T& hi) const noexcept
-    {
-        static_assert(Count <= 8, "move count should be in [0,8]");
-        if constexpr (Count == 0)
-            return this->Data;
-        else if constexpr (Count == 8)
-            return hi;
-        return _mm_alignr_epi8(hi.Data, this->Data, Count * 2);
     }
 
     // arithmetic operations
@@ -825,16 +804,6 @@ public:
             return _mm_blendv_epi8(this->Data, other.Data, _mm_loadu_si128(reinterpret_cast<const __m128i*>(mask)));
 #endif
         }
-    }
-    template<uint8_t Count>
-    forceinline T VECCALL MoveToLoWith(const T& hi) const noexcept
-    {
-        static_assert(Count <= 16, "move count should be in [0,16]");
-        if constexpr (Count == 0)
-            return this->Data;
-        else if constexpr (Count == 16)
-            return hi;
-        return _mm_alignr_epi8(hi.Data, this->Data, Count);
     }
 
     // arithmetic operations

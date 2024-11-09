@@ -58,6 +58,7 @@ inline constexpr uint8_t GetPermuteMask(uint8_t lo, uint8_t hi)
 template<typename T, typename E>
 struct AVX256Shared : public CommonOperators<T>
 {
+    static constexpr uint8_t LaneCount = 2;
     // shuffle operations
     template<uint8_t Lo, uint8_t Hi>
     forceinline T VECCALL PermuteLane(const T& other) const noexcept
@@ -157,6 +158,31 @@ struct AVX256Common : public AVX256Shared<T, E>
     forceinline T VECCALL Not() const noexcept
     {
         return _mm256_xor_si256(Data, _mm256_set1_epi8(-1));
+    }
+    template<uint8_t Cnt>
+    forceinline T VECCALL MoveLaneToHi() const noexcept
+    {
+        static_assert(Cnt <= N / 2, "move count should be in [0,N/2]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == N / 2) return AllZero();
+        else return _mm256_slli_si256(Data, Cnt * sizeof(E));
+    }
+    template<uint8_t Cnt>
+    forceinline T VECCALL MoveLaneToLo() const noexcept
+    {
+        static_assert(Cnt <= N / 2, "move count should be in [0,N/2]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == N / 2) return AllZero();
+        else return _mm256_srli_si256(Data, Cnt * sizeof(E));
+    }
+    forceinline T VECCALL MoveLaneHiToLo() const noexcept { return MoveLaneToLo<N / 4>(); }
+    template<uint8_t Cnt>
+    forceinline T VECCALL MoveLaneToLoWith(const T& hi) const noexcept
+    {
+        static_assert(Cnt <= N / 2, "move count should be in [0,N/2]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == N / 2) return hi;
+        return _mm256_alignr_epi8(hi.Data, Data, Cnt * sizeof(E));
     }
     forceinline T VECCALL MoveHiToLo() const noexcept { return _mm256_permute4x64_epi64(Data, 0b01001110); }
     forceinline T VECCALL ShuffleHiLo() const noexcept { return _mm256_permute4x64_epi64(Data, 0b01001110); }
@@ -974,6 +1000,33 @@ struct alignas(__m256d) F64x4 : public detail::AVX256Shared<F64x4, double>
         static_assert(Mask <= 0b1111, "Only allow 4 bits");
         return _mm256_blend_pd(this->Data, other, Mask);
     }
+#if COMMON_SIMD_LV >= 200
+    template<uint8_t Cnt>
+    forceinline F64x4 VECCALL MoveLaneToHi() const noexcept
+    {
+        static_assert(Cnt <= 2, "move count should be in [0,2]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == 2) return AllZero();
+        else return _mm256_castsi256_pd(_mm256_slli_si256(_mm256_castpd_si256(Data), Cnt * 8));
+    }
+    template<uint8_t Cnt>
+    forceinline F64x4 VECCALL MoveLaneToLo() const noexcept
+    {
+        static_assert(Cnt <= 2, "move count should be in [0,2]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == 2) return AllZero();
+        else return _mm256_castsi256_pd(_mm256_srli_si256(_mm256_castpd_si256(Data), Cnt * 8));
+    }
+    forceinline F64x4 VECCALL MoveLaneHiToLo() const noexcept { return MoveLaneToLo<1>(); }
+    template<uint8_t Cnt>
+    forceinline F64x4 VECCALL MoveLaneToLoWith(const F64x4& hi) const noexcept
+    {
+        static_assert(Cnt <= 2, "move count should be in [0,2]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == 2) return hi;
+        return _mm256_castsi256_pd(_mm256_alignr_epi8(_mm256_castpd_si256(hi.Data), _mm256_castpd_si256(Data), Cnt * 8));
+    }
+#endif
 
     // compare operations
     template<CompareType Cmp, MaskType Msk>
@@ -1261,6 +1314,33 @@ struct alignas(__m256) F32x8 : public detail::AVX256Shared<F32x8, float>
     {
         return _mm256_blend_ps(this->Data, other, Mask);
     }
+#if COMMON_SIMD_LV >= 200
+    template<uint8_t Cnt>
+    forceinline F32x8 VECCALL MoveLaneToHi() const noexcept
+    {
+        static_assert(Cnt <= 4, "move count should be in [0,4]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == 4) return AllZero();
+        else return _mm256_castsi256_ps(_mm256_slli_si256(_mm256_castps_si256(Data), Cnt * 4));
+    }
+    template<uint8_t Cnt>
+    forceinline F32x8 VECCALL MoveLaneToLo() const noexcept
+    {
+        static_assert(Cnt <= 4, "move count should be in [0,4]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == 4) return AllZero();
+        else return _mm256_castsi256_ps(_mm256_srli_si256(_mm256_castps_si256(Data), Cnt * 4));
+    }
+    forceinline F32x8 VECCALL MoveLaneHiToLo() const noexcept { return MoveLaneToLo<2>(); }
+    template<uint8_t Cnt>
+    forceinline F32x8 VECCALL MoveLaneToLoWith(const F32x8& hi) const noexcept
+    {
+        static_assert(Cnt <= 4, "move count should be in [0,4]");
+        if constexpr (Cnt == 0) return Data;
+        else if constexpr (Cnt == 4) return hi;
+        return _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(hi.Data), _mm256_castps_si256(Data), Cnt * 4));
+    }
+#endif
 
     // compare operations
     template<CompareType Cmp, MaskType Msk>

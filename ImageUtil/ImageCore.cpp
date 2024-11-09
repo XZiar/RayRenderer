@@ -1,7 +1,6 @@
 #include "ImageUtilPch.h"
 #include "ImageCore.h"
 #include "ColorConvert.h"
-#include "DataConvertor.hpp"
 #include "SystemCommon/FormatExtra.h"
 
 // #define STB_IMAGE_RESIZE2_IMPLEMENTATION
@@ -32,7 +31,6 @@ void Image::FlipVertical()
     while (rowUp < rowDown)
     {
         common::CopyEx.Swap2Region<false>(rowUp, rowDown, lineStep);
-        // convert::Swap2Buffer(rowUp, rowDown, lineStep);
         rowUp += lineStep, rowDown -= lineStep;
     }
 }
@@ -46,7 +44,6 @@ void Image::FlipHorizontal()
         for (uint32_t row = 0; row < Height; ++row)
         {
             common::CopyEx.ReverseRegion(reinterpret_cast<uint32_t*>(ptr), Width);
-            // convert::ReverseBuffer4(ptr, Width);
             ptr += lineStep;
         }
     }
@@ -55,7 +52,6 @@ void Image::FlipHorizontal()
         for (uint32_t row = 0; row < Height; ++row)
         {
             common::CopyEx.ReverseRegion(reinterpret_cast<std::array<uint8_t, 3>*>(ptr), Width);
-            // convert::ReverseBuffer3(ptr, Width);
             ptr += lineStep;
         }
     }
@@ -71,12 +67,10 @@ void Image::Rotate180()
     if (ElementSize == 4)
     {
         common::CopyEx.ReverseRegion(reinterpret_cast<uint32_t*>(Data), count);
-        // convert::ReverseBuffer4(Data, count);
     }
     else if (ElementSize == 3)
     {
         common::CopyEx.ReverseRegion(reinterpret_cast<std::array<uint8_t, 3>*>(Data), count);
-        // convert::ReverseBuffer3(Data, count);
     }
     else
     {
@@ -136,10 +130,10 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
     }
     else
     {
-        if (HAS_FIELD(src.DataType, ImageDataType::FLOAT_MASK))//not supported yet
-            COMMON_THROW(BaseException, u"float source not supported");
+        if (HAS_FIELD(src.DataType, ImageDataType::FLOAT_MASK) || HAS_FIELD(DataType, ImageDataType::FLOAT_MASK))//not supported yet
+            COMMON_THROW(BaseException, u"float datatype not supported");
         if (IsGray() && !src.IsGray())//not supported yet
-            COMMON_THROW(BaseException, u"need explicit conversion between color & gray image");
+            COMMON_THROW(BaseException, u"need explicit conversion from color to gray image");
 
         const auto diff = DataType ^ src.DataType;
         auto pixcnt = copypix;
@@ -200,7 +194,7 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
                 break;
             case 2:
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::GrayAsToRGBs(destPtr, srcPtr, pixcnt);
+                    cvter.GrayAToRGB(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint16_t*>(srcPtr), pixcnt);
                 break;
             case 3://change byte-order only(plain copy, see above*2)
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
@@ -212,6 +206,8 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
                 break;
             }
         }
+        else
+            Ensures(false);
     }
     //put finish
 }
