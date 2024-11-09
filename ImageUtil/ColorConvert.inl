@@ -30,6 +30,7 @@
 
 #include <bit>
 #include <cassert>
+#include <atomic>
 
 #define DoResizeInfo (void)(const ::xziar::img::STBResize::ResizeInfo& info)
 
@@ -142,7 +143,7 @@ forceinline void ProcessLOOP4(Dst* __restrict dest, const Src* __restrict src, s
 DEFINE_FASTPATH_METHOD(G8ToGA8, LOOP)
 {
     const auto mask = static_cast<uint16_t>(static_cast<uint8_t>(alpha) << 8);
-#define LOOP_GRAY_GRAYA *dest = uint16_t(*src++) | mask; dest++; count--
+#define LOOP_GRAY_GRAYA *dest++ = uint16_t(*src++) | mask;
     while (count >= 8)
     {
         LOOP_GRAY_GRAYA;
@@ -153,6 +154,7 @@ DEFINE_FASTPATH_METHOD(G8ToGA8, LOOP)
         LOOP_GRAY_GRAYA;
         LOOP_GRAY_GRAYA;
         LOOP_GRAY_GRAYA;
+        count -= 8;
     }
     switch (count)
     {
@@ -177,7 +179,7 @@ DEFINE_FASTPATH_METHOD(G8ToGA8, LOOP)
 }
 DEFINE_FASTPATH_METHOD(G8ToRGB8, LOOP)
 {
-#define LOOP_GRAY_RGB *dest++ = *src; *dest++ = *src; *dest++ = *src; src++; count--
+#define LOOP_GRAY_RGB *dest++ = *src; *dest++ = *src; *dest++ = *src; src++
     while (count >= 8)
     {
         LOOP_GRAY_RGB;
@@ -188,6 +190,7 @@ DEFINE_FASTPATH_METHOD(G8ToRGB8, LOOP)
         LOOP_GRAY_RGB;
         LOOP_GRAY_RGB;
         LOOP_GRAY_RGB;
+        count -= 8;
     }
     switch (count)
     {
@@ -213,7 +216,7 @@ DEFINE_FASTPATH_METHOD(G8ToRGB8, LOOP)
 DEFINE_FASTPATH_METHOD(G8ToRGBA8, LOOP)
 {
     const auto mask = static_cast<uint32_t>(static_cast<uint8_t>(alpha) << 24);
-#define LOOP_GRAY_RGBA *dest = uint32_t(*src++) * 0x010101u | mask; dest++; count--
+#define LOOP_GRAY_RGBA *dest++ = uint32_t(*src++) * 0x010101u | mask
     while (count >= 8)
     {
         LOOP_GRAY_RGBA;
@@ -224,6 +227,7 @@ DEFINE_FASTPATH_METHOD(G8ToRGBA8, LOOP)
         LOOP_GRAY_RGBA;
         LOOP_GRAY_RGBA;
         LOOP_GRAY_RGBA;
+        count -= 8;
     }
     switch (count)
     {
@@ -248,7 +252,7 @@ DEFINE_FASTPATH_METHOD(G8ToRGBA8, LOOP)
 }
 DEFINE_FASTPATH_METHOD(GA8ToRGB8, LOOP)
 {
-#define LOOP_GRAYA_RGB do { const auto tmp = static_cast<uint8_t>(*src++); *dest++ = tmp; *dest++ = tmp; *dest++ = tmp; count--; } while(0)
+#define LOOP_GRAYA_RGB do { const auto tmp = static_cast<uint8_t>(*src++); *dest++ = tmp; *dest++ = tmp; *dest++ = tmp; } while(0)
     while (count >= 8)
     {
         LOOP_GRAYA_RGB;
@@ -259,6 +263,7 @@ DEFINE_FASTPATH_METHOD(GA8ToRGB8, LOOP)
         LOOP_GRAYA_RGB;
         LOOP_GRAYA_RGB;
         LOOP_GRAYA_RGB;
+        count -= 8;
     }
     switch (count)
     {
@@ -283,7 +288,7 @@ DEFINE_FASTPATH_METHOD(GA8ToRGB8, LOOP)
 }
 DEFINE_FASTPATH_METHOD(GA8ToRGBA8, LOOP)
 {
-#define LOOP_GRAYA_RGBA do { const uint32_t tmp = *src++; *dest++ = (tmp & 0xffu) * 0x0101u | (tmp << 16u); count--; } while(0)
+#define LOOP_GRAYA_RGBA do { const uint32_t tmp = *src++; *dest++ = (tmp & 0xffu) * 0x0101u | (tmp << 16u); } while(0)
     while (count >= 8)
     {
         LOOP_GRAYA_RGBA;
@@ -294,6 +299,7 @@ DEFINE_FASTPATH_METHOD(GA8ToRGBA8, LOOP)
         LOOP_GRAYA_RGBA;
         LOOP_GRAYA_RGBA;
         LOOP_GRAYA_RGBA;
+        count -= 8;
     }
     switch (count)
     {
@@ -320,7 +326,7 @@ template<uint8_t IdxR, uint8_t IdxG, uint8_t IdxB>
 forceinline void RGB3To4(uint32_t* __restrict dest, const uint8_t* __restrict src, size_t count, std::byte alpha) noexcept
 {
     const uint32_t a = static_cast<uint32_t>(alpha) << 24;
-#define LOOP_RGB_RGBA do { const uint32_t r = src[IdxR]; const uint32_t g = src[IdxG]; const uint32_t b = src[IdxB]; src += 3; *dest++ = r | (g << 8) | (b << 16) | a; count--; } while(0)
+#define LOOP_RGB_RGBA do { const uint32_t r = src[IdxR]; const uint32_t g = src[IdxG]; const uint32_t b = src[IdxB]; src += 3; *dest++ = r | (g << 8) | (b << 16) | a; } while(0)
     while (count >= 8)
     {
         LOOP_RGB_RGBA;
@@ -331,6 +337,7 @@ forceinline void RGB3To4(uint32_t* __restrict dest, const uint8_t* __restrict sr
         LOOP_RGB_RGBA;
         LOOP_RGB_RGBA;
         LOOP_RGB_RGBA;
+        count -= 8;
     }
     switch (count)
     {
@@ -364,7 +371,7 @@ DEFINE_FASTPATH_METHOD(BGR8ToRGBA8, LOOP)
 template<uint8_t IdxR, uint8_t IdxG, uint8_t IdxB>
 forceinline void RGB4To3(uint8_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept
 {
-#define LOOP_RGBA_RGB do { const auto val = *src++; *dest++ = static_cast<uint8_t>(val >> (IdxR * 8)); *dest++ = static_cast<uint8_t>(val >> (IdxG * 8)); *dest++ = static_cast<uint8_t>(val >> (IdxB * 8)); count--; } while(0)
+#define LOOP_RGBA_RGB do { const auto val = *src++; *dest++ = static_cast<uint8_t>(val >> (IdxR * 8)); *dest++ = static_cast<uint8_t>(val >> (IdxG * 8)); *dest++ = static_cast<uint8_t>(val >> (IdxB * 8)); } while(0)
     while (count >= 8)
     {
         LOOP_RGBA_RGB;
@@ -375,6 +382,7 @@ forceinline void RGB4To3(uint8_t* __restrict dest, const uint32_t* __restrict sr
         LOOP_RGBA_RGB;
         LOOP_RGBA_RGB;
         LOOP_RGBA_RGB;
+        count -= 8;
     }
     switch (count)
     {
@@ -407,7 +415,7 @@ DEFINE_FASTPATH_METHOD(RGBA8ToBGR8, LOOP)
 }
 DEFINE_FASTPATH_METHOD(RGB8ToBGR8, LOOP)
 {
-#define LOOP_RGB_BGR do { const auto r = *src++; const auto g = *src++; const auto b = *src++; *dest++ = b; *dest++ = g; *dest++ = r; count--; } while(0)
+#define LOOP_RGB_BGR do { const auto r = *src++; const auto g = *src++; const auto b = *src++; std::atomic_signal_fence(std::memory_order_acquire); *dest++ = b; *dest++ = g; *dest++ = r; } while(0)
     while (count >= 8)
     {
         LOOP_RGB_BGR;
@@ -418,6 +426,7 @@ DEFINE_FASTPATH_METHOD(RGB8ToBGR8, LOOP)
         LOOP_RGB_BGR;
         LOOP_RGB_BGR;
         LOOP_RGB_BGR;
+        count -= 8;
     }
     switch (count)
     {
@@ -442,7 +451,7 @@ DEFINE_FASTPATH_METHOD(RGB8ToBGR8, LOOP)
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToBGRA8, LOOP)
 {
-#define LOOP_RGBA_BGRA do { const uint32_t tmp = *src++; const uint32_t r = (tmp & 0xffu); const uint32_t b = ((tmp >> 16) & 0xffu); *dest++ = (tmp & 0xff00ff00u) | (r << 16u) | b; count--; } while(0)
+#define LOOP_RGBA_BGRA do { const uint32_t tmp = *src++; const uint32_t r = (tmp & 0xffu); const uint32_t b = ((tmp >> 16) & 0xffu); *dest++ = (tmp & 0xff00ff00u) | (r << 16u) | b; } while(0)
     while (count >= 8)
     {
         LOOP_RGBA_BGRA;
@@ -453,6 +462,7 @@ DEFINE_FASTPATH_METHOD(RGBA8ToBGRA8, LOOP)
         LOOP_RGBA_BGRA;
         LOOP_RGBA_BGRA;
         LOOP_RGBA_BGRA;
+        count -= 8;
     }
     switch (count)
     {
@@ -478,7 +488,7 @@ DEFINE_FASTPATH_METHOD(RGBA8ToBGRA8, LOOP)
 template<uint8_t Shift>
 forceinline void KeepChannelLoop4_1(uint8_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept
 {
-#define LOOP_RGBA_CH do { const auto val = *src++; *dest++ = static_cast<uint8_t>(val >> (Shift * 8)); count--; } while(0)
+#define LOOP_RGBA_CH do { const auto val = *src++; *dest++ = static_cast<uint8_t>(val >> (Shift * 8)); } while(0)
     while (count >= 8)
     {
         LOOP_RGBA_CH;
@@ -489,6 +499,7 @@ forceinline void KeepChannelLoop4_1(uint8_t* __restrict dest, const uint32_t* __
         LOOP_RGBA_CH;
         LOOP_RGBA_CH;
         LOOP_RGBA_CH;
+        count -= 8;
     }
     switch (count)
     {
@@ -530,7 +541,7 @@ DEFINE_FASTPATH_METHOD(RGBA8ToA8, LOOP)
 template<uint8_t Idx>
 forceinline void KeepChannelLoop3_1(uint8_t* __restrict dest, const uint8_t* __restrict src, size_t count) noexcept
 {
-#define LOOP_RGB_CH do { const auto val = src[Idx]; src += 3; *dest++ = val; count--; } while(0)
+#define LOOP_RGB_CH do { const auto val = src[Idx]; src += 3; *dest++ = val; } while(0)
     while (count >= 8)
     {
         LOOP_RGB_CH;
@@ -541,6 +552,7 @@ forceinline void KeepChannelLoop3_1(uint8_t* __restrict dest, const uint8_t* __r
         LOOP_RGB_CH;
         LOOP_RGB_CH;
         LOOP_RGB_CH;
+        count -= 8;
     }
     switch (count)
     {
@@ -580,8 +592,7 @@ forceinline void KeepChannelLoop4_2A(uint16_t* __restrict dest, const uint32_t* 
 {
 #define LOOP_RGBA_CHA do { const auto val = *src++; \
 if constexpr (Shift < 2) { *dest++ = static_cast<uint16_t>(static_cast<uint8_t>(val >> (Shift * 8)) | ((val >> 16) & 0xff00u)); } \
-else { *dest++ = static_cast<uint16_t>(val >> 16); } \
-count--; } while(0)
+else { *dest++ = static_cast<uint16_t>(val >> 16); } } while(0)
     while (count >= 8)
     {
         LOOP_RGBA_CHA;
@@ -592,6 +603,7 @@ count--; } while(0)
         LOOP_RGBA_CHA;
         LOOP_RGBA_CHA;
         LOOP_RGBA_CHA;
+        count -= 8;
     }
     switch (count)
     {
@@ -636,7 +648,7 @@ forceinline void RGB555ToRGB8(uint8_t* __restrict dest, const uint16_t* __restri
 const auto r = static_cast<uint8_t>((val & 0x001fu) << 3);  \
 const auto g = static_cast<uint8_t>((val & 0x03e0u) >> 2);  \
 const auto b = static_cast<uint8_t>((val & 0x7c00u) >> 7);  \
-dest[IdxR] = r; dest[IdxG] = g; dest[IdxB] = b; dest += 3; count--; } while (0)
+dest[IdxR] = r; dest[IdxG] = g; dest[IdxB] = b; dest += 3; } while (0)
     while (count >= 8)
     {
         LOOP_555_RGB;
@@ -647,6 +659,7 @@ dest[IdxR] = r; dest[IdxG] = g; dest[IdxB] = b; dest += 3; count--; } while (0)
         LOOP_555_RGB;
         LOOP_555_RGB;
         LOOP_555_RGB;
+        count -= 8;
     }
     switch (count)
     {
@@ -687,7 +700,7 @@ forceinline void RGB555ToRGBA8(uint32_t* __restrict dest, const uint16_t* __rest
 tmp |= (val & 0x1fu) << (IdxR * 8 + 3); \
 if constexpr (IdxG * 8 > 2) { tmp |= (val & 0x03e0u) << (IdxG * 8 - 2); } else { tmp |= (val & 0x03e0u) >> 2; } \
 if constexpr (IdxB * 8 > 7) { tmp |= (val & 0x7c00u) << (IdxB * 8 - 7); } else { tmp |= (val & 0x7c00u) >> 7; } \
-*dest++ = tmp; count--; } while(0)
+*dest++ = tmp; } while(0)
     while (count >= 8)
     {
         LOOP_555_RGBA;
@@ -698,6 +711,7 @@ if constexpr (IdxB * 8 > 7) { tmp |= (val & 0x7c00u) << (IdxB * 8 - 7); } else {
         LOOP_555_RGBA;
         LOOP_555_RGBA;
         LOOP_555_RGBA;
+        count -= 8;
     }
     switch (count)
     {

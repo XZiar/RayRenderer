@@ -11,38 +11,49 @@ INTRIN_TESTSUITE(ColorCvt, xziar::img::ColorConvertor, xziar::img::ColorConverto
 template<typename Src, typename Dst, size_t M, size_t N, typename F, typename R, typename E>
 static void VarLenTest(const Src* src, size_t total, F&& func, R&& reff, E&& explainer)
 {
+    constexpr bool TryInplace = std::is_same_v<Src, Dst> && M == N;
     std::vector<Dst> ref;
     ref.resize(total * N, static_cast<Dst>(0xcc));
     reff(ref.data(), src, total);
-    constexpr size_t sizes[] = { 0,1,2,3,4,7,8,9,15,16,17,30,32,34,61,64,67,252,256,260,509,512,517,1001,1024,1031,2098 };
+    constexpr size_t sizes[] = { 0,1,2,3,4,7,8,9,15,16,17,30,32,34,61,64,67,201,252,256,260,509,512,517,1001,1024,1031,2098 };
     for (const auto size : sizes)
     {
         const auto count = std::min(total, size);
-        std::vector<Dst> dst;
-        dst.resize(count * N, static_cast<Dst>(0xcc));
-        func(dst.data(), src, count);
-        for (size_t i = 0; i < count; ++i)
+        std::vector<Dst> dsts[TryInplace ? 2 : 1];
+        dsts[0].resize(count * N, static_cast<Dst>(0xcc));
+        func(dsts[0].data(), src, count);
+        if constexpr (TryInplace)
         {
-            if constexpr (M == 1 && N == 1)
-                EXPECT_EQ(dst[i], ref[i]) << explainer(count, i, src[i], dst[i], ref[i]);
-            else if constexpr (N > M)
+            dsts[1].assign(src, src + count * N);
+            func(dsts[1].data(), dsts[1].data(), count);
+        }
+        [[maybe_unused]] std::string_view cond = "";
+        for (const auto& dst : dsts)
+        {
+            for (size_t i = 0; i < count; ++i)
             {
-                const common::span<const Dst> dstspan{ dst.data() + i * N, N };
-                const common::span<const Dst> refspan{ ref.data() + i * N, N };
-                EXPECT_THAT(dstspan, testing::ElementsAreArray(refspan)) << explainer(count, i, src[i], dstspan, refspan);
+                if constexpr (M == 1 && N == 1)
+                    EXPECT_EQ(dst[i], ref[i]) << cond << explainer(count, i, src[i], dst[i], ref[i]);
+                else if constexpr (N > M) // won't be inplace
+                {
+                    const common::span<const Dst> dstspan{ dst.data() + i * N, N };
+                    const common::span<const Dst> refspan{ ref.data() + i * N, N };
+                    EXPECT_THAT(dstspan, testing::ElementsAreArray(refspan)) << explainer(count, i, src[i], dstspan, refspan);
+                }
+                else if constexpr (M > N) // won't be inplace
+                {
+                    const common::span<const Src> srcspan{ src + i * M, M };
+                    EXPECT_EQ(dst[i], ref[i]) << explainer(count, i, srcspan, dst[i], ref[i]);
+                }
+                else
+                {
+                    const common::span<const Src> srcspan{ src + i * M, M };
+                    const common::span<const Dst> dstspan{ dst.data() + i * N, N };
+                    const common::span<const Dst> refspan{ ref.data() + i * N, N };
+                    EXPECT_THAT(dstspan, testing::ElementsAreArray(refspan)) << cond << explainer(count, i, srcspan, dstspan, refspan);
+                }
             }
-            else if constexpr (M > N)
-            {
-                const common::span<const Src> srcspan{ src + i * M, M };
-                EXPECT_EQ(dst[i], ref[i]) << explainer(count, i, srcspan, dst[i], ref[i]);
-            }
-            else
-            {
-                const common::span<const Src> srcspan{ src + i * M, M };
-                const common::span<const Dst> dstspan{ dst.data() + i * N, N };
-                const common::span<const Dst> refspan{ ref.data() + i * N, N };
-                EXPECT_THAT(dstspan, testing::ElementsAreArray(refspan)) << explainer(count, i, srcspan, dstspan, refspan);
-            }
+            cond = "[inplace]"; // only used when > 1
         }
         if (total <= size) break;
     }
