@@ -71,6 +71,8 @@ namespace mlog
 {
 enum class LogLevel : uint8_t { Debug = 20, Verbose = 40, Info = 60, Success = 70, Warning = 85, Error = 100, None = 120 };
 MAKE_ENUM_RANGE(LogLevel)
+// with minimal init requirement to avoid circular dependency
+SYSCOMMONAPI void LogInitMessage(LogLevel level, std::string_view host, std::string_view msg) noexcept;
 }
 
 

@@ -5,7 +5,7 @@
 
 
 #pragma message("Compiling ImageJPEG with libjpeg-turbo[" STRINGIZE(LIBJPEG_TURBO_VERSION) "]")
-namespace xziar::img::jpeg
+namespace xziar::img::libjpeg
 {
 using std::byte;
 using std::string;
@@ -255,7 +255,7 @@ bool JpegReader::Validate()
     return true;
 }
 
-Image JpegReader::Read(const ImageDataType dataType)
+Image JpegReader::Read(ImageDataType dataType)
 {
     auto decompStruct = (j_decompress_ptr)JpegDecompStruct;
     Image image(dataType);

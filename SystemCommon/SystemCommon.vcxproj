@@ -294,6 +294,7 @@
     <ClInclude Include="AsyncManager.h" />
     <ClInclude Include="AsyncAgent.h" />
     <ClInclude Include="CharConvs.h" />
+    <ClInclude Include="ComHelper.h" />
     <ClInclude Include="ConsoleEx.h" />
     <ClInclude Include="CopyEx.h" />
     <ClInclude Include="Date.h" />

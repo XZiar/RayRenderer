@@ -114,7 +114,7 @@ bool StbReader::Validate()
     return true;
 }
 
-Image StbReader::Read(const ImageDataType dataType)
+Image StbReader::Read(ImageDataType dataType)
 {
     //const int32_t reqComp = Image::GetElementSize(dataType);
     int32_t width, height, comp;
@@ -174,7 +174,7 @@ Image StbReader::Read(const ImageDataType dataType)
 }
 
 
-StbWriter::StbWriter(RandomOutputStream& stream, const u16string& ext) : Stream(stream)
+StbWriter::StbWriter(RandomOutputStream& stream, std::u16string_view ext) : Stream(stream)
 {
     if (ext == u"PNG")      
         TargetType = ImgType::PNG;
@@ -201,16 +201,25 @@ static void WriteToFile(void *context, void *data, int size)
 
 void StbWriter::Write(const Image& image, const uint8_t quality)
 {
-    const auto width = static_cast<int32_t>(image.GetWidth()), height = static_cast<int32_t>(image.GetHeight());
-    const int32_t reqComp = Image::GetElementSize(image.GetDataType());
+    ImageView view(image);
+    const auto origType = image.GetDataType();
+    if (REMOVE_MASK(origType, ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK) == ImageDataType::BGR) // STB always writes RGB order
+    {
+        auto target = ImageDataType::RGB;
+        if (HAS_FIELD(origType, ImageDataType::FLOAT_MASK)) target |= ImageDataType::FLOAT_MASK;
+        if (HAS_FIELD(origType, ImageDataType::ALPHA_MASK)) target |= ImageDataType::ALPHA_MASK;
+        view = view.ConvertTo(target);
+    }
 
+    const auto width = static_cast<int32_t>(view.GetWidth()), height = static_cast<int32_t>(view.GetHeight());
+    const int32_t reqComp = Image::GetElementSize(view.GetDataType());
     int32_t ret = 0; 
     switch (TargetType)
     {
-    case ImgType::BMP:  ret = stbi_write_bmp_to_func(&WriteToFile, &Stream, width, height, reqComp, image.GetRawPtr()); break;
-    case ImgType::PNG:  ret = stbi_write_png_to_func(&WriteToFile, &Stream, width, height, reqComp, image.GetRawPtr(), 0); break;
-    case ImgType::TGA:  ret = stbi_write_tga_to_func(&WriteToFile, &Stream, width, height, reqComp, image.GetRawPtr()); break;
-    case ImgType::JPG:  ret = stbi_write_jpg_to_func(&WriteToFile, &Stream, width, height, reqComp, image.GetRawPtr(), quality); break;
+    case ImgType::BMP:  ret = stbi_write_bmp_to_func(&WriteToFile, &Stream, width, height, reqComp, view.GetRawPtr()); break;
+    case ImgType::PNG:  ret = stbi_write_png_to_func(&WriteToFile, &Stream, width, height, reqComp, view.GetRawPtr(), 0); break;
+    case ImgType::TGA:  ret = stbi_write_tga_to_func(&WriteToFile, &Stream, width, height, reqComp, view.GetRawPtr()); break;
+    case ImgType::JPG:  ret = stbi_write_jpg_to_func(&WriteToFile, &Stream, width, height, reqComp, view.GetRawPtr(), quality); break;
     default:            COMMON_THROW(BaseException, u"unsupported image type");
     }
     if (ret == 0)
@@ -218,17 +227,19 @@ void StbWriter::Write(const Image& image, const uint8_t quality)
 }
 
 
-uint8_t StbSupport::MatchExtension(const u16string& ext, const ImageDataType, const bool IsRead) const
+uint8_t StbSupport::MatchExtension(std::u16string_view ext, ImageDataType datatype, const bool isRead) const
 {
-    if (IsRead)
+    if (isRead)
     {
         if (ext == u"PPM" || ext == u"PGM")
             return 240;
         if (ext == u"JPG" || ext == u"JPEG" || ext == u"PNG" || ext == u"BMP" || ext == u"PIC" || ext == u"TGA")
-            return 128;
+            return 96;
     }
     else
     {
+        if (HAS_FIELD(datatype, ImageDataType::FLOAT_MASK))
+            return 0;
         if (ext == u"JPG" || ext == u"JPEG" || ext == u"PNG" || ext == u"BMP" || ext == u"TGA")
             return 128;
     }

@@ -203,6 +203,8 @@ public:
 };
 class RandomOutputStream : public RandomStream, public OutputStream
 {
+public:
+    [[nodiscard]] virtual bool ReSize(const size_t newSize) = 0;
 };
 
 

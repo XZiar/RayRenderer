@@ -4,7 +4,7 @@
 #include "ImageSupport.hpp"
 
 
-namespace xziar::img::bmp
+namespace xziar::img::zex
 {
 
 
@@ -59,7 +59,7 @@ struct BmpInfoV5 : public BmpInfoV4
 #pragma pack(pop)
 }
 
-class IMGUTILAPI BmpReader : public ImgReader
+class BmpReader : public ImgReader
 {
 private:
     common::io::RandomInputStream& Stream;
@@ -71,11 +71,11 @@ public:
     BmpReader(common::io::RandomInputStream& stream);
     virtual ~BmpReader() override {};
     [[nodiscard]] virtual bool Validate() override;
-    [[nodiscard]] virtual Image Read(const ImageDataType dataType) override;
+    [[nodiscard]] virtual Image Read(ImageDataType dataType) override;
 };
 
 
-class IMGUTILAPI BmpWriter : public ImgWriter
+class BmpWriter : public ImgWriter
 {
 private:
     common::io::RandomOutputStream& Stream;
@@ -88,21 +88,21 @@ public:
 };
 
 
-class IMGUTILAPI BmpSupport : public ImgSupport {
+class BmpSupport final : public ImgSupport {
 public:
     BmpSupport() : ImgSupport(u"ZexBmp") {}
-    virtual ~BmpSupport() override {}
-    [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
+    ~BmpSupport() final {}
+    [[nodiscard]] std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, std::u16string_view) const final
     {
         return std::make_unique<BmpReader>(stream);
     }
-    [[nodiscard]] virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string&) const override
+    [[nodiscard]] std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, std::u16string_view) const final
     {
         return std::make_unique<BmpWriter>(stream);
     }
-    [[nodiscard]] virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
+    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImageDataType, const bool) const final
     { 
-        return ext == u"BMP" ? 240 : 0;
+        return ext == u"BMP" ? 192 : 0;
     }
 };
 

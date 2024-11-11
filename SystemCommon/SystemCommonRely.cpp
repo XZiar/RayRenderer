@@ -294,6 +294,14 @@ void InitMessage::Consume(std::unique_ptr<Handler> handler) noexcept
 
 }
 
+namespace mlog
+{
+void LogInitMessage(LogLevel level, std::string_view host, std::string_view msg) noexcept
+{
+    detail::InitMessage::Enqueue(level, host, msg);
+}
+}
+
 
 #if COMMON_OS_WIN || defined(__STDC_LIB_EXT1__)
 

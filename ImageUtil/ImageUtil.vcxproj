@@ -237,6 +237,7 @@
     <ClInclude Include="ImageUtil.h" />
     <ClInclude Include="ImageUtilPch.h" />
     <ClInclude Include="ImageUtilRely.h" />
+    <ClInclude Include="ImageWIC.h" />
     <ClInclude Include="RGB15Converter.hpp" />
     <ClInclude Include="TexFormat.h" />
   </ItemGroup>
@@ -279,6 +280,7 @@
     <ClCompile Include="ImageUtilRely.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="ImageWIC.cpp" />
     <ClCompile Include="TexFormat.cpp" />
   </ItemGroup>
   <ItemGroup>

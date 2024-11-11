@@ -2,7 +2,7 @@
 #include "ImageTGA.h"
 #include "ColorConvert.h"
 
-namespace xziar::img::tga
+namespace xziar::img::zex
 {
 using std::byte;
 using std::string;
@@ -617,7 +617,7 @@ public:
     }
 };
 
-Image TgaReader::Read(const ImageDataType dataType)
+Image TgaReader::Read(ImageDataType dataType)
 {
     common::SimpleTimer timer;
     timer.Start();

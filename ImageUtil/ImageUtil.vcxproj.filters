@@ -70,6 +70,9 @@
     <ClInclude Include="FastPathCategory.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ImageWIC.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImageUtil.cpp">
@@ -112,6 +115,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FastPathARMA64.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ImageWIC.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

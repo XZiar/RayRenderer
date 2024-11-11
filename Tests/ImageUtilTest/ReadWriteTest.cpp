@@ -4,6 +4,7 @@
 #include "ImageUtil/ImageSupport.hpp"
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/Format.h"
+#include "SystemCommon/FormatInclude.h"
 #include "SystemCommon/StringConvert.h"
 #include "common/MemoryStream.hpp"
 #include <algorithm>
@@ -165,35 +166,65 @@ static constexpr uint8_t Ref_RGB[35][35][3] =
 #   pragma clang diagnostic pop
 #endif
 
-class ImgFixture : public testing::Test
+template<typename T>
+class ImgTestSuite : public testing::Test
 {
 protected:
-    const std::u16string Extension;
     const std::shared_ptr<const xziar::img::ImgSupport> Support;
 public:
-    ImgFixture(const std::u16string& ext, const std::shared_ptr<const xziar::img::ImgSupport>& support) : Extension(ext), Support(support)
+    static constexpr std::u16string_view Extension = T::Extension;
+    static constexpr const char* SuiteName = T::SuiteName;
+    static std::map<std::string_view, std::vector<std::string>, std::less<>>& GetVariants()
+    {
+        static std::map<std::string_view, std::vector<std::string>, std::less<>> variants;
+        return variants;
+    }
+    ImgTestSuite(const std::shared_ptr<const xziar::img::ImgSupport>& support) : Support(support)
     { }
+    static void SetUpTestSuite()
+    {
+        for (const auto& [k, v] : GetVariants())
+        {
+            std::string names;
+            for (const auto& name : v)
+            {
+                if (!names.empty())
+                    names.append(", ");
+                names.append(name);
+            }
+            TestCout() << common::str::Formatter<char>{}.FormatStatic(FmtString("[{}.{}] get support: [{}]\n"), SuiteName, k, names);
+        }
+    }
 };
 
-template<typename T>
-static uint32_t RegisterSupportTest(const char* testsuite, const char* fileName, const int fileLine, std::u16string ext, std::string ftype, bool isRead)
+#define ImgReadTestExt(ext) struct ImgSuiteRead##ext            \
+{                                                               \
+    static constexpr std::u16string_view Extension = u ## #ext; \
+    static constexpr const char* SuiteName = "Read" #ext;       \
+}
+
+template<typename T, typename U>
+static uint32_t RegisterSupportTest(const char* fileName, const int fileLine, std::string_view ftype, bool isRead)
 {
     using namespace xziar::img;
-    const auto supports = GetImageSupport(ext, T::Type, isRead);
+    const auto supports = GetImageSupport(U::Extension, T::Type, isRead);
+    auto& names = U::GetVariants()[ftype];
     for (const auto& support : supports)
     {
-        const std::string testName = ftype + "/" + common::str::to_string(support->Name);
+        const auto name = common::str::to_string(support->Name);
+        names.push_back(name);
+        const std::string testName = std::string(ftype) + "/" + name;
         testing::RegisterTest(
-            testsuite, testName.c_str(),
+            U::SuiteName, testName.c_str(),
             nullptr, nullptr,
             fileName, fileLine,
-            [=]() -> ImgFixture* { return new T(ext, support); }); // explicit cast to match testsuit id
+            [=]() -> U* { return new T(support); }); // explicit cast to match testsuit id
     }
     return 0;
 }
 
 template<xziar::img::ImageDataType Type, typename T, uint32_t Width, uint32_t Height, uint32_t N>
-static void TestRead(common::span<const std::byte> file, const T(&src)[Height][Width][N], const xziar::img::ImgSupport& support, const std::u16string& ext)
+static void TestRead(common::span<const std::byte> file, const T(&src)[Height][Width][N], const xziar::img::ImgSupport& support, std::u16string_view ext)
 {
     constexpr auto ElementSize = xziar::img::Image::GetElementSize(Type);
     static_assert(ElementSize == sizeof(T) * N);
@@ -281,33 +312,37 @@ static void TestRead(common::span<const std::byte> file, const T(&src)[Height][W
 }
 
 
-template<xziar::img::ImageDataType DT, auto Ref>
-struct ImgReadFixture : public ImgFixture
+template<typename T, xziar::img::ImageDataType DT, auto Ref>
+struct ImgReadFixture : public ImgTestSuite<T>
 {
     static constexpr xziar::img::ImageDataType Type = DT;
     void Test(common::span<const std::byte> file) const
     {
-        TestRead<DT>(file, *Ref, *Support, Extension);
+        TestRead<DT>(file, *Ref, *this->Support, T::Extension);
     }
     void Test(int32_t id) const
     {
         Test(common::ResourceHelper::GetData(L"IMG", id));
     }
-    using ImgFixture::ImgFixture;
+    using ImgTestSuite<T>::ImgTestSuite;
 };
 
-#define IMG_TEST_(suit, name, ext, ftype, otype)                            \
-struct name ## _ ## Fixture : public                                        \
-    ImgReadFixture<xziar::img::ImageDataType::otype, &Ref_ ## otype>        \
+#define IMG_TEST_(name, ext, ftype, otype)                                  \
+struct name ## _ ## Fixture : public ImgReadFixture                         \
+    <ImgSuiteRead##ext, xziar::img::ImageDataType::otype, &Ref_ ## otype>   \
 {                                                                           \
     using ImgReadFixture::ImgReadFixture;                                   \
     void TestBody() override;                                               \
 };                                                                          \
-static uint32_t Dummy_ ## name = RegisterSupportTest<name ## _ ## Fixture>  \
-    (#suit, __FILE__, __LINE__, u ## #ext, #ftype, true);                   \
+static uint32_t Dummy_ ## name = RegisterSupportTest<name ## _ ## Fixture,  \
+    ImgTestSuite<ImgSuiteRead##ext>>(__FILE__, __LINE__,  #ftype, true);    \
 void name ## _ ## Fixture::TestBody()
-#define IMG_TEST(ext, ftype, otype) IMG_TEST_(Read ## ext, Read ## ext ## ftype, ext, ftype, otype)
+#define IMG_TEST(ext, ftype, otype) IMG_TEST_(Read ## ext ## ftype, ext, ftype, otype)
 
+
+ImgReadTestExt(BMP);
+ImgReadTestExt(PNG);
+ImgReadTestExt(TGA);
 
 
 IMG_TEST(BMP, RGBA, RGBA)

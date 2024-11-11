@@ -376,6 +376,29 @@ bool RawFileOutputStream::SetPos(const size_t offset)
     return RawFileStream::SetPos(offset);
 }
 
+//=======RandomOutputStream======//
+bool RawFileOutputStream::ReSize(const size_t newSize)
+{
+    const auto totalSize = RawFileStream::GetSize();
+    if (newSize != totalSize)
+    {
+#if COMMON_OS_WIN
+        FILE_END_OF_FILE_INFO info{};
+        info.EndOfFile.QuadPart = gsl::narrow_cast<LONGLONG>(newSize);
+        const bool ret = SetFileInformationByHandle(GetHandle(), FileEndOfFileInfo, &info, static_cast<DWORD>(sizeof(info)));
+        if (ret && newSize < totalSize)
+            RawFileStream::SetPos(newSize);
+        return ret;
+#elif COMMON_OS_UNIX
+        const bool ret = ftruncate(GetHandle(), newSize) == 0;
+        if (ret && newSize < totalSize)
+            RawFileStream::SetPos(newSize);
+        return ret;
+#endif
+    }
+    return true;
+}
+
 
 
 

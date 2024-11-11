@@ -3,6 +3,7 @@
 #include "SystemCommon/Format.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/ThreadEx.h"
+#include "SystemCommon/Delegate.h"
 #include "common/EasierJson.hpp"
 #include "common/CharConvs.hpp"
 #include <variant>
@@ -148,7 +149,7 @@ struct PerfReport
 };
 
 
-class GTestEnvironment : public ::testing::Environment
+class GTestEnvironment : public ::testing::Environment, public ::testing::EmptyTestEventListener
 {
 private:
     static inline std::unique_ptr<PerfReport> Report = {};
@@ -156,12 +157,20 @@ private:
     std::vector<std::string_view> TestArgs;
     bool EnableReport = false;
 public:
+    static inline std::map<std::string_view, common::Delegate<>> CallBacks = {};
     common::fs::path ExePath;
     GTestEnvironment()
     {
         common::PrintSystemVersion();
     }
     ~GTestEnvironment() override {}
+
+    void OnTestSuiteStart(const testing::TestSuite& suite) final
+    {
+        const auto it = CallBacks.find(suite.name());
+        if (it != CallBacks.end())
+            it->second();
+    }
 
     void SetUp() override
     {
@@ -189,9 +198,11 @@ public:
             }
             Report = std::make_unique<PerfReport>(std::move(TestTargets), testName);
         }
+        testing::UnitTest::GetInstance()->listeners().Append(this);
     }
     void TearDown() override
     {
+        testing::UnitTest::GetInstance()->listeners().Release(this);
         if (Report)
         {
             common::fs::path folder = ExePath;
@@ -366,4 +377,9 @@ void PerfTester::PostProcess(size_t partIdx, std::string_view itemVar)
     }
 }
 
+
+void ListenOnSuiteBegin(std::string_view testsuite, std::function<void(void)> func)
+{
+    GTestEnvironment::CallBacks[testsuite] += func;
+}
 

@@ -339,6 +339,27 @@ bool FileOutputStream::SetPos(const size_t offset)
     return FileStream::SetPos(offset);
 }
 
+//=======RandomOutputStream======//
+bool FileOutputStream::ReSize(const size_t newSize)
+{
+    const auto totalSize = FileStream::GetSize();
+    if (newSize > totalSize)
+    {
+        const auto curPos = FileStream::CurrentPos();
+        if (FileStream::SetPos(newSize - 1))
+        {
+            if (WriteMany(1, 1, "\0") == 1)
+            {
+                FileStream::SetPos(curPos);
+                return true;
+            }
+        }
+        FileStream::SetPos(curPos);
+    }
+    else if (newSize == totalSize)
+        return true;
+    return false;
+}
 
 
 

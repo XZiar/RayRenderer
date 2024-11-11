@@ -2,20 +2,20 @@
 
 A simple utility for image read/write/process.
 
-Image's datatype convertion is AVX/SSE optimized.
+Image's datatype convertion is SIMD optimized.
 
 ## Endianness
 
-Since This component is binded with X86 optimization, internal data layout is assumed to be Little-endian.
+Internal data layout is assumed to be Little-endian.
 
 ## Format Support
 
 | Type | Support Format | Provider |
 |:-------|:-------:|:------:|
-| PNG | RGB/RGBA/Gray | libpng / stb |
+| PNG | RGB/RGBA/Gray | libpng / wic / stb |
 | TGA | RGB/RGBA/Gray | zextga(self) / stb |
-| JPEG | RGB/Gray | libjpeg-turbo / stb |
-| BMP | RGB/RGBA | zexbmp(self) / stb |
+| JPEG | RGB/Gray | libjpeg-turbo / wic / stb |
+| BMP | RGB/RGBA/Gray | zexbmp(self) / wic / stb |
 | PNM | RGB | stb |
 
 ## [TextureFormat](./TexFormat.h)

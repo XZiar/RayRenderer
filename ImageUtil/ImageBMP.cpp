@@ -1,7 +1,7 @@
 #include "ImageUtilPch.h"
 #include "ImageBMP.h"
 
-namespace xziar::img::bmp
+namespace xziar::img::zex
 {
 using std::byte;
 using std::string;
@@ -249,7 +249,7 @@ bool BmpReader::Validate()
     return true;
 }
 
-Image BmpReader::Read(const ImageDataType dataType)
+Image BmpReader::Read(ImageDataType dataType)
 {
     if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
         return Image();

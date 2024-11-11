@@ -49,7 +49,7 @@ bool UnRegistImageSupport(const std::shared_ptr<ImgSupport>& support) noexcept
 }
 
 
-static vector<std::shared_ptr<const ImgSupport>> GenerateSupportList(const u16string& ext, const ImageDataType dataType, const bool isRead, const bool allowDisMatch)
+static vector<std::shared_ptr<const ImgSupport>> GenerateSupportList(std::u16string_view ext, const ImageDataType dataType, const bool isRead, const bool allowDisMatch)
 {
     const auto lock = AcuireSupportLock().ReadScope();
     return common::linq::FromIterable(SUPPORT_MAP())
@@ -59,7 +59,7 @@ static vector<std::shared_ptr<const ImgSupport>> GenerateSupportList(const u16st
         .Select([](const auto& spPair) { return spPair.first; })
         .ToVector();
 }
-std::vector<std::shared_ptr<const ImgSupport>> GetImageSupport(const u16string& ext, const ImageDataType dataType, const bool isRead) noexcept
+std::vector<std::shared_ptr<const ImgSupport>> GetImageSupport(std::u16string_view ext, ImageDataType dataType, const bool isRead) noexcept
 {
     return GenerateSupportList(ext, dataType, isRead, false);
 }

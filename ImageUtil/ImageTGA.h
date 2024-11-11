@@ -4,7 +4,7 @@
 #include "ImageSupport.hpp"
 
 
-namespace xziar::img::tga
+namespace xziar::img::zex
 {
 
 
@@ -50,7 +50,7 @@ struct ColorMapInfo
 };
 }
 
-class IMGUTILAPI TgaReader : public ImgReader
+class TgaReader : public ImgReader
 {
 private:
     common::io::RandomInputStream& Stream;
@@ -60,10 +60,10 @@ public:
     TgaReader(common::io::RandomInputStream& stream);
     virtual ~TgaReader() override {};
     [[nodiscard]] virtual bool Validate() override;
-    [[nodiscard]] virtual Image Read(const ImageDataType dataType) override;
+    [[nodiscard]] virtual Image Read(ImageDataType dataType) override;
 };
 
-class IMGUTILAPI TgaWriter : public ImgWriter
+class TgaWriter : public ImgWriter
 {
 private:
     common::io::RandomOutputStream& Stream;
@@ -73,22 +73,22 @@ public:
     virtual void Write(const Image& image, const uint8_t quality) override;
 };
 
-class IMGUTILAPI TgaSupport : public ImgSupport
+class TgaSupport final : public ImgSupport
 {
     friend class TgaReader;
     friend class TgaWriter;
 public:
     TgaSupport() : ImgSupport(u"ZexTga") {}
-    virtual ~TgaSupport() override {}
-    [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
+    ~TgaSupport() final {}
+    [[nodiscard]] std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, std::u16string_view) const final
     {
         return std::make_unique<TgaReader>(stream);
     }
-    [[nodiscard]] virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string&) const override
+    [[nodiscard]] std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, std::u16string_view) const final
     {
         return std::make_unique<TgaWriter>(stream);
     }
-    [[nodiscard]] virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
+    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImageDataType, const bool) const final
     { 
         return ext == u"TGA" ? 240 : 0;
     }

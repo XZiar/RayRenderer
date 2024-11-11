@@ -17,7 +17,7 @@ protected:
 public:
     virtual ~ImgReader() {}
     [[nodiscard]] virtual bool Validate() = 0;
-    [[nodiscard]] virtual Image Read(const ImageDataType dataType) = 0;
+    [[nodiscard]] virtual Image Read(ImageDataType dataType) = 0;
 };
 
 class IMGUTILAPI ImgWriter : public common::NonCopyable
@@ -34,9 +34,9 @@ protected:
     virtual ~ImgSupport() {}
 public:
     const std::u16string Name;
-    [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string& ext) const = 0;
-    [[nodiscard]] virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string& ext) const = 0;
-    [[nodiscard]] virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType dataType, const bool IsRead) const = 0;
+    [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, std::u16string_view ext) const = 0;
+    [[nodiscard]] virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, std::u16string_view ext) const = 0;
+    [[nodiscard]] virtual uint8_t MatchExtension(std::u16string_view ext, ImageDataType dataType, const bool IsRead) const = 0;
 };
 
 
@@ -48,7 +48,7 @@ inline uint32_t RegistImageSupport()
     return RegistImageSupport(std::make_shared<T>());
 }
 
-IMGUTILAPI std::vector<std::shared_ptr<const ImgSupport>> GetImageSupport(const std::u16string& ext, const ImageDataType dataType, const bool isRead) noexcept;
+IMGUTILAPI std::vector<std::shared_ptr<const ImgSupport>> GetImageSupport(std::u16string_view ext, ImageDataType dataType, const bool isRead) noexcept;
 
 }
 

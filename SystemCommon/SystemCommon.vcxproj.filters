@@ -206,6 +206,9 @@
     <ClInclude Include="CharConvs.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ComHelper.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

@@ -4,14 +4,14 @@
 #include "ImageSupport.hpp"
 
 
-namespace xziar::img::jpeg
+namespace xziar::img::libjpeg
 {
 using namespace common;
 struct JpegHelper;
 class StreamReader;
 
 
-class IMGUTILAPI JpegReader : public ImgReader
+class JpegReader : public ImgReader
 {
     friend JpegHelper;
 private:
@@ -24,10 +24,10 @@ public:
     JpegReader(common::io::RandomInputStream& stream);
     virtual ~JpegReader() override;
     [[nodiscard]] virtual bool Validate() override;
-    [[nodiscard]] virtual Image Read(const ImageDataType dataType) override;
+    [[nodiscard]] virtual Image Read(ImageDataType dataType) override;
 };
 
-class IMGUTILAPI JpegWriter : public ImgWriter
+class JpegWriter : public ImgWriter
 {
     friend JpegHelper;
 private:
@@ -42,20 +42,20 @@ public:
     virtual void Write(const Image& image, const uint8_t quality) override;
 };
 
-class IMGUTILAPI JpegSupport : public ImgSupport
+class JpegSupport final : public ImgSupport
 {
 public:
     JpegSupport() : ImgSupport(u"LibjpegTurbo") {}
-    virtual ~JpegSupport() override {}
-    [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
+    ~JpegSupport() final {}
+    [[nodiscard]] std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, std::u16string_view) const final
     {
         return std::make_unique<JpegReader>(stream);
     }
-    [[nodiscard]] virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string&) const override
+    [[nodiscard]] std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, std::u16string_view) const final
     {
         return std::make_unique<JpegWriter>(stream);
     }
-    [[nodiscard]] virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
+    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImageDataType, const bool) const final
     { 
         return (ext == u"JPEG" || ext == u"JPG") ? 240 : 0;
     }

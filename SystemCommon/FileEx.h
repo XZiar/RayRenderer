@@ -127,6 +127,9 @@ public:
     [[nodiscard]] size_t GetSize() override;
     [[nodiscard]] size_t CurrentPos() const override;
     bool SetPos(const size_t offset) override;
+
+    //=======RandomOutputStream======//
+    [[nodiscard]] bool ReSize(const size_t newSize) override;
 };
 
 #if COMMON_COMPILER_MSVC

@@ -180,3 +180,4 @@ struct PerfTester
 };
 
 
+void ListenOnSuiteBegin(std::string_view testsuite, std::function<void(void)> func);
