@@ -10,13 +10,51 @@ Internal data layout is assumed to be Little-endian.
 
 ## Format Support
 
-| Type | Support Format | Provider |
+### Zex
+
+| Type | Support Format | Access |
 |:-------|:-------:|:------:|
-| PNG | RGB/RGBA/Gray | libpng / wic / stb |
-| TGA | RGB/RGBA/Gray | zextga(self) / stb |
-| JPEG | RGB/Gray | libjpeg-turbo / wic / stb |
-| BMP | RGB/RGBA/Gray | zexbmp(self) / wic / stb |
-| PNM | RGB | stb |
+| TGA | RGB/RGBA/Gray/RLE | R/W |
+| BMP | RGB/RGBA/Gray | R/W |
+
+### Stb
+| Type | Support Format | Access |
+|:-------|:-------:|:------:|
+| PNG | RGB/RGBA/Gray | R/W |
+| TGA | RGB/RGBA/Gray | R/W |
+| JPEG | RGB/Gray | R/W |
+| BMP | RGB/RGBA/Gray | R/W |
+| PNM | RGB | R |
+
+### libpng
+| Type | Support Format | Access |
+|:-------|:-------:|:------:|
+| PNG | RGB/RGBA/Gray | R/W |
+
+### libjpeg-turbo
+| Type | Support Format | Access |
+|:-------|:-------:|:------:|
+| JPEG | RGB | R/W |
+
+### Wic
+Windows Image Codec
+| Type | Support Format | Access |
+|:-------|:-------:|:------:|
+| JPEG | RGB/RGBA/Gray | R/W |
+| BMP | RGB/RGBA/Gray | R/W |
+| PNG | RGB/RGBA/Gray | R/W |
+| HEIF | RGB/RGBA/Gray | R/W |
+| WEBP | RGB/RGBA/Gray | R/W |
+
+### Ndk
+Android Image Decoder
+| Type | Support Format | Access |
+|:-------|:-------:|:------:|
+| JPEG | RGBA/Gray | R/W |
+| BMP | RGBA/Gray | R |
+| PNG | RGBA/Gray | R/W |
+| HEIF | RGBA/Gray | R |
+| WEBP | RGBA/Gray | R/W |
 
 ## [TextureFormat](./TexFormat.h)
 

@@ -1,7 +1,7 @@
 {
     "name": "ImageUtil",
     "type": "dynamic",
-    "description": "An async task execution library",
+    "description": "A simple utility for image read/write/process",
     "dependency": ["zlib-ng", "png", "jpeg-turbo", "SystemCommon"],
     "library": 
     {
@@ -20,6 +20,7 @@
             [
                 "*.cpp",
                 {"-": ["ImageWIC.cpp"]},
+                {"ifno": "android", "-": ["ImageNDK.cpp"]},
                 {"ifeq": {"arch": "x86"}, "-": ["FastPathARMA32.cpp", "FastPathARMA64.cpp"]},
                 {"ifeq": {"arch": "arm"}, "-": ["FastPathSSE42.cpp", "FastPathAVX2.cpp", "FastPathAVX512.cpp"]},
                 {"ifeq": {"arch": "arm", "bits": 64}, "-": ["FastPathARMA32.cpp"]},

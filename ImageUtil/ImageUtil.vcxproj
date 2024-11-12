@@ -230,6 +230,7 @@
     <ClInclude Include="ImageBMP.h" />
     <ClInclude Include="ImageCore.h" />
     <ClInclude Include="ImageJPEG.h" />
+    <ClInclude Include="ImageNDK.h" />
     <ClInclude Include="ImagePNG.h" />
     <ClInclude Include="ImageSTB.h" />
     <ClInclude Include="ImageSupport.hpp" />
@@ -273,6 +274,7 @@
     <ClCompile Include="ImageBMP.cpp" />
     <ClCompile Include="ImageCore.cpp" />
     <ClCompile Include="ImageJPEG.cpp" />
+    <ClCompile Include="ImageNDK.cpp" />
     <ClCompile Include="ImagePNG.cpp" />
     <ClCompile Include="ImageSTB.cpp" />
     <ClCompile Include="ImageTGA.cpp" />

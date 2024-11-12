@@ -23,7 +23,7 @@ public:
     [[nodiscard]] virtual Image Read(ImageDataType dataType) override;
 };
 
-class StbWriter : public ImgWriter
+class StbWriter final : public ImgWriter
 {
 private:
     common::io::RandomOutputStream& Stream;

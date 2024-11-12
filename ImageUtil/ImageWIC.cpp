@@ -547,7 +547,7 @@ static auto DUMMY = []()
     catch (const BaseException& be)
     {
         common::mlog::LogInitMessage(common::mlog::LogLevel::Warning, "ImageWIC", 
-            common::str::Formatter<char>{}.FormatStatic(FmtString("{}: {}"), be.Message(), be.GetDetailMessage()));
+            common::str::Formatter<char>{}.FormatStatic(FmtString("{}: {}.\n"), be.Message(), be.GetDetailMessage()));
     }
     return 0u;
 }();
