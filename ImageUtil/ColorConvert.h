@@ -39,6 +39,10 @@ private:
     void(*BGR555ToRGBA8     )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGB5551ToRGBA8    )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*BGR5551ToRGBA8    )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB565ToRGB8      )(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*BGR565ToRGB8      )(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB565ToRGBA8     )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*BGR565ToRGBA8     )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
 public:
     IMGUTILAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
     IMGUTILAPI ColorConvertor(common::span<const VarItem> requests = {}) noexcept;
@@ -143,7 +147,6 @@ public:
     {
         RGB555ToRGB8(dest, src, count);
     }
-
     forceinline void BGR555ToRGB(uint8_t* const dest, const uint16_t* src, const size_t count) const noexcept
     {
         BGR555ToRGB8(dest, src, count);
@@ -153,10 +156,27 @@ public:
     {
         (hasAlpha ? RGB5551ToRGBA8 : RGB555ToRGBA8)(dest, src, count);
     }
-
     forceinline void BGR555ToRGBA(uint32_t* const dest, const uint16_t* src, const size_t count, const bool hasAlpha = false) const noexcept
     {
         (hasAlpha ? BGR5551ToRGBA8 : BGR555ToRGBA8)(dest, src, count);
+    }
+
+    forceinline void RGB565ToRGB(uint8_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        RGB565ToRGB8(dest, src, count);
+    }
+    forceinline void BGR565ToRGB(uint8_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        BGR565ToRGB8(dest, src, count);
+    }
+
+    forceinline void RGB565ToRGBA(uint32_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        RGB565ToRGBA8(dest, src, count);
+    }
+    forceinline void BGR565ToRGBA(uint32_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        BGR565ToRGBA8(dest, src, count);
     }
 
     IMGUTILAPI static const ColorConvertor& Get() noexcept;

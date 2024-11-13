@@ -610,6 +610,93 @@ INTRIN_TEST(ColorCvt, BGR5551ToRGBA8)
 }
 
 
+template<bool isRGB>
+void Test565ToRGB(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
+{
+    const auto src = GetRandVals();
+    VarLenTest<uint16_t, uint8_t, 1, 3>(reinterpret_cast<const uint16_t*>(src.data()), src.size() / 2, [&](uint8_t* dst, const uint16_t* src, size_t count)
+    {
+        if constexpr (isRGB) intrin->RGB565ToRGB(dst, src, count);
+        else intrin->BGR565ToRGB(dst, src, count);
+    }, [](uint8_t* dst, const uint16_t* src, size_t count)
+    {
+        while (count)
+        {
+            const auto val = *src++;
+            const auto r = static_cast<uint8_t>(((val >>  0) & 0x1fu) << 3);
+            const auto g = static_cast<uint8_t>(((val >>  5) & 0x3fu) << 2);
+            const auto b = static_cast<uint8_t>(((val >> 11) & 0x1fu) << 3);
+            *dst++ = isRGB ? r : b;
+            *dst++ = g;
+            *dst++ = isRGB ? b : r;
+            count--;
+        }
+    },
+    [](size_t count, size_t idx, uint16_t src, common::span<const uint8_t> dst, common::span<const uint8_t> ref)
+    {
+        common::str::Formatter<char> fmter{};
+        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:04x}] get[{:02x} {:02x} {:02x}] ref[{:02x} {:02x} {:02x}]"),
+            count, idx, src, dst[0], dst[1], dst[2], ref[0], ref[1], ref[2]);
+    });
+}
+
+INTRIN_TEST(ColorCvt, RGB565ToRGB8)
+{
+    SCOPED_TRACE("ColorCvt::RGB565ToRGB8");
+    Test565ToRGB<true>(Intrin);
+}
+
+INTRIN_TEST(ColorCvt, BGR565ToRGB8)
+{
+    SCOPED_TRACE("ColorCvt::BGR565ToRGB8");
+    Test565ToRGB<false>(Intrin);
+}
+
+template<bool isRGB>
+void Test565ToRGBA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
+{
+    const auto src = GetRandVals();
+    VarLenTest<uint16_t, uint32_t, 1, 1>(reinterpret_cast<const uint16_t*>(src.data()), src.size() / 2, [&](uint32_t* dst, const uint16_t* src, size_t count)
+    {
+        if constexpr (isRGB) intrin->RGB565ToRGBA(dst, src, count);
+        else intrin->BGR565ToRGBA(dst, src, count);
+    }, [](uint32_t* dst_, const uint16_t* src, size_t count)
+    {
+        auto dst = reinterpret_cast<uint8_t*>(dst_);
+        while (count)
+        {
+            const auto val = *src++;
+            const auto r = static_cast<uint8_t>(((val >>  0) & 0x1fu) << 3);
+            const auto g = static_cast<uint8_t>(((val >>  5) & 0x3fu) << 2);
+            const auto b = static_cast<uint8_t>(((val >> 11) & 0x1fu) << 3);
+            *dst++ = isRGB ? r : b;
+            *dst++ = g;
+            *dst++ = isRGB ? b : r;
+            *dst++ = 0xff;
+            count--;
+        }
+    },
+    [](size_t count, size_t idx, uint16_t src, uint32_t dst, uint32_t ref)
+    {
+        common::str::Formatter<char> fmter{};
+        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:04x}] get[{:08x}] ref[{:08x}]"),
+            count, idx, src, dst, ref);
+    });
+}
+
+INTRIN_TEST(ColorCvt, RGB565ToRGBA8)
+{
+    SCOPED_TRACE("ColorCvt::RGB565ToRGBA8");
+    Test565ToRGBA<true>(Intrin);
+}
+
+INTRIN_TEST(ColorCvt, BGR565ToRGBA8)
+{
+    SCOPED_TRACE("ColorCvt::BGR565ToRGBA8");
+    Test565ToRGBA<false>(Intrin);
+}
+
+
 #if CM_DEBUG == 0
 
 TEST(IntrinPerf, G8ToGA8)
@@ -793,6 +880,24 @@ TEST(IntrinPerf, RGB555ToRGBA)
     PerfTester::DoFastPath(&ColorConvertor::RGB555ToRGB, "RGB555ToRGB8", Size, 150,
         dstRGB.data(), src.data(), Size);
     PerfTester::DoFastPath(&ColorConvertor::BGR555ToRGB, "BGR555ToRGB8", Size, 150,
+        dstRGB.data(), src.data(), Size);
+}
+
+TEST(IntrinPerf, RGB565ToRGBA)
+{
+    using xziar::img::ColorConvertor;
+    constexpr uint32_t Size = 1024 * 1024;
+    std::vector<uint16_t> src(Size);
+    std::vector<uint32_t> dstRGBA(Size);
+    std::vector<uint8_t> dstRGB(Size * 3);
+
+    PerfTester::DoFastPath(&ColorConvertor::RGB565ToRGBA, "RGB565ToRGBA8", Size, 150,
+        dstRGBA.data(), src.data(), Size);
+    PerfTester::DoFastPath(&ColorConvertor::BGR565ToRGBA, "BGR565ToRGBA8", Size, 150,
+        dstRGBA.data(), src.data(), Size);
+    PerfTester::DoFastPath(&ColorConvertor::RGB565ToRGB, "RGB565ToRGB8", Size, 150,
+        dstRGB.data(), src.data(), Size);
+    PerfTester::DoFastPath(&ColorConvertor::BGR565ToRGB, "BGR565ToRGB8", Size, 150,
         dstRGB.data(), src.data(), Size);
 }
 

@@ -355,9 +355,25 @@ public:
 #endif
     }
     template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic () const noexcept { return _mm_slli_epi64(this->Data, N); }
+    forceinline T VECCALL ShiftLeftLogic () const noexcept 
+    {
+        if constexpr (N >= 64)
+            return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
+        else
+            return _mm_slli_epi64(this->Data, N);
+    }
     template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const noexcept { return _mm_srli_epi64(this->Data, N); }
+    forceinline T VECCALL ShiftRightLogic() const noexcept 
+    {
+        if constexpr (N >= 64)
+            return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
+        else
+            return _mm_srli_epi64(this->Data, N);
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightArith() const  noexcept
     {
@@ -511,9 +527,25 @@ public:
 #endif
     }
     template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic () const noexcept { return _mm_slli_epi32(this->Data, N); }
+    forceinline T VECCALL ShiftLeftLogic () const noexcept 
+    {
+        if constexpr (N >= 32)
+            return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
+        else
+            return _mm_slli_epi32(this->Data, N);
+    }
     template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const noexcept { return _mm_srli_epi32(this->Data, N); }
+    forceinline T VECCALL ShiftRightLogic() const noexcept 
+    {
+        if constexpr (N >= 32)
+            return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
+        else
+            return _mm_srli_epi32(this->Data, N);
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightArith() const noexcept
     { 
@@ -694,9 +726,25 @@ public:
 #endif
     }
     template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic () const noexcept { return _mm_slli_epi16(this->Data, N); }
+    forceinline T VECCALL ShiftLeftLogic () const noexcept 
+    {
+        if constexpr (N >= 16)
+            return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
+        else
+            return _mm_slli_epi16(this->Data, N);
+    }
     template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const noexcept { return _mm_srli_epi16(this->Data, N); }
+    forceinline T VECCALL ShiftRightLogic() const noexcept
+    {
+        if constexpr (N >= 16)
+            return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
+        else
+            return _mm_srli_epi16(this->Data, N);
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightArith() const noexcept
     {
@@ -841,6 +889,8 @@ public:
     {
         if constexpr (N >= 8)
             return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
         else
         {
             const auto mask = _mm_set1_epi8(static_cast<uint8_t>(0xff << N));
@@ -853,6 +903,8 @@ public:
     {
         if constexpr (N >= 8)
             return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
         else
         {
             const auto mask = _mm_set1_epi8(static_cast<uint8_t>(0xff >> N));

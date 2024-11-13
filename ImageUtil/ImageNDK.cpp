@@ -130,6 +130,7 @@ bool NdkReader::Validate()
     case ANDROID_BITMAP_FORMAT_RGBA_8888:
     case ANDROID_BITMAP_FORMAT_A_8:
     case ANDROID_BITMAP_FORMAT_RGBA_F16:
+    case ANDROID_BITMAP_FORMAT_RGB_565:
         break;
     default:
         return false;
@@ -148,6 +149,11 @@ Image NdkReader::Read(ImageDataType dataType)
     case ANDROID_BITMAP_FORMAT_RGBA_8888: origType = ImageDataType::RGBA;  break;
     case ANDROID_BITMAP_FORMAT_A_8:       origType = ImageDataType::GRAY;  break;
     case ANDROID_BITMAP_FORMAT_RGBA_F16:  origType = ImageDataType::RGBAf; break;
+    case ANDROID_BITMAP_FORMAT_RGB_565:
+        if (const auto baseType = REMOVE_MASK(dataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK); baseType != ImageDataType::RGB && baseType != ImageDataType::BGR)
+            return {};
+        origType = REMOVE_MASK(dataType, ImageDataType::FLOAT_MASK);
+        break;
     default: Expects(false); return {};
     }
     Image image(origType);
@@ -162,6 +168,28 @@ Image NdkReader::Read(ImageDataType dataType)
         // direct load
         Ensures(stride == image.GetElementSize() * image.GetWidth());
         THROW_DEC(Support->Host, DecodeImg(decoder, image.GetRawPtr(), stride, image.GetSize()), u"Failed to decode image");
+    } break;
+    case ANDROID_BITMAP_FORMAT_RGB_565:
+    {
+        Ensures(stride == 2 * image.GetWidth());
+        common::AlignedBuffer buffer(stride * Height);
+        THROW_DEC(Support->Host, DecodeImg(decoder, buffer.GetRawPtr(), stride, buffer.GetSize()), u"Failed to decode image");
+        const auto& cvter = ColorConvertor::Get();
+        const auto baseType = REMOVE_MASK(dataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK);
+        if (HAS_FIELD(dataType, ImageDataType::ALPHA_MASK))
+        {
+            if (baseType == ImageDataType::RGB)
+                cvter.RGB565ToRGBA(image.GetRawPtr<uint32_t>(), buffer.GetRawPtr<uint16_t>(), Width * Height);
+            else
+                cvter.BGR565ToRGBA(image.GetRawPtr<uint32_t>(), buffer.GetRawPtr<uint16_t>(), Width * Height);
+        }
+        else
+        {
+            if (baseType == ImageDataType::RGB)
+                cvter.RGB565ToRGB(image.GetRawPtr<uint8_t>(), buffer.GetRawPtr<uint16_t>(), Width * Height);
+            else
+                cvter.BGR565ToRGB(image.GetRawPtr<uint8_t>(), buffer.GetRawPtr<uint16_t>(), Width * Height);
+        }
     } break;
     case ANDROID_BITMAP_FORMAT_RGBA_F16:
     {

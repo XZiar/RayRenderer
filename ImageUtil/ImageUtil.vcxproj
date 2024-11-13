@@ -274,7 +274,9 @@
     <ClCompile Include="ImageBMP.cpp" />
     <ClCompile Include="ImageCore.cpp" />
     <ClCompile Include="ImageJPEG.cpp" />
-    <ClCompile Include="ImageNDK.cpp" />
+    <ClCompile Include="ImageNDK.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="ImagePNG.cpp" />
     <ClCompile Include="ImageSTB.cpp" />
     <ClCompile Include="ImageTGA.cpp" />

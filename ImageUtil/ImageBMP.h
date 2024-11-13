@@ -65,8 +65,7 @@ private:
     common::io::RandomInputStream& Stream;
     detail::BmpHeader Header;
     detail::BmpInfoV5 Info;
-    bool HasAlpha = false;
-    bool IsRGB = false;
+    uint8_t Format = 0;
 public:
     BmpReader(common::io::RandomInputStream& stream);
     virtual ~BmpReader() override {};
