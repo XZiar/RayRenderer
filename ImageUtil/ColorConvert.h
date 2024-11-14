@@ -33,6 +33,9 @@ private:
     void(*RGBA8ToRA8        )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGBA8ToGA8        )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGBA8ToBA8        )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*Extract8x2        )(uint8_t* const * __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*Extract8x3        )(uint8_t* const * __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
+    void(*Extract8x4        )(uint8_t* const * __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGB555ToRGB8      )(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*BGR555ToRGB8      )(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGB555ToRGBA8     )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
@@ -43,6 +46,10 @@ private:
     void(*BGR565ToRGB8      )(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGB565ToRGBA8     )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*BGR565ToRGBA8     )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB10A2ToRGBF     )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
+    void(*BGR10A2ToRGBF     )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
+    void(*RGB10A2ToRGBAF    )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
+    void(*BGR10A2ToRGBAF    )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
 public:
     IMGUTILAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
     IMGUTILAPI ColorConvertor(common::span<const VarItem> requests = {}) noexcept;
@@ -141,6 +148,19 @@ public:
         case 2: return RGBA8ToBA8(dest, src, count);
         default: return;
         }
+    }
+
+    forceinline void RAToPlanar(common::span<uint8_t* const, 2> dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        Extract8x2(dest.data(), src, count);
+    }
+    forceinline void RGBToPlanar(common::span<uint8_t* const, 3> dest, const uint8_t* src, const size_t count) const noexcept
+    {
+        Extract8x3(dest.data(), src, count);
+    }
+    forceinline void RGBAToPlanar(common::span<uint8_t* const, 4> dest, const uint32_t* src, const size_t count) const noexcept
+    {
+        Extract8x4(dest.data(), src, count);
     }
 
     forceinline void RGB555ToRGB(uint8_t* const dest, const uint16_t* src, const size_t count) const noexcept

@@ -848,7 +848,7 @@ public:
             const auto mask = _mm_insert_epi64(_mm_loadu_si64(&::common::simd::detail::FullMask64[Mask & 0xff]), static_cast<int64_t>(::common::simd::detail::FullMask64[(Mask >> 8) & 0xff]), 1);
             return _mm_blendv_epi8(this->Data, other.Data, mask);
 #else
-            constexpr uint64_t mask[2] = { ::common::simd::detail::FullMask64[Mask & 0xff], ::common::simd::detail::FullMask64[(Mask >> 8) & 0xff] };
+            static constexpr uint64_t mask[2] = { ::common::simd::detail::FullMask64[Mask & 0xff], ::common::simd::detail::FullMask64[(Mask >> 8) & 0xff] };
             return _mm_blendv_epi8(this->Data, other.Data, _mm_loadu_si128(reinterpret_cast<const __m128i*>(mask)));
 #endif
         }

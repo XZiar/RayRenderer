@@ -74,13 +74,10 @@ void TestResizeImage(std::string filepath, std::string_view writer_)
     auto img1sq = img1.ResizeTo(w / 3, w / 3, true);
     WriteBmp(logger, writer, u"bgr square", img1sq, folder / (basename + "-bgr-sq.bmp"));
 
-    auto img0r = img0.ExtractChannel(0);
-    WriteBmp(logger, writer, u"R channel", img0r, folder / (basename + "-r.bmp"));
-
-    auto img0g = img0.ExtractChannel(1);
-    WriteBmp(logger, writer, u"G channel", img0g, folder / (basename + "-g.bmp"));
-
-    auto img0b = img0.ExtractChannel(2);
-    WriteBmp(logger, writer, u"B channel", img0b, folder / (basename + "-b.bmp"));
+    const auto channels = img0.ExtractChannels();
+    Ensures(channels.size() == 4);
+    WriteBmp(logger, writer, u"R channel", channels[0], folder / (basename + "-r.bmp"));
+    WriteBmp(logger, writer, u"G channel", channels[1], folder / (basename + "-g.bmp"));
+    WriteBmp(logger, writer, u"B channel", channels[2], folder / (basename + "-b.bmp"));
 
 }

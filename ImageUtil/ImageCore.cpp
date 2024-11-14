@@ -398,6 +398,52 @@ Image Image::ExtractChannel(uint8_t channel, bool keepAlpha) const
     return newimg;
 }
 
+std::vector<Image> Image::ExtractChannels() const
+{
+    if (HAS_FIELD(DataType, ImageDataType::FLOAT_MASK))
+        COMMON_THROW(BaseException, u"not support extract channel from float image");
+
+    uint32_t chCount = 0;
+    switch (DataType)
+    {
+    case ImageDataType::GRAY: chCount = 1; break;
+    case ImageDataType::RGB: [[fallthrough]];
+    case ImageDataType::BGR:  chCount = 3; break;
+    case ImageDataType::RGBA: [[fallthrough]];
+    case ImageDataType::BGRA: chCount = 4; break;
+    case ImageDataType::GA:   chCount = 2; break;
+    default:
+        COMMON_THROW(BaseException, u"unsupported datatype!");
+    }
+
+    std::vector<Image> ret(chCount, ImageDataType::GRAY);
+    if (chCount == 1) 
+    {
+        ret[0] = *this;
+    }
+    else
+    {
+        uint8_t* ptrs[4] = { nullptr };
+        for (uint32_t i = 0; i < chCount; ++i)
+        {
+            auto& item = ret[i];
+            ret[i].SetSize(Width, Height);
+            ptrs[i] = item.GetRawPtr<uint8_t>();
+        }
+        const auto& cvter = ColorConvertor::Get();
+        const auto count = Width * Height;
+        switch (chCount)
+        {
+        case 2: cvter.RAToPlanar  (common::span<uint8_t* const, 2>{ ptrs, 2 }, GetRawPtr<uint16_t>(), count); break;
+        case 3: cvter.RGBToPlanar (common::span<uint8_t* const, 3>{ ptrs, 3 }, GetRawPtr<uint8_t >(), count); break;
+        case 4: cvter.RGBAToPlanar(common::span<uint8_t* const, 4>{ ptrs, 4 }, GetRawPtr<uint32_t>(), count); break;
+        default: Ensures(false); break;
+        }
+    }
+    return ret;
+
+}
+
 
 }
 

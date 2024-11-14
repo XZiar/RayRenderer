@@ -34,7 +34,7 @@ public:
     virtual void Write(const Image& image, const uint8_t quality) override;
 };
 
-class StbSupport : public ImgSupport
+class StbSupport final : public ImgSupport
 {
 public:
     StbSupport() : ImgSupport(u"Stb") {}

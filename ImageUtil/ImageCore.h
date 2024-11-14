@@ -149,6 +149,7 @@ public:
     ///<summary>Pick single channel from image</summary>  
     ///<param name="channel">channel</param>
     [[nodiscard]] Image ExtractChannel(uint8_t channel, bool keepAlpha = false) const;
+    [[nodiscard]] std::vector<Image> ExtractChannels() const;
 };
 
 class IMGUTILAPI ImageView : protected Image
@@ -208,6 +209,8 @@ public:
     using Image::ConvertToFloat;
     using Image::IsGray;
     using Image::ExtractData;
+    using Image::ExtractChannel;
+    using Image::ExtractChannels;
     template<typename T = std::byte>
     [[nodiscard]] const T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) const noexcept
     {

@@ -8,15 +8,78 @@
 
 INTRIN_TESTSUITE(ColorCvt, xziar::img::ColorConvertor, xziar::img::ColorConvertor::Get());
 
-template<typename Src, typename Dst, size_t M, size_t N, typename F, typename R, typename E>
-static void VarLenTest(const Src* src, size_t total, F&& func, R&& reff, E&& explainer)
+constexpr size_t TestSizes[] = { 0,1,2,3,4,7,8,9,15,16,17,30,32,34,61,64,67,201,252,256,260,509,512,517,1001,1024,1031,2098 };
+
+template<typename T>
+struct HexVal
+{
+    common::span<const T> Vals;
+    static constexpr common::str::FormatSpec Spec = []() 
+    {
+        constexpr auto type = common::str::FormatterParser::FormatSpec::TypeIdentifier{ 'x' };
+        common::str::FormatSpec spec;
+        spec.ZeroPad = true;
+        spec.Width = sizeof(T) * 2;
+        spec.TypeExtra = type.Extra;
+        return spec;
+    }();
+    using U = std::conditional_t<(sizeof(T) > sizeof(uint32_t)), uint64_t, uint32_t>;
+    constexpr HexVal() noexcept {}
+    constexpr HexVal(common::span<const T> vals) noexcept : Vals{ vals } {}
+
+    constexpr bool operator==(const HexVal<T>& other) const noexcept 
+    {
+        return (Vals.size() == other.Vals.size()) && std::equal(Vals.begin(), Vals.end(), other.Vals.begin());
+    }
+
+    void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& ctx, const common::str::FormatSpec*) const noexcept
+    {
+        for (uint32_t i = 0; i < Vals.size(); ++i)
+        {
+            if (i > 0)
+                executor.PutString(ctx, " ", nullptr);
+            executor.PutInteger(ctx, static_cast<U>(Vals[i]), false, &Spec);
+        }
+    }
+
+    friend void PrintTo(const HexVal<T>& val, std::ostream* os)
+    {
+        const auto str = common::str::Formatter<char>{}.FormatStatic(FmtString("[{}]"), val);
+        *os << str;
+    }
+};
+
+template<typename S, typename D>
+struct HexTest
+{
+    HexVal<S> Src;
+    HexVal<D> Dst;
+    HexVal<D> Ref;
+    size_t Count;
+    size_t Index;
+    constexpr HexTest(size_t count, size_t idx) noexcept : Count(count), Index(idx) {}
+    constexpr void SetSrc(common::span<const S> src) noexcept { Src = src; }
+    constexpr void SetSrc(const S& src) noexcept { Src.Vals = { &src, 1 }; }
+    constexpr void SetOut(common::span<const D> dst, common::span<const D> ref) noexcept { Dst = dst; Ref = ref; }
+    constexpr void SetOut(const D& dst, const D& ref) noexcept { Dst.Vals = { &dst, 1 }; Ref.Vals = { &ref, 1 }; }
+
+    friend std::ostream& operator<<(std::ostream& stream, const HexTest<S, D>& test) noexcept
+    {
+        const auto str = common::str::Formatter<char>{}.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{}]"), test.Count, test.Index, test.Src);
+        stream << str;
+        return stream;
+    }
+};
+
+
+template<typename Src, typename Dst, size_t M, size_t N, typename F, typename R>
+static void VarLenTest(const Src* src, size_t total, F&& func, R&& reff)
 {
     constexpr bool TryInplace = std::is_same_v<Src, Dst> && M == N;
     std::vector<Dst> ref;
     ref.resize(total * N, static_cast<Dst>(0xcc));
     reff(ref.data(), src, total);
-    constexpr size_t sizes[] = { 0,1,2,3,4,7,8,9,15,16,17,30,32,34,61,64,67,201,252,256,260,509,512,517,1001,1024,1031,2098 };
-    for (const auto size : sizes)
+    for (const auto size : TestSizes)
     {
         const auto count = std::min(total, size);
         std::vector<Dst> dsts[TryInplace ? 2 : 1];
@@ -27,35 +90,28 @@ static void VarLenTest(const Src* src, size_t total, F&& func, R&& reff, E&& exp
             dsts[1].assign(src, src + count * N);
             func(dsts[1].data(), dsts[1].data(), count);
         }
+        bool isSuc = true;
         [[maybe_unused]] std::string_view cond = "";
         for (const auto& dst : dsts)
         {
             for (size_t i = 0; i < count; ++i)
             {
-                if constexpr (M == 1 && N == 1)
-                    EXPECT_EQ(dst[i], ref[i]) << cond << explainer(count, i, src[i], dst[i], ref[i]);
-                else if constexpr (N > M) // won't be inplace
-                {
-                    const common::span<const Dst> dstspan{ dst.data() + i * N, N };
-                    const common::span<const Dst> refspan{ ref.data() + i * N, N };
-                    EXPECT_THAT(dstspan, testing::ElementsAreArray(refspan)) << explainer(count, i, src[i], dstspan, refspan);
-                }
-                else if constexpr (M > N) // won't be inplace
-                {
-                    const common::span<const Src> srcspan{ src + i * M, M };
-                    EXPECT_EQ(dst[i], ref[i]) << explainer(count, i, srcspan, dst[i], ref[i]);
-                }
+                HexTest<Src, Dst> test(count, i);
+                if constexpr (M == 1)
+                    test.SetSrc(src[i]);
                 else
-                {
-                    const common::span<const Src> srcspan{ src + i * M, M };
-                    const common::span<const Dst> dstspan{ dst.data() + i * N, N };
-                    const common::span<const Dst> refspan{ ref.data() + i * N, N };
-                    EXPECT_THAT(dstspan, testing::ElementsAreArray(refspan)) << cond << explainer(count, i, srcspan, dstspan, refspan);
-                }
+                    test.SetSrc(common::span<const Src>{ src + i * M, M });
+                if constexpr (N == 1)
+                    test.SetOut(dst[i], ref[i]);
+                else
+                    test.SetOut(common::span<const Dst>{ dst.data() + i * N, N }, common::span<const Dst>{ ref.data() + i * N, N });
+
+                EXPECT_EQ(test.Dst, test.Ref) << test;
+                isSuc = isSuc && (test.Dst == test.Ref);
             }
             cond = "[inplace]"; // only used when > 1
         }
-        if (total <= size) break;
+        if (total <= size || !isSuc) break;
     }
 }
 
@@ -75,11 +131,6 @@ INTRIN_TEST(ColorCvt, G8ToGA8)
             *dst++ = static_cast<uint16_t>((static_cast<uint16_t>(RefAlpha) << 8) | (*src++));
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint8_t src, uint16_t dst, uint16_t ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:02x}] get[{:04x}] ref[{:04x}]"), count, idx, src, dst, ref);
     });
 }
 
@@ -99,12 +150,6 @@ INTRIN_TEST(ColorCvt, G8ToRGB8)
             *dst++ = *src++;
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint8_t src, common::span<const uint8_t> dst, common::span<const uint8_t> ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:02x}] get[{:02x} {:02x} {:02x}] ref[{:02x} {:02x} {:02x}]"), 
-            count, idx, src, dst[0], dst[1], dst[2], ref[0], ref[1], ref[2]);
     });
 }
 
@@ -125,11 +170,6 @@ INTRIN_TEST(ColorCvt, G8ToRGBA8)
             *dst++ = r | g | b | a;
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint8_t src, uint32_t dst, uint32_t ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:02x}] get[{:08x}] ref[{:08x}]"), count, idx, src, dst, ref);
     });
 }
 
@@ -151,12 +191,6 @@ INTRIN_TEST(ColorCvt, GA8ToRGB8)
             *dst++ = gray;
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint16_t src, common::span<const uint8_t> dst, common::span<const uint8_t> ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:04x}] get[{:02x} {:02x} {:02x}] ref[{:02x} {:02x} {:02x}]"), 
-            count, idx, src, dst[0], dst[1], dst[2], ref[0], ref[1], ref[2]);
     });
 }
 
@@ -177,11 +211,6 @@ INTRIN_TEST(ColorCvt, GA8ToRGBA8)
             *dst++ = r | g | b | a;
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint16_t src, uint32_t dst, uint32_t ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:04x}] get[{:08x}] ref[{:08x}]"), count, idx, src, dst, ref);
     });
 }
 
@@ -204,12 +233,6 @@ INTRIN_TEST(ColorCvt, RGB8ToRGBA8)
             *dst++ = r | g | b | a;
             count--;
         }
-    },
-    [](size_t count, size_t idx, common::span<const uint8_t> src, uint32_t dst, uint32_t ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:02x} {:02x} {:02x}] get[{:08x}] ref[{:08x}]"),
-            count, idx, src[0], src[1], src[2], dst, ref);
     });
 }
 
@@ -232,12 +255,6 @@ INTRIN_TEST(ColorCvt, BGR8ToRGBA8)
             *dst++ = r | g | b | a;
             count--;
         }
-    },
-    [](size_t count, size_t idx, common::span<const uint8_t> src, uint32_t dst, uint32_t ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:02x} {:02x} {:02x}] get[{:08x}] ref[{:08x}]"),
-            count, idx, src[0], src[1], src[2], dst, ref);
     });
 }
 
@@ -261,12 +278,6 @@ INTRIN_TEST(ColorCvt, RGBA8ToRGB8)
             *dst++ = b;
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint32_t src, common::span<const uint8_t> dst, common::span<const uint8_t> ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:08x}] get[{:02x} {:02x} {:02x}] ref[{:02x} {:02x} {:02x}]"), 
-            count, idx, src, dst[0], dst[1], dst[2], ref[0], ref[1], ref[2]);
     });
 }
 
@@ -290,12 +301,6 @@ INTRIN_TEST(ColorCvt, RGBA8ToBGR8)
             *dst++ = b;
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint32_t src, common::span<const uint8_t> dst, common::span<const uint8_t> ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:08x}] get[{:02x} {:02x} {:02x}] ref[{:02x} {:02x} {:02x}]"), 
-            count, idx, src, dst[0], dst[1], dst[2], ref[0], ref[1], ref[2]);
     });
 }
 
@@ -325,12 +330,6 @@ INTRIN_TEST(ColorCvt, RGB8ToBGR8)
             *dst++ = r;
             count--;
         }
-    },
-    [](size_t count, size_t idx, common::span<const uint8_t> src, common::span<const uint8_t> dst, common::span<const uint8_t> ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:02x} {:02x} {:02x}] get[{:02x} {:02x} {:02x}] ref[{:02x} {:02x} {:02x}]"),
-            count, idx, src[0], src[1], src[2], dst[0], dst[1], dst[2], ref[0], ref[1], ref[2]);
     });
 }
 
@@ -357,12 +356,6 @@ INTRIN_TEST(ColorCvt, RGBA8ToBGRA8)
             *dst++ = a;
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint32_t src, uint32_t dst, uint32_t ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:08x}] get[{:08x}] ref[{:08x}]"), 
-            count, idx, src, dst, ref);
     });
 }
 
@@ -386,12 +379,6 @@ void TestGetChannel4(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
             *dst++ = rgba[Ch];
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint32_t src, uint8_t dst, uint8_t ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:08x}] get[{:02x}] ref[{:02x}]"),
-            count, idx, src, dst, ref);
     });
 }
 INTRIN_TEST(ColorCvt, RGBA8ToR8)
@@ -436,12 +423,6 @@ void TestGetChannel3(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
             *dst++ = rgb[Ch];
             count--;
         }
-    },
-    [](size_t count, size_t idx, common::span<const uint8_t> src, uint8_t dst, uint8_t ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:02x} {:02x} {:02x}] get[{:02x}] ref[{:02x}]"),
-            count, idx, src[0], src[1], src[2], dst, ref);
     });
 }
 INTRIN_TEST(ColorCvt, RGB8ToR8)
@@ -484,12 +465,6 @@ void TestGetChannelA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
             dst++;
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint32_t src, uint16_t dst, uint16_t ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:08x}] get[{:04x}] ref[{:04x}]"),
-            count, idx, src, dst, ref);
     });
 }
 INTRIN_TEST(ColorCvt, RGBA8ToRA8)
@@ -508,6 +483,78 @@ INTRIN_TEST(ColorCvt, RGBA8ToBA8)
 {
     SCOPED_TRACE("ColorCvt::RGBA8ToBA8");
     TestGetChannelA<2>(Intrin);
+}
+
+
+template<typename Src, typename Dst, size_t M, size_t N, typename F>
+static void VarLenExtractTest(common::span<const std::byte> source, F&& func)
+{
+    static_assert(sizeof(Src) * M == sizeof(Dst) * N);
+    const auto src = reinterpret_cast<const Src*>(source.data());
+    const auto total = source.size() / sizeof(Src) / M;
+    for (const auto size : TestSizes)
+    {
+        const auto count = std::min(total, size);
+        std::vector<Dst> dsts[N];
+        std::array<Dst*, N> ptrs = {};
+        for (uint32_t i = 0; i < N; ++i)
+        {
+            dsts[i].resize(count * N, static_cast<Dst>(0xcc));
+            ptrs[i] = dsts[i].data();
+        }
+        func(ptrs, src, count);
+        bool isSuc = true;
+        auto ref = reinterpret_cast<const Dst*>(source.data());
+        for (size_t i = 0; i < count; ++i)
+        {
+            std::array<Dst, N> dstval = {};
+            const common::span<const Dst> refval{ ref, N };
+            ref += N;
+            for (uint32_t j = 0; j < N; ++j)
+                dstval[j] = dsts[j][i];
+
+            HexTest<Src, Dst> test(count, i);
+            if constexpr (M == 1)
+                test.SetSrc(src[i]);
+            else
+                test.SetSrc(common::span<const Src>{ src + i * M, M });
+            test.SetOut(dstval, refval);
+
+            EXPECT_EQ(test.Dst, test.Ref) << test;
+            isSuc = isSuc && (test.Dst == test.Ref);
+        }
+        if (total <= size || !isSuc) break;
+    }
+}
+
+INTRIN_TEST(ColorCvt, Extract8x2)
+{
+    SCOPED_TRACE("ColorCvt::Extract8x2");
+    const auto src = GetRandVals();
+    VarLenExtractTest<uint16_t, uint8_t, 1, 2>(src, [&](const std::array<uint8_t*, 2>& dsts, const uint16_t* src, size_t count)
+    {
+        Intrin->RAToPlanar(dsts, src, count);
+    });
+}
+
+INTRIN_TEST(ColorCvt, Extract8x3)
+{
+    SCOPED_TRACE("ColorCvt::Extract8x3");
+    const auto src = GetRandVals();
+    VarLenExtractTest<uint8_t, uint8_t, 3, 3>(src, [&](const std::array<uint8_t*, 3>& dsts, const uint8_t* src, size_t count)
+    {
+        Intrin->RGBToPlanar(dsts, src, count);
+    });
+}
+
+INTRIN_TEST(ColorCvt, Extract8x4)
+{
+    SCOPED_TRACE("ColorCvt::Extract8x4");
+    const auto src = GetRandVals();
+    VarLenExtractTest<uint32_t, uint8_t, 1, 4>(src, [&](const std::array<uint8_t*, 4>& dsts, const uint32_t* src, size_t count)
+    {
+        Intrin->RGBAToPlanar(dsts, src, count);
+    });
 }
 
 template<bool isRGB>
@@ -531,12 +578,6 @@ void Test555ToRGB(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
             *dst++ = isRGB ? b : r;
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint16_t src, common::span<const uint8_t> dst, common::span<const uint8_t> ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:04x}] get[{:02x} {:02x} {:02x}] ref[{:02x} {:02x} {:02x}]"),
-            count, idx, src, dst[0], dst[1], dst[2], ref[0], ref[1], ref[2]);
     });
 }
 
@@ -576,12 +617,6 @@ void Test555ToRGBA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
             else *dst++ = 0xff;
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint16_t src, uint32_t dst, uint32_t ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:04x}] get[{:08x}] ref[{:08x}]"),
-            count, idx, src, dst, ref);
     });
 }
 
@@ -631,12 +666,6 @@ void Test565ToRGB(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
             *dst++ = isRGB ? b : r;
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint16_t src, common::span<const uint8_t> dst, common::span<const uint8_t> ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:04x}] get[{:02x} {:02x} {:02x}] ref[{:02x} {:02x} {:02x}]"),
-            count, idx, src, dst[0], dst[1], dst[2], ref[0], ref[1], ref[2]);
     });
 }
 
@@ -675,12 +704,6 @@ void Test565ToRGBA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
             *dst++ = 0xff;
             count--;
         }
-    },
-    [](size_t count, size_t idx, uint16_t src, uint32_t dst, uint32_t ref)
-    {
-        common::str::Formatter<char> fmter{};
-        return fmter.FormatStatic(FmtString("when test on [{}] elements, idx[{}] src[{:04x}] get[{:08x}] ref[{:08x}]"),
-            count, idx, src, dst, ref);
     });
 }
 
@@ -859,6 +882,24 @@ TEST(IntrinPerf, RGBAGetChannelAlpha)
         dst.data(), src.data(), Size, uint8_t(1));
     PerfTester::DoFastPath(&ColorConvertor::RGBAGetChannelAlpha, "RGBA8ToBA8", Size, 150,
         dst.data(), src.data(), Size, uint8_t(2));
+}
+
+TEST(IntrinPerf, Extract8)
+{
+    using xziar::img::ColorConvertor;
+    constexpr uint32_t Size = 1024 * 1024;
+    std::vector<uint32_t> src(Size);
+    std::vector<uint8_t> dsts[4];
+    for (auto& dst : dsts)
+        dst.resize(Size);
+    uint8_t* const ptrs[4] = {dsts[0].data(), dsts[1].data(), dsts[2].data(), dsts[3].data()};
+
+    PerfTester::DoFastPath(&ColorConvertor::RAToPlanar, "Extract8x2", Size, 150,
+        common::span<uint8_t* const, 2>{ ptrs, 2}, reinterpret_cast<const uint16_t*>(src.data()), Size);
+    PerfTester::DoFastPath(&ColorConvertor::RGBToPlanar, "Extract8x3", Size, 150,
+        common::span<uint8_t* const, 3>{ ptrs, 3}, reinterpret_cast<const uint8_t*>(src.data()), Size);
+    PerfTester::DoFastPath(&ColorConvertor::RGBAToPlanar, "Extract8x4", Size, 150,
+        common::span<uint8_t* const, 4>{ ptrs, 4}, reinterpret_cast<const uint32_t*>(src.data()), Size);
 }
 
 TEST(IntrinPerf, RGB555ToRGBA)
