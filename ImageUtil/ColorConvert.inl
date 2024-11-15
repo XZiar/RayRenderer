@@ -1341,21 +1341,6 @@ template<bool IsRGB, bool Is555>
 struct RGBxxxToRGB8_128
 {
     static constexpr size_t M = 16, N = 48, K = 16;
-    static constexpr auto Masks565 = []()
-    {
-        std::array<uint8_t, 16 * 3> ret = {};
-        for (uint32_t i = 0, j = 0; i < 16; ++i)
-        {
-            ret[j++] = 0xf8u;
-            ret[j++] = 0xfcu;
-            ret[j++] = 0xf8u;
-        }
-        return ret;
-    }();
-    static inline const U8x16 Mask565_0 = U8x16(Masks565.data());
-    static inline const U8x16 Mask565_1 = U8x16(Masks565.data() + 16);
-    static inline const U8x16 Mask565_2 = U8x16(Masks565.data() + 32);
-
     forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
     {
         //const auto val = *src;
@@ -1417,11 +1402,24 @@ struct RGBxxxToRGB8_128
         }
         else
         {
-            out0 = val0RGB.And(Mask565_0);
-            out1 = val1RGB.And(Mask565_1);
-            out2 = val2RGB.And(Mask565_2);
+            alignas(U8x16) static constexpr auto Masks565 = []()
+            {
+                std::array<uint8_t, 16 * 3> ret = {};
+                for (uint32_t i = 0, j = 0; i < 16; ++i)
+                {
+                    ret[j++] = 0xf8u;
+                    ret[j++] = 0xfcu;
+                    ret[j++] = 0xf8u;
+                }
+                return ret;
+            }();
+            const auto mask565_0 = *reinterpret_cast<const U8x16*>(Masks565.data());
+            const auto mask565_1 = *reinterpret_cast<const U8x16*>(Masks565.data() + 16);
+            const auto mask565_2 = *reinterpret_cast<const U8x16*>(Masks565.data() + 32);
+            out0 = val0RGB.And(mask565_0);
+            out1 = val1RGB.And(mask565_1);
+            out2 = val2RGB.And(mask565_2);
         }
-
         out0.Save(dst + 0);
         out1.Save(dst + 16);
         out2.Save(dst + 32);
@@ -2842,6 +2840,76 @@ struct Extract8x4_256
         out3.Save(dst[3]);
     }
 };
+template<bool IsRGB, bool Is555>
+struct RGBxxxToRGB8_256
+{
+    static constexpr size_t M = 32, N = 96, K = 32;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const U16x16 dat0(src);
+        const U16x16 dat1(src + 16);
+
+        constexpr uint8_t ShiftComp2ToLo = (Is555 ? 5 : 6) + 5 + 5 - 8;
+        constexpr uint8_t ShiftComp2ToHi = 16 - ((Is555 ? 5 : 6) + 5 + 5);
+        constexpr uint8_t ShiftGToLo = (Is555 ? 5 : 6) + 5 - 8;
+        constexpr uint8_t ShiftGToHi = 16 - ((Is555 ? 5 : 6) + 5);
+        const U16x16 val01R = IsRGB ? dat0.ShiftLeftLogic<8 - 5>() : dat0.ShiftRightLogic<ShiftComp2ToLo>(); // R_
+        const U16x16 val01B = IsRGB ? dat0.ShiftLeftLogic<ShiftComp2ToHi>() : dat0.ShiftLeftLogic<16 - 5>(); // _B
+        const U16x16 val01G = dat0.ShiftRightLogic<ShiftGToLo>(); // G_ : 01234567 | 89abcdef 
+        const U16x16 val23R = IsRGB ? dat1.ShiftLeftLogic<8 - 5>() : dat1.ShiftRightLogic<ShiftComp2ToLo>(); // R_
+        const U16x16 val23B = IsRGB ? dat1.ShiftLeftLogic<ShiftComp2ToHi>() : dat1.ShiftLeftLogic<16 - 5>(); // _B
+        const U16x16 val23G = dat1.ShiftLeftLogic <ShiftGToHi>(); // _G : ghijklmn | opqrstuv
+
+        const auto mid01RB = val01R.As<U8x32>().SelectWith<0xaaaaaaaau>(val01B.As<U8x32>()); // 01234567 | 89abcdef 
+        const auto mid23RB = val23R.As<U8x32>().SelectWith<0xaaaaaaaau>(val23B.As<U8x32>()); // ghijklmn | opqrstuv
+        const auto mid0123G = val01G.As<U8x32>().SelectWith<0xaaaaaaaau>(val23G.As<U8x32>()); // 0g1h2i3j4k5l6m7n | 8o9paqbrcsdteufv
+
+        const U8x32 maskRB(static_cast<uint8_t>(0xf8u));
+        const auto maskG = Is555 ? maskRB : U8x32(static_cast<uint8_t>(0xfcu));
+        const auto val01RB = mid01RB.And(maskRB);
+        const auto val23RB = mid23RB.And(maskRB);
+        const auto val0123G = mid0123G.And(maskG);
+
+        const auto valm01RB = val01RB.As<U64x4>().Shuffle<1, 2, 1, 2>(); // 456789ab
+        const auto valm23RB = val23RB.As<U64x4>().Shuffle<1, 2, 1, 2>(); // klmnopqr
+        const U16x16 valm0123RB = valm01RB.SelectWith<0b1100>(valm23RB).As<U16x16>(); // 456789ab | klmnopqr
+        const auto valm0123G = val0123G.As<U64x4>().Shuffle<1, 2, 1, 2>(); // 4k5l6m7n8o9paqbr
+
+        const auto shuffleR_BMask0 = _mm256_setr_epi8(
+            0, -1,  1,  2, -1,  3,  4, -1,  5,  6, -1,  7,  8, -1,  9, 10,
+            5,  6, -1,  7,  8, -1,  9, 10, -1, 11, 12, -1, 13, 14, -1, 15);
+        const U8x32 valR_B0 = _mm256_shuffle_epi8(val01RB, shuffleR_BMask0); // 0.01.12.23.34.45 | ab.bc.cd.de.ef.f
+        const auto shuffle_G_Mask0 = _mm256_setr_epi8(
+            -1,  0, -1, -1,  2, -1, -1,  4, -1, -1,  6, -1, -1,  8, -1, -1,
+            -1, -1,  6, -1, -1,  8, -1, -1, 10, -1, -1, 12, -1, -1, 14, -1);
+        const U8x32 val_G_0 = _mm256_shuffle_epi8(val0123G, shuffle_G_Mask0); // .0..1..2..3..4.. | ..b..c..d..e..f.
+        const auto valRGB02 = valR_B0.Or(val_G_0);
+
+        const U8x32 valR_B2 = _mm256_shuffle_epi8(val23RB, shuffleR_BMask0); // g.gh.hi.ij.jk.kl | qr.rs.st.tu.uv.v
+        const auto shuffle_G_Mask2 = _mm256_setr_epi8(
+            -1,  1, -1, -1,  3, -1, -1,  5, -1, -1,  7, -1, -1,  9, -1, -1,
+            -1, -1,  7, -1, -1,  9, -1, -1, 11, -1, -1, 13, -1, -1, 15, -1);
+        const U8x32 val_G_2 = _mm256_shuffle_epi8(val0123G, shuffle_G_Mask2); // .g..h..i..j..k.. | ..r..s..t..u..v.
+        const auto valRGB35 = valR_B2.Or(val_G_2);
+        
+        const auto shuffleR_BMask1 = _mm256_setr_epi8(
+            -1,  3,  4, -1,  5,  6, -1,  7,  8, -1,  9, 10, -1, 11, 12, -1,
+            -1,  3,  4, -1,  5,  6, -1,  7,  8, -1,  9, 10, -1, 11, 12, -1);
+        const U8x32 valR_B1 = _mm256_shuffle_epi8(valm0123RB, shuffleR_BMask1); // .56.67.78.89.9a. | .lm.mn.no.op.pq.
+        const auto shuffle_G_Mask1 = _mm256_setr_epi8(
+            2, -1, -1,  4, -1, -1,  6, -1, -1,  8, -1, -1, 10, -1, -1, 12,
+            3, -1, -1,  5, -1, -1,  7, -1, -1,  9, -1, -1, 11, -1, -1, 13);
+        const U8x32 val_G_1 = _mm256_shuffle_epi8(valm0123G, shuffle_G_Mask1); // 5..6..7..8..9..a | l..m..n..o..p..q
+        const auto valRGB14 = valR_B1.Or(val_G_1);
+
+        const auto out0 = valRGB02.PermuteLane<0, 2>(valRGB14);
+        const auto out1 = valRGB02.PermuteLane<1, 2>(valRGB35);
+        const auto out2 = valRGB14.PermuteLane<1, 3>(valRGB35);
+        out0.Save(dst);
+        out1.Save(dst + 32);
+        out2.Save(dst + 64);
+    }
+};
 template<bool IsRGB, bool TakeAlpha>
 struct RGB555ToRGBA8_256
 {
@@ -3076,6 +3144,15 @@ DEFINE_FASTPATH_METHOD(Extract8x4, AVX2)
 {
     ExtractLOOP4<4, Extract8x4_256, &Func<SSSE3>>(dest, src, count);
 }
+template<bool IsRGB> using RGB555ToRGB8_256 = RGBxxxToRGB8_256<IsRGB, true>;
+DEFINE_FASTPATH_METHOD(RGB555ToRGB8, AVX2)
+{
+    ProcessLOOP4<RGB555ToRGB8_256<true>, &Func<SIMD128>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(BGR555ToRGB8, AVX2)
+{
+    ProcessLOOP4<RGB555ToRGB8_256<false>, &Func<SIMD128>>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(RGB555ToRGBA8, AVX2)
 {
     ProcessLOOP4<RGB555ToRGBA8_256<true, false>, &Func<SIMD128>>(dest, src, count);
@@ -3107,6 +3184,15 @@ DEFINE_FASTPATH_METHOD(RGB5551ToRGBA8, AVX22)
 DEFINE_FASTPATH_METHOD(BGR5551ToRGBA8, AVX22)
 {
     ProcessLOOP4<RGB555ToRGBA8_256_2<false, true>, &Func<SIMD128>>(dest, src, count);
+}
+template<bool IsRGB> using RGB565ToRGB8_256 = RGBxxxToRGB8_256<IsRGB, false>;
+DEFINE_FASTPATH_METHOD(RGB565ToRGB8, AVX2)
+{
+    ProcessLOOP4<RGB565ToRGB8_256<true>, &Func<SIMD128>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(BGR565ToRGB8, AVX2)
+{
+    ProcessLOOP4<RGB565ToRGB8_256<false>, &Func<SIMD128>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(RGB565ToRGBA8, AVX2)
 {
@@ -3428,19 +3514,19 @@ DEFINE_FASTPATH_METHOD(Extract8x4, AVX512BW2)
 }
 DEFINE_FASTPATH_METHOD(RGB555ToRGB8, AVX512BW)
 {
-    ProcessLOOP4<RGB555ToRGB8_128<true>, &Func<LOOP>>(dest, src, count);
+    ProcessLOOP4<RGB555ToRGB8_256<true>, &Func<LOOP>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(BGR555ToRGB8, AVX512BW)
 {
-    ProcessLOOP4<RGB555ToRGB8_128<false>, &Func<LOOP>>(dest, src, count);
+    ProcessLOOP4<RGB555ToRGB8_256<false>, &Func<LOOP>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(RGB565ToRGB8, AVX512BW)
 {
-    ProcessLOOP4<RGB565ToRGB8_128<true>, &Func<LOOP>>(dest, src, count);
+    ProcessLOOP4<RGB565ToRGB8_256<true>, &Func<LOOP>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(BGR565ToRGB8, AVX512BW)
 {
-    ProcessLOOP4<RGB565ToRGB8_128<false>, &Func<LOOP>>(dest, src, count);
+    ProcessLOOP4<RGB565ToRGB8_256<false>, &Func<LOOP>>(dest, src, count);
 }
 #endif
 
@@ -3777,6 +3863,85 @@ struct Extract8x4_512VBMI
         out3.Save(dst[3]);
     }
 };
+template<bool IsRGB, bool Is555>
+struct RGBxxxToRGB8_512VBMI
+{
+    static constexpr size_t M = 64, N = 192, K = 64;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi16(src);
+        const auto dat1 = _mm512_loadu_epi16(src + 32);
+
+        constexpr uint8_t ShiftComp2ToLo = (Is555 ? 5 : 6) + 5 + 5 - 8;
+        constexpr uint8_t ShiftGToLo = (Is555 ? 5 : 6) + 5 - 8;
+        const auto val0R = IsRGB ? _mm512_slli_epi16(dat0, 3) : _mm512_srli_epi16(dat0, ShiftComp2ToLo); // R_
+        const auto val0B = IsRGB ? (Is555 ? _mm512_slli_epi16(dat0, 1) : dat0) : _mm512_slli_epi16(dat0, 11); // _B
+        const auto val0G = _mm512_srli_epi16(dat0, ShiftGToLo); // G_
+        const auto val1R = IsRGB ? _mm512_slli_epi16(dat1, 3) : _mm512_srli_epi16(dat1, ShiftComp2ToLo); // R_
+        const auto val1B = IsRGB ? (Is555 ? _mm512_slli_epi16(dat1, 1) : dat1) : _mm512_slli_epi16(dat1, 11); // _B
+        const auto val1G = _mm512_srli_epi16(dat1, ShiftGToLo); // G_
+
+        constexpr uint64_t MaskInsB = 0xaaaaaaaaaaaaaaaau;
+        const auto maskInsertB = _cvtu64_mask64(MaskInsB);
+        const auto val0RB = _mm512_mask_blend_epi8(maskInsertB, val0R, val0B);
+        const auto val1RB = _mm512_mask_blend_epi8(maskInsertB, val1R, val1B);
+        const auto val01RB = _mm512_mask_blend_epi64(0b00001111, val0RB, val1RB);
+        const auto val01G  = _mm512_mask_blend_epi64(0b00001111, val0G,  val1G);
+        
+        const auto shuffle0Mask = _mm512_set_epi8(
+             42,  41, 104,  40,  39, 102,  38,  37, 100,  36,  35,  98,  34,  33,  96,  32,
+             31,  94,  30,  29,  92,  28,  27,  90,  26,  25,  88,  24,  23,  86,  22,  21,
+             84,  20,  19,  82,  18,  17,  80,  16,  15,  78,  14,  13,  76,  12,  11,  74,
+             10,   9,  72,   8,   7,  70,   6,   5,  68,   4,   3,  66,   2,   1,  64,   0);
+        const auto valRGB0 = _mm512_permutex2var_epi8(val0RB, shuffle0Mask, val0G);
+
+        const auto shuffle1Mask = _mm512_set_epi8(
+             84,  20,  19,  82,  18,  17,  80,  16,  15,  78,  14,  13,  76,  12,  11,  74,
+             10,   9,  72,   8,   7,  70,   6,   5,  68,   4,   3,  66,   2,   1,  64,   0,
+             63, 126,  62,  61, 124,  60,  59, 122,  58,  57, 120,  56,  55, 118,  54,  53,
+            116,  52,  51, 114,  50,  49, 112,  48,  47, 110,  46,  45, 108,  44,  43, 106);
+        const auto valRGB1 = _mm512_permutex2var_epi8(val01RB, shuffle1Mask, val01G);
+
+        const auto shuffle2Mask = _mm512_set_epi8(
+             63, 126,  62,  61, 124,  60,  59, 122,  58,  57, 120,  56,  55, 118,  54,  53,
+            116,  52,  51, 114,  50,  49, 112,  48,  47, 110,  46,  45, 108,  44,  43, 106,
+             42,  41, 104,  40,  39, 102,  38,  37, 100,  36,  35,  98,  34,  33,  96,  32,
+             31,  94,  30,  29,  92,  28,  27,  90,  26,  25,  88,  24,  23,  86,  22,  21);
+        const auto valRGB2 = _mm512_permutex2var_epi8(val1RB, shuffle2Mask, val1G);
+
+        __m512i out0, out1, out2;
+        if constexpr (Is555)
+        {
+            const auto keepMask = _mm512_set1_epi8(static_cast<int8_t>(0xf8u));
+            out0 = _mm512_and_si512(valRGB0, keepMask);
+            out1 = _mm512_and_si512(valRGB1, keepMask);
+            out2 = _mm512_and_si512(valRGB2, keepMask);
+        }
+        else
+        {
+            alignas(__m512i) static constexpr auto Masks565 = []()
+            {
+                std::array<uint8_t, 64 * 3> ret = {};
+                for (uint32_t i = 0, j = 0; i < 64; ++i)
+                {
+                    ret[j++] = 0xf8u;
+                    ret[j++] = 0xfcu;
+                    ret[j++] = 0xf8u;
+                }
+                return ret;
+            }();
+            const auto keepMask0 = _mm512_loadu_si512(Masks565.data());
+            const auto keepMask1 = _mm512_loadu_si512(Masks565.data() + 64);
+            const auto keepMask2 = _mm512_loadu_si512(Masks565.data() + 128);
+            out0 = _mm512_and_si512(valRGB0, keepMask0);
+            out1 = _mm512_and_si512(valRGB1, keepMask1);
+            out2 = _mm512_and_si512(valRGB2, keepMask2);
+        }
+        _mm512_storeu_epi8(dst, out0);
+        _mm512_storeu_epi8(dst + 64, out1);
+        _mm512_storeu_epi8(dst + 128, out2);
+    }
+};
 DEFINE_FASTPATH_METHOD(G8ToRGB8, AVX512VBMI)
 {
     ProcessLOOP4<G2RGB_512VBMI, &Func<AVX2>>(dest, src, count);
@@ -3844,6 +4009,24 @@ DEFINE_FASTPATH_METHOD(Extract8x3, AVX512VBMI)
 DEFINE_FASTPATH_METHOD(Extract8x4, AVX512VBMI)
 {
     ExtractLOOP4<4, Extract8x4_512VBMI, &Func<AVX2>>(dest, src, count);
+}
+template<bool IsRGB> using RGB555ToRGB8_512VBMI = RGBxxxToRGB8_512VBMI<IsRGB, true>;
+DEFINE_FASTPATH_METHOD(RGB555ToRGB8, AVX512VBMI)
+{
+    ProcessLOOP4<RGB555ToRGB8_512VBMI<true>, &Func<AVX512BW>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(BGR555ToRGB8, AVX512VBMI)
+{
+    ProcessLOOP4<RGB555ToRGB8_512VBMI<false>, &Func<AVX512BW>>(dest, src, count);
+}
+template<bool IsRGB> using RGB565ToRGB8_512VBMI = RGBxxxToRGB8_512VBMI<IsRGB, false>;
+DEFINE_FASTPATH_METHOD(RGB565ToRGB8, AVX512VBMI)
+{
+    ProcessLOOP4<RGB565ToRGB8_512VBMI<true>, &Func<AVX512BW>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(BGR565ToRGB8, AVX512VBMI)
+{
+    ProcessLOOP4<RGB565ToRGB8_512VBMI<false>, &Func<AVX512BW>>(dest, src, count);
 }
 #endif
 

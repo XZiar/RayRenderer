@@ -349,9 +349,25 @@ public:
         return _mm256_srlv_epi64(this->Data, bits.Data);
     }
     template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic()  const noexcept { return _mm256_slli_epi64(this->Data, N); }
+    forceinline T VECCALL ShiftLeftLogic() const noexcept
+    {
+        if constexpr (N >= 64)
+            return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
+        else
+            return _mm256_slli_epi64(this->Data, N);
+    }
     template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const noexcept { return _mm256_srli_epi64(this->Data, N); }
+    forceinline T VECCALL ShiftRightLogic() const noexcept
+    {
+        if constexpr (N >= 64)
+            return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
+        else
+            return _mm256_srli_epi64(this->Data, N);
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightArith() const noexcept
     {
@@ -486,9 +502,25 @@ public:
         return _mm256_srlv_epi32(this->Data, bits.Data);
     }
     template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic () const noexcept { return _mm256_slli_epi32(this->Data, N); }
+    forceinline T VECCALL ShiftLeftLogic() const noexcept
+    {
+        if constexpr (N >= 32)
+            return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
+        else
+            return _mm256_slli_epi32(this->Data, N);
+    }
     template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const noexcept { return _mm256_srli_epi32(this->Data, N); }
+    forceinline T VECCALL ShiftRightLogic() const noexcept
+    {
+        if constexpr (N >= 32)
+            return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
+        else
+            return _mm256_srli_epi32(this->Data, N);
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightArith() const noexcept
     { 
@@ -612,9 +644,13 @@ public:
         }
         else
         {
+# if COMMON_SIMD_LV >= 320
+            return _mm256_mask_blend_epi16(Mask, this->Data, other.Data);
+# else
             const auto lo = _mm_blend_epi16(_mm256_castsi256_si128(this->Data), _mm256_castsi256_si128(other), static_cast<uint8_t>(Mask));
             const auto hi = _mm256_blend_epi16(this->Data, other, static_cast<uint8_t>(Mask >> 8));
             return _mm256_insertf128_si256(hi, lo, 0);
+#endif
         }
     }
     
@@ -663,9 +699,25 @@ public:
 # endif
     }
     template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic () const noexcept { return _mm256_slli_epi16(this->Data, N); }
+    forceinline T VECCALL ShiftLeftLogic() const noexcept
+    {
+        if constexpr (N >= 16)
+            return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
+        else
+            return _mm256_slli_epi16(this->Data, N);
+    }
     template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const noexcept { return _mm256_srli_epi16(this->Data, N); }
+    forceinline T VECCALL ShiftRightLogic() const noexcept
+    {
+        if constexpr (N >= 16)
+            return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
+        else
+            return _mm256_srli_epi16(this->Data, N);
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightArith() const noexcept
     {
@@ -819,7 +871,7 @@ public:
             const auto maskHi = _mm_insert_epi64(_mm_loadu_si64(&::common::simd::detail::FullMask64[(Mask >> 16) & 0xff]), static_cast<int64_t>(::common::simd::detail::FullMask64[(Mask >> 24) & 0xff]), 1);
             return _mm256_blendv_epi8(this->Data, other.Data, _mm256_set_m128i(maskHi, maskLo));
 #   else
-            constexpr uint64_t mask[4] =
+            alignas(__m256i) static constexpr uint64_t mask[4] =
             { 
                 ::common::simd::detail::FullMask64[Mask         & 0xff], ::common::simd::detail::FullMask64[(Mask >> 8)  & 0xff], 
                 ::common::simd::detail::FullMask64[(Mask >> 16) & 0xff], ::common::simd::detail::FullMask64[(Mask >> 24) & 0xff]
@@ -863,6 +915,8 @@ public:
     {
         if constexpr (N >= 8)
             return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
         else
         {
             const auto mask = _mm256_set1_epi8(static_cast<uint8_t>(0xff << N));
@@ -875,6 +929,8 @@ public:
     {
         if constexpr (N >= 8)
             return T::AllZero();
+        else if constexpr (N == 0)
+            return this->Data;
         else
         {
             const auto mask = _mm256_set1_epi8(static_cast<uint8_t>(0xff >> N));

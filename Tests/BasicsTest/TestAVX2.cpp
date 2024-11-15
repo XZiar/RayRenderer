@@ -72,6 +72,7 @@ RegisterSIMDBroadcastLaneTest(200, I64x4, U64x4, I32x8, U32x8, I16x16, U16x16, I
 
 RegisterSIMDSelectTest(200, I64x4, I32x8, I64x2, I32x4)
 RegisterSIMDSelectSlimTest(200, I16x16, I8x32)
+RegisterSIMDSelectRandTest(200, I16x16, I8x32)
 
 
 RegisterSIMDTest(F64x4, 200, shuftest::ShuffleTest<F64x4>);

@@ -6,6 +6,7 @@
 
 #include "3rdParty/digestpp/algorithm/sha2.hpp"
 
+#include <atomic>
 #include <bit>
 
 #define LeadZero32Info  (uint32_t)(const uint32_t num)
@@ -1004,6 +1005,7 @@ forceinline static void VECCALL Sha256Block256(Calc& calc, U32x8 msg01, U32x8 ms
     /* Combine state  */
     calc.State0 += abef_save;
     calc.State1 += cdgh_save;
+    std::atomic_signal_fence(std::memory_order_acquire);
 }
 template<typename Calc>
 inline std::array<std::byte, 32> Sha256Main256(const std::byte* data, const size_t size) noexcept
@@ -1093,6 +1095,7 @@ struct Sha256Round_SHANIAVX2 : public Sha256Round_SHANI
 
         // below is SSE only, sha256 has no VEX form. zeroupper for new cpus.(goldencove+)
         _mm256_zeroupper();
+        std::atomic_signal_fence(std::memory_order_acquire);
 
         State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLo01);
         State0 = _mm_sha256rnds2_epu32(State0, State1, msgShufLo01);

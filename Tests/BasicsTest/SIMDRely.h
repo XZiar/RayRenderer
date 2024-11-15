@@ -54,6 +54,21 @@ static const T* GetRandPtr() noexcept
         return reinterpret_cast<const T*>(RandVals.data());
 }
 
+inline constexpr auto StaticRands = []() 
+{
+    constexpr uint64_t multiplier = 0x5DEECE66Du;
+    constexpr uint64_t addend = 0xBu;
+    constexpr uint64_t mask = (uint64_t(1) << 48) - 1;
+    uint64_t seed = 19937u;
+    std::array<uint32_t, 4096> ret = {};
+    for (auto& val : ret)
+    {
+        val = static_cast<uint32_t>(seed >> 16);
+        seed = (seed * multiplier + addend) & mask; // allow repeat
+    }
+    return ret;
+}();
+
 
 class SIMDFixture : public testing::Test
 {

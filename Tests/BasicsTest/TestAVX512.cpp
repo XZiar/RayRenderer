@@ -15,6 +15,7 @@ using namespace common;
 using namespace common::simd;
 using namespace COMMON_SIMD_NAMESPACE;
 #include "SIMDBaseTest.h"
+#include "ShuffleTest.h"
 
 
 RegisterSIMDBaseTest(I64x4,  320, SatAdd, SatSub, MulLo, Min, Max, SRA);
@@ -27,13 +28,11 @@ RegisterSIMDBaseTest(I16x16, 320, SLLV, SRLV);
 RegisterSIMDBaseTest(U16x16, 320, SLLV, SRLV);
 RegisterSIMDBaseTest(I16x8,  320, SLLV, SRLV);
 RegisterSIMDBaseTest(U16x8,  320, SLLV, SRLV);
-RegisterSIMDBaseTest(I8x32,  320, SEL);
-RegisterSIMDBaseTest(U8x32,  320, SEL);
-RegisterSIMDBaseTest(I8x16,  320, SEL);
-RegisterSIMDBaseTest(U8x16,  320, SEL);
 
 
 RegisterSIMDCastTest(U32x8,  320, F64x4, U8x32);
 RegisterSIMDCastTest(U32x4,  320, F64x2);
+
+RegisterSIMDSelectRandTest(320, I16x16, I8x32, I16x8, I8x16)
 
 }

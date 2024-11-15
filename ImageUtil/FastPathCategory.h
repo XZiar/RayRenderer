@@ -139,7 +139,17 @@ struct AVX512VBMI
 #endif
     }
 };
-
+struct AVX512VBMI_2
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("avx512f") && CheckCPUFeature("avx512bw") && CheckCPUFeature("avx512vbmi");
+#else
+        return false;
+#endif
+    }
+};
 struct AVX512VBMI2
 {
     static bool RuntimeCheck() noexcept

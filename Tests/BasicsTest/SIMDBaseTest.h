@@ -571,34 +571,106 @@ static void TestRnd(const T*)
     EXPECT_THAT(out[3], testing::ElementsAreArray(ToNInf)) << "when testing Round-ToNegInf";
 }
 
+template<typename T, uint8_t... Vals>
+auto DoSLL(const T& data, std::integer_sequence<uint8_t, Vals...>) noexcept
+{
+    std::array<T, sizeof...(Vals)> ret = { data.template ShiftLeftLogic<Vals>()...};
+    return ret;
+}
 template<typename T>
 static void TestSLL(const T* ptr)
 {
     using U = typename T::EleType;
-    constexpr uint8_t S = sizeof(U);
+    constexpr uint8_t C = sizeof(U) * 8;
     ForKItem(1)
     {
-        constexpr uint8_t Bits[] = { 0, S * 2, S * 3, S * 4, S * 5, S * 6, S * 8 };
         const auto data = ptr[k + 0];
-        const T output0[] = 
-        { 
-            data.template ShiftLeftLogic<Bits[0]>(), data.template ShiftLeftLogic<Bits[1]>(),
-            data.template ShiftLeftLogic<Bits[2]>(), data.template ShiftLeftLogic<Bits[3]>(),
-            data.template ShiftLeftLogic<Bits[4]>(), data.template ShiftLeftLogic<Bits[5]>(),
-            data.template ShiftLeftLogic<Bits[6]>(),
-        };
-        const T output1[] = { data.ShiftLeftLogic(Bits[0]), data.ShiftLeftLogic(Bits[1]), data.ShiftLeftLogic(Bits[2]), 
-            data.ShiftLeftLogic(Bits[3]), data.ShiftLeftLogic(Bits[4]), data.ShiftLeftLogic(Bits[5]), data.ShiftLeftLogic(Bits[6]) };
-        for (uint8_t j = 0; j < 6; ++j)
+        const auto output0 = DoSLL(data, std::make_integer_sequence<uint8_t, C + 1>{});
+        std::array<T, C + 1> output1;
+        for (uint8_t j = 0; j <= C; ++j)
+            output1[j] = data.ShiftLeftLogic(j);
+        for (uint8_t j = 0; j < C; ++j)
         {
             U ref[T::Count] = { 0 };
             for (uint8_t i = 0; i < T::Count; ++i)
-                ref[i] = static_cast<U>(data.Val[i] << Bits[j]);
-            EXPECT_THAT(output0[j].Val, testing::ElementsAreArray(ref)) << "when shift-left [" << (int)Bits[j] << "] bits";
-            EXPECT_THAT(output1[j].Val, testing::ElementsAreArray(ref)) << "when shift-left [" << (int)Bits[j] << "] bits";
+                ref[i] = static_cast<U>(data.Val[i] << j);
+            EXPECT_THAT(output0[j].Val, testing::ElementsAreArray(ref)) << "when shift-left [" << (int)j << "] bits";
+            EXPECT_THAT(output1[j].Val, testing::ElementsAreArray(ref)) << "when shift-left [" << (int)j << "] bits";
         }
-        EXPECT_THAT(output0[6].Val, testing::Each(U(0))) << "when shift-left [" << (int)Bits[6] << "] bits";
-        EXPECT_THAT(output1[6].Val, testing::Each(U(0))) << "when shift-left [" << (int)Bits[6] << "] bits";
+        EXPECT_THAT(output0.back().Val, testing::Each(U(0))) << "when shift-left [" << (int)C << "] bits";
+        EXPECT_THAT(output1.back().Val, testing::Each(U(0))) << "when shift-left [" << (int)C << "] bits";
+    }
+}
+template<typename T, uint8_t... Vals>
+auto DoSRL(const T& data, std::integer_sequence<uint8_t, Vals...>) noexcept
+{
+    std::array<T, sizeof...(Vals)> ret = { data.template ShiftRightLogic<Vals>()... };
+    return ret;
+}
+template<typename T>
+static void TestSRL(const T* ptr)
+{
+    using U = typename T::EleType;
+    using V = std::make_unsigned_t<U>;
+    constexpr uint8_t C = sizeof(U) * 8;
+    ForKItem(1)
+    {
+        const auto data = ptr[k + 0];
+        const auto output0 = DoSRL(data, std::make_integer_sequence<uint8_t, C + 1>{});
+        std::array<T, C + 1> output1;
+        for (uint8_t j = 0; j <= C; ++j)
+            output1[j] = data.ShiftRightLogic(j);
+        for (uint8_t j = 0; j < C; ++j)
+        {
+            U ref[T::Count] = { 0 };
+            for (uint8_t i = 0; i < T::Count; ++i)
+                ref[i] = static_cast<U>(static_cast<V>(data.Val[i]) >> j);
+            EXPECT_THAT(output0[j].Val, testing::ElementsAreArray(ref)) << "when shift-right-logic [" << (int)j << "] bits";
+            EXPECT_THAT(output1[j].Val, testing::ElementsAreArray(ref)) << "when shift-right-logic [" << (int)j << "] bits";
+        }
+        EXPECT_THAT(output0.back().Val, testing::Each(U(0))) << "when shift-right-logic [" << (int)C << "] bits";
+        EXPECT_THAT(output1.back().Val, testing::Each(U(0))) << "when shift-right-logic [" << (int)C << "] bits";
+    }
+}
+template<typename T, uint8_t... Vals>
+auto DoSRA(const T& data, std::integer_sequence<uint8_t, Vals...>) noexcept
+{
+    std::array<T, sizeof...(Vals)> ret = { data.template ShiftRightArith<Vals>()... };
+    return ret;
+}
+template<typename T>
+static void TestSRA(const T* ptr)
+{
+    using U = typename T::EleType;
+    constexpr uint8_t C = sizeof(U) * 8;
+    ForKItem(1)
+    {
+        const auto data = ptr[k + 0];
+        const auto output0 = DoSRA(data, std::make_integer_sequence<uint8_t, C + 1>{});
+        std::array<T, C + 1> output1;
+        for (uint8_t j = 0; j <= C; ++j)
+            output1[j] = data.ShiftRightArith(j);
+        for (uint8_t j = 0; j < C; ++j)
+        {
+            U ref[T::Count] = { 0 };
+            for (uint8_t i = 0; i < T::Count; ++i)
+                ref[i] = static_cast<U>(data.Val[i] >> j);
+            EXPECT_THAT(output0[j].Val, testing::ElementsAreArray(ref)) << "when shift-right-arith [" << (int)j << "] bits";
+            EXPECT_THAT(output1[j].Val, testing::ElementsAreArray(ref)) << "when shift-right-arith [" << (int)j << "] bits";
+        }
+        if constexpr (std::is_unsigned_v<U>)
+        {
+            EXPECT_THAT(output0.back().Val, testing::Each(U(0))) << "when shift-right-arith [" << (int)C << "] bits";
+            EXPECT_THAT(output1.back().Val, testing::Each(U(0))) << "when shift-right-arith [" << (int)C << "] bits";
+        }
+        else
+        {
+            U ref[T::Count] = { 0 };
+            for (uint8_t i = 0; i < T::Count; ++i)
+                ref[i] = static_cast<U>(data.Val[i] >= 0 ? 0ull : UINT64_MAX);
+            EXPECT_THAT(output0.back().Val, testing::ElementsAreArray(ref)) << "when shift-right-arith [" << (int)C << "] bits";
+            EXPECT_THAT(output1.back().Val, testing::ElementsAreArray(ref)) << "when shift-right-arith [" << (int)C << "] bits";
+        }
     }
 }
 template<typename T>
@@ -673,78 +745,6 @@ static void TestSRLV(const T* ptr)
             T shifts(shiftsRef);
             const auto output = data.ShiftRightLogic(shifts);
             EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when shift-right-var [" << shifttxt << "] bits";
-        }
-    }
-}
-template<typename T>
-static void TestSRL(const T* ptr)
-{
-    using U = typename T::EleType;
-    using V = std::make_unsigned_t<U>;
-    constexpr uint8_t S = sizeof(U);
-    ForKItem(1)
-    {
-        constexpr uint8_t Bits[] = { 0, S * 2, S * 3, S * 4, S * 5, S * 6, S * 8 };
-        const auto data = ptr[k + 0];
-        const T output0[] = 
-        {
-            data.template ShiftRightLogic<Bits[0]>(), data.template ShiftRightLogic<Bits[1]>(),
-            data.template ShiftRightLogic<Bits[2]>(), data.template ShiftRightLogic<Bits[3]>(),
-            data.template ShiftRightLogic<Bits[4]>(), data.template ShiftRightLogic<Bits[5]>(),
-            data.template ShiftRightLogic<Bits[6]>(),
-        };
-        const T output1[] = { data.ShiftRightLogic(Bits[0]), data.ShiftRightLogic(Bits[1]), data.ShiftRightLogic(Bits[2]),
-            data.ShiftRightLogic(Bits[3]), data.ShiftRightLogic(Bits[4]), data.ShiftRightLogic(Bits[5]), data.ShiftRightLogic(Bits[6]) };
-        for (uint8_t j = 0; j < 6; ++j)
-        {
-            U ref[T::Count] = { 0 };
-            for (uint8_t i = 0; i < T::Count; ++i)
-                ref[i] = static_cast<U>(static_cast<V>(data.Val[i]) >> Bits[j]);
-            EXPECT_THAT(output0[j].Val, testing::ElementsAreArray(ref)) << "when shift-right-logic [" << (int)Bits[j] << "] bits";
-            EXPECT_THAT(output1[j].Val, testing::ElementsAreArray(ref)) << "when shift-right-logic [" << (int)Bits[j] << "] bits";
-        }
-        EXPECT_THAT(output0[6].Val, testing::Each(U(0))) << "when shift-right-logic [" << (int)Bits[6] << "] bits";
-        EXPECT_THAT(output1[6].Val, testing::Each(U(0))) << "when shift-right-logic [" << (int)Bits[6] << "] bits";
-    }
-}
-template<typename T>
-static void TestSRA(const T* ptr)
-{
-    using U = typename T::EleType;
-    constexpr uint8_t S = sizeof(U);
-    ForKItem(1)
-    {
-        constexpr uint8_t Bits[] = { 0, S * 2, S * 3, S * 4, S * 5, S * 6, S * 8 };
-        const auto data = ptr[k + 0];
-        const T output0[] =
-        {
-            data.template ShiftRightArith<Bits[0]>(), data.template ShiftRightArith<Bits[1]>(),
-            data.template ShiftRightArith<Bits[2]>(), data.template ShiftRightArith<Bits[3]>(),
-            data.template ShiftRightArith<Bits[4]>(), data.template ShiftRightArith<Bits[5]>(),
-            data.template ShiftRightArith<Bits[6]>(),
-        };
-        const T output1[] = { data.ShiftRightArith(Bits[0]), data.ShiftRightArith(Bits[1]), data.ShiftRightArith(Bits[2]),
-            data.ShiftRightArith(Bits[3]), data.ShiftRightArith(Bits[4]), data.ShiftRightArith(Bits[5]), data.ShiftRightArith(Bits[6]) };
-        for (uint8_t j = 0; j < 6; ++j)
-        {
-            U ref[T::Count] = { 0 };
-            for (uint8_t i = 0; i < T::Count; ++i)
-                ref[i] = static_cast<U>(data.Val[i] >> Bits[j]);
-            EXPECT_THAT(output0[j].Val, testing::ElementsAreArray(ref)) << "when shift-right-arith [" << (int)Bits[j] << "] bits";
-            EXPECT_THAT(output1[j].Val, testing::ElementsAreArray(ref)) << "when shift-right-arith [" << (int)Bits[j] << "] bits";
-        }
-        if constexpr (std::is_unsigned_v<U>)
-        {
-            EXPECT_THAT(output0[6].Val, testing::Each(U(0))) << "when shift-right-arith [" << (int)Bits[6] << "] bits";
-            EXPECT_THAT(output1[6].Val, testing::Each(U(0))) << "when shift-right-arith [" << (int)Bits[6] << "] bits";
-        }
-        else
-        {
-            U ref[T::Count] = { 0 };
-            for (uint8_t i = 0; i < T::Count; ++i)
-                ref[i] = static_cast<U>(data.Val[i] >= 0 ? 0ull : UINT64_MAX);
-            EXPECT_THAT(output0[6].Val, testing::ElementsAreArray(ref)) << "when shift-right-arith [" << (int)Bits[6] << "] bits";
-            EXPECT_THAT(output1[6].Val, testing::ElementsAreArray(ref)) << "when shift-right-arith [" << (int)Bits[6] << "] bits";
         }
     }
 }

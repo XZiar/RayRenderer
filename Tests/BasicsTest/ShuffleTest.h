@@ -435,9 +435,32 @@ public:
         TestSelect(std::make_integer_sequence<uint8_t, TestCount>{});
     }
 };
+template<typename T>
+class SelectRandTest : public SIMDFixture, public SelectTestBase<T>
+{
+private:
+    using Base = SelectTestBase<T>;
+    static constexpr size_t N = T::Count;
+    template<uint32_t... Vals>
+    static void TestSelect(std::integer_sequence<uint32_t, Vals...>)
+    {
+        T output[] = { Base::Zero.template SelectWith<StaticRands[Vals] % N>(Base::One)... };
+        size_t idx = 0;
+        for (const auto& out : output)
+            Base::CheckSelect(out, StaticRands[idx++] % N);
+    }
+public:
+    static constexpr auto TestSuite = "Select";
+    void TestBody() override
+    {
+        TestSelect(std::make_integer_sequence<uint32_t, StaticRands.size()>{});
+    }
+};
 #define RegisterSIMDSelectTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, shuftest::SelectTest<type>);
 #define RegisterSIMDSelectTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDSelectTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 #define RegisterSIMDSelectSlimTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, shuftest::SelectSlimTest<type>);
 #define RegisterSIMDSelectSlimTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDSelectSlimTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+#define RegisterSIMDSelectRandTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, shuftest::SelectRandTest<type>);
+#define RegisterSIMDSelectRandTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDSelectRandTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 
 }
