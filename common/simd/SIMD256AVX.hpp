@@ -1851,24 +1851,21 @@ template<> forceinline Pack<U64x4, 2> VECCALL U32x8::Cast<U64x4, CastMode::Range
 #if COMMON_SIMD_LV >= 200
 template<> forceinline F32x8 VECCALL U32x8::Cast<F32x8, CastMode::RangeUndef>() const noexcept
 {
-    const auto mul16 = _mm256_set1_ps(65536.f);
-    const auto lo16  = And(0xffff);
-    const auto hi16  = ShiftRightLogic<16>();
-    const auto base  = hi16.As<I32x8>().Cast<F32x8>();
-    const auto addlo = lo16.As<I32x8>().Cast<F32x8>();
-    return base.MulAdd(mul16, addlo);
+# if COMMON_SIMD_LV >= 320
+    return _mm512_castps512_ps256(_mm512_cvtepu32_ps(_mm512_castsi256_si512(Data)));
+# else
+    const auto lo31 = And(INT32_MAX).As<I32x8>();
+    const auto base = lo31.Cast<F32x8>();
+    const F32x8 msbVal(static_cast<float>(0x80000000u));
+    const F32x8 adder = _mm256_blendv_ps(_mm256_setzero_ps(), msbVal, _mm256_castsi256_ps(Data));
+    return base.Add(adder);
+# endif
 }
 template<> forceinline Pack<F64x4, 2> VECCALL U32x8::Cast<F64x4, CastMode::RangeUndef>() const noexcept
 {
 # if COMMON_SIMD_LV >= 320
     return { _mm256_cvtepu32_pd(_mm256_extractf128_si256(Data, 0)), _mm256_cvtepu32_pd(_mm256_extractf128_si256(Data, 1)) };
 # else
-    /*const auto mul16 = _mm_set1_pd(65536.f);
-    const auto lo16  = And(0xffff);
-    const auto hi16  = ShiftRightLogic<16>();
-    const auto base  = hi16.As<I32x4>().Cast<F64x2>();
-    const auto addlo = lo16.As<I32x4>().Cast<F64x2>();
-    return { base[0].MulAdd(mul16, addlo[0]), base[1].MulAdd(mul16, addlo[1]) };*/
     constexpr double Adder32 = 4294967296.f; // UINT32_MAX+1
     // if [sig], will be treated as negative, need to add Adder32
 #   if COMMON_SIMD_LV >= 200

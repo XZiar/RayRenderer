@@ -14,7 +14,7 @@ template<typename T>
 struct HexVal
 {
     common::span<const T> Vals;
-    static constexpr common::str::FormatSpec Spec = []() 
+    static constexpr common::str::FormatSpec SpecIntHex = []() 
     {
         constexpr auto type = common::str::FormatterParser::FormatSpec::TypeIdentifier{ 'x' };
         common::str::FormatSpec spec;
@@ -23,7 +23,6 @@ struct HexVal
         spec.TypeExtra = type.Extra;
         return spec;
     }();
-    using U = std::conditional_t<(sizeof(T) > sizeof(uint32_t)), uint64_t, uint32_t>;
     constexpr HexVal() noexcept {}
     constexpr HexVal(common::span<const T> vals) noexcept : Vals{ vals } {}
 
@@ -38,7 +37,20 @@ struct HexVal
         {
             if (i > 0)
                 executor.PutString(ctx, " ", nullptr);
-            executor.PutInteger(ctx, static_cast<U>(Vals[i]), false, &Spec);
+            using U = std::conditional_t<(sizeof(T) > sizeof(uint32_t)), uint64_t, uint32_t>;
+            if constexpr (std::is_floating_point_v<T>)
+            {
+                executor.PutFloat(ctx, Vals[i], nullptr);
+                executor.PutString(ctx, "(", nullptr);
+                U intVal;
+                memcpy_s(&intVal, sizeof(U), &Vals[i], sizeof(T));
+                executor.PutInteger(ctx, intVal, false, &SpecIntHex);
+                executor.PutString(ctx, ")", nullptr);
+            }
+            else
+            {
+                executor.PutInteger(ctx, static_cast<U>(Vals[i]), false, &SpecIntHex);
+            }
         }
     }
 
@@ -719,6 +731,88 @@ INTRIN_TEST(ColorCvt, BGR565ToRGBA8)
     Test565ToRGBA<false>(Intrin);
 }
 
+template<bool IsRGB, bool NeedAlpha, bool HasAlpha>
+void Test10ToRGBA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin, uint32_t range_)
+{
+    const auto range = range_ == 10243 ? 0.f : static_cast<float>(range_);
+    const auto src = GetRandVals();
+    VarLenTest<uint32_t, float, 1, NeedAlpha ? 4 : 3>(reinterpret_cast<const uint32_t*>(src.data()), src.size() / 4, [&](float* dst, const uint32_t* src, size_t count)
+    {
+        if constexpr (NeedAlpha)
+        {
+            if constexpr (IsRGB) intrin->RGB10A2ToRGBA(dst, src, count, range, HasAlpha);
+            else intrin->BGR10A2ToRGBA(dst, src, count, range, HasAlpha);
+        }
+        else
+        {
+            if constexpr (IsRGB) intrin->RGB10A2ToRGB(dst, src, count, range);
+            else intrin->BGR10A2ToRGB(dst, src, count, range);
+        }
+    }, [&](float* dst, const uint32_t* src, size_t count)
+    {
+        const auto mulVal = range_ / 1023.f;
+        while (count)
+        {
+            const auto val = *src++;
+            const auto r = static_cast<int32_t>((val >>  0) & 0x3ffu) * mulVal;
+            const auto g = static_cast<int32_t>((val >> 10) & 0x3ffu) * mulVal;
+            const auto b = static_cast<int32_t>((val >> 20) & 0x3ffu) * mulVal;
+            *dst++ = IsRGB ? r : b;
+            *dst++ = g;
+            *dst++ = IsRGB ? b : r;
+            if constexpr (NeedAlpha)
+                *dst++ = HasAlpha ? static_cast<int32_t>(val >> 30) / 3.0f : 1.0f;
+            count--;
+        }
+    });
+}
+template<bool IsRGB, bool NeedAlpha, bool HasAlpha>
+void Test10ToRGBA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin, std::string name)
+{
+    {
+        const ::testing::ScopedTrace scope(__FILE__, __LINE__, name + ", range=1023");
+        Test10ToRGBA<IsRGB, NeedAlpha, HasAlpha>(intrin, 1023u);
+    }
+    {
+        const ::testing::ScopedTrace scope(__FILE__, __LINE__, name + ", range=1");
+        Test10ToRGBA<IsRGB, NeedAlpha, HasAlpha>(intrin, 1u);
+    }
+    {
+        const ::testing::ScopedTrace scope(__FILE__, __LINE__, name + ", range=3");
+        Test10ToRGBA<IsRGB, NeedAlpha, HasAlpha>(intrin, 3u);
+    }
+}
+
+INTRIN_TEST(ColorCvt, RGB10ToRGBf)
+{
+    Test10ToRGBA<true, false, false>(Intrin, "ColorCvt::RGB10ToRGBf");
+}
+
+INTRIN_TEST(ColorCvt, BGR10ToRGBf)
+{
+    Test10ToRGBA<false, false, false>(Intrin, "ColorCvt::BGR10ToRGBf");
+}
+
+INTRIN_TEST(ColorCvt, RGB10ToRGBAf)
+{
+    Test10ToRGBA<true, true, false>(Intrin, "ColorCvt::RGB10ToRGBAf");
+}
+
+INTRIN_TEST(ColorCvt, BGR10ToRGBAf)
+{
+    Test10ToRGBA<false, true, false>(Intrin, "ColorCvt::BGR10ToRGBAf");
+}
+
+INTRIN_TEST(ColorCvt, RGB10A2ToRGBAf)
+{
+    Test10ToRGBA<true, true, true>(Intrin, "ColorCvt::RGB10A2ToRGBAf");
+}
+
+INTRIN_TEST(ColorCvt, BGR10A2ToRGBAf)
+{
+    Test10ToRGBA<false, true, true>(Intrin, "ColorCvt::BGR10A2ToRGBAf");
+}
+
 
 #if CM_DEBUG == 0
 
@@ -940,6 +1034,28 @@ TEST(IntrinPerf, RGB565ToRGBA)
         dstRGB.data(), src.data(), Size);
     PerfTester::DoFastPath(&ColorConvertor::BGR565ToRGB, "BGR565ToRGB8", Size, 150,
         dstRGB.data(), src.data(), Size);
+}
+
+TEST(IntrinPerf, RGB10ToRGBA)
+{
+    using xziar::img::ColorConvertor;
+    constexpr uint32_t Size = 512 * 512;
+    std::vector<uint32_t> src(Size);
+    std::vector<float> dstRGBA(Size * 4);
+    std::vector<float> dstRGB(Size * 3);
+
+    PerfTester::DoFastPath(&ColorConvertor::RGB10A2ToRGBA, "RGB10A2ToRGBAf", Size, 150,
+        dstRGBA.data(), src.data(), Size, 1.0f, true);
+    PerfTester::DoFastPath(&ColorConvertor::RGB10A2ToRGBA, "RGB10ToRGBAf", Size, 150,
+        dstRGBA.data(), src.data(), Size, 1.0f, false);
+    PerfTester::DoFastPath(&ColorConvertor::BGR10A2ToRGBA, "BGR10A2ToRGBAf", Size, 150,
+        dstRGBA.data(), src.data(), Size, 1.0f, true);
+    PerfTester::DoFastPath(&ColorConvertor::BGR10A2ToRGBA, "BGR10ToRGBAf", Size, 150,
+        dstRGBA.data(), src.data(), Size, 1.0f, false);
+    PerfTester::DoFastPath(&ColorConvertor::RGB10A2ToRGB, "RGB10ToRGBf", Size, 150,
+        dstRGB.data(), src.data(), Size, 1.0f);
+    PerfTester::DoFastPath(&ColorConvertor::BGR10A2ToRGB, "BGR10ToRGBf", Size, 150,
+        dstRGB.data(), src.data(), Size, 1.0f);
 }
 
 #endif

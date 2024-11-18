@@ -84,6 +84,17 @@ struct BMI2
 #endif
     }
 };
+struct AVX
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("avx");
+#else
+        return false;
+#endif
+    }
+};
 struct AVX2
 {
     static bool RuntimeCheck() noexcept

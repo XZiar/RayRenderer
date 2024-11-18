@@ -567,7 +567,7 @@ struct Shuffle32Common
         }
         else
         {
-            alignas(16) const uint32_t indexes[] =
+            alignas(16) static constexpr uint32_t indexes[] =
             {
                 (Lo0 * 4u) * 0x01010101u + 0x03020100u,
                 (Lo1 * 4u) * 0x01010101u + 0x03020100u,

@@ -68,10 +68,12 @@
 #define BGR565ToRGB8Info    (void)(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count)
 #define RGB565ToRGBA8Info   (void)(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count)
 #define BGR565ToRGBA8Info   (void)(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count)
-#define RGB10A2ToRGBFInfo   (void)(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal)
-#define BGR10A2ToRGBFInfo   (void)(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal)
-#define RGB10A2ToRGBAFInfo  (void)(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal)
-#define BGR10A2ToRGBAFInfo  (void)(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal)
+#define RGB10ToRGBfInfo     (void)(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal)
+#define BGR10ToRGBfInfo     (void)(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal)
+#define RGB10ToRGBAfInfo    (void)(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal)
+#define BGR10ToRGBAfInfo    (void)(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal)
+#define RGB10A2ToRGBAfInfo  (void)(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal)
+#define BGR10A2ToRGBAfInfo  (void)(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal)
 
 
 namespace
@@ -92,7 +94,7 @@ DEFINE_FASTPATHS(ColorConvertor,
     Extract8x2, Extract8x3, Extract8x4,
     RGB555ToRGB8, BGR555ToRGB8, RGB555ToRGBA8, BGR555ToRGBA8, RGB5551ToRGBA8, BGR5551ToRGBA8,
     RGB565ToRGB8, BGR565ToRGB8, RGB565ToRGBA8, BGR565ToRGBA8,
-    RGB10A2ToRGBF, BGR10A2ToRGBF, RGB10A2ToRGBAF, BGR10A2ToRGBAF)
+    RGB10ToRGBf, BGR10ToRGBf, RGB10ToRGBAf, BGR10ToRGBAf, RGB10A2ToRGBAf, BGR10A2ToRGBAf)
 
 
 #ifdef IMGU_FASTPATH_STB
@@ -909,6 +911,76 @@ DEFINE_FASTPATH_METHOD(BGR565ToRGBA8, LOOP)
     RGB565ToRGBA8<false, 2, 1, 0>(dest, src, count);
 }
 
+template<bool NeedAlpha, bool TakeAlpha, uint8_t IdxR, uint8_t IdxG, uint8_t IdxB>
+forceinline void RGB10ToRGBf(float* __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept
+{
+#define LOOP_10_RGB do { const auto val = *src++;   \
+const auto r = (val >> (IdxR * 10)) & 0x3ffu;       \
+const auto g = (val >> (IdxG * 10)) & 0x3ffu;       \
+const auto b = (val >> (IdxB * 10)) & 0x3ffu;       \
+*dest++ = static_cast<int32_t>(r) * mulVal;         \
+*dest++ = static_cast<int32_t>(g) * mulVal;         \
+*dest++ = static_cast<int32_t>(b) * mulVal;         \
+if constexpr (NeedAlpha)                            \
+    *dest++ = TakeAlpha ? static_cast<int32_t>(val >> 30) / 3.0f : 1.0f; \
+} while (0)
+    while (count >= 8)
+    {
+        LOOP_10_RGB;
+        LOOP_10_RGB;
+        LOOP_10_RGB;
+        LOOP_10_RGB;
+        LOOP_10_RGB;
+        LOOP_10_RGB;
+        LOOP_10_RGB;
+        LOOP_10_RGB;
+        count -= 8;
+    }
+    switch (count)
+    {
+    case 7: LOOP_10_RGB;
+        [[fallthrough]];
+    case 6: LOOP_10_RGB;
+        [[fallthrough]];
+    case 5: LOOP_10_RGB;
+        [[fallthrough]];
+    case 4: LOOP_10_RGB;
+        [[fallthrough]];
+    case 3: LOOP_10_RGB;
+        [[fallthrough]];
+    case 2: LOOP_10_RGB;
+        [[fallthrough]];
+    case 1: LOOP_10_RGB;
+        [[fallthrough]];
+    default:
+        break;
+    }
+#undef LOOP_10_RGB
+}
+DEFINE_FASTPATH_METHOD(RGB10ToRGBf, LOOP)
+{
+    RGB10ToRGBf<false, false, 0, 1, 2>(dest, src, count, mulVal == 0 ? 1.0f : mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10ToRGBf, LOOP)
+{
+    RGB10ToRGBf<false, false, 2, 1, 0>(dest, src, count, mulVal == 0 ? 1.0f : mulVal);
+}
+DEFINE_FASTPATH_METHOD(RGB10ToRGBAf, LOOP)
+{
+    RGB10ToRGBf<true, false, 0, 1, 2>(dest, src, count, mulVal == 0 ? 1.0f : mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10ToRGBAf, LOOP)
+{
+    RGB10ToRGBf<true, false, 2, 1, 0>(dest, src, count, mulVal == 0 ? 1.0f : mulVal);
+}
+DEFINE_FASTPATH_METHOD(RGB10A2ToRGBAf, LOOP)
+{
+    RGB10ToRGBf<true, true, 0, 1, 2>(dest, src, count, mulVal == 0 ? 1.0f : mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10A2ToRGBAf, LOOP)
+{
+    RGB10ToRGBf<true, true, 2, 1, 0>(dest, src, count, mulVal == 0 ? 1.0f : mulVal);
+}
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100 && (defined(__BMI2__) || COMMON_COMPILER_MSVC) // BMI2 should be at least AVX
 #   pragma message("Compiling ColorConvert with BMI2")
@@ -1850,6 +1922,98 @@ struct Extract8x4_SSSE3
         out3.Save(dst[3]);
     }
 };
+template<bool Scale, bool IsRGB>
+struct RGB10ToRGBf_SSE41
+{
+    static constexpr size_t M = 4, N = 12, K = 4;
+    F32x4 Scaler;
+    RGB10ToRGBf_SSE41(float mulVal) : Scaler(mulVal) {}
+    forceinline void operator()(float* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const U32x4 dat(src);
+
+        const U32x4 maskLo10bit(0x3ffu);
+        const auto dat0 = dat.And(maskLo10bit).As<I32x4>();
+        const auto dat1 = dat.ShiftRightLogic<10>().And(maskLo10bit).As<I32x4>();
+        const auto dat2 = dat.ShiftRightLogic<20>().And(maskLo10bit).As<I32x4>();
+
+        F32x4 valR = (IsRGB ? dat0 : dat2).Cast<F32x4>();
+        F32x4 valG = dat1.Cast<F32x4>();
+        F32x4 valB = (IsRGB ? dat2 : dat0).Cast<F32x4>();
+        if constexpr (Scale)
+        {
+            valR = valR.Mul(Scaler);
+            valG = valG.Mul(Scaler);
+            valB = valB.Mul(Scaler);
+        }
+
+        const F32x4 valRRBB = _mm_shuffle_ps(valR, valB, 0b11001100); // R0 R3 B0 B3
+        const F32x4 valGGRR = _mm_shuffle_ps(valG, valR, 0b01100001); // G1 G0 R2 R1
+        const F32x4 valBBGG = _mm_shuffle_ps(valB, valG, 0b10110110); // B2 B1 G3 G2
+
+        const F32x4 out0 = valRRBB.SelectWith<0b1010>(valGGRR); // R0 G0 B0 R1
+        const F32x4 out1 = valGGRR.SelectWith<0b1010>(valBBGG); // G1 B1 R2 G2
+        const F32x4 out2 = valBBGG.SelectWith<0b1010>(valRRBB); // B2 R3 G3 B3
+        out0.Save(dst);
+        out1.Save(dst + 4);
+        out2.Save(dst + 8);
+    }
+};
+template<bool Scale, bool IsRGB, bool HasAlpha>
+struct RGB10ToRGBAf_SSE41
+{
+    static constexpr size_t M = 4, N = 16, K = 4;
+    F32x4 Scaler;
+    RGB10ToRGBAf_SSE41(float mulVal) : Scaler(mulVal) {}
+    forceinline void operator()(float* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const U32x4 dat(src);
+
+        const U32x4 maskLo10bit(0x3ffu);
+        const I32x4 dat0 = dat.And(maskLo10bit).As<I32x4>();
+        const I32x4 dat1 = dat.ShiftRightLogic<10>().And(maskLo10bit).As<I32x4>();
+        const I32x4 dat2 = dat.ShiftRightLogic<20>().And(maskLo10bit).As<I32x4>();
+
+        F32x4 valR = (IsRGB ? dat0 : dat2).Cast<F32x4>();
+        F32x4 valG = dat1.Cast<F32x4>();
+        F32x4 valB = (IsRGB ? dat2 : dat0).Cast<F32x4>();
+        F32x4 valA;
+        if constexpr (Scale)
+        {
+            valR = valR.Mul(Scaler);
+            valG = valG.Mul(Scaler);
+            valB = valB.Mul(Scaler);
+        }
+        if constexpr (HasAlpha)
+        {
+#if COMMON_SIMD_LV >= 100
+            const auto alphaLUT = _mm_setr_ps(0.f, 1.0f / 3.0f, 2.0f / 3.0f, 1.0f);
+            valA = _mm_permutevar_ps(alphaLUT, dat.ShiftRightLogic<30>());
+#else
+            valA = dat.ShiftRightLogic<30>().As<I32x4>().Cast<F32x4>().Mul(1.0f / 3.0f);
+#endif
+        }
+        else
+        {
+            valA = F32x4(1.0f);
+        }
+
+        const auto valRG01 = valR.ZipLo(valG); // R0 G0 R1 G1
+        const auto valRG23 = valR.ZipHi(valG); // R2 G2 R3 G3
+        const auto valBA01 = valB.ZipLo(valA); // B0 A0 B1 A1
+        const auto valBA23 = valB.ZipHi(valA); // B2 A2 B3 A3
+
+        // integer xmm could have higher throughput on Intel Core
+        const auto out0 = valRG01.As<U64x2>().ZipLo(valBA01.As<U64x2>()).As<F32x4>();
+        const auto out1 = valRG01.As<U64x2>().ZipHi(valBA01.As<U64x2>()).As<F32x4>();
+        const auto out2 = valRG23.As<U64x2>().ZipLo(valBA23.As<U64x2>()).As<F32x4>();
+        const auto out3 = valRG23.As<U64x2>().ZipHi(valBA23.As<U64x2>()).As<F32x4>();
+        out0.Save(dst);
+        out1.Save(dst + 4);
+        out2.Save(dst + 8);
+        out3.Save(dst + 12);
+    }
+};
 DEFINE_FASTPATH_METHOD(G8ToRGBA8, SSSE3)
 {
     ProcessLOOP4<G2RGBA_SSSE3, &Func<LOOP>>(dest, src, count, alpha);
@@ -1929,6 +2093,49 @@ DEFINE_FASTPATH_METHOD(Extract8x3, SSE41)
 DEFINE_FASTPATH_METHOD(Extract8x4, SSSE3)
 {
     ExtractLOOP4<4, Extract8x4_SSSE3, &Func<LOOP>>(dest, src, count);
+}
+
+DEFINE_FASTPATH_METHOD(RGB10ToRGBf, SSE41)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBf_SSE41<false, true>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBf_SSE41<true, true>, &Func<LOOP>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10ToRGBf, SSE41)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBf_SSE41<false, false>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBf_SSE41<true, false>, &Func<LOOP>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(RGB10ToRGBAf, SSE41)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_SSE41<false, true, false>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_SSE41<true, true, false>, &Func<LOOP>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10ToRGBAf, SSE41)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_SSE41<false, false, false>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_SSE41<true, false, false>, &Func<LOOP>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(RGB10A2ToRGBAf, SSE41)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_SSE41<false, true, true>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_SSE41<true, true, true>, &Func<LOOP>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10A2ToRGBAf, SSE41)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_SSE41<false, false, true>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_SSE41<true, false, true>, &Func<LOOP>>(dest, src, count, mulVal);
 }
 #endif
 
@@ -2182,6 +2389,80 @@ struct Extract8x4_NEON
         out3.Save(dst[3]);
     }
 };
+template<bool Scale, bool IsRGB>
+struct RGB10ToRGBf_NEON
+{
+    static constexpr size_t M = 4, N = 12, K = 4;
+    F32x4 Scaler;
+    RGB10ToRGBf_NEON(float mulVal) : Scaler(mulVal) {}
+    forceinline void operator()(float* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const U32x4 dat(src);
+
+        const U32x4 maskLo10bit(0x3ffu);
+        const auto dat0 = dat.And(maskLo10bit);
+        const auto dat1 = dat.ShiftRightLogic<10>().And(maskLo10bit);
+        const auto dat2 = dat.ShiftRightLogic<20>().And(maskLo10bit);
+
+        F32x4 valR = (IsRGB ? dat0 : dat2).Cast<F32x4>();
+        F32x4 valG = dat1.Cast<F32x4>();
+        F32x4 valB = (IsRGB ? dat2 : dat0).Cast<F32x4>();
+        if constexpr (Scale)
+        {
+            valR = valR.Mul(Scaler);
+            valG = valG.Mul(Scaler);
+            valB = valB.Mul(Scaler);
+        }
+
+        float32x4x3_t out3;
+        out3.val[0] = valR;
+        out3.val[1] = valG;
+        out3.val[2] = valB;
+        vst3q_f32(dst, out3);
+    }
+};
+template<bool Scale, bool IsRGB, bool HasAlpha>
+struct RGB10ToRGBAf_NEON
+{
+    static constexpr size_t M = 4, N = 16, K = 4;
+    F32x4 Scaler;
+    RGB10ToRGBAf_NEON(float mulVal) : Scaler(mulVal) {}
+    forceinline void operator()(float* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const U32x4 dat(src);
+
+        const U32x4 maskLo10bit(0x3ffu);
+        const auto dat0 = dat.And(maskLo10bit);
+        const auto dat1 = dat.ShiftRightLogic<10>().And(maskLo10bit);
+        const auto dat2 = dat.ShiftRightLogic<20>().And(maskLo10bit);
+
+        F32x4 valR = (IsRGB ? dat0 : dat2).Cast<F32x4>();
+        F32x4 valG = dat1.Cast<F32x4>();
+        F32x4 valB = (IsRGB ? dat2 : dat0).Cast<F32x4>();
+        F32x4 valA;
+        if constexpr (Scale)
+        {
+            valR = valR.Mul(Scaler);
+            valG = valG.Mul(Scaler);
+            valB = valB.Mul(Scaler);
+        }
+        if constexpr (HasAlpha)
+        {
+            valA = dat.ShiftRightLogic<30>().Cast<F32x4>().Mul(1.0f / 3.0f);
+        }
+        else
+        {
+            valA = F32x4(1.0f);
+        }
+
+        float32x4x4_t out4;
+        out4.val[0] = valR;
+        out4.val[1] = valG;
+        out4.val[2] = valB;
+        out4.val[3] = valA;
+        vst4q_f32(dst, out4);
+    }
+};
 DEFINE_FASTPATH_METHOD(G8ToGA8, NEON)
 {
     ProcessLOOP4<G2GA_NEON, &Func<LOOP>>(dest, src, count, alpha);
@@ -2277,6 +2558,49 @@ DEFINE_FASTPATH_METHOD(Extract8x3, NEON)
 DEFINE_FASTPATH_METHOD(Extract8x4, NEON)
 {
     ExtractLOOP4<4, Extract8x4_NEON, &Func<LOOP>>(dest, src, count);
+}
+
+DEFINE_FASTPATH_METHOD(RGB10ToRGBf, NEON)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBf_NEON<false, true>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBf_NEON<true, true>, &Func<LOOP>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10ToRGBf, NEON)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBf_NEON<false, false>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBf_NEON<true, false>, &Func<LOOP>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(RGB10ToRGBAf, NEON)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_NEON<false, true, false>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_NEON<true, true, false>, &Func<LOOP>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10ToRGBAf, NEON)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_NEON<false, false, false>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_NEON<true, false, false>, &Func<LOOP>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(RGB10A2ToRGBAf, NEON)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_NEON<false, true, true>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_NEON<true, true, true>, &Func<LOOP>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10A2ToRGBAf, NEON)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_NEON<false, false, true>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_NEON<true, false, true>, &Func<LOOP>>(dest, src, count, mulVal);
 }
 #endif
 
@@ -3036,6 +3360,97 @@ struct RGB565ToRGBA8_256
         out.Data[1].Save(dst + 8);
     }
 };
+template<bool Scale, bool IsRGB>
+struct RGB10ToRGBf_256
+{
+    static constexpr size_t M = 8, N = 24, K = 8;
+    F32x8 Scaler;
+    RGB10ToRGBf_256(float mulVal) : Scaler(mulVal) {}
+    forceinline void operator()(float* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const auto dat = U32x8(src).As<I32x8>();
+
+        const I32x8 maskLo10bit(0x3ff);
+        const auto dat0 = dat.And(maskLo10bit);
+        const auto dat1 = dat.ShiftRightLogic<10>().And(maskLo10bit);
+        const auto dat2 = dat.ShiftRightLogic<20>().And(maskLo10bit);
+
+        F32x8 valR = (IsRGB ? dat0 : dat2).Cast<F32x8>();
+        F32x8 valG = dat1.Cast<F32x8>();
+        F32x8 valB = (IsRGB ? dat2 : dat0).Cast<F32x8>();
+        if constexpr (Scale)
+        {
+            valR = valR.Mul(Scaler);
+            valG = valG.Mul(Scaler);
+            valB = valB.Mul(Scaler);
+        }
+
+        const F32x8 valRRBB = _mm256_shuffle_ps(valR, valB, 0b11001100); // R0 R3 B0 B3 | R4 R7 B4 B7
+        const F32x8 valGGRR = _mm256_shuffle_ps(valG, valR, 0b01100001); // G1 G0 R2 R1 | G5 G4 R6 R5
+        const F32x8 valBBGG = _mm256_shuffle_ps(valB, valG, 0b10110110); // B2 B1 G3 G2 | B6 B5 G7 G6
+
+        const auto out03 = valRRBB.SelectWith<0b10101010>(valGGRR); // R0 G0 B0 R1 | R4 G4 B4 R5
+        const auto out14 = valGGRR.SelectWith<0b10101010>(valBBGG); // G1 B1 R2 G2 | G5 B5 R6 G6
+        const auto out25 = valBBGG.SelectWith<0b10101010>(valRRBB); // B2 R3 G3 B3 | B6 R7 G7 B7
+
+        const auto out0 = out03.PermuteLane<0, 2>(out14);
+        const auto out1 = out25.PermuteLane<0, 3>(out03);
+        const auto out2 = out14.PermuteLane<1, 3>(out25);
+        out0.Save(dst);
+        out1.Save(dst + 8);
+        out2.Save(dst + 16);
+    }
+};
+template<bool Scale, bool IsRGB, bool HasAlpha>
+struct RGB10ToRGBAf_256
+{
+    static constexpr size_t M = 8, N = 32, K = 8;
+    F32x8 Scaler;
+    RGB10ToRGBAf_256(float mulVal) : Scaler(mulVal) {}
+    forceinline void operator()(float* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const auto dat = U32x8(src).As<I32x8>();
+
+        const I32x8 maskLo10bit(0x3ff);
+        const I32x8 dat0 = dat.And(maskLo10bit);
+        const I32x8 dat1 = dat.ShiftRightLogic<10>().And(maskLo10bit);
+        const I32x8 dat2 = dat.ShiftRightLogic<20>().And(maskLo10bit);
+
+        F32x8 valR = (IsRGB ? dat0 : dat2).Cast<F32x8>(); // R 0123 | 4567
+        F32x8 valG = dat1.Cast<F32x8>(); // G 0123 | 4567
+        F32x8 valB = (IsRGB ? dat2 : dat0).Cast<F32x8>();
+        F32x8 valA;
+        if constexpr (Scale)
+        {
+            valR = valR.Mul(Scaler);
+            valG = valG.Mul(Scaler);
+            valB = valB.Mul(Scaler);
+        }
+        if constexpr (HasAlpha)
+        {
+            const auto alphaLUT = _mm256_setr_ps(0.f, 1.0f / 3.0f, 2.0f / 3.0f, 1.0f, 0.f, 1.0f / 3.0f, 2.0f / 3.0f, 1.0f);
+            valA = _mm256_permutevar_ps(alphaLUT, dat.ShiftRightLogic<30>());
+        }
+        else
+        {
+            valA = F32x8(1.0f);
+        }
+
+        const auto valRG0145 = valR.ZipLoLane(valG); // R0 G0 R1 G1 | R4 G4 R5 G5
+        const auto valRG2367 = valR.ZipHiLane(valG); // R2 G2 R3 G3 | R6 G6 R7 G7
+        const auto valBA0145 = valB.ZipLoLane(valA); // B0 A0 B1 A1 | B4 A4 B5 A5
+        const auto valBA2367 = valB.ZipHiLane(valA); // B2 A2 B3 A3 | B6 A6 B7 A7
+
+        // integer ymm could have higher throughput on Intel Core
+        const auto out02 = valRG0145.As<U64x4>().Zip(valBA0145.As<U64x4>()).As<F32x8>();
+        const auto out13 = valRG2367.As<U64x4>().Zip(valBA2367.As<U64x4>()).As<F32x8>();
+        
+        out02[0].Save(dst);
+        out13[0].Save(dst + 8);
+        out02[1].Save(dst + 16);
+        out13[1].Save(dst + 24);
+    }
+};
 DEFINE_FASTPATH_METHOD(G8ToGA8, AVX2)
 {
     ProcessLOOP4<G2GA_256, &Func<SIMD128>>(dest, src, count, alpha);
@@ -3201,6 +3616,63 @@ DEFINE_FASTPATH_METHOD(RGB565ToRGBA8, AVX2)
 DEFINE_FASTPATH_METHOD(BGR565ToRGBA8, AVX2)
 {
     ProcessLOOP4<RGB565ToRGBA8_256<false>, &Func<SIMD128>>(dest, src, count);
+}
+
+DEFINE_FASTPATH_METHOD(RGB10A2ToRGBAf, AVX)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_SSE41<false, true, true>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_SSE41<true, true, true>, &Func<LOOP>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10A2ToRGBAf, AVX)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_SSE41<false, false, true>, &Func<LOOP>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_SSE41<true, false, true>, &Func<LOOP>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(RGB10ToRGBf, AVX2)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBf_256<false, true>, &Func<SSE41>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBf_256<true, true>, &Func<SSE41>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10ToRGBf, AVX2)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBf_256<false, false>, &Func<SSE41>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBf_256<true, false>, &Func<SSE41>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(RGB10ToRGBAf, AVX2)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_256<false, true, false>, &Func<SSE41>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_256<true, true, false>, &Func<SSE41>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10ToRGBAf, AVX2)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_256<false, false, false>, &Func<SSE41>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_256<true, false, false>, &Func<SSE41>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(RGB10A2ToRGBAf, AVX2)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_256<false, true, true>, &Func<AVX>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_256<true, true, true>, &Func<AVX>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10A2ToRGBAf, AVX2)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_256<false, false, true>, &Func<AVX>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_256<true, false, true>, &Func<AVX>>(dest, src, count, mulVal);
 }
 #endif
 
@@ -3448,6 +3920,111 @@ struct Extract8x4_512_2
         out3.Save(dst[3]);
     }
 };
+template<bool Scale, bool IsRGB>
+struct RGB10ToRGBf_512
+{
+    static constexpr size_t M = 16, N = 48, K = 16;
+    __m512 Scaler;
+    RGB10ToRGBf_512(float mulVal) : Scaler(_mm512_set1_ps(mulVal)) {}
+    forceinline void operator()(float* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const auto dat = _mm512_loadu_epi32(src);
+
+        const auto maskLo10bit = _mm512_set1_epi32(0x3ff);
+        const auto dat0 = _mm512_and_si512(maskLo10bit, dat);
+        const auto dat1 = _mm512_and_si512(maskLo10bit, _mm512_srli_epi32(dat, 10));
+        const auto dat2 = _mm512_and_si512(maskLo10bit, _mm512_srli_epi32(dat, 20));
+
+        auto valR = _mm512_cvtepi32_ps(IsRGB ? dat0 : dat2);
+        auto valG = _mm512_cvtepi32_ps(dat1);
+        auto valB = _mm512_cvtepi32_ps(IsRGB ? dat2 : dat0);
+        if constexpr (Scale)
+        {
+            valR = _mm512_mul_ps(valR, Scaler);
+            valG = _mm512_mul_ps(valG, Scaler);
+            valB = _mm512_mul_ps(valB, Scaler);
+        }
+
+        const auto shuffleRG2 = _mm512_set_epi32(-1, 31, 15, -1, 30, 14, -1, 29, 13, -1, 28, 12, -1, 27, 11, -1);
+        const auto shuffleRG1 = _mm512_set_epi32(26, 10, -1, 25,  9, -1, 24,  8, -1, 23,  7, -1, 22,  6, -1, 21);
+        const auto shuffleRG0 = _mm512_set_epi32( 5, -1, 20,  4, -1, 19,  3, -1, 18,  2, -1, 17,  1, -1, 16,  0);
+        const auto valRG_0 = _mm512_permutex2var_ps(valR, shuffleRG0, valG);
+        const auto valRG_1 = _mm512_permutex2var_ps(valR, shuffleRG1, valG);
+        const auto valRG_2 = _mm512_permutex2var_ps(valR, shuffleRG2, valG);
+
+        const auto shuffleB2 = _mm512_set_epi32(15, -1, -1, 14, -1, -1, 13, -1, -1, 12, -1, -1, 11, -1, -1, 10);
+        const auto shuffleB1 = _mm512_set_epi32(-1, -1,  9, -1, -1,  8, -1, -1,  7, -1, -1,  6, -1, -1,  5, -1);
+        const auto shuffleB0 = _mm512_set_epi32(-1,  4, -1, -1,  3, -1, -1,  2, -1, -1,  1, -1, -1,  0, -1, -1);
+        const auto out0 = _mm512_mask_permutexvar_ps(valRG_0, 0b0100100100100100, shuffleB0, valB);
+        const auto out1 = _mm512_mask_permutexvar_ps(valRG_1, 0b0010010010010010, shuffleB1, valB);
+        const auto out2 = _mm512_mask_permutexvar_ps(valRG_2, 0b1001001001001001, shuffleB2, valB);
+
+        _mm512_storeu_ps(dst +  0, out0);
+        _mm512_storeu_ps(dst + 16, out1);
+        _mm512_storeu_ps(dst + 32, out2);
+    }
+};
+template<bool Scale, bool IsRGB, bool HasAlpha>
+struct RGB10ToRGBAf_512
+{
+    static constexpr size_t M = 16, N = 64, K = 16;
+    __m512 Scaler;
+    RGB10ToRGBAf_512(float mulVal) : Scaler(_mm512_set1_ps(mulVal)) {}
+    forceinline void operator()(float* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const auto dat = _mm512_loadu_epi32(src);
+
+        const auto maskLo10bit = _mm512_set1_epi32(0x3ff);
+        const auto dat0 = _mm512_and_si512(maskLo10bit, dat);
+        const auto dat1 = _mm512_and_si512(maskLo10bit, _mm512_srli_epi32(dat, 10));
+        const auto dat2 = _mm512_and_si512(maskLo10bit, _mm512_srli_epi32(dat, 20));
+
+        auto valR = _mm512_cvtepi32_ps(IsRGB ? dat0 : dat2);
+        auto valG = _mm512_cvtepi32_ps(dat1);
+        auto valB = _mm512_cvtepi32_ps(IsRGB ? dat2 : dat0);
+        __m512 valA;
+        if constexpr (Scale)
+        {
+            valR = _mm512_mul_ps(valR, Scaler);
+            valG = _mm512_mul_ps(valG, Scaler);
+            valB = _mm512_mul_ps(valB, Scaler);
+        }
+        if constexpr (HasAlpha)
+        {
+            const auto alphaLUT = _mm512_setr_ps(0.f, 1.0f / 3.0f, 2.0f / 3.0f, 1.0f, 0.f, 1.0f / 3.0f, 2.0f / 3.0f, 1.0f, 0.f, 1.0f / 3.0f, 2.0f / 3.0f, 1.0f, 0.f, 1.0f / 3.0f, 2.0f / 3.0f, 1.0f);
+            valA = _mm512_permutevar_ps(alphaLUT, _mm512_srli_epi32(dat, 30));
+        }
+        else
+        {
+            valA = _mm512_set1_ps(1.0f);
+        }
+
+        const auto shuffle0 = _mm512_set_epi32(19,  3, 19,  3, 18,  2, 18,  2, 17,  1, 17,  1, 16,  0, 16,  0);
+        const auto shuffle1 = _mm512_set_epi32(23,  7, 23,  7, 22,  6, 22,  6, 21,  5, 21,  5, 20,  4, 20,  4);
+        const auto shuffle2 = _mm512_set_epi32(27, 11, 27, 11, 26, 10, 26, 10, 25,  9, 25,  9, 24,  8, 24,  8);
+        const auto shuffle3 = _mm512_set_epi32(31, 15, 31, 15, 30, 14, 30, 14, 29, 13, 29, 13, 28, 12, 28, 12);
+
+        const auto valRG__0 = _mm512_maskz_permutex2var_ps(0x3333, valR, shuffle0, valG);
+        const auto valRG__1 = _mm512_maskz_permutex2var_ps(0x3333, valR, shuffle1, valG);
+        const auto valRG__2 = _mm512_maskz_permutex2var_ps(0x3333, valR, shuffle2, valG);
+        const auto valRG__3 = _mm512_maskz_permutex2var_ps(0x3333, valR, shuffle3, valG);
+
+        const auto val__BA0 = _mm512_maskz_permutex2var_ps(0xcccc, valB, shuffle0, valA);
+        const auto val__BA1 = _mm512_maskz_permutex2var_ps(0xcccc, valB, shuffle1, valA);
+        const auto val__BA2 = _mm512_maskz_permutex2var_ps(0xcccc, valB, shuffle2, valA);
+        const auto val__BA3 = _mm512_maskz_permutex2var_ps(0xcccc, valB, shuffle3, valA);
+        
+        const auto out0 = _mm512_or_ps(valRG__0, val__BA0);
+        const auto out1 = _mm512_or_ps(valRG__1, val__BA1);
+        const auto out2 = _mm512_or_ps(valRG__2, val__BA2);
+        const auto out3 = _mm512_or_ps(valRG__3, val__BA3);
+
+        _mm512_storeu_ps(dst +  0, out0);
+        _mm512_storeu_ps(dst + 16, out1);
+        _mm512_storeu_ps(dst + 32, out2);
+        _mm512_storeu_ps(dst + 48, out3);
+    }
+};
 DEFINE_FASTPATH_METHOD(G8ToGA8, AVX512BW)
 {
     ProcessLOOP4<G2GA_512, &Func<AVX2>>(dest, src, count, alpha);
@@ -3527,6 +4104,48 @@ DEFINE_FASTPATH_METHOD(RGB565ToRGB8, AVX512BW)
 DEFINE_FASTPATH_METHOD(BGR565ToRGB8, AVX512BW)
 {
     ProcessLOOP4<RGB565ToRGB8_256<false>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGB10ToRGBf, AVX512BW)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBf_512<false, true>, &Func<AVX2>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBf_512<true, true>, &Func<AVX2>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10ToRGBf, AVX512BW)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBf_512<false, false>, &Func<AVX2>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBf_512<true, false>, &Func<AVX2>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(RGB10ToRGBAf, AVX512BW)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_512<false, true, false>, &Func<AVX2>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_512<true, true, false>, &Func<AVX2>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10ToRGBAf, AVX512BW)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_512<false, false, false>, &Func<AVX2>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_512<true, false, false>, &Func<AVX2>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(RGB10A2ToRGBAf, AVX512BW)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_512<false, true, true>, &Func<AVX2>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_512<true, true, true>, &Func<AVX2>>(dest, src, count, mulVal);
+}
+DEFINE_FASTPATH_METHOD(BGR10A2ToRGBAf, AVX512BW)
+{
+    if (mulVal == 0)
+        ProcessLOOP4<RGB10ToRGBAf_512<false, false, true>, &Func<AVX2>>(dest, src, count, mulVal);
+    else
+        ProcessLOOP4<RGB10ToRGBAf_512<true, false, true>, &Func<AVX2>>(dest, src, count, mulVal);
 }
 #endif
 
@@ -4155,35 +4774,23 @@ struct Extract8x3_512VBMI2
         out2.Save(dst[2]);
     }
 };
-struct Extract8x4_256x
+struct Extract8x4_512VBMI2
 {
-    static constexpr size_t M = 32, N = 32, K = 32;
+    static constexpr size_t M = 16, N = 16, K = 16;
     forceinline void operator()(uint8_t* __restrict* __restrict dst, const uint32_t* __restrict src) const noexcept
     {
-        const U32x8 dat0(src);
-        const U32x8 dat1(src + 8);
-        const U32x8 dat2(src + 16);
-        const U32x8 dat3(src + 24);
+        const auto dat = _mm512_loadu_epi32(src);
 
-        const U8x32 mid0 = dat0.As<U8x32>().ShuffleLane<0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15>(); // 0123 | 4567
-        const U8x32 mid1 = dat1.As<U8x32>().ShuffleLane<0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15>(); // 89ab | cdef
-        const U8x32 mid2 = dat2.As<U8x32>().ShuffleLane<0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15>(); // ghij | klmn
-        const U8x32 mid3 = dat3.As<U8x32>().ShuffleLane<0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15>(); // opqr | stuv
+        constexpr uint64_t MaskR = 0x1111111111111111u;
+        constexpr uint64_t MaskG = MaskR << 1;
+        constexpr uint64_t MaskB = MaskR << 2;
+        constexpr uint64_t MaskA = MaskR << 3;
 
-        const U32x8 val0819 = mid0.As<U32x8>().ZipLoLane(mid1.As<U32x8>()); // 0819 | 4c5d
-        const U32x8 val2a3b = mid0.As<U32x8>().ZipHiLane(mid1.As<U32x8>()); // 2a3b | 6e7f
-        const U32x8 valgohp = mid2.As<U32x8>().ZipLoLane(mid3.As<U32x8>()); // gohp | kslt
-        const U32x8 valiqjr = mid2.As<U32x8>().ZipHiLane(mid3.As<U32x8>()); // iqjr | munv
+        const U8x16 out0 = _mm512_castsi512_si128(_mm512_maskz_compress_epi8(_cvtu64_mask64(MaskR), dat));
+        const U8x16 out1 = _mm512_castsi512_si128(_mm512_maskz_compress_epi8(_cvtu64_mask64(MaskG), dat));
+        const U8x16 out2 = _mm512_castsi512_si128(_mm512_maskz_compress_epi8(_cvtu64_mask64(MaskB), dat));
+        const U8x16 out3 = _mm512_castsi512_si128(_mm512_maskz_compress_epi8(_cvtu64_mask64(MaskA), dat));
 
-        const auto val0 = val0819.ZipLoLane(valgohp); // 0g8o | 4kcs
-        const auto val1 = val0819.ZipHiLane(valgohp); // 1h9p | 5ldt
-        const auto val2 = val2a3b.ZipLoLane(valiqjr); // 2iaq | 6meu
-        const auto val3 = val2a3b.ZipHiLane(valiqjr); // 3jbr | 7nfv
-
-        const auto out0 = val0.Shuffle<0, 4, 2, 6, 1, 5, 3, 7>().As<U8x32>(); // 048c | gkos
-        const auto out1 = val1.Shuffle<0, 4, 2, 6, 1, 5, 3, 7>().As<U8x32>(); // 159d | hlpt
-        const auto out2 = val2.Shuffle<0, 4, 2, 6, 1, 5, 3, 7>().As<U8x32>(); // 26ae | imqu
-        const auto out3 = val3.Shuffle<0, 4, 2, 6, 1, 5, 3, 7>().As<U8x32>(); // 37bf | jnrv
         out0.Save(dst[0]);
         out1.Save(dst[1]);
         out2.Save(dst[2]);
@@ -4222,10 +4829,10 @@ DEFINE_FASTPATH_METHOD(Extract8x3, AVX512VBMI2)
 {
     ExtractLOOP4<3, Extract8x3_512VBMI2, &Func<AVX2>>(dest, src, count);
 }
-//DEFINE_FASTPATH_METHOD(Extract8x4, AVX2)
-//{
-//    ExtractLOOP4<4, Extract8x4_256, &Func<AVX2>>(dest, src, count);
-//}
+DEFINE_FASTPATH_METHOD(Extract8x4, AVX512VBMI2)
+{
+    ExtractLOOP4<4, Extract8x4_512VBMI2, &Func<LOOP>>(dest, src, count);
+}
 #endif
 
 

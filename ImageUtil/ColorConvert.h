@@ -46,10 +46,12 @@ private:
     void(*BGR565ToRGB8      )(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGB565ToRGBA8     )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*BGR565ToRGBA8     )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGB10A2ToRGBF     )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
-    void(*BGR10A2ToRGBF     )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
-    void(*RGB10A2ToRGBAF    )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
-    void(*BGR10A2ToRGBAF    )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
+    void(*RGB10ToRGBf       )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
+    void(*BGR10ToRGBf       )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
+    void(*RGB10ToRGBAf      )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
+    void(*BGR10ToRGBAf      )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
+    void(*RGB10A2ToRGBAf    )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
+    void(*BGR10A2ToRGBAf    )(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal) noexcept = nullptr;
 public:
     IMGUTILAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
     IMGUTILAPI ColorConvertor(common::span<const VarItem> requests = {}) noexcept;
@@ -197,6 +199,27 @@ public:
     forceinline void BGR565ToRGBA(uint32_t* const dest, const uint16_t* src, const size_t count) const noexcept
     {
         BGR565ToRGBA8(dest, src, count);
+    }
+
+    forceinline void RGB10A2ToRGB(float* const dest, const uint32_t* src, const size_t count, const float range = 0) const noexcept
+    {
+        const float mulVal = range == 0 ? 0 : range / 1023.f;
+        RGB10ToRGBf(dest, src, count, mulVal);
+    }
+    forceinline void BGR10A2ToRGB(float* const dest, const uint32_t* src, const size_t count, const float range = 0) const noexcept
+    {
+        const float mulVal = range == 0 ? 0 : range / 1023.f;
+        BGR10ToRGBf(dest, src, count, mulVal);
+    }
+    forceinline void RGB10A2ToRGBA(float* const dest, const uint32_t* src, const size_t count, const float range = 0, const bool hasAlpha = false) const noexcept
+    {
+        const float mulVal = range == 0 ? 0 : range / 1023.f;
+        (hasAlpha ? RGB10A2ToRGBAf : RGB10ToRGBAf)(dest, src, count, mulVal);
+    }
+    forceinline void BGR10A2ToRGBA(float* const dest, const uint32_t* src, const size_t count, const float range = 0, const bool hasAlpha = false) const noexcept
+    {
+        const float mulVal = range == 0 ? 0 : range / 1023.f;
+        (hasAlpha ? BGR10A2ToRGBAf : BGR10ToRGBAf)(dest, src, count, mulVal);
     }
 
     IMGUTILAPI static const ColorConvertor& Get() noexcept;
