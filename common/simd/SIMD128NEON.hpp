@@ -200,7 +200,7 @@ struct Neon128Common : public CommonOperators<T>
         static_assert(Cnt <= N, "shift should be in [0, N]");
         if constexpr (Cnt == 0) return Data;
         else if constexpr (Cnt == N) return AllZero();
-        else return AsType<SIMDType>(vextq_u8(vdupq_n_u8(0), AsType<uint8x16_t>(Data), Cnt * sizeof(E)));
+        else return AsType<SIMDType>(vextq_u8(vdupq_n_u8(0), AsType<uint8x16_t>(Data), 16 - Cnt * sizeof(E)));
     }
     template<size_t Cnt>
     forceinline T VECCALL MoveToLo() const noexcept

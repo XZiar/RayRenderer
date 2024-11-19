@@ -28,7 +28,7 @@ struct HexVal
 
     constexpr bool operator==(const HexVal<T>& other) const noexcept 
     {
-        return (Vals.size() == other.Vals.size()) && std::equal(Vals.begin(), Vals.end(), other.Vals.begin());
+        return (Vals.size() == other.Vals.size()) && memcmp(Vals.data(), other.Vals.data(), Vals.size_bytes()) == 0;
     }
 
     void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& ctx, const common::str::FormatSpec*) const noexcept
@@ -455,6 +455,68 @@ INTRIN_TEST(ColorCvt, RGB8ToB8)
     TestGetChannel3<2>(Intrin);
 }
 
+template<uint8_t N, uint8_t Ch>
+void TestGetChannelF(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
+{
+    const auto src = GetRandVals();
+    VarLenTest<float, float, N, 1>(reinterpret_cast<const float*>(src.data()), src.size() / 4, [&](float* dst, const float* src, size_t count)
+    {
+        if constexpr (N == 4)
+            intrin->RGBAGetChannel(dst, src, count, Ch);
+        else
+            intrin->RGBGetChannel(dst, src, count, Ch);
+    }, [](float* dst, const float* src, size_t count)
+    {
+        while (count)
+        {
+            *dst++ = src[Ch];
+            src += N;
+            count--;
+        }
+    });
+}
+INTRIN_TEST(ColorCvt, RGBAfToRf)
+{
+    SCOPED_TRACE("ColorCvt::RGBAfToRf");
+    TestGetChannelF<4, 0>(Intrin);
+}
+
+INTRIN_TEST(ColorCvt, RGBAfToGf)
+{
+    SCOPED_TRACE("ColorCvt::RGBAfToGf");
+    TestGetChannelF<4, 1>(Intrin);
+}
+
+INTRIN_TEST(ColorCvt, RGBAfToBf)
+{
+    SCOPED_TRACE("ColorCvt::RGBAfToBf");
+    TestGetChannelF<4, 2>(Intrin);
+}
+
+INTRIN_TEST(ColorCvt, RGBAfToAf)
+{
+    SCOPED_TRACE("ColorCvt::RGBAfToAf");
+    TestGetChannelF<4, 3>(Intrin);
+}
+
+INTRIN_TEST(ColorCvt, RGBfToRf)
+{
+    SCOPED_TRACE("ColorCvt::RGBfToRf");
+    TestGetChannelF<3, 0>(Intrin);
+}
+
+INTRIN_TEST(ColorCvt, RGBfToGf)
+{
+    SCOPED_TRACE("ColorCvt::RGBfToGf");
+    TestGetChannelF<3, 1>(Intrin);
+}
+
+INTRIN_TEST(ColorCvt, RGBfToBf)
+{
+    SCOPED_TRACE("ColorCvt::RGBfToBf");
+    TestGetChannelF<3, 2>(Intrin);
+}
+
 template<uint8_t Ch>
 void TestGetChannelA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
 {
@@ -564,6 +626,36 @@ INTRIN_TEST(ColorCvt, Extract8x4)
     SCOPED_TRACE("ColorCvt::Extract8x4");
     const auto src = GetRandVals();
     VarLenExtractTest<uint32_t, uint8_t, 1, 4>(src, [&](const std::array<uint8_t*, 4>& dsts, const uint32_t* src, size_t count)
+    {
+        Intrin->RGBAToPlanar(dsts, src, count);
+    });
+}
+
+INTRIN_TEST(ColorCvt, Extract32x2)
+{
+    SCOPED_TRACE("ColorCvt::Extract32x2");
+    const auto src = GetRandVals();
+    VarLenExtractTest<float, float, 2, 2>(src, [&](const std::array<float*, 2>& dsts, const float* src, size_t count)
+    {
+        Intrin->RAToPlanar(dsts, src, count);
+    });
+}
+
+INTRIN_TEST(ColorCvt, Extract32x3)
+{
+    SCOPED_TRACE("ColorCvt::Extract32x3");
+    const auto src = GetRandVals();
+    VarLenExtractTest<float, float, 3, 3>(src, [&](const std::array<float*, 3>& dsts, const float* src, size_t count)
+    {
+        Intrin->RGBToPlanar(dsts, src, count);
+    });
+}
+
+INTRIN_TEST(ColorCvt, Extract32x4)
+{
+    SCOPED_TRACE("ColorCvt::Extract32x4");
+    const auto src = GetRandVals();
+    VarLenExtractTest<float, float, 4, 4>(src, [&](const std::array<float*, 4>& dsts, const float* src, size_t count)
     {
         Intrin->RGBAToPlanar(dsts, src, count);
     });
@@ -931,6 +1023,11 @@ TEST(IntrinPerf, RGBA8ToBGRA8)
     });
 }
 
+constexpr auto Ext8x4_1  = static_cast<void (xziar::img::ColorConvertor::*)(uint8_t* const, const uint32_t*, size_t, const uint8_t) const>(&xziar::img::ColorConvertor::RGBAGetChannel);
+constexpr auto Ext8x3_1  = static_cast<void (xziar::img::ColorConvertor::*)(uint8_t* const, const uint8_t*, size_t, const uint8_t) const>(&xziar::img::ColorConvertor::RGBGetChannel);
+constexpr auto Ext32x4_1 = static_cast<void (xziar::img::ColorConvertor::*)(float* const, const float*, size_t, const uint8_t) const>(&xziar::img::ColorConvertor::RGBAGetChannel);
+constexpr auto Ext32x3_1 = static_cast<void (xziar::img::ColorConvertor::*)(float* const, const float*, size_t, const uint8_t) const>(&xziar::img::ColorConvertor::RGBGetChannel);
+
 TEST(IntrinPerf, RGBAGetChannel)
 {
     using xziar::img::ColorConvertor;
@@ -938,13 +1035,13 @@ TEST(IntrinPerf, RGBAGetChannel)
     std::vector<uint32_t> src(Size);
     std::vector<uint8_t> dst(Size);
 
-    PerfTester::DoFastPath(&ColorConvertor::RGBAGetChannel, "RGBA8ToR8", Size, 150,
+    PerfTester::DoFastPath(Ext8x4_1, "RGBA8ToR8", Size, 150,
         dst.data(), src.data(), Size, uint8_t(0));
-    PerfTester::DoFastPath(&ColorConvertor::RGBAGetChannel, "RGBA8ToG8", Size, 150,
+    PerfTester::DoFastPath(Ext8x4_1, "RGBA8ToG8", Size, 150,
         dst.data(), src.data(), Size, uint8_t(1));
-    PerfTester::DoFastPath(&ColorConvertor::RGBAGetChannel, "RGBA8ToB8", Size, 150,
+    PerfTester::DoFastPath(Ext8x4_1, "RGBA8ToB8", Size, 150,
         dst.data(), src.data(), Size, uint8_t(2));
-    PerfTester::DoFastPath(&ColorConvertor::RGBAGetChannel, "RGBA8ToA8", Size, 150,
+    PerfTester::DoFastPath(Ext8x4_1, "RGBA8ToA8", Size, 150,
         dst.data(), src.data(), Size, uint8_t(3));
 }
 
@@ -955,11 +1052,35 @@ TEST(IntrinPerf, RGBGetChannel)
     std::vector<uint8_t> src(Size * 3);
     std::vector<uint8_t> dst(Size);
 
-    PerfTester::DoFastPath(&ColorConvertor::RGBGetChannel, "RGB8ToR8", Size, 150,
+    PerfTester::DoFastPath(Ext8x3_1, "RGB8ToR8", Size, 150,
         dst.data(), src.data(), Size, uint8_t(0));
-    PerfTester::DoFastPath(&ColorConvertor::RGBGetChannel, "RGB8ToG8", Size, 150,
+    PerfTester::DoFastPath(Ext8x3_1, "RGB8ToG8", Size, 150,
         dst.data(), src.data(), Size, uint8_t(1));
-    PerfTester::DoFastPath(&ColorConvertor::RGBGetChannel, "RGB8ToB8", Size, 150,
+    PerfTester::DoFastPath(Ext8x3_1, "RGB8ToB8", Size, 150,
+        dst.data(), src.data(), Size, uint8_t(2));
+}
+
+TEST(IntrinPerf, RGBfGetChannel)
+{
+    using xziar::img::ColorConvertor;
+    constexpr uint32_t Size = 512 * 512;
+    std::vector<float> src(Size * 4);
+    std::vector<float> dst(Size);
+
+    PerfTester::DoFastPath(Ext32x4_1, "RGBAfToRf", Size, 150,
+        dst.data(), src.data(), Size, uint8_t(0));
+    PerfTester::DoFastPath(Ext32x4_1, "RGBAfToGf", Size, 150,
+        dst.data(), src.data(), Size, uint8_t(1));
+    PerfTester::DoFastPath(Ext32x4_1, "RGBAfToBf", Size, 150,
+        dst.data(), src.data(), Size, uint8_t(2));
+    PerfTester::DoFastPath(Ext32x4_1, "RGBAfToAf", Size, 150,
+        dst.data(), src.data(), Size, uint8_t(3));
+
+    PerfTester::DoFastPath(Ext32x3_1, "RGBfToRf", Size, 150,
+        dst.data(), src.data(), Size, uint8_t(0));
+    PerfTester::DoFastPath(Ext32x3_1, "RGBfToGf", Size, 150,
+        dst.data(), src.data(), Size, uint8_t(1));
+    PerfTester::DoFastPath(Ext32x3_1, "RGBfToBf", Size, 150,
         dst.data(), src.data(), Size, uint8_t(2));
 }
 
@@ -978,6 +1099,16 @@ TEST(IntrinPerf, RGBAGetChannelAlpha)
         dst.data(), src.data(), Size, uint8_t(2));
 }
 
+template<typename T, size_t N> using PtrSpan = common::span<T* const, N>;
+template<size_t N> using PS8 = PtrSpan<uint8_t, N>;
+template<size_t N> using PS32 = PtrSpan<float, N>;
+constexpr auto Ext8x2  = static_cast<void (xziar::img::ColorConvertor::*)(PS8 <2>, const uint16_t*, size_t) const>(&xziar::img::ColorConvertor::RAToPlanar);
+constexpr auto Ext8x3  = static_cast<void (xziar::img::ColorConvertor::*)(PS8 <3>, const uint8_t *, size_t) const>(&xziar::img::ColorConvertor::RGBToPlanar);
+constexpr auto Ext8x4  = static_cast<void (xziar::img::ColorConvertor::*)(PS8 <4>, const uint32_t*, size_t) const>(&xziar::img::ColorConvertor::RGBAToPlanar);
+constexpr auto Ext32x2 = static_cast<void (xziar::img::ColorConvertor::*)(PS32<2>, const float*, size_t) const>(&xziar::img::ColorConvertor::RAToPlanar);
+constexpr auto Ext32x3 = static_cast<void (xziar::img::ColorConvertor::*)(PS32<3>, const float*, size_t) const>(&xziar::img::ColorConvertor::RGBToPlanar);
+constexpr auto Ext32x4 = static_cast<void (xziar::img::ColorConvertor::*)(PS32<4>, const float*, size_t) const>(&xziar::img::ColorConvertor::RGBAToPlanar);
+
 TEST(IntrinPerf, Extract8)
 {
     using xziar::img::ColorConvertor;
@@ -988,12 +1119,30 @@ TEST(IntrinPerf, Extract8)
         dst.resize(Size);
     uint8_t* const ptrs[4] = {dsts[0].data(), dsts[1].data(), dsts[2].data(), dsts[3].data()};
 
-    PerfTester::DoFastPath(&ColorConvertor::RAToPlanar, "Extract8x2", Size, 150,
-        common::span<uint8_t* const, 2>{ ptrs, 2}, reinterpret_cast<const uint16_t*>(src.data()), Size);
-    PerfTester::DoFastPath(&ColorConvertor::RGBToPlanar, "Extract8x3", Size, 150,
-        common::span<uint8_t* const, 3>{ ptrs, 3}, reinterpret_cast<const uint8_t*>(src.data()), Size);
-    PerfTester::DoFastPath(&ColorConvertor::RGBAToPlanar, "Extract8x4", Size, 150,
-        common::span<uint8_t* const, 4>{ ptrs, 4}, reinterpret_cast<const uint32_t*>(src.data()), Size);
+    PerfTester::DoFastPath(Ext8x2, "Extract8x2", Size, 150,
+        PS8<2>{ ptrs, 2}, reinterpret_cast<const uint16_t*>(src.data()), Size);
+    PerfTester::DoFastPath(Ext8x3, "Extract8x3", Size, 150,
+        PS8<3>{ ptrs, 3}, reinterpret_cast<const uint8_t*>(src.data()), Size);
+    PerfTester::DoFastPath(Ext8x4, "Extract8x4", Size, 150,
+        PS8<4>{ ptrs, 4}, reinterpret_cast<const uint32_t*>(src.data()), Size);
+}
+
+TEST(IntrinPerf, Extract32)
+{
+    using xziar::img::ColorConvertor;
+    constexpr uint32_t Size = 512 * 512;
+    std::vector<float> src(Size * 4);
+    std::vector<float> dsts[4];
+    for (auto& dst : dsts)
+        dst.resize(Size);
+    float* const ptrs[4] = { dsts[0].data(), dsts[1].data(), dsts[2].data(), dsts[3].data() };
+
+    PerfTester::DoFastPath(Ext32x2, "Extract32x2", Size, 150,
+        PS32<2>{ ptrs, 2}, reinterpret_cast<const float*>(src.data()), Size);
+    PerfTester::DoFastPath(Ext32x3, "Extract32x3", Size, 150,
+        PS32<3>{ ptrs, 3}, reinterpret_cast<const float*>(src.data()), Size);
+    PerfTester::DoFastPath(Ext32x4, "Extract32x4", Size, 150,
+        PS32<4>{ ptrs, 4}, reinterpret_cast<const float*>(src.data()), Size);
 }
 
 TEST(IntrinPerf, RGB555ToRGBA)
