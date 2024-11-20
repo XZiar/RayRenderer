@@ -524,24 +524,24 @@ struct FuncMAddSubMulDiv
     forceinline friend constexpr T operator*(const T& left, const T& right) noexcept
     {
         using T4 = simds::V4SIMD<E>;
-        auto x = right.RowX.template MulAdd<0>(left.RowX, T4::AllZero());
-             x = right.RowY.template MulAdd<1>(left.RowX, x);
-             x = right.RowZ.template MulAdd<2>(left.RowX, x);
-        auto y = right.RowX.template MulAdd<0>(left.RowY, T4::AllZero());
-             y = right.RowY.template MulAdd<1>(left.RowY, y);
-             y = right.RowZ.template MulAdd<2>(left.RowY, y);
-        auto z = right.RowX.template MulAdd<0>(left.RowZ, T4::AllZero());
-             z = right.RowY.template MulAdd<1>(left.RowZ, z);
-             z = right.RowZ.template MulAdd<2>(left.RowZ, z);
+        auto x = right.RowX.template MulScalarAdd<0>(left.RowX, T4::AllZero());
+             x = right.RowY.template MulScalarAdd<1>(left.RowX, x);
+             x = right.RowZ.template MulScalarAdd<2>(left.RowX, x);
+        auto y = right.RowX.template MulScalarAdd<0>(left.RowY, T4::AllZero());
+             y = right.RowY.template MulScalarAdd<1>(left.RowY, y);
+             y = right.RowZ.template MulScalarAdd<2>(left.RowY, y);
+        auto z = right.RowX.template MulScalarAdd<0>(left.RowZ, T4::AllZero());
+             z = right.RowY.template MulScalarAdd<1>(left.RowZ, z);
+             z = right.RowZ.template MulScalarAdd<2>(left.RowZ, z);
         if constexpr (N == 4)
         {
-            x = right.RowW.template MulAdd<3>(left.RowX, x);
-            y = right.RowW.template MulAdd<3>(left.RowY, y);
-            z = right.RowW.template MulAdd<3>(left.RowZ, z);
-            auto w = right.RowX.template MulAdd<0>(left.RowW, T4::AllZero());
-                 w = right.RowY.template MulAdd<1>(left.RowW, w);
-                 w = right.RowZ.template MulAdd<2>(left.RowW, w);
-                 w = right.RowW.template MulAdd<3>(left.RowW, w);
+            x = right.RowW.template MulScalarAdd<3>(left.RowX, x);
+            y = right.RowW.template MulScalarAdd<3>(left.RowY, y);
+            z = right.RowW.template MulScalarAdd<3>(left.RowZ, z);
+            auto w = right.RowX.template MulScalarAdd<0>(left.RowW, T4::AllZero());
+                 w = right.RowY.template MulScalarAdd<1>(left.RowW, w);
+                 w = right.RowZ.template MulScalarAdd<2>(left.RowW, w);
+                 w = right.RowW.template MulScalarAdd<3>(left.RowW, w);
             return { x,y,z,w };
         }
         else

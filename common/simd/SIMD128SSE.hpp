@@ -131,6 +131,7 @@ forceinline std::pair<uint32_t, uint32_t> VECCALL SignBitToIdx(const uint32_t si
 }
 
 
+// For integer
 template<typename T, typename E, size_t N>
 struct SSE128Common : public CommonOperators<T>
 {
@@ -174,6 +175,67 @@ struct SSE128Common : public CommonOperators<T>
     forceinline T VECCALL Not() const noexcept
     {
         return _mm_xor_si128(Data, _mm_set1_epi8(-1));
+    }
+
+    // arithmetic operations
+    forceinline T VECCALL MulAddLo(const T& muler, const T& adder) const noexcept
+    {
+        return static_cast<const T*>(this)->MulLo(muler).Add(adder);
+    }
+    forceinline T VECCALL MulScalarAddLo(const E muler, const T& adder) const noexcept
+    {
+        return MulAddLo(muler, adder);
+    }
+    template<size_t Idx>
+    forceinline T VECCALL MulScalarAddLo(const T& muler, const T& adder) const noexcept
+    {
+        static_assert(Idx < N, "select index should be in [0,N)");
+        return static_cast<const T*>(this)->MulLo(muler.template Broadcast<Idx>()).Add(adder);
+    }
+    forceinline T VECCALL MulSubLo(const T& muler, const T& suber) const noexcept
+    {
+        return static_cast<const T*>(this)->MulLo(muler).Sub(suber);
+    }
+    forceinline T VECCALL MulScalarSubLo(const E muler, const T& suber) const noexcept
+    {
+        return MulSubLo(muler, suber);
+    }
+    template<size_t Idx>
+    forceinline T VECCALL MulScalarSubLo(const T& muler, const T& suber) const noexcept
+    {
+        static_assert(Idx < N, "select index should be in [0,N)");
+        return static_cast<const T*>(this)->MulLo(muler.template Broadcast<Idx>()).Sub(suber);
+    }
+    forceinline T VECCALL NMulAddLo(const T& muler, const T& adder) const noexcept
+    {
+        return adder.Sub(static_cast<const T*>(this)->MulLo(muler));
+    }
+    forceinline T VECCALL NMulScalarAddLo(const E muler, const T& adder) const noexcept
+    {
+        return NMulAddLo(muler, adder);
+    }
+    template<size_t Idx>
+    forceinline T VECCALL NMulScalarAddLo(const T& muler, const T& adder) const noexcept
+    {
+        static_assert(Idx < N, "select index should be in [0,N)");
+        return adder.Sub(static_cast<const T*>(this)->MulLo(muler.template Broadcast<Idx>()));
+    }
+    forceinline T VECCALL NMulSubLo(const T& muler, const T& suber) const noexcept
+    {
+        static_assert(std::is_signed_v<E>, "not allowed for unsigned vector");
+        return static_cast<const T*>(this)->MulLo(muler).Add(suber).Neg();
+    }
+    forceinline T VECCALL NMulScalarSubLo(const E muler, const T& suber) const noexcept
+    {
+        static_assert(std::is_signed_v<E>, "not allowed for unsigned vector");
+        return NMulSubLo(muler, suber);
+    }
+    template<size_t Idx>
+    forceinline T VECCALL NMulScalarSubLo(const T& muler, const T& suber) const noexcept
+    {
+        static_assert(std::is_signed_v<E>, "not allowed for unsigned vector");
+        static_assert(Idx < N, "select index should be in [0,N)");
+        return static_cast<const T*>(this)->MulLo(muler.template Broadcast<Idx>()).Add(suber).Neg();
     }
 
     // shuffle operations
@@ -1086,7 +1148,7 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
 #endif
     }
     template<size_t Idx>
-    forceinline F64x2 VECCALL MulAdd(const F64x2& muler, const F64x2& adder) const noexcept
+    forceinline F64x2 VECCALL MulScalarAdd(const F64x2& muler, const F64x2& adder) const noexcept
     {
         static_assert(Idx < 2, "select index should be in [0,1]");
         return MulAdd(muler.Broadcast<Idx>(), adder);
@@ -1100,7 +1162,7 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
 #endif
     }
     template<size_t Idx>
-    forceinline F64x2 VECCALL MulSub(const F64x2& muler, const F64x2& suber) const noexcept
+    forceinline F64x2 VECCALL MulScalarSub(const F64x2& muler, const F64x2& suber) const noexcept
     {
         static_assert(Idx < 2, "select index should be in [0,1]");
         return MulSub(muler.Broadcast<Idx>(), suber);
@@ -1114,7 +1176,7 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
 #endif
     }
     template<size_t Idx>
-    forceinline F64x2 VECCALL NMulAdd(const F64x2& muler, const F64x2& adder) const noexcept
+    forceinline F64x2 VECCALL NMulScalarAdd(const F64x2& muler, const F64x2& adder) const noexcept
     {
         static_assert(Idx < 2, "select index should be in [0,1]");
         return NMulAdd(muler.Broadcast<Idx>(), adder);
@@ -1128,7 +1190,7 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
 #endif
     }
     template<size_t Idx>
-    forceinline F64x2 VECCALL NMulSub(const F64x2& muler, const F64x2& suber) const noexcept
+    forceinline F64x2 VECCALL NMulScalarSub(const F64x2& muler, const F64x2& suber) const noexcept
     {
         static_assert(Idx < 2, "select index should be in [0,1]");
         return NMulSub(muler.Broadcast<Idx>(), suber);
@@ -1315,7 +1377,7 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
 #endif
     }
     template<size_t Idx>
-    forceinline F32x4 VECCALL MulAdd(const F32x4& muler, const F32x4& adder) const noexcept
+    forceinline F32x4 VECCALL MulScalarAdd(const F32x4& muler, const F32x4& adder) const noexcept
     {
         static_assert(Idx < 4, "select index should be in [0,3]");
         return MulAdd(muler.Broadcast<Idx>(), adder);
@@ -1329,7 +1391,7 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
 #endif
     }
     template<size_t Idx>
-    forceinline F32x4 VECCALL MulSub(const F32x4& muler, const F32x4& suber) const noexcept
+    forceinline F32x4 VECCALL MulScalarSub(const F32x4& muler, const F32x4& suber) const noexcept
     {
         static_assert(Idx < 4, "select index should be in [0,3]");
         return MulSub(muler.Broadcast<Idx>(), suber);
@@ -1343,7 +1405,7 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
 #endif
     }
     template<size_t Idx>
-    forceinline F32x4 VECCALL NMulAdd(const F32x4& muler, const F32x4& adder) const noexcept
+    forceinline F32x4 VECCALL NMulScalarAdd(const F32x4& muler, const F32x4& adder) const noexcept
     {
         static_assert(Idx < 4, "select index should be in [0,3]");
         return NMulAdd(muler.Broadcast<Idx>(), adder);
@@ -1357,7 +1419,7 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
 #endif
     }
     template<size_t Idx>
-    forceinline F32x4 VECCALL NMulSub(const F32x4& muler, const F32x4& suber) const noexcept
+    forceinline F32x4 VECCALL NMulScalarSub(const F32x4& muler, const F32x4& suber) const noexcept
     {
         static_assert(Idx < 4, "select index should be in [0,3]");
         return NMulSub(muler.Broadcast<Idx>(), suber);
@@ -1676,11 +1738,13 @@ template<> forceinline F32x4 VECCALL U32x4::Cast<F32x4, CastMode::RangeUndef>() 
 # if COMMON_SIMD_LV >= 320
     return _mm512_castps512_ps128(_mm512_cvtepu32_ps(_mm512_castsi128_si512(Data)));
 # else
-    const auto lo31 = And(INT32_MAX).As<I32x4>();
-    const auto base = lo31.Cast<F32x4>();
-    const F32x4 msbVal(static_cast<float>(0x80000000u));
-    const F32x4 adder = _mm_blendv_ps(_mm_setzero_ps(), msbVal, _mm_castsi128_ps(Data));
-    return base.Add(adder);
+    // use 2 convert to make sure error within 0.5 ULP, see https://stackoverflow.com/a/40766669
+    const auto mul16 = _mm_set1_ps(65536.f);
+    const auto lo16 = And(0xffff);
+    const auto hi16 = ShiftRightLogic<16>();
+    const auto base = hi16.As<I32x4>().Cast<F32x4>();
+    const auto addlo = lo16.As<I32x4>().Cast<F32x4>();
+    return base.MulAdd(mul16, addlo);
 #endif
 }
 template<> forceinline Pack<F64x2, 2> VECCALL U32x4::Cast<F64x2, CastMode::RangeUndef>() const noexcept

@@ -459,7 +459,7 @@ template<uint8_t N, uint8_t Ch>
 void TestGetChannelF(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
 {
     const auto src = GetRandVals();
-    VarLenTest<float, float, N, 1>(reinterpret_cast<const float*>(src.data()), src.size() / 4, [&](float* dst, const float* src, size_t count)
+    VarLenTest<float, float, N, 1>(reinterpret_cast<const float*>(src.data()), src.size() / 4 / N, [&](float* dst, const float* src, size_t count)
     {
         if constexpr (N == 4)
             intrin->RGBAGetChannel(dst, src, count, Ch);
@@ -674,9 +674,12 @@ void Test555ToRGB(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
         while (count)
         {
             const auto val = *src++;
-            const auto r = static_cast<uint8_t>(((val >>  0) & 0x1fu) << 3);
-            const auto g = static_cast<uint8_t>(((val >>  5) & 0x1fu) << 3);
-            const auto b = static_cast<uint8_t>(((val >> 10) & 0x1fu) << 3);
+            const auto r_ = static_cast<float>((val >>  0) & 0x1f);
+            const auto g_ = static_cast<float>((val >>  5) & 0x1f);
+            const auto b_ = static_cast<float>((val >> 10) & 0x1f);
+            const auto r = static_cast<uint8_t>(std::floor(r_ * 255.0f / 31.0f + 0.5f));
+            const auto g = static_cast<uint8_t>(std::floor(g_ * 255.0f / 31.0f + 0.5f));
+            const auto b = static_cast<uint8_t>(std::floor(b_ * 255.0f / 31.0f + 0.5f));
             *dst++ = isRGB ? r : b;
             *dst++ = g;
             *dst++ = isRGB ? b : r;
@@ -711,9 +714,12 @@ void Test555ToRGBA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
         while (count)
         {
             const auto val = *src++;
-            const auto r = static_cast<uint8_t>(((val >>  0) & 0x1fu) << 3);
-            const auto g = static_cast<uint8_t>(((val >>  5) & 0x1fu) << 3);
-            const auto b = static_cast<uint8_t>(((val >> 10) & 0x1fu) << 3);
+            const auto r_ = static_cast<float>((val >>  0) & 0x1f);
+            const auto g_ = static_cast<float>((val >>  5) & 0x1f);
+            const auto b_ = static_cast<float>((val >> 10) & 0x1f);
+            const auto r = static_cast<uint8_t>(std::floor(r_ * 255.0f / 31.0f + 0.5f));
+            const auto g = static_cast<uint8_t>(std::floor(g_ * 255.0f / 31.0f + 0.5f));
+            const auto b = static_cast<uint8_t>(std::floor(b_ * 255.0f / 31.0f + 0.5f));
             *dst++ = isRGB ? r : b;
             *dst++ = g;
             *dst++ = isRGB ? b : r;
@@ -762,9 +768,12 @@ void Test565ToRGB(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
         while (count)
         {
             const auto val = *src++;
-            const auto r = static_cast<uint8_t>(((val >>  0) & 0x1fu) << 3);
-            const auto g = static_cast<uint8_t>(((val >>  5) & 0x3fu) << 2);
-            const auto b = static_cast<uint8_t>(((val >> 11) & 0x1fu) << 3);
+            const auto r_ = static_cast<float>((val >>  0) & 0x1f);
+            const auto g_ = static_cast<float>((val >>  5) & 0x3f);
+            const auto b_ = static_cast<float>((val >> 11) & 0x1f);
+            const auto r = static_cast<uint8_t>(std::floor(r_ * 255.0f / 31.0f + 0.5f));
+            const auto g = static_cast<uint8_t>(std::floor(g_ * 255.0f / 63.0f + 0.5f));
+            const auto b = static_cast<uint8_t>(std::floor(b_ * 255.0f / 31.0f + 0.5f));
             *dst++ = isRGB ? r : b;
             *dst++ = g;
             *dst++ = isRGB ? b : r;
@@ -799,9 +808,12 @@ void Test565ToRGBA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
         while (count)
         {
             const auto val = *src++;
-            const auto r = static_cast<uint8_t>(((val >>  0) & 0x1fu) << 3);
-            const auto g = static_cast<uint8_t>(((val >>  5) & 0x3fu) << 2);
-            const auto b = static_cast<uint8_t>(((val >> 11) & 0x1fu) << 3);
+            const auto r_ = static_cast<float>((val >>  0) & 0x1f);
+            const auto g_ = static_cast<float>((val >>  5) & 0x3f);
+            const auto b_ = static_cast<float>((val >> 11) & 0x1f);
+            const auto r = static_cast<uint8_t>(std::floor(r_ * 255.0f / 31.0f + 0.5f));
+            const auto g = static_cast<uint8_t>(std::floor(g_ * 255.0f / 63.0f + 0.5f));
+            const auto b = static_cast<uint8_t>(std::floor(b_ * 255.0f / 31.0f + 0.5f));
             *dst++ = isRGB ? r : b;
             *dst++ = g;
             *dst++ = isRGB ? b : r;

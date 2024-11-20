@@ -468,10 +468,10 @@ static void TestMax(const T* ptr)
 template<typename T, size_t N, size_t... Idx>
 forceinline void FillFMALane(const T& base, const T& muler, const T& adder, T (&out)[N][4], std::index_sequence<Idx...>)
 {
-    (..., void(out[Idx][0] = base.template MulAdd <Idx>(muler, adder)));
-    (..., void(out[Idx][1] = base.template MulSub <Idx>(muler, adder)));
-    (..., void(out[Idx][2] = base.template NMulAdd<Idx>(muler, adder)));
-    (..., void(out[Idx][3] = base.template NMulSub<Idx>(muler, adder)));
+    (..., void(out[Idx][0] = base.template MulScalarAdd <Idx>(muler, adder)));
+    (..., void(out[Idx][1] = base.template MulScalarSub <Idx>(muler, adder)));
+    (..., void(out[Idx][2] = base.template NMulScalarAdd<Idx>(muler, adder)));
+    (..., void(out[Idx][3] = base.template NMulScalarSub<Idx>(muler, adder)));
 }
 template<typename T>
 static void TestFMA(const T* ptr)

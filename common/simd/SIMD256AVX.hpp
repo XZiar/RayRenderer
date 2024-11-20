@@ -110,6 +110,7 @@ struct AVX256Shared : public CommonOperators<T>
 };
 
 
+// For integer
 template<typename T, typename L, typename E, size_t N>
 struct AVX256Common : public AVX256Shared<T, E>
 {
@@ -159,6 +160,69 @@ struct AVX256Common : public AVX256Shared<T, E>
     {
         return _mm256_xor_si256(Data, _mm256_set1_epi8(-1));
     }
+
+    // arithmetic operations
+    forceinline T VECCALL MulAddLo(const T& muler, const T& adder) const noexcept
+    {
+        return static_cast<const T*>(this)->MulLo(muler).Add(adder);
+    }
+    forceinline T VECCALL MulScalarAddLo(const E muler, const T& adder) const noexcept
+    {
+        return MulAddLo(muler, adder);
+    }
+    template<size_t Idx>
+    forceinline T VECCALL MulScalarAddLo(const T& muler, const T& adder) const noexcept
+    {
+        static_assert(Idx < N, "select index should be in [0,N)");
+        return static_cast<const T*>(this)->MulLo(muler.template Broadcast<Idx>()).Add(adder);
+    }
+    forceinline T VECCALL MulSubLo(const T& muler, const T& suber) const noexcept
+    {
+        return static_cast<const T*>(this)->MulLo(muler).Sub(suber);
+    }
+    forceinline T VECCALL MulScalarSubLo(const E muler, const T& suber) const noexcept
+    {
+        return MulSubLo(muler, suber);
+    }
+    template<size_t Idx>
+    forceinline T VECCALL MulScalarSubLo(const T& muler, const T& suber) const noexcept
+    {
+        static_assert(Idx < N, "select index should be in [0,N)");
+        return static_cast<const T*>(this)->MulLo(muler.template Broadcast<Idx>()).Sub(suber);
+    }
+    forceinline T VECCALL NMulAddLo(const T& muler, const T& adder) const noexcept
+    {
+        return adder.Sub(static_cast<const T*>(this)->MulLo(muler));
+    }
+    forceinline T VECCALL NMulScalarAddLo(const E muler, const T& adder) const noexcept
+    {
+        return NMulAddLo(muler, adder);
+    }
+    template<size_t Idx>
+    forceinline T VECCALL NMulScalarAddLo(const T& muler, const T& adder) const noexcept
+    {
+        static_assert(Idx < N, "select index should be in [0,N)");
+        return adder.Sub(static_cast<const T*>(this)->MulLo(muler.template Broadcast<Idx>()));
+    }
+    forceinline T VECCALL NMulSubLo(const T& muler, const T& suber) const noexcept
+    {
+        static_assert(std::is_signed_v<E>, "not allowed for unsigned vector");
+        return static_cast<const T*>(this)->MulLo(muler).Add(suber).Neg();
+    }
+    forceinline T VECCALL NMulScalarSubLo(const E muler, const T& suber) const noexcept
+    {
+        static_assert(std::is_signed_v<E>, "not allowed for unsigned vector");
+        return NMulSubLo(muler, suber);
+    }
+    template<size_t Idx>
+    forceinline T VECCALL NMulScalarSubLo(const T& muler, const T& suber) const noexcept
+    {
+        static_assert(std::is_signed_v<E>, "not allowed for unsigned vector");
+        static_assert(Idx < N, "select index should be in [0,N)");
+        return static_cast<const T*>(this)->MulLo(muler.template Broadcast<Idx>()).Add(suber).Neg();
+    }
+
+    // shuffle operations
     template<uint8_t Cnt>
     forceinline T VECCALL MoveLaneToHi() const noexcept
     {
@@ -182,7 +246,7 @@ struct AVX256Common : public AVX256Shared<T, E>
         static_assert(Cnt <= N / 2, "move count should be in [0,N/2]");
         if constexpr (Cnt == 0) return Data;
         else if constexpr (Cnt == N / 2) return hi;
-        return _mm256_alignr_epi8(hi.Data, Data, Cnt * sizeof(E));
+        else return _mm256_alignr_epi8(hi.Data, Data, Cnt * sizeof(E));
     }
     forceinline T VECCALL MoveHiToLo() const noexcept { return _mm256_permute4x64_epi64(Data, 0b01001110); }
     forceinline T VECCALL ShuffleHiLo() const noexcept { return _mm256_permute4x64_epi64(Data, 0b01001110); }
@@ -1080,7 +1144,7 @@ struct alignas(__m256d) F64x4 : public detail::AVX256Shared<F64x4, double>
         static_assert(Cnt <= 2, "move count should be in [0,2]");
         if constexpr (Cnt == 0) return Data;
         else if constexpr (Cnt == 2) return hi;
-        return _mm256_castsi256_pd(_mm256_alignr_epi8(_mm256_castpd_si256(hi.Data), _mm256_castpd_si256(Data), Cnt * 8));
+        else return _mm256_castsi256_pd(_mm256_alignr_epi8(_mm256_castpd_si256(hi.Data), _mm256_castpd_si256(Data), Cnt * 8));
     }
 #endif
 
@@ -1137,7 +1201,7 @@ struct alignas(__m256d) F64x4 : public detail::AVX256Shared<F64x4, double>
         return MulAdd(F64x4(full, full), adder);
     }
     template<size_t Idx>
-    forceinline F64x4 VECCALL MulAdd(const F64x4& muler, const F64x4& adder) const noexcept
+    forceinline F64x4 VECCALL MulScalarAdd(const F64x4& muler, const F64x4& adder) const noexcept
     {
         static_assert(Idx < 4, "select index should be in [0,3]");
         return MulAdd(muler.Broadcast<Idx>(), adder);
@@ -1164,7 +1228,7 @@ struct alignas(__m256d) F64x4 : public detail::AVX256Shared<F64x4, double>
         return MulSub(F64x4(full, full), suber);
     }
     template<size_t Idx>
-    forceinline F64x4 VECCALL MulSub(const F64x4& muler, const F64x4& suber) const noexcept
+    forceinline F64x4 VECCALL MulScalarSub(const F64x4& muler, const F64x4& suber) const noexcept
     {
         static_assert(Idx < 4, "select index should be in [0,3]");
         return MulSub(muler.Broadcast<Idx>(), suber);
@@ -1191,7 +1255,7 @@ struct alignas(__m256d) F64x4 : public detail::AVX256Shared<F64x4, double>
         return NMulAdd(F64x4(full, full), adder);
     }
     template<size_t Idx>
-    forceinline F64x4 VECCALL NMulAdd(const F64x4& muler, const F64x4& adder) const noexcept
+    forceinline F64x4 VECCALL NMulScalarAdd(const F64x4& muler, const F64x4& adder) const noexcept
     {
         static_assert(Idx < 4, "select index should be in [0,3]");
         return NMulAdd(muler.Broadcast<Idx>(), adder);
@@ -1218,7 +1282,7 @@ struct alignas(__m256d) F64x4 : public detail::AVX256Shared<F64x4, double>
         return NMulSub(F64x4(full, full), suber);
     }
     template<size_t Idx>
-    forceinline F64x4 VECCALL NMulSub(const F64x4& muler, const F64x4& suber) const noexcept
+    forceinline F64x4 VECCALL NMulScalarSub(const F64x4& muler, const F64x4& suber) const noexcept
     {
         static_assert(Idx < 4, "select index should be in [0,3]");
         return NMulSub(muler.Broadcast<Idx>(), suber);
@@ -1394,7 +1458,7 @@ struct alignas(__m256) F32x8 : public detail::AVX256Shared<F32x8, float>
         static_assert(Cnt <= 4, "move count should be in [0,4]");
         if constexpr (Cnt == 0) return Data;
         else if constexpr (Cnt == 4) return hi;
-        return _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(hi.Data), _mm256_castps_si256(Data), Cnt * 4));
+        else return _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(hi.Data), _mm256_castps_si256(Data), Cnt * 4));
     }
 #endif
 
@@ -1451,7 +1515,7 @@ struct alignas(__m256) F32x8 : public detail::AVX256Shared<F32x8, float>
         return MulAdd(F32x8(full, full), adder);
     }
     template<size_t Idx>
-    forceinline F32x8 VECCALL MulAdd(const F32x8& muler, const F32x8& adder) const noexcept
+    forceinline F32x8 VECCALL MulScalarAdd(const F32x8& muler, const F32x8& adder) const noexcept
     {
         static_assert(Idx < 8, "select index should be in [0,7]");
         return MulAdd(muler.Broadcast<Idx>(), adder);
@@ -1478,7 +1542,7 @@ struct alignas(__m256) F32x8 : public detail::AVX256Shared<F32x8, float>
         return MulSub(F32x8(full, full), suber);
     }
     template<size_t Idx>
-    forceinline F32x8 VECCALL MulSub(const F32x8& muler, const F32x8& suber) const noexcept
+    forceinline F32x8 VECCALL MulScalarSub(const F32x8& muler, const F32x8& suber) const noexcept
     {
         static_assert(Idx < 8, "select index should be in [0,7]");
         return MulSub(muler.Broadcast<Idx>(), suber);
@@ -1505,7 +1569,7 @@ struct alignas(__m256) F32x8 : public detail::AVX256Shared<F32x8, float>
         return NMulAdd(F32x8(full, full), adder);
     }
     template<size_t Idx>
-    forceinline F32x8 VECCALL NMulAdd(const F32x8& muler, const F32x8& adder) const noexcept
+    forceinline F32x8 VECCALL NMulScalarAdd(const F32x8& muler, const F32x8& adder) const noexcept
     {
         static_assert(Idx < 8, "select index should be in [0,7]");
         return NMulAdd(muler.Broadcast<Idx>(), adder);
@@ -1532,7 +1596,7 @@ struct alignas(__m256) F32x8 : public detail::AVX256Shared<F32x8, float>
         return NMulSub(F32x8(full, full), suber);
     }
     template<size_t Idx>
-    forceinline F32x8 VECCALL NMulSub(const F32x8& muler, const F32x8& suber) const noexcept
+    forceinline F32x8 VECCALL NMulScalarSub(const F32x8& muler, const F32x8& suber) const noexcept
     {
         static_assert(Idx < 8, "select index should be in [0,7]");
         return NMulSub(muler.Broadcast<Idx>(), suber);
@@ -1854,11 +1918,13 @@ template<> forceinline F32x8 VECCALL U32x8::Cast<F32x8, CastMode::RangeUndef>() 
 # if COMMON_SIMD_LV >= 320
     return _mm512_castps512_ps256(_mm512_cvtepu32_ps(_mm512_castsi256_si512(Data)));
 # else
-    const auto lo31 = And(INT32_MAX).As<I32x8>();
-    const auto base = lo31.Cast<F32x8>();
-    const F32x8 msbVal(static_cast<float>(0x80000000u));
-    const F32x8 adder = _mm256_blendv_ps(_mm256_setzero_ps(), msbVal, _mm256_castsi256_ps(Data));
-    return base.Add(adder);
+    // use 2 convert to make sure error within 0.5 ULP, see https://stackoverflow.com/a/40766669
+    const auto mul16 = _mm256_set1_ps(65536.f);
+    const auto lo16 = And(0xffff);
+    const auto hi16 = ShiftRightLogic<16>();
+    const auto base = hi16.As<I32x8>().Cast<F32x8>();
+    const auto addlo = lo16.As<I32x8>().Cast<F32x8>();
+    return base.MulAdd(mul16, addlo);
 # endif
 }
 template<> forceinline Pack<F64x4, 2> VECCALL U32x8::Cast<F64x4, CastMode::RangeUndef>() const noexcept
