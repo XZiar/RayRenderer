@@ -79,10 +79,10 @@ private:
     static constexpr uint64_t InstCount = Pow<N, N>();
     static_assert(InstCount < BatchSize || InstCount % BatchSize == 0);
     static constexpr uint32_t BatchCount = static_cast<uint32_t>(std::max<uint64_t>(1, InstCount / BatchSize));
-    static inline const T Original = GenerateT<T>(std::make_index_sequence<N>{});
+    const T Original = GenerateT<T>(std::make_index_sequence<N>{});
 
     template<uint64_t IdxBegin, uint16_t... Vals>
-    static void TestShuffle(std::integer_sequence<uint16_t, Vals...>)
+    void TestShuffle(std::integer_sequence<uint16_t, Vals...>) const
     {
         if constexpr (N == 2)
         {
@@ -115,7 +115,7 @@ private:
         }
     }
     template<uint32_t BatchBegin, uint32_t BatchEnd>
-    static void TestShuffle()
+    void TestShuffle() const
     {
         if constexpr (BatchBegin == BatchEnd)
         {
@@ -184,8 +184,8 @@ MATCHER_P(MatchZip, ref, GenerateMatchStr("Zip", ref))
     return CheckMatch(arg, ref, std::make_index_sequence<N>{});
 }
 
-template<typename T, bool ZipLane = false>
-class ZipTest : public SIMDFixture
+template<typename T>
+class ZipLHTest : public SIMDFixture
 {
 private:
 public:
@@ -193,29 +193,15 @@ public:
     {
         constexpr size_t N = T::Count;
         std::array<uint8_t, N * 2> ref = { 0 };
-        if constexpr (ZipLane)
+        for (size_t i = 0; i < N; ++i)
         {
-            constexpr size_t M = N / 4;
-            constexpr size_t offsets[] = { M * 0,  M * 2, M * 1, M * 3 };
-            for (size_t i = 0; i < N; ++i)
-            {
-                const auto j = (i % M) + offsets[i / M];
-                ref[i * 2 + 0] = static_cast<uint8_t>(j);
-                ref[i * 2 + 1] = static_cast<uint8_t>(j + N);
-            }
-        }
-        else
-        {
-            for (size_t i = 0; i < N; ++i)
-            {
-                ref[i * 2 + 0] = static_cast<uint8_t>(i);
-                ref[i * 2 + 1] = static_cast<uint8_t>(i + N);
-            }
+            ref[i * 2 + 0] = static_cast<uint8_t>(i);
+            ref[i * 2 + 1] = static_cast<uint8_t>(i + N);
         }
         return ref;
     }
 public:
-    static constexpr auto TestSuite = ZipLane ? "SIMDZipLane" : "SIMDZip";
+    static constexpr auto TestSuite = "SIMDZipLH";
     void TestBody() override
     {
         using U = typename T::EleType;
@@ -223,16 +209,78 @@ public:
         const auto data1 = GenerateT<T>(std::make_index_sequence<T::Count>{}, T::Count);
         U out[T::Count * 2] = { 0 };
         constexpr auto ref = GetRef();
-        if constexpr (ZipLane)
-            data0.ZipLoLane(data1).Save(out), data0.ZipHiLane(data1).Save(out + T::Count);
-        else
-            data0.ZipLo(data1).Save(out), data0.ZipHi(data1).Save(out + T::Count);
+        data0.ZipLo(data1).Save(out), data0.ZipHi(data1).Save(out + T::Count);
         EXPECT_THAT(out, MatchZip(ref));
     }
 };
-#define RegisterSIMDZipTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, shuftest::ZipTest<type, false>);
+#define RegisterSIMDZipTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, shuftest::ZipLHTest<type>);
 #define RegisterSIMDZipTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDZipTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
-#define RegisterSIMDZipLaneTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, shuftest::ZipTest<type, true>);
+template<typename T>
+class ZipOETest : public SIMDFixture
+{
+private:
+public:
+    static constexpr auto GetRef() noexcept
+    {
+        constexpr size_t N = T::Count;
+        std::array<uint8_t, N * 2> ref = { 0 };
+        for (size_t i = 0; i < N / 2; ++i)
+        {
+            ref[i * 2 + 0 + 0] = static_cast<uint8_t>(i * 2 + 0 + 0);
+            ref[i * 2 + N + 0] = static_cast<uint8_t>(i * 2 + 0 + 1);
+            ref[i * 2 + 0 + 1] = static_cast<uint8_t>(i * 2 + N + 0);
+            ref[i * 2 + N + 1] = static_cast<uint8_t>(i * 2 + N + 1);
+        }
+        return ref;
+    }
+public:
+    static constexpr auto TestSuite = "SIMDZipOE";
+    void TestBody() override
+    {
+        using U = typename T::EleType;
+        const auto data0 = GenerateT<T>(std::make_index_sequence<T::Count>{}, 0);
+        const auto data1 = GenerateT<T>(std::make_index_sequence<T::Count>{}, T::Count);
+        U out[T::Count * 2] = { 0 };
+        constexpr auto ref = GetRef();
+        data0.ZipOdd(data1).Save(out), data0.ZipEven(data1).Save(out + T::Count);
+        EXPECT_THAT(out, MatchZip(ref));
+    }
+};
+#define RegisterSIMDZipOETestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, shuftest::ZipOETest<type>);
+#define RegisterSIMDZipOETest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDZipOETestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+template<typename T>
+class ZipLaneTest : public SIMDFixture
+{
+private:
+public:
+    static constexpr auto GetRef() noexcept
+    {
+        constexpr size_t N = T::Count;
+        std::array<uint8_t, N * 2> ref = { 0 };
+        constexpr size_t M = N / 4;
+        constexpr size_t offsets[] = { M * 0,  M * 2, M * 1, M * 3 };
+        for (size_t i = 0; i < N; ++i)
+        {
+            const auto j = (i % M) + offsets[i / M];
+            ref[i * 2 + 0] = static_cast<uint8_t>(j);
+            ref[i * 2 + 1] = static_cast<uint8_t>(j + N);
+        }
+        return ref;
+    }
+public:
+    static constexpr auto TestSuite = "SIMDZipLane";
+    void TestBody() override
+    {
+        using U = typename T::EleType;
+        const auto data0 = GenerateT<T>(std::make_index_sequence<T::Count>{}, 0);
+        const auto data1 = GenerateT<T>(std::make_index_sequence<T::Count>{}, T::Count);
+        U out[T::Count * 2] = { 0 };
+        constexpr auto ref = GetRef();
+        data0.ZipLoLane(data1).Save(out), data0.ZipHiLane(data1).Save(out + T::Count);
+        EXPECT_THAT(out, MatchZip(ref));
+    }
+};
+#define RegisterSIMDZipLaneTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, shuftest::ZipLaneTest<type>);
 #define RegisterSIMDZipLaneTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDZipLaneTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 
 
@@ -337,7 +385,7 @@ MATCHER_P2(FailSelect, mask, bits, GenerateSelectStr(mask, bits))
 template<typename T>
 class SelectTestBase
 {
-private:
+protected:
     static T InitAll(uint8_t val) noexcept
     {
         T ret;
@@ -346,8 +394,7 @@ private:
             ret.Val[i] = static_cast<U>(val);
         return ret;
     }
-protected:
-    static inline const T Zero = InitAll(0), One = InitAll(1);
+    const T Zero = InitAll(0), One = InitAll(1);
     static void CheckSelect(const T& obj, uint64_t mask)
     {
         const uint64_t mask_ = mask;
@@ -373,7 +420,7 @@ private:
     static_assert(InstCount < BatchSize || InstCount % BatchSize == 0);
     static constexpr uint32_t BatchCount = static_cast<uint32_t>(std::max<uint64_t>(1, InstCount / BatchSize));
     template<uint64_t IdxBegin, uint16_t... Vals>
-    static void TestSelect(std::integer_sequence<uint16_t, Vals...>)
+    void TestSelect(std::integer_sequence<uint16_t, Vals...>) const
     {
         T output[] = { Base::Zero.template SelectWith<IdxBegin + Vals>(Base::One)... };
         uint64_t mask = IdxBegin;
@@ -381,7 +428,7 @@ private:
             Base::CheckSelect(out, mask++);
     }
     template<uint64_t BatchBegin, uint64_t BatchEnd>
-    static void TestSelect()
+    void TestSelect() const
     {
         if constexpr (BatchBegin == BatchEnd)
         {
@@ -421,7 +468,7 @@ private:
         return ret;
     }();
     template<uint8_t... Vals>
-    static void TestSelect(std::integer_sequence<uint8_t, Vals...>)
+    void TestSelect(std::integer_sequence<uint8_t, Vals...>) const
     {
         T output[] = { Base::Zero.template SelectWith<Tests[Vals]>(Base::One)... };
         size_t idx = 0;
@@ -442,7 +489,7 @@ private:
     using Base = SelectTestBase<T>;
     static constexpr size_t N = T::Count;
     template<uint32_t... Vals>
-    static void TestSelect(std::integer_sequence<uint32_t, Vals...>)
+    void TestSelect(std::integer_sequence<uint32_t, Vals...>) const
     {
         T output[] = { Base::Zero.template SelectWith<StaticRands[Vals] % N>(Base::One)... };
         size_t idx = 0;

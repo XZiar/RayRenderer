@@ -73,7 +73,7 @@ forceinline std::pair<uint32_t, uint32_t> VECCALL SignBitToIdx(const uint32_t si
     {
 #   if COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
         uint16_t result;
-        __asm__("tzcnt %w1, %w0" : "=r"(result) : "r"(signbits));
+        __asm__("tzcnt %w1, %w0" : "=r"(result) : "r"(signbits) : "cc");
 #   else
         uint16_t result = _tzcnt_u16(static_cast<uint16_t>(signbits));
 #   endif
@@ -83,7 +83,7 @@ forceinline std::pair<uint32_t, uint32_t> VECCALL SignBitToIdx(const uint32_t si
     {
 #   if COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
         uint32_t result;
-        __asm__("tzcnt %1, %0" : "=r"(result) : "r"(signbits));
+        __asm__("tzcnt %1, %0" : "=r"(result) : "r"(signbits) : "cc");
 #   else
         uint32_t result = _tzcnt_u32(signbits);
 #   endif
@@ -93,7 +93,7 @@ forceinline std::pair<uint32_t, uint32_t> VECCALL SignBitToIdx(const uint32_t si
     {
 #   if COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
         uint64_t result;
-        __asm__("tzcnt %q1, %q0" : "=r"(result) : "r"((uint64_t)signbits));
+        __asm__("tzcnt %q1, %q0" : "=r"(result) : "r"((uint64_t)signbits) : "cc");
 #   else
         uint64_t result = _tzcnt_u64(signbits);
 #   endif
@@ -108,7 +108,7 @@ forceinline std::pair<uint32_t, uint32_t> VECCALL SignBitToIdx(const uint32_t si
         const auto fixedbits = signbits | extraMask;
 #   if COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
         uint32_t result;
-        __asm__("tzcnt %1, %0" : "=r"(result) : "r"(fixedbits));
+        __asm__("tzcnt %1, %0" : "=r"(result) : "r"(fixedbits) : "cc");
 #   else
         uint32_t result = _tzcnt_u32(fixedbits);
 #   endif
@@ -120,7 +120,7 @@ forceinline std::pair<uint32_t, uint32_t> VECCALL SignBitToIdx(const uint32_t si
         const auto fixedbits = signbits | extraMask;
 #   if COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
         uint64_t result;
-        __asm__("tzcnt %q1, %q0" : "=r"(result) : "r"(fixedbits));
+        __asm__("tzcnt %q1, %q0" : "=r"(result) : "r"(fixedbits) : "cc");
 #   else
         uint64_t result = _tzcnt_u32(fixedbits);
 #   endif
@@ -158,19 +158,19 @@ struct SSE128Common : public CommonOperators<T>
     // logic operations
     forceinline T VECCALL And(const T& other) const noexcept
     {
-        return _mm_and_si128(Data, other);
+        return _mm_and_si128(Data, other.Data);
     }
     forceinline T VECCALL Or(const T& other) const noexcept
     {
-        return _mm_or_si128(Data, other);
+        return _mm_or_si128(Data, other.Data);
     }
     forceinline T VECCALL Xor(const T& other) const noexcept
     {
-        return _mm_xor_si128(Data, other);
+        return _mm_xor_si128(Data, other.Data);
     }
     forceinline T VECCALL AndNot(const T& other) const noexcept
     {
-        return _mm_andnot_si128(Data, other);
+        return _mm_andnot_si128(Data, other.Data);
     }
     forceinline T VECCALL Not() const noexcept
     {
@@ -180,7 +180,7 @@ struct SSE128Common : public CommonOperators<T>
     // arithmetic operations
     forceinline T VECCALL MulAddLo(const T& muler, const T& adder) const noexcept
     {
-        return static_cast<const T*>(this)->MulLo(muler).Add(adder);
+        return static_cast<const T*>(this)->template MulLo<true>(muler).Add(adder);
     }
     forceinline T VECCALL MulScalarAddLo(const E muler, const T& adder) const noexcept
     {
@@ -190,11 +190,11 @@ struct SSE128Common : public CommonOperators<T>
     forceinline T VECCALL MulScalarAddLo(const T& muler, const T& adder) const noexcept
     {
         static_assert(Idx < N, "select index should be in [0,N)");
-        return static_cast<const T*>(this)->MulLo(muler.template Broadcast<Idx>()).Add(adder);
+        return static_cast<const T*>(this)->template MulLo<true>(muler.template Broadcast<Idx>()).Add(adder);
     }
     forceinline T VECCALL MulSubLo(const T& muler, const T& suber) const noexcept
     {
-        return static_cast<const T*>(this)->MulLo(muler).Sub(suber);
+        return static_cast<const T*>(this)->template MulLo<true>(muler).Sub(suber);
     }
     forceinline T VECCALL MulScalarSubLo(const E muler, const T& suber) const noexcept
     {
@@ -204,11 +204,11 @@ struct SSE128Common : public CommonOperators<T>
     forceinline T VECCALL MulScalarSubLo(const T& muler, const T& suber) const noexcept
     {
         static_assert(Idx < N, "select index should be in [0,N)");
-        return static_cast<const T*>(this)->MulLo(muler.template Broadcast<Idx>()).Sub(suber);
+        return static_cast<const T*>(this)->template MulLo<true>(muler.template Broadcast<Idx>()).Sub(suber);
     }
     forceinline T VECCALL NMulAddLo(const T& muler, const T& adder) const noexcept
     {
-        return adder.Sub(static_cast<const T*>(this)->MulLo(muler));
+        return adder.Sub(static_cast<const T*>(this)->template MulLo<true>(muler));
     }
     forceinline T VECCALL NMulScalarAddLo(const E muler, const T& adder) const noexcept
     {
@@ -218,12 +218,12 @@ struct SSE128Common : public CommonOperators<T>
     forceinline T VECCALL NMulScalarAddLo(const T& muler, const T& adder) const noexcept
     {
         static_assert(Idx < N, "select index should be in [0,N)");
-        return adder.Sub(static_cast<const T*>(this)->MulLo(muler.template Broadcast<Idx>()));
+        return adder.Sub(static_cast<const T*>(this)->template MulLo<true>(muler.template Broadcast<Idx>()));
     }
     forceinline T VECCALL NMulSubLo(const T& muler, const T& suber) const noexcept
     {
         static_assert(std::is_signed_v<E>, "not allowed for unsigned vector");
-        return static_cast<const T*>(this)->MulLo(muler).Add(suber).Neg();
+        return static_cast<const T*>(this)->template MulLo<true>(muler).Add(suber).Neg();
     }
     forceinline T VECCALL NMulScalarSubLo(const E muler, const T& suber) const noexcept
     {
@@ -235,7 +235,7 @@ struct SSE128Common : public CommonOperators<T>
     {
         static_assert(std::is_signed_v<E>, "not allowed for unsigned vector");
         static_assert(Idx < N, "select index should be in [0,N)");
-        return static_cast<const T*>(this)->MulLo(muler.template Broadcast<Idx>()).Add(suber).Neg();
+        return static_cast<const T*>(this)->template MulLo<true>(muler.template Broadcast<Idx>()).Add(suber).Neg();
     }
 
     // shuffle operations
@@ -268,7 +268,11 @@ struct SSE128Common : public CommonOperators<T>
         static_assert(Cnt <= N, "move count should be in [0,N]");
         if constexpr (Cnt == 0) return Data;
         else if constexpr (Cnt == N) return hi;
-        return _mm_alignr_epi8(hi.Data, Data, Cnt * sizeof(E));
+        else return _mm_alignr_epi8(hi.Data, Data, Cnt * sizeof(E));
+    }
+    forceinline Pack<T, 2> VECCALL Zip(const T& other) const noexcept
+    {
+        return { static_cast<const T*>(this)->ZipLo(other), static_cast<const T*>(this)->ZipHi(other) };
     }
 
     forceinline bool VECCALL IsAllZero() const noexcept
@@ -326,6 +330,8 @@ public:
     }
     forceinline T VECCALL ZipLo(const T& other) const noexcept { return _mm_unpacklo_epi64(this->Data, other.Data); }
     forceinline T VECCALL ZipHi(const T& other) const noexcept { return _mm_unpackhi_epi64(this->Data, other.Data); }
+    forceinline T VECCALL ZipOdd(const T& other) const noexcept { return ZipLo(other); }
+    forceinline T VECCALL ZipEven(const T& other) const noexcept { return ZipHi(other); }
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, T mask) const noexcept
     {
@@ -353,10 +359,12 @@ public:
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const noexcept { return _mm_add_epi64(this->Data, other.Data); }
     forceinline T VECCALL Sub(const T& other) const noexcept { return _mm_sub_epi64(this->Data, other.Data); }
-    forceinline T VECCALL MulLo(const T& other) const  noexcept
+    template<bool Enforce = false>
+    forceinline T VECCALL MulLo(const T& other) const noexcept
     {
 #if COMMON_SIMD_LV >= 320
-        return _mm_mullo_epi64(this->Data, other.Data);
+        if constexpr (Enforce) return _mm_mullo_epi64_force(this->Data, other.Data);
+        else return _mm_mullo_epi64(this->Data, other.Data);
 #else
         const E loA = _mm_extract_epi64(this->Data, 0), hiA = _mm_extract_epi64(this->Data, 1);
         const E loB = _mm_extract_epi64(other.Data, 0), hiB = _mm_extract_epi64(other.Data, 1);
@@ -513,6 +521,8 @@ public:
     }
     forceinline T VECCALL ZipLo(const T& other) const noexcept { return _mm_unpacklo_epi32(this->Data, other.Data); }
     forceinline T VECCALL ZipHi(const T& other) const noexcept { return _mm_unpackhi_epi32(this->Data, other.Data); }
+    forceinline T VECCALL ZipOdd(const T& other) const noexcept { return SelectWith<0b1010>(_mm_slli_epi64(other.Data, 32)); }
+    forceinline T VECCALL ZipEven(const T& other) const noexcept { return other.template SelectWith<0b0101>(_mm_srli_epi64(this->Data, 32)); }
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, T mask) const noexcept
     {
@@ -537,7 +547,12 @@ public:
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const noexcept { return _mm_add_epi32(this->Data, other.Data); }
     forceinline T VECCALL Sub(const T& other) const noexcept { return _mm_sub_epi32(this->Data, other.Data); }
-    forceinline T VECCALL MulLo(const T& other) const noexcept { return _mm_mullo_epi32(this->Data, other.Data); }
+    template<bool Enforce = false>
+    forceinline T VECCALL MulLo(const T& other) const noexcept
+    {
+        if constexpr (Enforce) return _mm_mullo_epi32_force(this->Data, other.Data);
+        else return _mm_mullo_epi32(this->Data, other.Data);
+    }
     forceinline T VECCALL operator*(const T& other) const noexcept { return MulLo(other); }
     forceinline T& VECCALL operator*=(const T& other) noexcept { this->Data = MulLo(other); return *static_cast<T*>(this); }
     template<bool MayOverflow = true>
@@ -692,6 +707,8 @@ public:
     }
     forceinline T VECCALL ZipLo(const T& other) const noexcept { return _mm_unpacklo_epi16(this->Data, other.Data); }
     forceinline T VECCALL ZipHi(const T& other) const noexcept { return _mm_unpackhi_epi16(this->Data, other.Data); }
+    forceinline T VECCALL ZipOdd(const T& other) const noexcept { return SelectWith<0b10101010>(_mm_slli_epi32(other.Data, 16)); }
+    forceinline T VECCALL ZipEven(const T& other) const noexcept { return other.template SelectWith<0b01010101>(_mm_srli_epi32(this->Data, 16)); }
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, T mask) const noexcept
     {
@@ -708,7 +725,12 @@ public:
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const noexcept { return _mm_add_epi16(this->Data, other.Data); }
     forceinline T VECCALL Sub(const T& other) const noexcept { return _mm_sub_epi16(this->Data, other.Data); }
-    forceinline T VECCALL MulLo(const T& other) const noexcept { return _mm_mullo_epi16(this->Data, other.Data); }
+    template<bool Enforce = false>
+    forceinline T VECCALL MulLo(const T& other) const noexcept 
+    {
+        if constexpr (Enforce) return _mm_mullo_epi16_force(this->Data, other.Data);
+        else return _mm_mullo_epi16(this->Data, other.Data);
+    }
     forceinline T VECCALL operator*(const T& other) const noexcept { return MulLo(other); }
     forceinline T& VECCALL operator*=(const T& other) noexcept { this->Data = MulLo(other); return *static_cast<T*>(this); }
     template<bool MayOverflow = true>
@@ -893,6 +915,8 @@ public:
     }
     forceinline T VECCALL ZipLo(const T& other) const noexcept { return _mm_unpacklo_epi8(this->Data, other.Data); }
     forceinline T VECCALL ZipHi(const T& other) const noexcept { return _mm_unpackhi_epi8(this->Data, other.Data); }
+    forceinline T VECCALL ZipOdd(const T& other) const noexcept { return SelectWith<0xaaaa>(_mm_slli_epi16(other.Data, 8)); }
+    forceinline T VECCALL ZipEven(const T& other) const noexcept { return other.template SelectWith<0x5555>(_mm_srli_epi16(this->Data, 8)); }
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, T mask) const noexcept { return _mm_blendv_epi8(this->Data, other.Data, mask); }
     template<uint16_t Mask>
@@ -1047,8 +1071,10 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
         static_assert(Idx < 2, "shuffle index should be in [0,1]");
         return Shuffle<Idx, Idx>();
     }
-    forceinline F64x2 VECCALL ZipLo(const F64x2& other) const noexcept { return _mm_unpacklo_pd(Data, other); }
-    forceinline F64x2 VECCALL ZipHi(const F64x2& other) const noexcept { return _mm_unpackhi_pd(Data, other); }
+    forceinline F64x2 VECCALL ZipLo(const F64x2& other) const noexcept { return _mm_unpacklo_pd(Data, other.Data); }
+    forceinline F64x2 VECCALL ZipHi(const F64x2& other) const noexcept { return _mm_unpackhi_pd(Data, other.Data); }
+    forceinline F64x2 VECCALL ZipOdd(const F64x2& other) const noexcept { return ZipLo(other); }
+    forceinline F64x2 VECCALL ZipEven(const F64x2& other) const noexcept { return ZipHi(other); }
     template<MaskType Msk>
     forceinline F64x2 VECCALL SelectWith(const F64x2& other, F64x2 mask) const noexcept
     {
@@ -1084,7 +1110,7 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
             return *this;
         else if constexpr (Cnt == 2)
             return hi;
-        return _mm_castsi128_pd(_mm_alignr_epi8(_mm_castpd_si128(hi.Data), _mm_castpd_si128(this->Data), Cnt * 8));
+        else return _mm_castsi128_pd(_mm_alignr_epi8(_mm_castpd_si128(hi.Data), _mm_castpd_si128(this->Data), Cnt * 8));
     }
 
     // compare operations
@@ -1093,14 +1119,14 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
     {
 #if COMMON_SIMD_LV >= 100
         constexpr auto cmpImm = detail::CmpTypeImm(Cmp);
-        return _mm_cmp_pd(Data, other, cmpImm);
+        return _mm_cmp_pd(Data, other.Data, cmpImm);
 #else
-             if constexpr (Cmp == CompareType::LessThan)     return _mm_cmplt_pd (Data, other);
-        else if constexpr (Cmp == CompareType::LessEqual)    return _mm_cmple_pd (Data, other);
-        else if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_pd (Data, other);
-        else if constexpr (Cmp == CompareType::NotEqual)     return _mm_cmpneq_pd(Data, other);
-        else if constexpr (Cmp == CompareType::GreaterEqual) return _mm_cmpge_pd (Data, other);
-        else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_pd (Data, other);
+             if constexpr (Cmp == CompareType::LessThan)     return _mm_cmplt_pd (Data, other.Data);
+        else if constexpr (Cmp == CompareType::LessEqual)    return _mm_cmple_pd (Data, other.Data);
+        else if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_pd (Data, other.Data);
+        else if constexpr (Cmp == CompareType::NotEqual)     return _mm_cmpneq_pd(Data, other.Data);
+        else if constexpr (Cmp == CompareType::GreaterEqual) return _mm_cmpge_pd (Data, other.Data);
+        else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_pd (Data, other.Data);
         else static_assert(!::common::AlwaysTrue2<Cmp>, "unrecognized compare");
 #endif
     }
@@ -1276,8 +1302,16 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
         static_assert(Idx < 4, "shuffle index should be in [0,3]");
         return Shuffle<Idx, Idx, Idx, Idx>();
     }
-    forceinline F32x4 VECCALL ZipLo(const F32x4& other) const noexcept { return _mm_unpacklo_ps(Data, other); }
-    forceinline F32x4 VECCALL ZipHi(const F32x4& other) const noexcept { return _mm_unpackhi_ps(Data, other); }
+    forceinline F32x4 VECCALL ZipLo(const F32x4& other) const noexcept { return _mm_unpacklo_ps(Data, other.Data); }
+    forceinline F32x4 VECCALL ZipHi(const F32x4& other) const noexcept { return _mm_unpackhi_ps(Data, other.Data); }
+    forceinline F32x4 VECCALL ZipOdd(const F32x4& other) const noexcept
+    {
+        return SelectWith<0b1010>(_mm_castsi128_ps(_mm_slli_epi64(_mm_castps_si128(other.Data), 32)));
+    }
+    forceinline F32x4 VECCALL ZipEven(const F32x4& other) const noexcept
+    { 
+        return other.template SelectWith<0b0101>(_mm_castsi128_ps(_mm_srli_epi64(_mm_castps_si128(Data), 32)));
+    }
     template<MaskType Msk>
     forceinline F32x4 VECCALL SelectWith(const F32x4& other, F32x4 mask) const noexcept
     {
@@ -1313,7 +1347,7 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
             return *this;
         else if constexpr (Cnt == 4)
             return hi;
-        return _mm_castsi128_ps(_mm_alignr_epi8(_mm_castps_si128(hi.Data), _mm_castps_si128(Data), Cnt * 4));
+        else return _mm_castsi128_ps(_mm_alignr_epi8(_mm_castps_si128(hi.Data), _mm_castps_si128(Data), Cnt * 4));
     }
 
     // compare operations
@@ -1322,14 +1356,14 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     {
 #if COMMON_SIMD_LV >= 100
         constexpr auto cmpImm = detail::CmpTypeImm(Cmp);
-        return _mm_cmp_ps(Data, other, cmpImm);
+        return _mm_cmp_ps(Data, other.Data, cmpImm);
 #else
-             if constexpr (Cmp == CompareType::LessThan)     return _mm_cmplt_ps (Data, other);
-        else if constexpr (Cmp == CompareType::LessEqual)    return _mm_cmple_ps (Data, other);
-        else if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_ps (Data, other);
-        else if constexpr (Cmp == CompareType::NotEqual)     return _mm_cmpneq_ps(Data, other);
-        else if constexpr (Cmp == CompareType::GreaterEqual) return _mm_cmpge_ps (Data, other);
-        else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_ps (Data, other);
+             if constexpr (Cmp == CompareType::LessThan)     return _mm_cmplt_ps (Data, other.Data);
+        else if constexpr (Cmp == CompareType::LessEqual)    return _mm_cmple_ps (Data, other.Data);
+        else if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_ps (Data, other.Data);
+        else if constexpr (Cmp == CompareType::NotEqual)     return _mm_cmpneq_ps(Data, other.Data);
+        else if constexpr (Cmp == CompareType::GreaterEqual) return _mm_cmpge_ps (Data, other.Data);
+        else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_ps (Data, other.Data);
         else static_assert(!::common::AlwaysTrue2<Cmp>, "unrecognized compare");
 #endif
     }
@@ -1469,8 +1503,8 @@ struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64_t>
         else if constexpr (Cmp == CompareType::GreaterEqual) return Compare<CompareType::GreaterThan, Msk>(other).Or(Compare<CompareType::Equal, Msk>(other));
         else
         {
-                 if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_epi64(Data, other);
-            else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_epi64(Data, other);
+                 if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_epi64(Data, other.Data);
+            else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_epi64(Data, other.Data);
             else static_assert(!::common::AlwaysTrue2<Cmp>, "unrecognized compare");
         }
     }
@@ -1566,7 +1600,7 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64_t>
         //const auto add = _mm_castsi128_pd(Add(other));
         //const auto allones = _mm_castsi128_pd(_mm_set1_epi8(-1));
         //const auto notAdd = _mm_xor_pd(add, allones);
-        //const auto mask = _mm_blendv_pd(_mm_castsi128_pd(other), notAdd, sig);
+        //const auto mask = _mm_blendv_pd(_mm_castsi128_pd(other.Data), notAdd, sig);
         //return _mm_castpd_si128(_mm_blendv_pd(add, allones, mask));
         return Min(other.Not()).Add(other);
     }
@@ -1583,7 +1617,7 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64_t>
 #if COMMON_SIMD_LV >= 320
         return _mm_max_epu64(Data, other.Data);
 #else
-        return _mm_blendv_epi8(other, Data, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
+        return _mm_blendv_epi8(other.Data, Data, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
 #endif
     }
     forceinline U64x2 VECCALL Min(const U64x2& other) const noexcept
@@ -1591,7 +1625,7 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64_t>
 #if COMMON_SIMD_LV >= 320
         return _mm_min_epu64(Data, other.Data);
 #else
-        return _mm_blendv_epi8(Data, other, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
+        return _mm_blendv_epi8(Data, other.Data, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
 #endif
     }
     forceinline U64x2 VECCALL Abs() const noexcept { return Data; }
@@ -1777,8 +1811,8 @@ struct alignas(16) I16x8 : public detail::Common16x8<I16x8, int16_t>
         else if constexpr (Cmp == CompareType::GreaterEqual) return Compare<CompareType::GreaterThan, Msk>(other).Or(Compare<CompareType::Equal, Msk>(other));
         else
         {
-                 if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_epi16(Data, other);
-            else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_epi16(Data, other);
+                 if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_epi16(Data, other.Data);
+            else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_epi16(Data, other.Data);
             else static_assert(!::common::AlwaysTrue2<Cmp>, "unrecognized compare");
         }
     }
@@ -1906,8 +1940,8 @@ struct alignas(16) I8x16 : public detail::Common8x16<I8x16, int8_t>
         else if constexpr (Cmp == CompareType::GreaterEqual) return Compare<CompareType::GreaterThan, Msk>(other).Or(Compare<CompareType::Equal, Msk>(other));
         else
         {
-                 if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_epi8(Data, other);
-            else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_epi8(Data, other);
+                 if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_epi8(Data, other.Data);
+            else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_epi8(Data, other.Data);
             else static_assert(!::common::AlwaysTrue2<Cmp>, "unrecognized compare");
         }
     }

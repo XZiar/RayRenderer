@@ -53,16 +53,16 @@ To use `xzbuild`, python3.7+ is required.
 
 ## Build
 
-To build C++ parts, a C++17 compiler is needed and C++20 is recommanded (defaultly used for gcc>=10 and clang>=10). 
+To build C++ parts, a C++20 compiler is needed. CI Tests are on gcc(10\~14) and clang(10\~17).
 
 For Windows, project uses `VisualStudio2022`, VS2022(>`17.6`) is needed for the vcproj version.
 
-For Linux, project uses [`xzbuild`](./xzbuild) (need python3.7+) with make. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on gcc(9\~14) and clang(10\~16).
-### ICEs
-* **gcc7** has [compatibility issue](https://github.com/XZiar/RayRenderer/runs/3111404571#step:9:456) with SIMD.hpp
-* **clang8** has [ICE](https://github.com/XZiar/RayRenderer/runs/3111404672#step:9:443) with SystemCommon
-* **gcc8** has [ICE](https://github.com/XZiar/RayRenderer/runs/7739671224#step:12:201) with SystemCommonTest
+For Linux, project uses [`xzbuild`](./xzbuild) (need python3.7+) with make. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux.
+
+### Incompatibles
+* **gcc9** does not support `constexpr std::array::operator==`
 * **clang13**/**clang14** has compatibility issue[1](https://github.com/llvm/llvm-project/issues/55560)/[2](https://reviews.llvm.org/D128119) with libstdc++
+
 
 > Example usage of [`xzbuild`](./xzbuild)
 

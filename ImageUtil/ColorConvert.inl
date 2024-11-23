@@ -1492,29 +1492,47 @@ struct RGB5x5ToRGBA8_128
         U16x8 valB = dat.ShiftRightLogic<Is555 ? 10 : 11>();
         if constexpr (Is555) valB = valB.And(maskLo5bit);
 
-        const uint16_t mul5 = 527, mul6 = 259;
-        const U16x8 add5(23), add6(33);
-        const auto midR = valR.MulScalarAddLo(mul5, add5).ShiftRightLogic<6>(); // at Lo
-        const auto midG = valG.MulScalarAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6).ShiftLeftLogic<2>(); // at Hi
-        const auto midB = valB.MulScalarAddLo(mul5, add5).ShiftRightLogic<6>(); // at Lo
+        // pre-shift-left by 2
+        const U16x8 add5(23 << 2), add6(33 << 2);
+        constexpr uint16_t muler5 = 527 << 2, muler6 = 259 << 2;
+# if COMMON_ARCH_X86
+        const U16x8 mul5(muler5), mul6(muler6);
+        const U16x8 midR = valR.MulAddLo(mul5, add5); // at Hi
+        const U16x8 midG = valG.MulAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6); // at Hi
+        const U16x8 midB = valB.MulAddLo(mul5, add5); // at Hi
+# else
+        const U16x8 muler = U32x4::LoadLo((static_cast<uint32_t>(muler6) << 16) + muler5).As<U16x8>();
+        const U16x8 midR = valR.MulScalarAddLo<0>(muler, add5); // at Hi
+        const U16x8 midG = valG.MulScalarAddLo<Is555 ? 0 : 1>(muler, Is555 ? add5 : add6); // at Hi
+        const U16x8 midB = valB.MulScalarAddLo<0>(muler, add5); // at Hi
+# endif
+        const U16x8 valLo = (IsRGB ? midR : midB).As<U8x16>().ZipEven(midG.As<U8x16>()).As<U16x8>();
 
-        const auto valLo = (IsRGB ? midR : midB).As<U8x16>().SelectWith<0xaaaa>(midG.As<U8x16>()).As<U16x8>();
         U16x8 valHi;
         if constexpr (HasAlpha)
         {
             const auto midA = dat.As<I16x8>().ShiftRightArith<7>().As<U16x8>();
-            valHi = (IsRGB ? midB : midR).As<U8x16>().SelectWith<0xaaaa>(midA.As<U8x16>()).As<U16x8>();
+            valHi = (IsRGB ? midB : midR).As<U8x16>().ZipEven(midA.As<U8x16>()).As<U16x8>();
         }
         else
         {
             const U16x8 alphaMask(uint16_t(0xff00));
-            valHi = (IsRGB ? midB : midR).Or(alphaMask);
+# if COMMON_ARCH_X86
+            valHi = (IsRGB ? midB : midR).ShiftRightLogic<8>().Or(alphaMask);
+# else
+            valHi = (IsRGB ? midB : midR).As<U8x16>().ZipEven(alphaMask.As<U8x16>()).As<U16x8>();
+# endif
         }
-        const auto out0 = valLo.ZipLo(valHi).As<U32x4>();
-        const auto out1 = valLo.ZipHi(valHi).As<U32x4>();
-
-        out0.Save(dst + 0);
-        out1.Save(dst + 4);
+# if COMMON_ARCH_X86
+        const auto out = valLo.Zip(valHi).As<U32x4>();
+        out[0].Save(dst + 0);
+        out[1].Save(dst + 4);
+# else
+        uint16x8x2_t out2;
+        out2.val[0] = valLo;
+        out2.val[1] = valHi;
+        vst2q_u16(reinterpret_cast<uint16_t*>(dst), out2);
+# endif
     }
 };
 DEFINE_FASTPATH_METHOD(G8ToGA8, SIMD128)
@@ -1973,38 +1991,37 @@ struct RGB5x5ToRGB8_SSE41
             valB1 = valB1.And(maskLo5bit);
         }
 
-        const uint16_t mul5 = 527, mul6 = 259;
-        const U16x8 add5(23), add6(33);
-        const auto midR0 = valR0.MulScalarAddLo(mul5, add5).ShiftRightLogic<6>();
-        const auto midR1 = valR1.MulScalarAddLo(mul5, add5).ShiftRightLogic<6>();
-        const auto midG0 = valG0.MulScalarAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6).ShiftRightLogic<6>();
-        const auto midG1 = valG1.MulScalarAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6).ShiftRightLogic<6>();
-        const auto midB0 = valB0.MulScalarAddLo(mul5, add5).ShiftLeftLogic<2>();
-        const auto midB1 = valB1.MulScalarAddLo(mul5, add5).ShiftLeftLogic<2>();
-        const auto midRB0 = midR0.As<U8x16>().SelectWith<0xaaaa>(midB0.As<U8x16>());
-        const auto midRB1 = midR1.As<U8x16>().SelectWith<0xaaaa>(midB1.As<U8x16>());
+        // pre-shift-left by 2
+        const U16x8 add5(23 << 2), add6(33 << 2);
+        const uint16_t muler5 = 527 << 2, muler6 = 259 << 2;
+        const U16x8 mul5(muler5), mul6(muler6);
+        const U16x8 midR0 = valR0.MulAddLo(mul5, add5); // at Hi
+        const U16x8 midR1 = valR1.MulAddLo(mul5, add5); // at Hi
+        const U16x8 midG0 = valG0.MulAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6); // at Hi
+        const U16x8 midG1 = valG1.MulAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6); // at Hi
+        const U16x8 midB0 = valB0.MulAddLo(mul5, add5); // at Hi
+        const U16x8 midB1 = valB1.MulAddLo(mul5, add5); // at Hi
+        const auto midRB0 = (IsRGB ? midR0 : midB0).As<U8x16>().ZipEven((IsRGB ? midB0 : midR0).As<U8x16>());
+        const auto midRB1 = (IsRGB ? midR1 : midB1).As<U8x16>().ZipEven((IsRGB ? midB1 : midR1).As<U8x16>());
 
         const auto shuffle0_RB = _mm_setr_epi8(0, -1, 1, 2, -1, 3, 4, -1, 5, 6, -1, 7, 8, -1, 9, 10);
-        const auto shuffle0_BR = _mm_setr_epi8(1, -1, 0, 3, -1, 2, 5, -1, 4, 7, -1, 6, 9, -1, 8, 11);
-        const auto shuffle0_1 = _mm_setr_epi8(-1, 0, -1, -1, 2, -1, -1, 4, -1, -1, 6, -1, -1, 8, -1, -1);
-        const U8x16 out0R_B = _mm_shuffle_epi8(midRB0, IsRGB ? shuffle0_RB : shuffle0_BR);
-        const U8x16 out0_G_ = _mm_shuffle_epi8(midG0, shuffle0_1);
+        const auto shuffle0_G  = _mm_setr_epi8(-1, 1, -1, -1, 3, -1, -1, 5, -1, -1, 7, -1, -1, 9, -1, -1);
+        const U8x16 out0R_B = _mm_shuffle_epi8(midRB0, shuffle0_RB);
+        const U8x16 out0_G_ = _mm_shuffle_epi8(midG0,  shuffle0_G);
         const auto out0 = out0R_B.Or(out0_G_);
 
         const auto midRB01 = midRB0.As<U64x2>().SelectWith<0b01>(midRB1.As<U64x2>()); // 89ab4567
         const auto midG01 = midG0.As<U64x2>().SelectWith<0b01>(midG1.As<U64x2>()); // 89ab4567
         const auto shuffle1_RB = _mm_setr_epi8(-1, 11, 12, -1, 13, 14, -1, 15, 0, -1, 1, 2, -1, 3, 4, -1);
-        const auto shuffle1_BR = _mm_setr_epi8(-1, 10, 13, -1, 12, 15, -1, 14, 1, -1, 0, 3, -1, 2, 5, -1);
-        const auto shuffle1_1 = _mm_setr_epi8(10, -1, -1, 12, -1, -1, 14, -1, -1, 0, -1, -1, 2, -1, -1, 4);
-        const U8x16 out1R_B = _mm_shuffle_epi8(midRB01, IsRGB ? shuffle1_RB : shuffle1_BR);
-        const U8x16 out1_G_ = _mm_shuffle_epi8(midG01, shuffle1_1);
+        const auto shuffle1_G  = _mm_setr_epi8(11, -1, -1, 13, -1, -1, 15, -1, -1, 1, -1, -1, 3, -1, -1, 5);
+        const U8x16 out1R_B = _mm_shuffle_epi8(midRB01, shuffle1_RB);
+        const U8x16 out1_G_ = _mm_shuffle_epi8(midG01,  shuffle1_G);
         const auto out1 = out1R_B.Or(out1_G_);
 
         const auto shuffle2_RB = _mm_setr_epi8(5, 6, -1, 7, 8, -1, 9, 10, -1, 11, 12, -1, 13, 14, -1, 15);
-        const auto shuffle2_BR = _mm_setr_epi8(4, 7, -1, 6, 9, -1, 8, 11, -1, 10, 13, -1, 12, 15, -1, 14);
-        const auto shuffle2_1 = _mm_setr_epi8(-1, -1, 6, -1, -1, 8, -1, -1, 10, -1, -1, 12, -1, -1, 14, -1);
-        const U8x16 out2R_B = _mm_shuffle_epi8(midRB1, IsRGB ? shuffle2_RB : shuffle2_BR);
-        const U8x16 out2_G_ = _mm_shuffle_epi8(midG1, shuffle2_1);
+        const auto shuffle2_G  = _mm_setr_epi8(-1, -1, 7, -1, -1, 9, -1, -1, 11, -1, -1, 13, -1, -1, 15, -1);
+        const U8x16 out2R_B = _mm_shuffle_epi8(midRB1, shuffle2_RB);
+        const U8x16 out2_G_ = _mm_shuffle_epi8(midG1,  shuffle2_G);
         const auto out2 = out2R_B.Or(out2_G_);
 
         out0.Save(dst + 0);
@@ -2623,23 +2640,25 @@ struct RGB5x5ToRGB8_NEON
             valB1 = valB1.And(maskLo5bit);
         }
 
-        const uint16_t mul5 = 527, mul6 = 259;
-        const U16x8 add5(23), add6(33);
-        const auto midR0 = valR0.MulScalarAddLo(mul5, add5);
-        const auto midR1 = valR1.MulScalarAddLo(mul5, add5);
-        const auto midG0 = valG0.MulScalarAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6);
-        const auto midG1 = valG1.MulScalarAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6);
-        const auto midB0 = valB0.MulScalarAddLo(mul5, add5);
-        const auto midB1 = valB1.MulScalarAddLo(mul5, add5);
+        // pre-shift-left by 2
+        const U16x8 add5(23 << 2), add6(33 << 2);
+        const uint16_t muler5 = 527 << 2, muler6 = 259 << 2;
+        const U16x8 mul5(muler5), mul6(muler6);
+        const U16x8 midR0 = valR0.MulAddLo(mul5, add5); // at Hi
+        const U16x8 midR1 = valR1.MulAddLo(mul5, add5); // at Hi
+        const U16x8 midG0 = valG0.MulAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6); // at Hi
+        const U16x8 midG1 = valG1.MulAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6); // at Hi
+        const U16x8 midB0 = valB0.MulAddLo(mul5, add5); // at Hi
+        const U16x8 midB1 = valB1.MulAddLo(mul5, add5); // at Hi
 
 # if COMMON_SIMD_LV >= 200
-        const auto outR = vshrn_high_n_u16(vshrn_n_u16(midR0, 6), midR1, 6);
-        const auto outG = vshrn_high_n_u16(vshrn_n_u16(midG0, 6), midG1, 6);
-        const auto outB = vshrn_high_n_u16(vshrn_n_u16(midB0, 6), midB1, 6);
+        const auto outR = vuzp2q_u8(midR0.As<U8x16>(), midR1.As<U8x16>());
+        const auto outG = vuzp2q_u8(midG0.As<U8x16>(), midG1.As<U8x16>());
+        const auto outB = vuzp2q_u8(midB0.As<U8x16>(), midB1.As<U8x16>());
 # else
-        const auto outR = vcombine_u8(vshrn_n_u16(midR0, 6), vshrn_n_u16(midR1, 6));
-        const auto outG = vcombine_u8(vshrn_n_u16(midG0, 6), vshrn_n_u16(midG1, 6));
-        const auto outB = vcombine_u8(vshrn_n_u16(midB0, 6), vshrn_n_u16(midB1, 6));
+        const auto outR = vuzpq_u8(midR0.As<U8x16>(), midR1.As<U8x16>()).val[1];
+        const auto outG = vuzpq_u8(midG0.As<U8x16>(), midG1.As<U8x16>()).val[1];
+        const auto outB = vuzpq_u8(midB0.As<U8x16>(), midB1.As<U8x16>()).val[1];
 # endif
         uint8x16x3_t out3;
         out3.val[0] = IsRGB ? outR : outB;
@@ -2652,7 +2671,7 @@ template<bool IsRGB, bool HasAlpha, bool Is555>
 struct RGB5x5ToRGBA8_NEON
 {
     static_assert(Is555 || !Is555);
-    static constexpr size_t M = 8, N = 8, K = 8;
+    static constexpr size_t M = 16, N = 16, K = 16;
     forceinline void operator()(uint32_t* __restrict dst, const uint16_t* __restrict src) const noexcept
     {
         const auto dat0 = U16x8(src + 0); // 01234567
@@ -2673,34 +2692,38 @@ struct RGB5x5ToRGBA8_NEON
             valB1 = valB1.And(maskLo5bit);
         }
 
-        const uint16_t mul5 = 527, mul6 = 259;
-        const U16x8 add5(23), add6(33);
-        const auto midR0 = valR0.MulScalarAddLo(mul5, add5);
-        const auto midR1 = valR1.MulScalarAddLo(mul5, add5);
-        const auto midG0 = valG0.MulScalarAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6);
-        const auto midG1 = valG1.MulScalarAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6);
-        const auto midB0 = valB0.MulScalarAddLo(mul5, add5);
-        const auto midB1 = valB1.MulScalarAddLo(mul5, add5);
+        // pre-shift-left by 2
+        const U16x8 add5(23 << 2), add6(33 << 2);
+        const uint16_t muler5 = 527 << 2, muler6 = 259 << 2;
+        const U16x8 mul5(muler5), mul6(muler6);
+        const U16x8 midR0 = valR0.MulAddLo(mul5, add5); // at Hi
+        const U16x8 midR1 = valR1.MulAddLo(mul5, add5); // at Hi
+        const U16x8 midG0 = valG0.MulAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6); // at Hi
+        const U16x8 midG1 = valG1.MulAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6); // at Hi
+        const U16x8 midB0 = valB0.MulAddLo(mul5, add5); // at Hi
+        const U16x8 midB1 = valB1.MulAddLo(mul5, add5); // at Hi
 
 # if COMMON_SIMD_LV >= 200
-        const auto outR = vshrn_high_n_u16(vshrn_n_u16(midR0, 6), midR1, 6);
-        const auto outG = vshrn_high_n_u16(vshrn_n_u16(midG0, 6), midG1, 6);
-        const auto outB = vshrn_high_n_u16(vshrn_n_u16(midB0, 6), midB1, 6);
+        const auto outR = vuzp2q_u8(midR0.As<U8x16>(), midR1.As<U8x16>());
+        const auto outG = vuzp2q_u8(midG0.As<U8x16>(), midG1.As<U8x16>());
+        const auto outB = vuzp2q_u8(midB0.As<U8x16>(), midB1.As<U8x16>());
 # else
-        const auto outR = vcombine_u8(vshrn_n_u16(midR0, 6), vshrn_n_u16(midR1, 6));
-        const auto outG = vcombine_u8(vshrn_n_u16(midG0, 6), vshrn_n_u16(midG1, 6));
-        const auto outB = vcombine_u8(vshrn_n_u16(midB0, 6), vshrn_n_u16(midB1, 6));
+        const auto outR = vuzpq_u8(midR0.As<U8x16>(), midR1.As<U8x16>()).val[1];
+        const auto outG = vuzpq_u8(midG0.As<U8x16>(), midG1.As<U8x16>()).val[1];
+        const auto outB = vuzpq_u8(midB0.As<U8x16>(), midB1.As<U8x16>()).val[1];
 # endif
-
         uint8x16x4_t out4;
         out4.val[0] = IsRGB ? outR : outB;
         out4.val[1] = outG;
         out4.val[2] = IsRGB ? outB : outR;
         if constexpr (HasAlpha)
         {
-            const auto midA0 = dat0.As<I16x8>().ShiftRightArith<15>().As<U16x8>();
-            const auto midA1 = dat1.As<I16x8>().ShiftRightArith<15>().As<U16x8>();
-            out4.val[3] = vmovn_high_u16(vmovn_u16(midA0), midA1);
+# if COMMON_SIMD_LV >= 200
+            const U8x16 datHi = vuzp2q_u8(dat0.As<U8x16>(), dat1.As<U8x16>());
+# else
+            const U8x16 datHi = vuzpq_u8(dat0.As<U8x16>(), dat1.As<U8x16>()).val[1];
+# endif
+            out4.val[3] = datHi.As<I8x16>().ShiftRightArith<7>().As<U8x16>();
         }
         else
         {
@@ -3049,6 +3072,71 @@ struct RGBAToBA_NEONA64
         out1.Save(dst + 8);
     }
 };
+template<bool IsRGB, bool Is555>
+struct RGB5x5ToRGB8_NEONA64
+{
+    static constexpr size_t M = 16, N = 48, K = 16;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat0 = U16x8(src + 0); // 01234567
+        const auto dat1 = U16x8(src + 8); // 89abcdef
+
+        const U16x8 maskLo5bit(uint16_t(0x1fu));
+        const U16x8 maskLo6bit(uint16_t(0x3fu));
+
+        const auto valR0 = dat0.And(maskLo5bit);
+        const auto valR1 = dat1.And(maskLo5bit);
+        const auto valG0 = dat0.ShiftRightLogic<5>().And(Is555 ? maskLo5bit : maskLo6bit);
+        const auto valG1 = dat1.ShiftRightLogic<5>().And(Is555 ? maskLo5bit : maskLo6bit);
+        U16x8 valB0 = dat0.ShiftRightLogic<Is555 ? 10 : 11>();
+        U16x8 valB1 = dat1.ShiftRightLogic<Is555 ? 10 : 11>();
+        if constexpr (Is555)
+        {
+            valB0 = valB0.And(maskLo5bit);
+            valB1 = valB1.And(maskLo5bit);
+        }
+
+        // pre-shift-left by 2
+        const U16x8 add5(23 << 2), add6(33 << 2);
+        const uint16_t muler5 = 527 << 2, muler6 = 259 << 2;
+        const U16x8 mul5(muler5), mul6(muler6);
+        const U16x8 midR0 = valR0.MulAddLo(mul5, add5); // at Hi
+        const U16x8 midR1 = valR1.MulAddLo(mul5, add5); // at Hi
+        const U8x16 midG0 = valG0.MulAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6).As<U8x16>(); // at Hi
+        const U8x16 midG1 = valG1.MulAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6).As<U8x16>(); // at Hi
+        const U16x8 midB0 = valB0.MulAddLo(mul5, add5); // at Hi
+        const U16x8 midB1 = valB1.MulAddLo(mul5, add5); // at Hi
+        const auto midRB0 = (IsRGB ? midR0 : midB0).As<U8x16>().ZipEven((IsRGB ? midB0 : midR0).As<U8x16>());
+        const auto midRB1 = (IsRGB ? midR1 : midB1).As<U8x16>().ZipEven((IsRGB ? midB1 : midR1).As<U8x16>());
+        
+        alignas(16) static constexpr uint8_t indexes[] =
+        {
+             0, 17,  1,  2, 19,  3,  4, 21,  5,  6, 23,  7,  8, 25,  9, 10,
+            19,  3,  4, 21,  5,  6, 23,  7,  8, 25,  9, 10, 27, 11, 12, 29,
+             5,  6, 23,  7,  8, 25,  9, 10, 27, 11, 12, 29, 13, 14, 31, 15,
+        };
+        const auto shuffle_RGB = vld1q_u8_x3(indexes);
+
+        uint8x16x2_t midRGB0;
+        midRGB0.val[0] = midRB0;
+        midRGB0.val[1] = midG0;
+        const U8x16 out0 = vqtbl2q_u8(midRGB0, shuffle_RGB.val[0]);
+
+        uint8x16x2_t midRGB1;
+        midRGB1.val[0] = midRB0.MoveToLoWith<8>(midRB1);
+        midRGB1.val[1] = midG0 .MoveToLoWith<8>(midG1);
+        const U8x16 out1 = vqtbl2q_u8(midRGB1, shuffle_RGB.val[1]);
+
+        uint8x16x2_t midRGB2;
+        midRGB2.val[0] = midRB1;
+        midRGB2.val[1] = midG1;
+        const U8x16 out2 = vqtbl2q_u8(midRGB2, shuffle_RGB.val[2]);
+
+        out0.Save(dst + 0 );
+        out1.Save(dst + 16);
+        out2.Save(dst + 32);
+    }
+};
 DEFINE_FASTPATH_METHOD(RGBA8ToGA8, NEONA64)
 {
     ProcessLOOP4<RGBAToGA_NEONA64, &Func<LOOP>>(dest, src, count);
@@ -3056,6 +3144,22 @@ DEFINE_FASTPATH_METHOD(RGBA8ToGA8, NEONA64)
 DEFINE_FASTPATH_METHOD(RGBA8ToBA8, NEONA64)
 {
     ProcessLOOP4<RGBAToBA_NEONA64, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGB555ToRGB8, NEONA64)
+{
+    ProcessLOOP4<RGB5x5ToRGB8_NEONA64<true, true>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(BGR555ToRGB8, NEONA64)
+{
+    ProcessLOOP4<RGB5x5ToRGB8_NEONA64<false, true>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGB565ToRGB8, NEONA64)
+{
+    ProcessLOOP4<RGB5x5ToRGB8_NEONA64<true, false>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(BGR565ToRGB8, NEONA64)
+{
+    ProcessLOOP4<RGB5x5ToRGB8_NEONA64<false, false>, &Func<LOOP>>(dest, src, count);
 }
 #endif
 
@@ -3717,25 +3821,26 @@ struct RGB5x5ToRGB8_256
             valB1 = valB1.And(maskLo5bit);
         }
 
-        const uint16_t mul5 = 527, mul6 = 259;
-        const U16x16 add5(23), add6(33);
-        const auto midR0 = valR0.MulScalarAddLo(mul5, add5).ShiftRightLogic<6>();
-        const auto midR1 = valR1.MulScalarAddLo(mul5, add5).ShiftRightLogic<6>();
-        const auto midG0 = valG0.MulScalarAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6).ShiftRightLogic<6>();
-        const auto midG1 = valG1.MulScalarAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6).ShiftRightLogic<6>();
-        const auto midB0 = valB0.MulScalarAddLo(mul5, add5).ShiftLeftLogic<2>();
-        const auto midB1 = valB1.MulScalarAddLo(mul5, add5).ShiftLeftLogic<2>();
-        const auto midRB0 = midR0.As<U8x32>().SelectWith<0xaaaaaaaa>(midB0.As<U8x32>());
-        const auto midRB1 = midR1.As<U8x32>().SelectWith<0xaaaaaaaa>(midB1.As<U8x32>());
+        // pre-shift-left by 2
+        const U16x16 add5(23 << 2), add6(33 << 2);
+        const uint16_t muler5 = 527 << 2, muler6 = 259 << 2;
+        const U16x16 mul5(muler5), mul6(muler6);
+        const U16x16 midR0 = valR0.MulAddLo(mul5, add5); // at Hi
+        const U16x16 midR1 = valR1.MulAddLo(mul5, add5); // at Hi
+        const U16x16 midG0 = valG0.MulAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6); // at Hi
+        const U16x16 midG1 = valG1.MulAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6); // at Hi
+        const U16x16 midB0 = valB0.MulAddLo(mul5, add5); // at Hi
+        const U16x16 midB1 = valB1.MulAddLo(mul5, add5); // at Hi
+        const auto midRB0 = (IsRGB ? midR0 : midB0).As<U8x32>().ZipEven((IsRGB ? midB0 : midR0).As<U8x32>());
+        const auto midRB1 = (IsRGB ? midR1 : midB1).As<U8x32>().ZipEven((IsRGB ? midB1 : midR1).As<U8x32>());
 
         const auto shuffle02_RB = _mm256_setr_epi8(0, -1, 1, 2, -1, 3, 4, -1, 5, 6, -1, 7, 8, -1, 9, 10, 5, 6, -1, 7, 8, -1, 9, 10, -1, 11, 12, -1, 13, 14, -1, 15);
-        const auto shuffle02_BR = _mm256_setr_epi8(1, -1, 0, 3, -1, 2, 5, -1, 4, 7, -1, 6, 9, -1, 8, 11, 4, 7, -1, 6, 9, -1, 8, 11, -1, 10, 13, -1, 12, 15, -1, 14);
-        const auto shuffle02_G  = _mm256_setr_epi8(-1, 0, -1, -1, 2, -1, -1, 4, -1, -1, 6, -1, -1, 8, -1, -1, -1, -1, 6, -1, -1, 8, -1, -1, 10, -1, -1, 12, -1, -1, 14, -1);
-        const U8x32 out02R_B = _mm256_shuffle_epi8(midRB0, IsRGB ? shuffle02_RB : shuffle02_BR);
-        const U8x32 out02_G_ = _mm256_shuffle_epi8(midG0, shuffle02_G);
+        const auto shuffle02_G  = _mm256_setr_epi8(-1, 1, -1, -1, 3, -1, -1, 5, -1, -1, 7, -1, -1, 9, -1, -1, -1, -1, 7, -1, -1, 9, -1, -1, 11, -1, -1, 13, -1, -1, 15, -1);
+        const U8x32 out02R_B = _mm256_shuffle_epi8(midRB0, shuffle02_RB);
+        const U8x32 out02_G_ = _mm256_shuffle_epi8(midG0,  shuffle02_G);
         const auto out02 = out02R_B.Or(out02_G_);
-        const U8x32 out35R_B = _mm256_shuffle_epi8(midRB1, IsRGB ? shuffle02_RB : shuffle02_BR);
-        const U8x32 out35_G_ = _mm256_shuffle_epi8(midG1, shuffle02_G);
+        const U8x32 out35R_B = _mm256_shuffle_epi8(midRB1, shuffle02_RB);
+        const U8x32 out35_G_ = _mm256_shuffle_epi8(midG1,  shuffle02_G);
         const auto out35 = out35R_B.Or(out35_G_);
 
         const auto mixRB01 = F64x4(_mm256_shuffle_pd(midRB0.As<F64x4>(), midRB1.As<F64x4>(), 0b0011)); // 4567klmn | 89abopqr
@@ -3743,10 +3848,9 @@ struct RGB5x5ToRGB8_256
         const auto midRB01 = mixRB01.Shuffle<0, 2, 1, 3>().As<U8x32>(); // 456789abo | klmnopqr
         const auto midG01  = mixG01 .Shuffle<0, 2, 1, 3>().As<U8x32>(); // 456789abo | klmnopqr
         const auto shuffle1_RB = _mm256_setr_epi8(-1, 3, 4, -1, 5, 6, -1, 7, 8, -1, 9, 10, -1, 11, 12, -1, -1, 3, 4, -1, 5, 6, -1, 7, 8, -1, 9, 10, -1, 11, 12, -1);
-        const auto shuffle1_BR = _mm256_setr_epi8(-1, 2, 5, -1, 4, 7, -1, 6, 9, -1, 8, 11, -1, 10, 13, -1, -1, 2, 5, -1, 4, 7, -1, 6, 9, -1, 8, 11, -1, 10, 13, -1);
-        const auto shuffle1_G  = _mm256_setr_epi8(2, -1, -1, 4, -1, -1, 6, -1, -1, 8, -1, -1, 10, -1, -1, 12, 2, -1, -1, 4, -1, -1, 6, -1, -1, 8, -1, -1, 10, -1, -1, 12);
-        const U8x32 out14R_B = _mm256_shuffle_epi8(midRB01, IsRGB ? shuffle1_RB : shuffle1_BR);
-        const U8x32 out14_G_ = _mm256_shuffle_epi8(midG01, shuffle1_G);
+        const auto shuffle1_G  = _mm256_setr_epi8(3, -1, -1, 5, -1, -1, 7, -1, -1, 9, -1, -1, 11, -1, -1, 13, 3, -1, -1, 5, -1, -1, 7, -1, -1, 9, -1, -1, 11, -1, -1, 13);
+        const U8x32 out14R_B = _mm256_shuffle_epi8(midRB01, shuffle1_RB);
+        const U8x32 out14_G_ = _mm256_shuffle_epi8(midG01,  shuffle1_G);
         const auto out14 = out14R_B.Or(out14_G_);
 
         const auto out0 = out02.PermuteLane<0, 2>(out14);
@@ -3774,23 +3878,25 @@ struct RGB5x5ToRGBA8_256
         U16x16 valB = dat.ShiftRightLogic<Is555 ? 10 : 11>();
         if constexpr (Is555) valB = valB.And(maskLo5bit);
 
-        const uint16_t mul5 = 527, mul6 = 259;
-        const U16x16 add5(23), add6(33);
-        const auto midR = valR.MulScalarAddLo(mul5, add5).ShiftRightLogic<6>(); // at Lo
-        const auto midG = valG.MulScalarAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6).ShiftLeftLogic<2>(); // at Hi
-        const auto midB = valB.MulScalarAddLo(mul5, add5).ShiftRightLogic<6>(); // at Lo
+        // pre-shift-left by 2
+        const U16x16 add5(23 << 2), add6(33 << 2);
+        constexpr uint16_t muler5 = 527 << 2, muler6 = 259 << 2;
+        const U16x16 mul5(muler5), mul6(muler6);
+        const auto midR = valR.MulAddLo(mul5, add5); // at Hi
+        const auto midG = valG.MulAddLo(Is555 ? mul5 : mul6, Is555 ? add5 : add6); // at Hi
+        const auto midB = valB.MulAddLo(mul5, add5); // at Hi
 
-        const auto valLo = (IsRGB ? midR : midB).As<U8x32>().SelectWith<0xaaaaaaaau>(midG.As<U8x32>()).As<U16x16>();
+        const auto valLo = (IsRGB ? midR : midB).As<U8x32>().ZipEven(midG.As<U8x32>()).As<U16x16>();
         U16x16 valHi;
         if constexpr (HasAlpha)
         {
             const auto midA = dat.As<I16x16>().ShiftRightArith<7>().As<U16x16>();
-            valHi = (IsRGB ? midB : midR).As<U8x32>().SelectWith<0xaaaaaaaau>(midA.As<U8x32>()).As<U16x16>();
+            valHi = (IsRGB ? midB : midR).As<U8x32>().ZipEven(midA.As<U8x32>()).As<U16x16>();
         }
         else
         {
             const U16x16 alphaMask(uint16_t(0xff00));
-            valHi = (IsRGB ? midB : midR).Or(alphaMask);
+            valHi = (IsRGB ? midB : midR).ShiftRightLogic<8>().Or(alphaMask);
         }
         const auto out = valLo.Zip(valHi).As<U32x8>();
         out[0].Save(dst + 0);
@@ -4485,20 +4591,25 @@ struct RGB5x5ToRGBA8_512
         auto valB = _mm512_srli_epi16(dat, Is555 ? 10 : 11);
         if constexpr (Is555) valB = _mm512_and_si512(valB, maskLo5bit);
 
-        const auto mul5 = _mm512_set1_epi16(527), mul6 = _mm512_set1_epi16(259);
-        const auto add5 = _mm512_set1_epi16(23), add6 = _mm512_set1_epi16(33);
-        const auto midR = _mm512_srli_epi16(_mm512_add_epi16(_mm512_mullo_epi16(valR, mul5), add5), 6); // at Lo
-        const auto midG = _mm512_slli_epi16(_mm512_add_epi16(_mm512_mullo_epi16(valG, Is555 ? mul5 : mul6), Is555 ? add5 : add6), 2); // at Hi
-        const auto midB = _mm512_srli_epi16(_mm512_add_epi16(_mm512_mullo_epi16(valB, mul5), add5), 6); // at Lo
+        const auto mul5 = _mm512_set1_epi16(527 << 2), mul6 = _mm512_set1_epi16(259 << 2);
+        const auto add5 = _mm512_set1_epi16(23 << 2), add6 = _mm512_set1_epi16(33 << 2);
+        const auto midR = _mm512_add_epi16(_mm512_mullo_epi16_force(valR, mul5), add5); // at Hi
+        const auto midG = _mm512_add_epi16(_mm512_mullo_epi16_force(valG, Is555 ? mul5 : mul6), Is555 ? add5 : add6); // at Hi
+        const auto midB = _mm512_add_epi16(_mm512_mullo_epi16_force(valB, mul5), add5); // at Hi
 
-        const auto blendMask = _cvtu64_mask64(0xaaaaaaaaaaaaaaaau);
-        const auto valLo = _mm512_mask_blend_epi8(blendMask, IsRGB ? midR : midB, midG);
+        const auto shuffleToLo = _mm512_set_epi8(
+            15, 15, 13, 13, 11, 11, 9, 9, 7, 7, 5, 5, 3, 3, 1, 1,
+            15, 15, 13, 13, 11, 11, 9, 9, 7, 7, 5, 5, 3, 3, 1, 1,
+            15, 15, 13, 13, 11, 11, 9, 9, 7, 7, 5, 5, 3, 3, 1, 1,
+            15, 15, 13, 13, 11, 11, 9, 9, 7, 7, 5, 5, 3, 3, 1, 1);
+        const auto insertMask = _cvtu64_mask64(0x5555555555555555u);
+        const auto valLo = _mm512_mask_shuffle_epi8(midG, insertMask, IsRGB ? midR : midB, shuffleToLo);
         __m512i midA;
         if constexpr (HasAlpha)
             midA = _mm512_srai_epi16(dat, 7); // at Hi
         else
-            midA = _mm512_set1_epi32(0xffffffffu);
-        const auto valHi = _mm512_mask_blend_epi8(blendMask, IsRGB ? midB : midR, midA);
+            midA = _mm512_set1_epi8((int8_t)-1);
+        const auto valHi = _mm512_mask_shuffle_epi8(midA, insertMask, IsRGB ? midB : midR, shuffleToLo);
 
         const auto packLo = _mm512_set_epi16(47, 15, 46, 14, 45, 13, 44, 12, 43, 11, 42, 10, 41, 9, 40, 8, 39, 7, 38, 6, 37, 5, 36, 4, 35, 3, 34, 2, 33, 1, 32, 0);
         const auto packHi = _mm512_set_epi16(63, 31, 62, 30, 61, 29, 60, 28, 59, 27, 58, 26, 57, 25, 56, 24, 55, 23, 54, 22, 53, 21, 52, 20, 51, 19, 50, 18, 49, 17, 48, 16);
@@ -5159,55 +5270,47 @@ struct RGB5x5ToRGB8_512VBMI
             valB1 = _mm512_and_si512(valB1, maskLo5bit);
         }
 
-        const auto mul5 = _mm512_set1_epi16(527), mul6 = _mm512_set1_epi16(259);
-        const auto add5 = _mm512_set1_epi16(23), add6 = _mm512_set1_epi16(33);
-        const auto midR0 = _mm512_srli_epi16(_mm512_add_epi16(_mm512_mullo_epi16(valR0, mul5), add5), 6);
-        const auto midR1 = _mm512_srli_epi16(_mm512_add_epi16(_mm512_mullo_epi16(valR1, mul5), add5), 6);
-        const auto midG0 = _mm512_srli_epi16(_mm512_add_epi16(_mm512_mullo_epi16(valG0, Is555 ? mul5 : mul6), Is555 ? add5 : add6), 6);
-        const auto midG1 = _mm512_srli_epi16(_mm512_add_epi16(_mm512_mullo_epi16(valG1, Is555 ? mul5 : mul6), Is555 ? add5 : add6), 6);
-        const auto midB0 = _mm512_slli_epi16(_mm512_add_epi16(_mm512_mullo_epi16(valB0, mul5), add5), 2);
-        const auto midB1 = _mm512_slli_epi16(_mm512_add_epi16(_mm512_mullo_epi16(valB1, mul5), add5), 2);
-        const auto blendMask = _cvtu64_mask64(0xaaaaaaaaaaaaaaaau);
-        const auto midRB0 = _mm512_mask_blend_epi8(blendMask, midR0, midB0);
-        const auto midRB1 = _mm512_mask_blend_epi8(blendMask, midR1, midB1);
+        // pre-shift-left by 2
+        const auto mul5 = _mm512_set1_epi16(527 << 2), mul6 = _mm512_set1_epi16(259 << 2);
+        const auto add5 = _mm512_set1_epi16(23 << 2), add6 = _mm512_set1_epi16(33 << 2);
+        const auto midR0 = _mm512_add_epi16(_mm512_mullo_epi16_force(valR0, mul5), add5);
+        const auto midR1 = _mm512_add_epi16(_mm512_mullo_epi16_force(valR1, mul5), add5);
+        const auto midG0 = _mm512_add_epi16(_mm512_mullo_epi16_force(valG0, Is555 ? mul5 : mul6), Is555 ? add5 : add6);
+        const auto midG1 = _mm512_add_epi16(_mm512_mullo_epi16_force(valG1, Is555 ? mul5 : mul6), Is555 ? add5 : add6);
+        const auto midB0 = _mm512_add_epi16(_mm512_mullo_epi16_force(valB0, mul5), add5);
+        const auto midB1 = _mm512_add_epi16(_mm512_mullo_epi16_force(valB1, mul5), add5);
+
+        const auto shuffleToLo = _mm512_set_epi8(
+            15, 15, 13, 13, 11, 11, 9, 9, 7, 7, 5, 5, 3, 3, 1, 1,
+            15, 15, 13, 13, 11, 11, 9, 9, 7, 7, 5, 5, 3, 3, 1, 1,
+            15, 15, 13, 13, 11, 11, 9, 9, 7, 7, 5, 5, 3, 3, 1, 1,
+            15, 15, 13, 13, 11, 11, 9, 9, 7, 7, 5, 5, 3, 3, 1, 1);
+        const auto insertMask = _cvtu64_mask64(0x5555555555555555u);
+        const auto midRB0 = _mm512_mask_shuffle_epi8(IsRGB ? midB0 : midR0, insertMask, IsRGB ? midR0 : midB0, shuffleToLo);
+        const auto midRB1 = _mm512_mask_shuffle_epi8(IsRGB ? midB1 : midR1, insertMask, IsRGB ? midR1 : midB1, shuffleToLo);
 
         const auto shuffle0RGB = _mm512_set_epi8(
-            42,  41, 104,  40,  39, 102,  38,  37, 100,  36,  35,  98,  34,  33,  96,  32,
-            31,  94,  30,  29,  92,  28,  27,  90,  26,  25,  88,  24,  23,  86,  22,  21,
-            84,  20,  19,  82,  18,  17,  80,  16,  15,  78,  14,  13,  76,  12,  11,  74,
-            10,   9,  72,   8,   7,  70,   6,   5,  68,   4,   3,  66,   2,   1,  64,   0);
-        const auto shuffle0BGR = _mm512_set_epi8(
-            43,  40, 104,  41,  38, 102,  39,  36, 100,  37,  34,  98,  35,  32,  96,  33,
-            30,  94,  31,  28,  92,  29,  26,  90,  27,  24,  88,  25,  22,  86,  23,  20,
-            84,  21,  18,  82,  19,  16,  80,  17,  14,  78,  15,  12,  76,  13,  10,  74,
-            11,   8,  72,   9,   6,  70,   7,   4,  68,   5,   2,  66,   3,   0,  64,   1);
-        const auto out0 = _mm512_permutex2var_epi8(midRB0, IsRGB ? shuffle0RGB : shuffle0BGR, midG0);
+            42,  41, 105,  40,  39, 103,  38,  37, 101,  36,  35,  99,  34,  33,  97,  32,
+            31,  95,  30,  29,  93,  28,  27,  91,  26,  25,  89,  24,  23,  87,  22,  21,
+            85,  20,  19,  83,  18,  17,  81,  16,  15,  79,  14,  13,  77,  12,  11,  75,
+            10,   9,  73,   8,   7,  71,   6,   5,  69,   4,   3,  67,   2,   1,  65,   0);
+        const auto out0 = _mm512_permutex2var_epi8(midRB0, shuffle0RGB, midG0);
 
         const auto shuffle2RGB = _mm512_set_epi8(
-             63, 126,  62,  61, 124,  60,  59, 122,  58,  57, 120,  56,  55, 118,  54,  53,
-            116,  52,  51, 114,  50,  49, 112,  48,  47, 110,  46,  45, 108,  44,  43, 106,
-             42,  41, 104,  40,  39, 102,  38,  37, 100,  36,  35,  98,  34,  33,  96,  32,
-             31,  94,  30,  29,  92,  28,  27,  90,  26,  25,  88,  24,  23,  86,  22,  21);
-        const auto shuffle2BGR = _mm512_set_epi8(
-             62, 126,  63,  60, 124,  61,  58, 122,  59,  56, 120,  57,  54, 118,  55,  52,
-            116,  53,  50, 114,  51,  48, 112,  49,  46, 110,  47,  44, 108,  45,  42, 106,
-             43,  40, 104,  41,  38, 102,  39,  36, 100,  37,  34,  98,  35,  32,  96,  33,
-             30,  94,  31,  28,  92,  29,  26,  90,  27,  24,  88,  25,  22,  86,  23,  20);
-        const auto out2 = _mm512_permutex2var_epi8(midRB1, IsRGB ? shuffle2RGB : shuffle2BGR, midG1);
+             63, 127,  62,  61, 125,  60,  59, 123,  58,  57, 121,  56,  55, 119,  54,  53,
+            117,  52,  51, 115,  50,  49, 113,  48,  47, 111,  46,  45, 109,  44,  43, 107,
+             42,  41, 105,  40,  39, 103,  38,  37, 101,  36,  35,  99,  34,  33,  97,  32,
+             31,  95,  30,  29,  93,  28,  27,  91,  26,  25,  89,  24,  23,  87,  22,  21);
+        const auto out2 = _mm512_permutex2var_epi8(midRB1, shuffle2RGB, midG1);
 
         const auto midRB01 = _mm512_mask_blend_epi64(0b00001111, midRB0, midRB1);
         const auto midG01  = _mm512_mask_blend_epi64(0b00001111, midG0,  midG1);
         const auto shuffle1RGB = _mm512_set_epi8(
-            84,  20,  19,  82,  18,  17,  80,  16,  15,  78,  14,  13,  76,  12,  11,  74,
-            10,   9,  72,   8,   7,  70,   6,   5,  68,   4,   3,  66,   2,   1,  64,   0,
-             63, 126,  62,  61, 124,  60,  59, 122,  58,  57, 120,  56,  55, 118,  54,  53,
-            116,  52,  51, 114,  50,  49, 112,  48,  47, 110,  46,  45, 108,  44,  43, 106);
-        const auto shuffle1BGR = _mm512_set_epi8(
-            84,  21,  18,  82,  19,  16,  80,  17,  14,  78,  15,  12,  76,  13,  10,  74,
-            11,   8,  72,   9,   6,  70,   7,   4,  68,   5,   2,  66,   3,   0,  64,   1,
-             62, 126,  63,  60, 124,  61,  58, 122,  59,  56, 120,  57,  54, 118,  55,  52,
-            116,  53,  50, 114,  51,  48, 112,  49,  46, 110,  47,  44, 108,  45,  42, 106);
-        const auto out1 = _mm512_permutex2var_epi8(midRB01, IsRGB ? shuffle1RGB : shuffle1BGR, midG01);
+             85,  20,  19,  83,  18,  17,  81,  16,  15,  79,  14,  13,  77,  12,  11,  75,
+             10,   9,  73,   8,   7,  71,   6,   5,  69,   4,   3,  67,   2,   1,  65,   0,
+             63, 127,  62,  61, 125,  60,  59, 123,  58,  57, 121,  56,  55, 119,  54,  53,
+            117,  52,  51, 115,  50,  49, 113,  48,  47, 111,  46,  45, 109,  44,  43, 107);
+        const auto out1 = _mm512_permutex2var_epi8(midRB01, shuffle1RGB, midG01);
 
         _mm512_storeu_epi8(dst +   0, out0);
         _mm512_storeu_epi8(dst +  64, out1);

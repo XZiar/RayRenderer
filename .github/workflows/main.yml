@@ -118,19 +118,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cxx: [gcc9, gcc10, gcc11, gcc12, gcc13, gcc14, clang10, clang11, clang12, clang13, clang14, clang15, clang16]
+        cxx: [gcc10, gcc11, gcc12, gcc13, gcc14, clang10, clang11, clang12, clang13, clang14, clang15, clang16, clang17]
         include:
-          - cxx: gcc9
-            os: ubuntu-22.04
-            env_cc: "gcc-9"
-            env_asm: "g++-9"
-            env_cpp: "g++-9"
-            env_stalink: "gcc-ar-9"
-            env_dynlink: "g++-9"
-            env_applink: "g++-9"
-            env_module: "all"
-            env_clang: false
-            pkg: "g++-9"
           - cxx: gcc10
             os: ubuntu-22.04
             env_cc: "gcc-10"
@@ -270,6 +259,18 @@ jobs:
             env_clang: true
             env_clang_ver: 16
             pkg: "clang-16 lld-16 llvm-16"
+          - cxx: clang17
+            os: ubuntu-24.04
+            env_cc: "clang-17"
+            env_asm: "clang++-17"
+            env_cpp: "clang++-17"
+            env_stalink: "llvm-ar-17"
+            env_dynlink: "clang++-17"
+            env_applink: "clang++-17"
+            env_module: "all"
+            env_clang: true
+            env_clang_ver: 17
+            pkg: "clang-17 lld-17 llvm-17"
     
     steps:
       - name: Get basic information

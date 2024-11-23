@@ -57,6 +57,7 @@ RegisterSIMDCmpTest(200, F64x2, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8,
 
 
 RegisterSIMDZipTest(200, F64x2, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, U8x16)
+RegisterSIMDZipOETest(200, F64x2, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, U8x16)
 
 
 RegisterSIMDBroadcastTest(200, F64x2, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, U8x16)

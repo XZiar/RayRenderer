@@ -150,6 +150,28 @@
 //     return _mm_loadu_si16(addr);
 // }
 # endif
+// enforce mullo, workrounds for GCC
+# if COMMON_COMPILER_GCC
+#   define _mm_mullo_epi64_force(a, b)    _mm_maskz_mullo_epi64(0xff, a, b)
+#   define _mm_mullo_epi32_force(a, b)    (__m128i)__builtin_ia32_pmulld128((__v4si)(a), (__v4si)(b))
+#   define _mm_mullo_epi16_force(a, b)    (__m128i)__builtin_ia32_pmullw128((__v8hi)(a), (__v8hi)(b))
+#   define _mm256_mullo_epi64_force(a, b) _mm256_maskz_mullo_epi64(0xff, a, b)
+#   define _mm256_mullo_epi32_force(a, b) (__m256i)__builtin_ia32_pmulld256((__v8si)(a), (__v8si)(b))
+#   define _mm256_mullo_epi16_force(a, b) (__m256i)__builtin_ia32_pmullw256((__v16hi)(a), (__v16hi)(b))
+#   define _mm512_mullo_epi64_force(a, b) _mm512_maskz_mullo_epi64(0xff, a, b)
+#   define _mm512_mullo_epi32_force(a, b) _mm512_maskz_mullo_epi32(0xffff, a, b)
+#   define _mm512_mullo_epi16_force(a, b) _mm512_maskz_mullo_epi16(0xffffffffu, a, b)
+# else
+#   define _mm_mullo_epi64_force _mm_mullo_epi64
+#   define _mm_mullo_epi32_force _mm_mullo_epi32
+#   define _mm_mullo_epi16_force _mm_mullo_epi16
+#   define _mm256_mullo_epi64_force _mm256_mullo_epi64
+#   define _mm256_mullo_epi32_force _mm256_mullo_epi32
+#   define _mm256_mullo_epi16_force _mm256_mullo_epi16
+#   define _mm512_mullo_epi64_force _mm512_mullo_epi64
+#   define _mm512_mullo_epi32_force _mm512_mullo_epi32
+#   define _mm512_mullo_epi16_force _mm512_mullo_epi16
+# endif
 #elif COMMON_ARCH_ARM
 # if COMMON_COMPILER_CLANG
 #   if COMMON_CLANG_VER < 30000

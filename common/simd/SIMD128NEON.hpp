@@ -308,6 +308,22 @@ struct Shuffle64Common
         return AsType<SIMDType>(vcombine_u64(a, b));
 #endif
     }
+    forceinline T VECCALL ZipOdd(const T& other) const noexcept
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vtrn1q_u64(AsType<uint64x2_t>(static_cast<const T*>(this)->Data), AsType<uint64x2_t>(other.Data)));
+#else
+        return ZipLo(other);
+#endif
+    }
+    forceinline T VECCALL ZipEven(const T& other) const noexcept
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vtrn2q_u64(AsType<uint64x2_t>(static_cast<const T*>(this)->Data), AsType<uint64x2_t>(other.Data)));
+#else
+        return ZipHi(other);
+#endif
+    }
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, const T mask) const noexcept
     {
@@ -622,6 +638,22 @@ struct Shuffle32Common
         return AsType<SIMDType>(vcombine_u32(zip.val[0], zip.val[1]));
 #endif
     }
+    forceinline T VECCALL ZipOdd(const T& other) const noexcept
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vtrn1q_u32(AsType<uint32x4_t>(static_cast<const T*>(this)->Data), AsType<uint32x4_t>(other.Data)));
+#else
+        return AsType<SIMDType>(vsliq_n_u64(AsType<uint64x2_t>(static_cast<const T*>(this)->Data), AsType<uint64x2_t>(other.Data), 32));
+#endif
+    }
+    forceinline T VECCALL ZipEven(const T& other) const noexcept
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vtrn2q_u32(AsType<uint32x4_t>(static_cast<const T*>(this)->Data), AsType<uint32x4_t>(other.Data)));
+#else
+        return AsType<SIMDType>(vsriq_n_u64(AsType<uint64x2_t>(other.Data), AsType<uint64x2_t>(static_cast<const T*>(this)->Data), 32));
+#endif
+    }
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, const T mask) const noexcept
     {
@@ -857,7 +889,7 @@ struct alignas(16) Common16x8 : public Neon128Common<T, SIMDType, E, 8>
         }
         else
         {
-            alignas(16) const uint16_t indexes[] =
+            alignas(16) static const uint16_t indexes[] =
             {
                 (Lo0 * 2) * 0x0101 + 0x0100,
                 (Lo1 * 2) * 0x0101 + 0x0100,
@@ -917,6 +949,22 @@ struct alignas(16) Common16x8 : public Neon128Common<T, SIMDType, E, 8>
         const auto a = vget_high_u16(AsType<uint16x8_t>(this->Data)), b = vget_high_u16(AsType<uint16x8_t>(other.Data));
         const auto zip = vzip_u16(a, b);
         return AsType<SIMDType>(vcombine_u16(zip.val[0], zip.val[1]));
+#endif
+    }
+    forceinline T VECCALL ZipOdd(const T& other) const noexcept
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vtrn1q_u16(AsType<uint16x8_t>(static_cast<const T*>(this)->Data), AsType<uint16x8_t>(other.Data)));
+#else
+        return AsType<SIMDType>(vsliq_n_u32(AsType<uint32x4_t>(static_cast<const T*>(this)->Data), AsType<uint32x4_t>(other.Data), 16));
+#endif
+    }
+    forceinline T VECCALL ZipEven(const T& other) const noexcept
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vtrn2q_u16(AsType<uint16x8_t>(static_cast<const T*>(this)->Data), AsType<uint16x8_t>(other.Data)));
+#else
+        return AsType<SIMDType>(vsriq_n_u32(AsType<uint32x4_t>(other.Data), AsType<uint32x4_t>(static_cast<const T*>(this)->Data), 16));
 #endif
     }
     template<MaskType Msk>
@@ -1142,6 +1190,22 @@ struct alignas(16) Common8x16 : public Neon128Common<T, SIMDType, E, 16>
         const auto a = vget_high_u8(AsType<uint8x16_t>(this->Data)), b = vget_high_u8(AsType<uint8x16_t>(other.Data));
         const auto zip = vzip_u8(a, b);
         return AsType<SIMDType>(vcombine_u8(zip.val[0], zip.val[1]));
+#endif
+    }
+    forceinline T VECCALL ZipOdd(const T& other) const noexcept
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vtrn1q_u8(AsType<uint8x16_t>(static_cast<const T*>(this)->Data), AsType<uint8x16_t>(other.Data)));
+#else
+        return AsType<SIMDType>(vsliq_n_u16(AsType<uint16x8_t>(static_cast<const T*>(this)->Data), AsType<uint16x8_t>(other.Data), 8));
+#endif
+    }
+    forceinline T VECCALL ZipEven(const T& other) const noexcept
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vtrn2q_u8(AsType<uint8x16_t>(static_cast<const T*>(this)->Data), AsType<uint8x16_t>(other.Data)));
+#else
+        return AsType<SIMDType>(vsriq_n_u16(AsType<uint16x8_t>(other.Data), AsType<uint16x8_t>(static_cast<const T*>(this)->Data), 8));
 #endif
     }
     template<MaskType Msk>
@@ -1773,6 +1837,7 @@ struct alignas(16) I32x4 : public detail::Common32x4<I32x4, int32x4_t, int32_t>
     forceinline I32x4 VECCALL SatSub(const I32x4& other) const noexcept { return vqsubq_s32(Data, other.Data); }
     forceinline I32x4 VECCALL Add(const I32x4& other) const noexcept { return vaddq_s32(Data, other.Data); }
     forceinline I32x4 VECCALL Sub(const I32x4& other) const noexcept { return vsubq_s32(Data, other.Data); }
+    template<bool Enforce = false>
     forceinline I32x4 VECCALL MulLo(const I32x4& other) const noexcept { return vmulq_s32(Data, other.Data); }
     //forceinline I32x4 VECCALL Div(const I32x4& other) const { return vdivq_s32(Data, other.Data); }
     forceinline I32x4 VECCALL Neg() const noexcept { return vnegq_s32(Data); }
@@ -1791,11 +1856,30 @@ struct alignas(16) I32x4 : public detail::Common32x4<I32x4, int32x4_t, int32_t>
     }
     forceinline I32x4 VECCALL MulAddLo(const I32x4& muler, const I32x4& adder) const noexcept
     {
-        return vmlaq_s32(adder, Data, muler.Data);
+        return vmlaq_s32(adder.Data, Data, muler.Data);
     }
     forceinline I32x4 VECCALL MulScalarAddLo(const int32_t muler, const I32x4& adder) const noexcept
     {
-        return vmlaq_n_s32(adder, Data, muler);
+        return vmlaq_n_s32(adder.Data, Data, muler);
+    }
+    template<size_t Idx>
+    forceinline I32x4 VECCALL MulScalarAddLo(const I32x4& muler, const I32x4& adder) const noexcept
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+#if COMMON_SIMD_LV >= 200
+# if COMMON_COMPILER_CLANG
+        int32x4_t ret = adder.Data;
+        __asm__("mla %0.4s, %1.4s, %2.s[%c3]\n\t" : "+w"(ret) : "w"(Data), "w"(muler.Data), "n"(Idx));
+        return ret;
+# else
+        return vmlaq_laneq_s32(adder.Data, Data, muler.Data, Idx);
+# endif
+#else
+        if constexpr (Idx < 2)
+            return vmlaq_lane_s32(adder.Data, Data, vget_low_s32(muler.Data), Idx);
+        else
+            return vmlaq_lane_s32(adder.Data, Data, vget_high_s32(muler.Data), Idx - 2);
+#endif
     }
     forceinline I32x4 VECCALL MulSubLo(const I32x4& muler, const I32x4& subber) const noexcept
     {
@@ -1805,13 +1889,38 @@ struct alignas(16) I32x4 : public detail::Common32x4<I32x4, int32x4_t, int32_t>
     {
         return MulLo(muler).Sub(subber);
     }
+    template<size_t Idx>
+    forceinline I32x4 VECCALL MulScalarSubLo(const I32x4& muler, const I32x4& subber) const noexcept
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+        return MulSubLo(muler.Broadcast<Idx>(), subber);
+    }
     forceinline I32x4 VECCALL NMulAddLo(const I32x4& muler, const I32x4& adder) const noexcept
     {
-        return vmlsq_s32(adder, Data, muler.Data);
+        return vmlsq_s32(adder.Data, Data, muler.Data);
     }
     forceinline I32x4 VECCALL NMulScalarAddLo(const int32_t muler, const I32x4& adder) const noexcept
     {
-        return vmlsq_n_s32(adder, Data, muler);
+        return vmlsq_n_s32(adder.Data, Data, muler);
+    }
+    template<size_t Idx>
+    forceinline I32x4 VECCALL NMulScalarAddLo(const I32x4& muler, const I32x4& adder) const noexcept
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+#if COMMON_SIMD_LV >= 200
+# if COMMON_COMPILER_CLANG
+        int32x4_t ret = adder.Data;
+        __asm__("mls %0.4s, %1.4s, %2.s[%c3]\n\t" : "+w"(ret) : "w"(Data), "w"(muler.Data), "n"(Idx));
+        return ret;
+# else
+        return vmlsq_laneq_s32(adder.Data, Data, muler.Data, Idx);
+# endif
+#else
+        if constexpr (Idx < 2)
+            return vmlsq_lane_s32(adder.Data, Data, vget_low_s32(muler.Data), Idx);
+        else
+            return vmlsq_lane_s32(adder.Data, Data, vget_high_s32(muler.Data), Idx - 2);
+#endif
     }
     forceinline I32x4 VECCALL NMulSubLo(const I32x4& muler, const I32x4& subber) const noexcept
     {
@@ -1820,6 +1929,12 @@ struct alignas(16) I32x4 : public detail::Common32x4<I32x4, int32x4_t, int32_t>
     forceinline I32x4 VECCALL NMulScalarSubLo(const int32_t muler, const I32x4& subber) const noexcept
     {
         return MulScalarAddLo(muler, subber).Neg();
+    }
+    template<size_t Idx>
+    forceinline I32x4 VECCALL NMulScalarSubLo(const I32x4& muler, const I32x4& subber) const noexcept
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+        return NMulSubLo(muler.Broadcast<Idx>(), subber);
     }
 
     template<typename T, CastMode Mode = ::common::simd::detail::CstMode<I32x4, T>(), typename... Args>
@@ -1876,6 +1991,7 @@ struct alignas(16) U32x4 : public detail::Common32x4<U32x4, uint32x4_t, uint32_t
     forceinline U32x4 VECCALL SatSub(const U32x4& other) const noexcept { return vqsubq_u32(Data, other.Data); }
     forceinline U32x4 VECCALL Add(const U32x4& other) const noexcept { return vaddq_u32(Data, other.Data); }
     forceinline U32x4 VECCALL Sub(const U32x4& other) const noexcept { return vsubq_u32(Data, other.Data); }
+    template<bool Enforce = false>
     forceinline U32x4 VECCALL MulLo(const U32x4& other) const noexcept { return vmulq_u32(Data, other.Data); }
     //forceinline U32x4 VECCALL Div(const U32x4& other) const noexcept { return vdivq_s32(Data, other.Data); }
     forceinline U32x4 VECCALL Abs() const noexcept { return Data; }
@@ -1893,11 +2009,30 @@ struct alignas(16) U32x4 : public detail::Common32x4<U32x4, uint32x4_t, uint32_t
     }
     forceinline U32x4 VECCALL MulAddLo(const U32x4& muler, const U32x4& adder) const noexcept
     {
-        return vmlaq_u32(adder, Data, muler.Data);
+        return vmlaq_u32(adder.Data, Data, muler.Data);
     }
     forceinline U32x4 VECCALL MulScalarAddLo(const uint32_t muler, const U32x4& adder) const noexcept
     {
-        return vmlaq_n_u32(adder, Data, muler);
+        return vmlaq_n_u32(adder.Data, Data, muler);
+    }
+    template<size_t Idx>
+    forceinline U32x4 VECCALL MulScalarAddLo(const U32x4& muler, const U32x4& adder) const noexcept
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+#if COMMON_SIMD_LV >= 200
+# if COMMON_COMPILER_CLANG
+        uint32x4_t ret = adder.Data;
+        __asm__("mla %0.4s, %1.4s, %2.s[%c3]\n\t" : "+w"(ret) : "w"(Data), "w"(muler.Data), "n"(Idx));
+        return ret;
+# else
+        return vmlaq_laneq_u32(adder.Data, Data, muler.Data, Idx);
+# endif
+#else
+        if constexpr (Idx < 2)
+            return vmlaq_lane_u32(adder.Data, Data, vget_low_u32(muler.Data), Idx);
+        else
+            return vmlaq_lane_u32(adder.Data, Data, vget_high_u32(muler.Data), Idx - 2);
+#endif
     }
     forceinline U32x4 VECCALL MulSubLo(const U32x4& muler, const U32x4& subber) const noexcept
     {
@@ -1907,13 +2042,38 @@ struct alignas(16) U32x4 : public detail::Common32x4<U32x4, uint32x4_t, uint32_t
     {
         return MulLo(muler).Sub(subber);
     }
+    template<size_t Idx>
+    forceinline U32x4 VECCALL MulScalarSubLo(const U32x4& muler, const U32x4& subber) const noexcept
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+        return MulSubLo(muler.Broadcast<Idx>(), subber);
+    }
     forceinline U32x4 VECCALL NMulAddLo(const U32x4& muler, const U32x4& adder) const noexcept
     {
-        return vmlsq_u32(adder, Data, muler.Data);
+        return vmlsq_u32(adder.Data, Data, muler.Data);
     }
     forceinline U32x4 VECCALL NMulScalarAddLo(const uint32_t muler, const U32x4& adder) const noexcept
     {
-        return vmlsq_n_u32(adder, Data, muler);
+        return vmlsq_n_u32(adder.Data, Data, muler);
+    }
+    template<size_t Idx>
+    forceinline U32x4 VECCALL NMulScalarAddLo(const U32x4& muler, const U32x4& adder) const noexcept
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+#if COMMON_SIMD_LV >= 200
+# if COMMON_COMPILER_CLANG
+        uint32x4_t ret = adder.Data;
+        __asm__("mls %0.4s, %1.4s, %2.s[%c3]\n\t" : "+w"(ret) : "w"(Data), "w"(muler.Data), "n"(Idx));
+        return ret;
+# else
+        return vmlsq_laneq_u32(adder.Data, Data, muler.Data, Idx);
+# endif
+#else
+        if constexpr (Idx < 2)
+            return vmlsq_lane_u32(adder.Data, Data, vget_low_u32(muler.Data), Idx);
+        else
+            return vmlsq_lane_u32(adder.Data, Data, vget_high_u32(muler.Data), Idx - 2);
+#endif
     }
 
     template<typename T, CastMode Mode = ::common::simd::detail::CstMode<U32x4, T>(), typename... Args>
@@ -1976,6 +2136,7 @@ struct alignas(16) I16x8 : public detail::Common16x8<I16x8, int16x8_t, int16_t>
     forceinline I16x8 VECCALL SatSub(const I16x8& other) const noexcept { return vqsubq_s16(Data, other.Data); }
     forceinline I16x8 VECCALL Add(const I16x8& other) const noexcept { return vaddq_s16(Data, other.Data); }
     forceinline I16x8 VECCALL Sub(const I16x8& other) const noexcept { return vsubq_s16(Data, other.Data); }
+    template<bool Enforce = false>
     forceinline I16x8 VECCALL MulLo(const I16x8& other) const noexcept { return vmulq_s16(Data, other.Data); }
     //forceinline I16x8 VECCALL Div(const I16x8& other) const noexcept { return vdivq_s16(Data, other.Data); }
     forceinline I16x8 VECCALL Neg() const noexcept { return vnegq_s16(Data); }
@@ -1994,11 +2155,30 @@ struct alignas(16) I16x8 : public detail::Common16x8<I16x8, int16x8_t, int16_t>
     }
     forceinline I16x8 VECCALL MulAddLo(const I16x8& muler, const I16x8& adder) const noexcept
     {
-        return vmlaq_s16(adder, Data, muler.Data);
+        return vmlaq_s16(adder.Data, Data, muler.Data);
     }
     forceinline I16x8 VECCALL MulScalarAddLo(const int16_t muler, const I16x8& adder) const noexcept
     {
-        return vmlaq_n_s16(adder, Data, muler);
+        return vmlaq_n_s16(adder.Data, Data, muler);
+    }
+    template<size_t Idx>
+    forceinline I16x8 VECCALL MulScalarAddLo(const I16x8& muler, const I16x8& adder) const noexcept
+    {
+        static_assert(Idx < 7, "select index should be in [0,7]");
+#if COMMON_SIMD_LV >= 200
+# if COMMON_COMPILER_CLANG
+        int16x8_t ret = adder.Data;
+        __asm__("mla %0.8h, %1.8h, %2.h[%c3]\n\t" : "+w"(ret) : "w"(Data), "x"(muler.Data), "n"(Idx));
+        return ret;
+# else
+        return vmlaq_laneq_s16(adder.Data, Data, muler.Data, Idx);
+# endif
+#else
+        if constexpr (Idx < 4)
+            return vmlaq_lane_s16(adder.Data, Data, vget_low_s16(muler.Data), Idx);
+        else
+            return vmlaq_lane_s16(adder.Data, Data, vget_high_s16(muler.Data), Idx - 4);
+#endif
     }
     forceinline I16x8 VECCALL MulSubLo(const I16x8& muler, const I16x8& subber) const noexcept
     {
@@ -2008,13 +2188,38 @@ struct alignas(16) I16x8 : public detail::Common16x8<I16x8, int16x8_t, int16_t>
     {
         return MulLo(muler).Sub(subber);
     }
+    template<size_t Idx>
+    forceinline I16x8 VECCALL MulScalarSubLo(const I16x8& muler, const I16x8& subber) const noexcept
+    {
+        static_assert(Idx < 7, "select index should be in [0,7]");
+        return MulSubLo(muler.Broadcast<Idx>(), subber);
+    }
     forceinline I16x8 VECCALL NMulAddLo(const I16x8& muler, const I16x8& adder) const noexcept
     {
-        return vmlsq_s16(adder, Data, muler.Data);
+        return vmlsq_s16(adder.Data, Data, muler.Data);
     }
     forceinline I16x8 VECCALL NMulScalarAddLo(const int16_t muler, const I16x8& adder) const noexcept
     {
-        return vmlsq_n_s16(adder, Data, muler);
+        return vmlsq_n_s16(adder.Data, Data, muler);
+    }
+    template<size_t Idx>
+    forceinline I16x8 VECCALL NMulScalarAddLo(const I16x8& muler, const I16x8& adder) const noexcept
+    {
+        static_assert(Idx < 7, "select index should be in [0,7]");
+#if COMMON_SIMD_LV >= 200
+# if COMMON_COMPILER_CLANG
+        int16x8_t ret = adder.Data;
+        __asm__("mls %0.8h, %1.8h, %2.h[%c3]\n\t" : "+w"(ret) : "w"(Data), "x"(muler.Data), "n"(Idx));
+        return ret;
+# else
+        return vmlsq_laneq_s16(adder.Data, Data, muler.Data, Idx);
+# endif
+#else
+        if constexpr (Idx < 4)
+            return vmlsq_lane_s16(adder.Data, Data, vget_low_s16(muler.Data), Idx);
+        else
+            return vmlsq_lane_s16(adder.Data, Data, vget_high_s16(muler.Data), Idx - 4);
+#endif
     }
     forceinline I16x8 VECCALL NMulSubLo(const I16x8& muler, const I16x8& subber) const noexcept
     {
@@ -2023,6 +2228,12 @@ struct alignas(16) I16x8 : public detail::Common16x8<I16x8, int16x8_t, int16_t>
     forceinline I16x8 VECCALL NMulScalarSubLo(const int16_t muler, const I16x8& subber) const noexcept
     {
         return MulScalarAddLo(muler, subber).Neg();
+    }
+    template<size_t Idx>
+    forceinline I16x8 VECCALL NMulScalarSubLo(const I16x8& muler, const I16x8& subber) const noexcept
+    {
+        static_assert(Idx < 7, "select index should be in [0,7]");
+        return NMulSubLo(muler.Broadcast<Idx>(), subber);
     }
 
     template<typename T, CastMode Mode = ::common::simd::detail::CstMode<I16x8, T>(), typename... Args>
@@ -2088,6 +2299,7 @@ struct alignas(16) U16x8 : public detail::Common16x8<U16x8, uint16x8_t, uint16_t
     forceinline U16x8 VECCALL SatSub(const U16x8& other) const noexcept { return vqsubq_u16(Data, other.Data); }
     forceinline U16x8 VECCALL Add(const U16x8& other) const noexcept { return vaddq_u16(Data, other.Data); }
     forceinline U16x8 VECCALL Sub(const U16x8& other) const noexcept { return vsubq_u16(Data, other.Data); }
+    template<bool Enforce = false>
     forceinline U16x8 VECCALL MulLo(const U16x8& other) const noexcept { return vmulq_u16(Data, other.Data); }
     //forceinline U16x8 VECCALL Div(const U16x8& other) const noexcept { return vdivq_u16(Data, other.Data); }
     forceinline U16x8 VECCALL Abs() const noexcept { return Data; }
@@ -2105,11 +2317,30 @@ struct alignas(16) U16x8 : public detail::Common16x8<U16x8, uint16x8_t, uint16_t
     }
     forceinline U16x8 VECCALL MulAddLo(const U16x8& muler, const U16x8& adder) const noexcept
     {
-        return vmlaq_u16(adder, Data, muler.Data);
+        return vmlaq_u16(adder.Data, Data, muler.Data);
     }
     forceinline U16x8 VECCALL MulScalarAddLo(const uint16_t muler, const U16x8& adder) const noexcept
     {
-        return vmlaq_n_u16(adder, Data, muler);
+        return vmlaq_n_u16(adder.Data, Data, muler);
+    }
+    template<size_t Idx>
+    forceinline U16x8 VECCALL MulScalarAddLo(const U16x8& muler, const U16x8& adder) const noexcept
+    {
+        static_assert(Idx < 7, "select index should be in [0,7]");
+#if COMMON_SIMD_LV >= 200
+# if COMMON_COMPILER_CLANG
+        uint16x8_t ret = adder.Data;
+        __asm__("mla %0.8h, %1.8h, %2.h[%c3]\n\t" : "+w"(ret) : "w"(Data), "x"(muler.Data), "n"(Idx));
+        return ret;
+# else
+        return vmlaq_laneq_u16(adder.Data, Data, muler.Data, Idx);
+# endif
+#else
+        if constexpr (Idx < 4)
+            return vmlaq_lane_u16(adder.Data, Data, vget_low_u16(muler.Data), Idx);
+        else
+            return vmlaq_lane_u16(adder.Data, Data, vget_high_u16(muler.Data), Idx - 4);
+#endif
     }
     forceinline U16x8 VECCALL MulSubLo(const U16x8& muler, const U16x8& subber) const noexcept
     {
@@ -2119,13 +2350,38 @@ struct alignas(16) U16x8 : public detail::Common16x8<U16x8, uint16x8_t, uint16_t
     {
         return MulLo(muler).Sub(subber);
     }
+    template<size_t Idx>
+    forceinline U16x8 VECCALL MulScalarSubLo(const U16x8& muler, const U16x8& subber) const noexcept
+    {
+        static_assert(Idx < 7, "select index should be in [0,7]");
+        return MulSubLo(muler.Broadcast<Idx>(), subber);
+    }
     forceinline U16x8 VECCALL NMulAddLo(const U16x8& muler, const U16x8& adder) const noexcept
     {
-        return vmlsq_u16(adder, Data, muler.Data);
+        return vmlsq_u16(adder.Data, Data, muler.Data);
     }
     forceinline U16x8 VECCALL NMulScalarAddLo(const uint16_t muler, const U16x8& adder) const noexcept
     {
-        return vmlsq_n_u16(adder, Data, muler);
+        return vmlsq_n_u16(adder.Data, Data, muler);
+    }
+    template<size_t Idx>
+    forceinline U16x8 VECCALL NMulScalarAddLo(const U16x8& muler, const U16x8& adder) const noexcept
+    {
+        static_assert(Idx < 7, "select index should be in [0,7]");
+#if COMMON_SIMD_LV >= 200
+# if COMMON_COMPILER_CLANG
+        uint16x8_t ret = adder.Data;
+        __asm__("mls %0.8h, %1.8h, %2.h[%c3]\n\t" : "+w"(ret) : "w"(Data), "x"(muler.Data), "n"(Idx));
+        return ret;
+# else
+        return vmlsq_laneq_u16(adder.Data, Data, muler.Data, Idx);
+# endif
+#else
+        if constexpr (Idx < 4)
+            return vmlsq_lane_u16(adder.Data, Data, vget_low_u16(muler.Data), Idx);
+        else
+            return vmlsq_lane_u16(adder.Data, Data, vget_high_u16(muler.Data), Idx - 4);
+#endif
     }
 
     template<typename T, CastMode Mode = ::common::simd::detail::CstMode<U16x8, T>(), typename... Args>
@@ -2219,6 +2475,7 @@ struct alignas(16) I8x16 : public detail::Common8x16<I8x16, int8x16_t, int8_t>
     forceinline I8x16 VECCALL SatSub(const I8x16& other) const noexcept { return vqsubq_s8(Data, other.Data); }
     forceinline I8x16 VECCALL Add(const I8x16& other) const noexcept { return vaddq_s8(Data, other.Data); }
     forceinline I8x16 VECCALL Sub(const I8x16& other) const noexcept { return vsubq_s8(Data, other.Data); }
+    template<bool Enforce = false>
     forceinline I8x16 VECCALL MulLo(const I8x16& other) const noexcept { return vmulq_s8(Data, other.Data); }
     //forceinline I8x16 VECCALL Div(const I8x16& other) const noexcept { return vdivq_s8(Data, other.Data); }
     forceinline I8x16 VECCALL Neg() const noexcept { return vnegq_s8(Data); }
@@ -2237,11 +2494,17 @@ struct alignas(16) I8x16 : public detail::Common8x16<I8x16, int8x16_t, int8_t>
     }
     forceinline I8x16 VECCALL MulAddLo(const I8x16& muler, const I8x16& adder) const noexcept
     {
-        return vmlaq_s8(adder, Data, muler.Data);
+        return vmlaq_s8(adder.Data, Data, muler.Data);
     }
     forceinline I8x16 VECCALL MulScalarAddLo(const int8_t muler, const I8x16& adder) const noexcept
     {
         return MulAddLo(muler, adder);
+    }
+    template<size_t Idx>
+    forceinline I8x16 VECCALL MulScalarAddLo(const I8x16& muler, const I8x16& adder) const noexcept
+    {
+        static_assert(Idx < 15, "select index should be in [0,15]");
+        return MulAddLo(muler.Broadcast<Idx>(), adder);
     }
     forceinline I8x16 VECCALL MulSubLo(const I8x16& muler, const I8x16& subber) const noexcept
     {
@@ -2251,13 +2514,25 @@ struct alignas(16) I8x16 : public detail::Common8x16<I8x16, int8x16_t, int8_t>
     {
         return MulLo(muler).Sub(subber);
     }
+    template<size_t Idx>
+    forceinline I8x16 VECCALL MulScalarSubLo(const I8x16& muler, const I8x16& subber) const noexcept
+    {
+        static_assert(Idx < 15, "select index should be in [0,15]");
+        return MulSubLo(muler.Broadcast<Idx>(), subber);
+    }
     forceinline I8x16 VECCALL NMulAddLo(const I8x16& muler, const I8x16& adder) const noexcept
     {
-        return vmlsq_s8(adder, Data, muler.Data);
+        return vmlsq_s8(adder.Data, Data, muler.Data);
     }
     forceinline I8x16 VECCALL NMulScalarAddLo(const int8_t muler, const I8x16& adder) const noexcept
     {
         return NMulAddLo(muler, adder);
+    }
+    template<size_t Idx>
+    forceinline I8x16 VECCALL NMulScalarAddLo(const I8x16& muler, const I8x16& adder) const noexcept
+    {
+        static_assert(Idx < 15, "select index should be in [0,15]");
+        return NMulAddLo(muler.Broadcast<Idx>(), adder);
     }
     forceinline I8x16 VECCALL NMulSubLo(const I8x16& muler, const I8x16& subber) const noexcept
     {
@@ -2266,6 +2541,12 @@ struct alignas(16) I8x16 : public detail::Common8x16<I8x16, int8x16_t, int8_t>
     forceinline I8x16 VECCALL NMulScalarSubLo(const int8_t muler, const I8x16& subber) const noexcept
     {
         return MulScalarAddLo(muler, subber).Neg();
+    }
+    template<size_t Idx>
+    forceinline I8x16 VECCALL NMulScalarSubLo(const I8x16& muler, const I8x16& subber) const noexcept
+    {
+        static_assert(Idx < 15, "select index should be in [0,15]");
+        return NMulSubLo(muler.Broadcast<Idx>(), subber);
     }
 
     template<typename T, CastMode Mode = ::common::simd::detail::CstMode<I8x16, T>(), typename... Args>
@@ -2342,6 +2623,7 @@ struct alignas(16) U8x16 : public detail::Common8x16<U8x16, uint8x16_t, uint8_t>
     forceinline U8x16 VECCALL SatSub(const U8x16& other) const noexcept { return vqsubq_u8(Data, other.Data); }
     forceinline U8x16 VECCALL Add(const U8x16& other) const noexcept { return vaddq_u8(Data, other.Data); }
     forceinline U8x16 VECCALL Sub(const U8x16& other) const noexcept { return vsubq_u8(Data, other.Data); }
+    template<bool Enforce = false>
     forceinline U8x16 VECCALL MulLo(const U8x16& other) const noexcept { return vmulq_u8(Data, other.Data); }
     //forceinline U8x16 VECCALL Div(const U8x16& other) const noexcept { return vdivq_u8(Data, other.Data); }
     forceinline U8x16 VECCALL Abs() const noexcept { return Data; }
@@ -2359,11 +2641,17 @@ struct alignas(16) U8x16 : public detail::Common8x16<U8x16, uint8x16_t, uint8_t>
     }
     forceinline U8x16 VECCALL MulAddLo(const U8x16& muler, const U8x16& adder) const noexcept
     {
-        return vmlaq_u8(adder, Data, muler.Data);
+        return vmlaq_u8(adder.Data, Data, muler.Data);
     }
     forceinline U8x16 VECCALL MulScalarAddLo(const uint8_t muler, const U8x16& adder) const noexcept
     {
         return MulAddLo(muler, adder);
+    }
+    template<size_t Idx>
+    forceinline U8x16 VECCALL MulScalarAddLo(const U8x16& muler, const U8x16& adder) const noexcept
+    {
+        static_assert(Idx < 15, "select index should be in [0,15]");
+        return MulAddLo(muler.Broadcast<Idx>(), adder);
     }
     forceinline U8x16 VECCALL MulSubLo(const U8x16& muler, const U8x16& subber) const noexcept
     {
@@ -2373,13 +2661,25 @@ struct alignas(16) U8x16 : public detail::Common8x16<U8x16, uint8x16_t, uint8_t>
     {
         return MulLo(muler).Sub(subber);
     }
+    template<size_t Idx>
+    forceinline U8x16 VECCALL MulScalarSubLo(const U8x16& muler, const U8x16& subber) const noexcept
+    {
+        static_assert(Idx < 15, "select index should be in [0,15]");
+        return MulSubLo(muler.Broadcast<Idx>(), subber);
+    }
     forceinline U8x16 VECCALL NMulAddLo(const U8x16& muler, const U8x16& adder) const noexcept
     {
-        return vmlsq_u8(adder, Data, muler.Data);
+        return vmlsq_u8(adder.Data, Data, muler.Data);
     }
     forceinline U8x16 VECCALL NMulScalarAddLo(const uint8_t muler, const U8x16& adder) const noexcept
     {
         return NMulAddLo(muler, adder);
+    }
+    template<size_t Idx>
+    forceinline U8x16 VECCALL NMulScalarAddLo(const U8x16& muler, const U8x16& adder) const noexcept
+    {
+        static_assert(Idx < 15, "select index should be in [0,15]");
+        return NMulAddLo(muler.Broadcast<Idx>(), adder);
     }
 
     template<typename T, CastMode Mode = ::common::simd::detail::CstMode<U8x16, T>(), typename... Args>
