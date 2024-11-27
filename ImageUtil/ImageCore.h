@@ -41,6 +41,7 @@ protected:
     }
 public:
     [[nodiscard]] static constexpr uint8_t GetElementSize(const ImageDataType dataType) noexcept;
+    [[nodiscard]] static Image CombineChannels(const ImageDataType dataType, common::span<const ImageView> channels);
     Image(const ImageDataType dataType = ImageDataType::RGBA) noexcept : Width(0), Height(0), DataType(dataType), ElementSize(GetElementSize(DataType))
     { }
     Image(const common::AlignedBuffer& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)

@@ -131,9 +131,20 @@ forceinline std::pair<uint32_t, uint32_t> VECCALL SignBitToIdx(const uint32_t si
 }
 
 
+
+template<typename T, typename E>
+struct SSE128Shared : public CommonOperators<T>
+{
+    // shuffle operations
+    forceinline Pack<T, 2> VECCALL Zip(const T& other) const noexcept
+    {
+        return { static_cast<const T*>(this)->ZipLo(other), static_cast<const T*>(this)->ZipHi(other) };
+    }
+};
+
 // For integer
 template<typename T, typename E, size_t N>
-struct SSE128Common : public CommonOperators<T>
+struct SSE128Common : public SSE128Shared<T, E>
 {
     using EleType = E;
     using VecType = __m128i;
@@ -269,10 +280,6 @@ struct SSE128Common : public CommonOperators<T>
         if constexpr (Cnt == 0) return Data;
         else if constexpr (Cnt == N) return hi;
         else return _mm_alignr_epi8(hi.Data, Data, Cnt * sizeof(E));
-    }
-    forceinline Pack<T, 2> VECCALL Zip(const T& other) const noexcept
-    {
-        return { static_cast<const T*>(this)->ZipLo(other), static_cast<const T*>(this)->ZipHi(other) };
     }
 
     forceinline bool VECCALL IsAllZero() const noexcept
@@ -1012,7 +1019,7 @@ public:
 }
 
 
-struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
+struct alignas(16) F64x2 : public detail::SSE128Shared<F64x2, float>
 {
     using EleType = double;
     using VecType = __m128d;
@@ -1241,7 +1248,7 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
 };
 
 
-struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
+struct alignas(16) F32x4 : public detail::SSE128Shared<F32x4, float>
 {
     using EleType = float;
     using VecType = __m128;

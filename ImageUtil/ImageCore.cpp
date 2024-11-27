@@ -130,17 +130,44 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
     }
     else
     {
-        if (HAS_FIELD(src.DataType, ImageDataType::FLOAT_MASK) || HAS_FIELD(DataType, ImageDataType::FLOAT_MASK))//not supported yet
-            COMMON_THROW(BaseException, u"float datatype not supported");
-        if (IsGray() && !src.IsGray())//not supported yet
+        if (IsGray() && !src.IsGray()) //not supported yet
             COMMON_THROW(BaseException, u"need explicit conversion from color to gray image");
-
-        const auto diff = DataType ^ src.DataType;
+        const auto isSrcFloat = HAS_FIELD(src.DataType, ImageDataType::FLOAT_MASK), isDstFloat = HAS_FIELD(DataType, ImageDataType::FLOAT_MASK);
+        if (isSrcFloat != isDstFloat)
+            COMMON_THROW(BaseException, u"mixing float datatype not supported");
         auto pixcnt = copypix;
         if (isCopyWholeRow)
             pixcnt *= rowcnt, rowcnt = 1;
+        const auto diff = DataType ^ src.DataType;
         const auto& cvter = ColorConvertor::Get();
-        if (diff == ImageDataType::ALPHA_MASK)//remove/add alpha only
+
+        if (isSrcFloat)
+        {
+            if (diff == ImageDataType::ALPHA_MASK) // remove/add alpha only
+            {
+            }
+            else if (ElementSize == 16)
+            {
+                if (src.ElementSize == 16)
+                {
+                    for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                        cvter.RGBAToBGRA(reinterpret_cast<float*>(destPtr), reinterpret_cast<const float*>(srcPtr), pixcnt);
+                    return;
+                }
+            }
+            else if (ElementSize == 12)
+            {
+                if (src.ElementSize == 12)
+                {
+                    for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                        cvter.RGBToBGR(reinterpret_cast<float*>(destPtr), reinterpret_cast<const float*>(srcPtr), pixcnt);
+                    return;
+                }
+            }
+            COMMON_THROW(BaseException, u"float datatype not supported");
+        }
+
+        if (diff == ImageDataType::ALPHA_MASK) // remove/add alpha only
         {
             switch (src.ElementSize)
             {
@@ -459,6 +486,77 @@ std::vector<Image> Image::ExtractChannels() const
     return ret;
 
 }
+
+Image Image::CombineChannels(const ImageDataType dataType, common::span<const ImageView> channels)
+{
+    if (channels.empty())
+        COMMON_THROW(BaseException, u"no input!");
+    const bool isFloat = HAS_FIELD(dataType, ImageDataType::FLOAT_MASK);
+    const auto baseType = ImageDataType::GRAY | (isFloat ? ImageDataType::FLOAT_MASK : ImageDataType::EMPTY_MASK);
+    std::optional<std::pair<uint32_t, uint32_t>> wh;
+    for (const auto& ch : channels)
+    {
+        if (ch.GetDataType() != baseType)
+            COMMON_THROW(BaseException, u"only accpet single channel image as input!");
+        if (!wh)
+            wh = { ch.GetWidth(), ch.GetHeight() };
+        else if (wh->first != ch.GetWidth() || wh->second != ch.GetHeight())
+            COMMON_THROW(BaseException, u"unmatch size in input channels!");
+    }
+    Ensures(wh);
+
+    uint32_t chCount = 0;
+    switch (REMOVE_MASK(dataType, ImageDataType::FLOAT_MASK))
+    {
+    case ImageDataType::GRAY: chCount = 1; break;
+    case ImageDataType::RGB: [[fallthrough]];
+    case ImageDataType::BGR:  chCount = 3; break;
+    case ImageDataType::RGBA: [[fallthrough]];
+    case ImageDataType::BGRA: chCount = 4; break;
+    case ImageDataType::GA:   chCount = 2; break;
+    default:
+        COMMON_THROW(BaseException, u"unsupported datatype!");
+    }
+    if (chCount != channels.size())
+        COMMON_THROW(BaseException, u"unmacth channel count in input!");
+
+    if (chCount == 1)
+        return channels[0];
+
+    const auto& cvter = ColorConvertor::Get();
+    const auto count = wh->first * wh->second;
+    Image ret(dataType);
+    ret.SetSize(wh->first, wh->second, false);
+
+    if (isFloat)
+    {
+        const float* ptrs[4] = { nullptr };
+        for (uint32_t i = 0; i < chCount; ++i)
+            ptrs[i] = channels[i].GetRawPtr<float>();
+        switch (chCount)
+        {
+        case 2: cvter.PlanarToRA  (ret.GetRawPtr<float>(), common::span<const float* const, 2>{ ptrs, 2 }, count); break;
+        case 3: cvter.PlanarToRGB (ret.GetRawPtr<float>(), common::span<const float* const, 3>{ ptrs, 3 }, count); break;
+        case 4: cvter.PlanarToRGBA(ret.GetRawPtr<float>(), common::span<const float* const, 4>{ ptrs, 4 }, count); break;
+        default: Ensures(false); break;
+        }
+    }
+    else
+    {
+        const uint8_t* ptrs[4] = { nullptr };
+        for (uint32_t i = 0; i < chCount; ++i)
+            ptrs[i] = channels[i].GetRawPtr<uint8_t>();
+        switch (chCount)
+        {
+        case 2: cvter.PlanarToRA  (ret.GetRawPtr<uint16_t>(), common::span<const uint8_t* const, 2>{ ptrs, 2 }, count); break;
+        case 3: cvter.PlanarToRGB (ret.GetRawPtr<uint8_t >(), common::span<const uint8_t* const, 3>{ ptrs, 3 }, count); break;
+        case 4: cvter.PlanarToRGBA(ret.GetRawPtr<uint32_t>(), common::span<const uint8_t* const, 4>{ ptrs, 4 }, count); break;
+        default: Ensures(false); break;
+        }
+    }
+    return ret;
+}
+
 
 
 }

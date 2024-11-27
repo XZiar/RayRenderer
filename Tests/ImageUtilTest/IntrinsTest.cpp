@@ -318,13 +318,6 @@ INTRIN_TEST(ColorCvt, RGBA8ToBGR8)
 
 INTRIN_TEST(ColorCvt, RGB8ToBGR8)
 {
-    //std::vector<uint8_t> src;
-    //for (uint32_t i = 0; i < 4096; ++i)
-    //{
-    //    src.push_back(static_cast<uint8_t>((i << 4) | 0));
-    //    src.push_back(static_cast<uint8_t>((i << 4) | 1));
-    //    src.push_back(static_cast<uint8_t>((i << 4) | 2));
-    //}
     const auto src = GetRandVals();
     SCOPED_TRACE("ColorCvt::RGB8ToBGR8");
     VarLenTest<uint8_t, uint8_t, 3, 3>(reinterpret_cast<const uint8_t*>(src.data()), src.size() / 3, [&](uint8_t* dst, const uint8_t* src, size_t count)
@@ -356,6 +349,52 @@ INTRIN_TEST(ColorCvt, RGBA8ToBGRA8)
     {
         auto dst = reinterpret_cast<uint8_t*>(dst_);
         auto src = reinterpret_cast<const uint8_t*>(src_);
+        while (count)
+        {
+            const auto r = *src++;
+            const auto g = *src++;
+            const auto b = *src++;
+            const auto a = *src++;
+            *dst++ = b;
+            *dst++ = g;
+            *dst++ = r;
+            *dst++ = a;
+            count--;
+        }
+    });
+}
+
+INTRIN_TEST(ColorCvt, RGBfToBGRf)
+{
+    const auto src = GetRandVals();
+    SCOPED_TRACE("ColorCvt::RGBfToBGRf");
+    VarLenTest<float, float, 3, 3>(reinterpret_cast<const float*>(src.data()), src.size() / 12, [&](float* dst, const float* src, size_t count)
+    {
+        Intrin->RGBToBGR(dst, src, count);
+    }, [](float* dst, const float* src, size_t count)
+    {
+        while (count)
+        {
+            const auto r = *src++;
+            const auto g = *src++;
+            const auto b = *src++;
+            *dst++ = b;
+            *dst++ = g;
+            *dst++ = r;
+            count--;
+        }
+    });
+}
+
+INTRIN_TEST(ColorCvt, RGBAfToBGRAf)
+{
+    const auto src = GetRandVals();
+    SCOPED_TRACE("ColorCvt::RGBAfToBGRAf");
+    VarLenTest<float, float, 4, 4>(reinterpret_cast<const float*>(src.data()), src.size() / 16, [&](float* dst, const float* src, size_t count)
+    {
+        Intrin->RGBAToBGRA(dst, src, count);
+    }, [](float* dst, const float* src, size_t count)
+    {
         while (count)
         {
             const auto r = *src++;
@@ -658,6 +697,102 @@ INTRIN_TEST(ColorCvt, Extract32x4)
     VarLenExtractTest<float, float, 4, 4>(src, [&](const std::array<float*, 4>& dsts, const float* src, size_t count)
     {
         Intrin->RGBAToPlanar(dsts, src, count);
+    });
+}
+
+
+template<typename Src, typename Dst, size_t M, size_t N, typename F>
+static void VarLenCombineTest(common::span<const std::byte> source, F&& func)
+{
+    static_assert(sizeof(Src) * M == sizeof(Dst) * N);
+    const auto srcptr = reinterpret_cast<const Src*>(source.data());
+    const auto total = source.size() / sizeof(Src) / M;
+    for (const auto size : TestSizes)
+    {
+        const auto count = std::min(total, size);
+        std::vector<Dst> dst(count * N, static_cast<Dst>(0xcc));
+        std::array<const Src*, M> ptrs = {};
+        for (uint32_t i = 0; i < M; ++i)
+        {
+            ptrs[i] = srcptr + count * i;
+        }
+        func(dst.data(), ptrs, count);
+        bool isSuc = true;
+        for (size_t i = 0; i < count; ++i)
+        {
+            const common::span<const Dst> dstval{ dst.data() + N * i, N};
+            std::array<Src, M> srcval = { };
+            for (uint32_t j = 0; j < M; ++j)
+                srcval[j] = ptrs[j][i];
+
+            HexTest<Src, Dst> test(count, i);
+            test.SetSrc(srcval);
+            test.SetOut(dstval, common::span<const Dst>{ reinterpret_cast<const Dst*>(srcval.data()), N });
+
+            EXPECT_EQ(test.Dst, test.Ref) << test;
+            isSuc = isSuc && (test.Dst == test.Ref);
+        }
+        if (total <= size || !isSuc) break;
+    }
+}
+
+INTRIN_TEST(ColorCvt, Combine8x2)
+{
+    SCOPED_TRACE("ColorCvt::Combine8x2");
+    const auto src = GetRandVals();
+    VarLenCombineTest<uint8_t, uint16_t, 2, 1>(src, [&](uint16_t* dst, const std::array<const uint8_t*, 2>& srcs, size_t count)
+    {
+        Intrin->PlanarToRA(dst, srcs, count);
+    });
+}
+
+INTRIN_TEST(ColorCvt, Combine8x3)
+{
+    SCOPED_TRACE("ColorCvt::Combine8x3");
+    const auto src = GetRandVals();
+    VarLenCombineTest<uint8_t, uint8_t, 3, 3>(src, [&](uint8_t* dst, const std::array<const uint8_t*, 3>& srcs, size_t count)
+    {
+        Intrin->PlanarToRGB(dst, srcs, count);
+    });
+}
+
+INTRIN_TEST(ColorCvt, Combine8x4)
+{
+    SCOPED_TRACE("ColorCvt::Combine8x4");
+    const auto src = GetRandVals();
+    VarLenCombineTest<uint8_t, uint32_t, 4, 1>(src, [&](uint32_t* dst, const std::array<const uint8_t*, 4>& srcs, size_t count)
+    {
+        Intrin->PlanarToRGBA(dst, srcs, count);
+    });
+}
+
+INTRIN_TEST(ColorCvt, Combine32x2)
+{
+    SCOPED_TRACE("ColorCvt::Combine32x2");
+    const auto src = GetRandVals();
+    VarLenCombineTest<float, float, 2, 2>(src, [&](float* dst, const std::array<const float*, 2>& srcs, size_t count)
+    {
+        Intrin->PlanarToRA(dst, srcs, count);
+    });
+}
+
+INTRIN_TEST(ColorCvt, Combine32x3)
+{
+    SCOPED_TRACE("ColorCvt::Combine32x3");
+    const auto src = GetRandVals();
+    VarLenCombineTest<float, float, 3, 3>(src, [&](float* dst, const std::array<const float*, 3>& srcs, size_t count)
+    {
+        Intrin->PlanarToRGB(dst, srcs, count);
+    });
+}
+
+INTRIN_TEST(ColorCvt, Combine32x4)
+{
+    SCOPED_TRACE("ColorCvt::Combine32x4");
+    const auto src = GetRandVals();
+    VarLenCombineTest<float, float, 4, 4>(src, [&](float* dst, const std::array<const float*, 4>& srcs, size_t count)
+    {
+        Intrin->PlanarToRGBA(dst, srcs, count);
     });
 }
 
@@ -1035,6 +1170,30 @@ TEST(IntrinPerf, RGBA8ToBGRA8)
     });
 }
 
+TEST(IntrinPerf, RGBfToBGRf)
+{
+    constexpr uint32_t Size = 512 * 512;
+    std::vector<float> src(Size * 3);
+    std::vector<float> dst(Size * 3);
+    PerfTester tester("RGBfToBGRf", Size, 150);
+    tester.FastPathTest<xziar::img::ColorConvertor>([&](const xziar::img::ColorConvertor& host)
+    {
+        host.RGBToBGR(dst.data(), src.data(), Size);
+    });
+}
+
+TEST(IntrinPerf, RGBAfToBGRAf)
+{
+    constexpr uint32_t Size = 512 * 512;
+    std::vector<float> src(Size * 4);
+    std::vector<float> dst(Size * 4);
+    PerfTester tester("RGBAfToBGRAf", Size, 150);
+    tester.FastPathTest<xziar::img::ColorConvertor>([&](const xziar::img::ColorConvertor& host)
+    {
+        host.RGBAToBGRA(dst.data(), src.data(), Size);
+    });
+}
+
 constexpr auto Ext8x4_1  = static_cast<void (xziar::img::ColorConvertor::*)(uint8_t* const, const uint32_t*, size_t, const uint8_t) const>(&xziar::img::ColorConvertor::RGBAGetChannel);
 constexpr auto Ext8x3_1  = static_cast<void (xziar::img::ColorConvertor::*)(uint8_t* const, const uint8_t*, size_t, const uint8_t) const>(&xziar::img::ColorConvertor::RGBGetChannel);
 constexpr auto Ext32x4_1 = static_cast<void (xziar::img::ColorConvertor::*)(float* const, const float*, size_t, const uint8_t) const>(&xziar::img::ColorConvertor::RGBAGetChannel);
@@ -1114,12 +1273,20 @@ TEST(IntrinPerf, RGBAGetChannelAlpha)
 template<typename T, size_t N> using PtrSpan = common::span<T* const, N>;
 template<size_t N> using PS8 = PtrSpan<uint8_t, N>;
 template<size_t N> using PS32 = PtrSpan<float, N>;
+template<size_t N> using PSC8 = PtrSpan<const uint8_t, N>;
+template<size_t N> using PSC32 = PtrSpan<const float, N>;
 constexpr auto Ext8x2  = static_cast<void (xziar::img::ColorConvertor::*)(PS8 <2>, const uint16_t*, size_t) const>(&xziar::img::ColorConvertor::RAToPlanar);
 constexpr auto Ext8x3  = static_cast<void (xziar::img::ColorConvertor::*)(PS8 <3>, const uint8_t *, size_t) const>(&xziar::img::ColorConvertor::RGBToPlanar);
 constexpr auto Ext8x4  = static_cast<void (xziar::img::ColorConvertor::*)(PS8 <4>, const uint32_t*, size_t) const>(&xziar::img::ColorConvertor::RGBAToPlanar);
 constexpr auto Ext32x2 = static_cast<void (xziar::img::ColorConvertor::*)(PS32<2>, const float*, size_t) const>(&xziar::img::ColorConvertor::RAToPlanar);
 constexpr auto Ext32x3 = static_cast<void (xziar::img::ColorConvertor::*)(PS32<3>, const float*, size_t) const>(&xziar::img::ColorConvertor::RGBToPlanar);
 constexpr auto Ext32x4 = static_cast<void (xziar::img::ColorConvertor::*)(PS32<4>, const float*, size_t) const>(&xziar::img::ColorConvertor::RGBAToPlanar);
+constexpr auto Cmb8x2  = static_cast<void (xziar::img::ColorConvertor::*)(uint16_t*, PSC8<2>, size_t) const>(&xziar::img::ColorConvertor::PlanarToRA);
+constexpr auto Cmb8x3  = static_cast<void (xziar::img::ColorConvertor::*)(uint8_t *, PSC8<3>, size_t) const>(&xziar::img::ColorConvertor::PlanarToRGB);
+constexpr auto Cmb8x4  = static_cast<void (xziar::img::ColorConvertor::*)(uint32_t*, PSC8<4>, size_t) const>(&xziar::img::ColorConvertor::PlanarToRGBA);
+constexpr auto Cmb32x2 = static_cast<void (xziar::img::ColorConvertor::*)(float*, PSC32<2>, size_t) const>(&xziar::img::ColorConvertor::PlanarToRA);
+constexpr auto Cmb32x3 = static_cast<void (xziar::img::ColorConvertor::*)(float*, PSC32<3>, size_t) const>(&xziar::img::ColorConvertor::PlanarToRGB);
+constexpr auto Cmb32x4 = static_cast<void (xziar::img::ColorConvertor::*)(float*, PSC32<4>, size_t) const>(&xziar::img::ColorConvertor::PlanarToRGBA);
 
 TEST(IntrinPerf, Extract8)
 {
@@ -1155,6 +1322,42 @@ TEST(IntrinPerf, Extract32)
         PS32<3>{ ptrs, 3}, reinterpret_cast<const float*>(src.data()), Size);
     PerfTester::DoFastPath(Ext32x4, "Extract32x4", Size, 150,
         PS32<4>{ ptrs, 4}, reinterpret_cast<const float*>(src.data()), Size);
+}
+
+TEST(IntrinPerf, Combine8)
+{
+    using xziar::img::ColorConvertor;
+    constexpr uint32_t Size = 1024 * 1024;
+    std::vector<uint32_t> dst(Size);
+    std::vector<uint8_t> srcs[4];
+    for (auto& src : srcs)
+        src.resize(Size);
+    const uint8_t* const ptrs[4] = { srcs[0].data(), srcs[1].data(), srcs[2].data(), srcs[3].data() };
+
+    PerfTester::DoFastPath(Cmb8x2, "Combine8x2", Size, 150,
+        reinterpret_cast<uint16_t*>(dst.data()), PSC8<2>{ ptrs, 2}, Size);
+    PerfTester::DoFastPath(Cmb8x3, "Combine8x3", Size, 150,
+        reinterpret_cast<uint8_t*>(dst.data()), PSC8<3>{ ptrs, 3}, Size);
+    PerfTester::DoFastPath(Cmb8x4, "Combine8x4", Size, 150,
+        reinterpret_cast<uint32_t*>(dst.data()), PSC8<4>{ ptrs, 4}, Size);
+}
+
+TEST(IntrinPerf, Combine32)
+{
+    using xziar::img::ColorConvertor;
+    constexpr uint32_t Size = 512 * 512;
+    std::vector<float> dst(Size * 4);
+    std::vector<float> srcs[4];
+    for (auto& src : srcs)
+        src.resize(Size);
+    float* const ptrs[4] = { srcs[0].data(), srcs[1].data(), srcs[2].data(), srcs[3].data() };
+
+    PerfTester::DoFastPath(Cmb32x2, "Combine32x2", Size, 150,
+        dst.data(), PSC32<2>{ ptrs, 2}, Size);
+    PerfTester::DoFastPath(Cmb32x3, "Combine32x3", Size, 150,
+        dst.data(), PSC32<3>{ ptrs, 3}, Size);
+    PerfTester::DoFastPath(Cmb32x4, "Combine32x4", Size, 150,
+        dst.data(), PSC32<4>{ ptrs, 4}, Size);
 }
 
 TEST(IntrinPerf, RGB555ToRGBA)

@@ -194,6 +194,12 @@ struct Neon128Common : public CommonOperators<T>
     {
         return AsType<SIMDType>(vmvnq_u32(AsType<uint32x4_t>(Data)));
     }
+
+    // shuffle operations
+    forceinline Pack<T, 2> VECCALL Zip(const T& other) const noexcept
+    {
+        return { static_cast<const T*>(this)->ZipLo(other), static_cast<const T*>(this)->ZipHi(other) };
+    }
     template<size_t Cnt>
     forceinline T VECCALL MoveToHi() const noexcept
     {
