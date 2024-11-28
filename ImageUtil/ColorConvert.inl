@@ -39,10 +39,19 @@
 #define G8ToRGBA8Info       (void)(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha)
 #define GA8ToRGB8Info       (void)(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count)
 #define GA8ToRGBA8Info      (void)(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count)
+#define GfToGAfInfo         (void)(float* __restrict dest, const float* __restrict src, size_t count, float alpha)
+#define GfToRGBfInfo        (void)(float* __restrict dest, const float* __restrict src, size_t count)
+#define GfToRGBAfInfo       (void)(float* __restrict dest, const float* __restrict src, size_t count, float alpha)
+#define GAfToRGBfInfo       (void)(float* __restrict dest, const float* __restrict src, size_t count)
+#define GAfToRGBAfInfo      (void)(float* __restrict dest, const float* __restrict src, size_t count)
 #define RGB8ToRGBA8Info     (void)(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha)
 #define BGR8ToRGBA8Info     (void)(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha)
 #define RGBA8ToRGB8Info     (void)(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count)
 #define RGBA8ToBGR8Info     (void)(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count)
+#define RGBfToRGBAfInfo     (void)(float* __restrict dest, const float* __restrict src, size_t count, float alpha)
+#define BGRfToRGBAfInfo     (void)(float* __restrict dest, const float* __restrict src, size_t count, float alpha)
+#define RGBAfToRGBfInfo     (void)(float* __restrict dest, const float* __restrict src, size_t count)
+#define RGBAfToBGRfInfo     (void)(float* __restrict dest, const float* __restrict src, size_t count)
 #define RGB8ToBGR8Info      (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count)
 #define RGBA8ToBGRA8Info    (void)(uint32_t* __restrict dest, const uint32_t* __restrict src, size_t count)
 #define RGBfToBGRfInfo      (void)(float* __restrict dest, const float* __restrict src, size_t count)
@@ -104,8 +113,8 @@ using ::xziar::img::STBResize;
 DEFINE_FASTPATHS(STBResize, DoResize)
 
 DEFINE_FASTPATHS(ColorConvertor, 
-    G8ToGA8, G8ToRGB8, G8ToRGBA8, GA8ToRGB8, GA8ToRGBA8,
-    RGB8ToRGBA8, BGR8ToRGBA8, RGBA8ToRGB8, RGBA8ToBGR8, 
+    G8ToGA8, G8ToRGB8, G8ToRGBA8, GA8ToRGB8, GA8ToRGBA8, GfToGAf, GfToRGBf, GfToRGBAf, GAfToRGBf, GAfToRGBAf,
+    RGB8ToRGBA8, BGR8ToRGBA8, RGBA8ToRGB8, RGBA8ToBGR8, RGBfToRGBAf, BGRfToRGBAf, RGBAfToRGBf, RGBAfToBGRf,
     RGB8ToBGR8, RGBA8ToBGRA8, RGBfToBGRf, RGBAfToBGRAf,
     RGBA8ToR8, RGBA8ToG8, RGBA8ToB8, RGBA8ToA8, RGB8ToR8, RGB8ToG8, RGB8ToB8, RGBAfToRf, RGBAfToGf, RGBAfToBf, RGBAfToAf, RGBfToRf, RGBfToGf, RGBfToBf,
     RGBA8ToRA8, RGBA8ToGA8, RGBA8ToBA8,
@@ -303,6 +312,37 @@ DEFINE_FASTPATH_METHOD(GA8ToRGBA8, LOOP)
     LOOP8(LOOP_GRAYA_RGBA)
 #undef LOOP_GRAYA_RGBA
 }
+DEFINE_FASTPATH_METHOD(GfToGAf, LOOP)
+{
+#define LOOP_GRAY_GRAYA *dest++ = *src++; *dest++ = alpha
+    LOOP8(LOOP_GRAY_GRAYA)
+#undef LOOP_GRAY_GRAYA
+}
+DEFINE_FASTPATH_METHOD(GfToRGBf, LOOP)
+{
+#define LOOP_GRAY_RGB *dest++ = *src; *dest++ = *src; *dest++ = *src; src++
+    LOOP8(LOOP_GRAY_RGB)
+#undef LOOP_GRAY_RGBA
+}
+DEFINE_FASTPATH_METHOD(GfToRGBAf, LOOP)
+{
+#define LOOP_GRAY_RGBA *dest++ = *src; *dest++ = *src; *dest++ = *src; *dest++ = alpha; src++
+    LOOP8(LOOP_GRAY_RGBA)
+#undef LOOP_GRAY_RGBA
+}
+DEFINE_FASTPATH_METHOD(GAfToRGBf, LOOP)
+{
+#define LOOP_GRAYA_RGB *dest++ = *src; *dest++ = *src; *dest++ = *src++; src++
+    LOOP8(LOOP_GRAYA_RGB)
+#undef LOOP_GRAYA_RGB
+}
+DEFINE_FASTPATH_METHOD(GAfToRGBAf, LOOP)
+{
+#define LOOP_GRAYA_RGBA *dest++ = *src; *dest++ = *src; *dest++ = *src++; *dest++ = *src++
+    LOOP8(LOOP_GRAYA_RGBA)
+#undef LOOP_GRAYA_RGBA
+}
+
 template<uint8_t IdxR, uint8_t IdxG, uint8_t IdxB>
 forceinline void RGB3To4(uint32_t* __restrict dest, const uint8_t* __restrict src, size_t count, std::byte alpha) noexcept
 {
@@ -333,6 +373,36 @@ DEFINE_FASTPATH_METHOD(RGBA8ToRGB8, LOOP)
 DEFINE_FASTPATH_METHOD(RGBA8ToBGR8, LOOP)
 {
     RGB4To3<2, 1, 0>(dest, src, count);
+}
+template<uint8_t IdxR, uint8_t IdxG, uint8_t IdxB>
+forceinline void RGBf3To4(float* __restrict dest, const float* __restrict src, size_t count, float alpha) noexcept
+{
+#define LOOP_RGB_RGBA do { const auto r = src[IdxR]; const auto g = src[IdxG]; const auto b = src[IdxB]; src += 3; *dest++ = r; *dest++ = g; *dest++ = b; * dest++ = alpha; } while(0)
+    LOOP8(LOOP_RGB_RGBA)
+#undef LOOP_RGB_RGBA
+}
+DEFINE_FASTPATH_METHOD(RGBfToRGBAf, LOOP)
+{
+    RGBf3To4<0, 1, 2>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(BGRfToRGBAf, LOOP)
+{
+    RGBf3To4<2, 1, 0>(dest, src, count, alpha);
+}
+template<uint8_t IdxR, uint8_t IdxG, uint8_t IdxB>
+forceinline void RGBf4To3(float* __restrict dest, const float* __restrict src, size_t count) noexcept
+{
+#define LOOP_RGBA_RGB *dest++ = src[IdxR]; *dest++ = src[IdxG]; *dest++ = src[IdxB]; src += 4
+    LOOP8(LOOP_RGBA_RGB)
+#undef LOOP_RGBA_RGB
+}
+DEFINE_FASTPATH_METHOD(RGBAfToRGBf, LOOP)
+{
+    RGBf4To3<0, 1, 2>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGBAfToBGRf, LOOP)
+{
+    RGBf4To3<2, 1, 0>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(RGB8ToBGR8, LOOP)
 {
@@ -381,31 +451,24 @@ DEFINE_FASTPATH_METHOD(RGBA8ToA8, LOOP)
 {
     KeepChannelLoop4_1<3>(dest, src, count);
 }
-template<uint8_t Idx>
-forceinline void KeepChannelLoop3_1(uint8_t* __restrict dest, const uint8_t* __restrict src, size_t count) noexcept
-{
-#define LOOP_RGB_CH do { const auto val = src[Idx]; src += 3; *dest++ = val; } while(0)
-    LOOP8(LOOP_RGB_CH)
-#undef LOOP_RGB_CH
-}
-DEFINE_FASTPATH_METHOD(RGB8ToR8, LOOP)
-{
-    KeepChannelLoop3_1<0>(dest, src, count);
-}
-DEFINE_FASTPATH_METHOD(RGB8ToG8, LOOP)
-{
-    KeepChannelLoop3_1<1>(dest, src, count);
-}
-DEFINE_FASTPATH_METHOD(RGB8ToB8, LOOP)
-{
-    KeepChannelLoop3_1<2>(dest, src, count);
-}
 template<uint8_t N, uint8_t Idx, typename T>
 forceinline void KeepChannelLoopN_1(T* __restrict dest, const T* __restrict src, size_t count) noexcept
 {
-#define LOOP_RGBA_CH do { *dest++ = src[Idx]; src += N; } while(0)
-    LOOP8(LOOP_RGBA_CH)
-#undef LOOP_RGBA_CH
+#define LOOP_N_CH *dest++ = src[Idx]; src += N
+    LOOP8(LOOP_N_CH)
+#undef LOOP_N_CH
+}
+DEFINE_FASTPATH_METHOD(RGB8ToR8, LOOP)
+{
+    KeepChannelLoopN_1<3, 0>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToG8, LOOP)
+{
+    KeepChannelLoopN_1<3, 1>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToB8, LOOP)
+{
+    KeepChannelLoopN_1<3, 2>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(RGBAfToRf, LOOP)
 {
@@ -1060,6 +1123,82 @@ struct G2RGBA_128
         rgbacdef.Save(dst + 12);
     }
 };
+struct Gf2GAf_128
+{
+    static constexpr size_t M = 4, N = 8, K = 4;
+    F32x4 Alpha;
+    forceinline Gf2GAf_128(float alpha) noexcept : Alpha(alpha) {}
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = F32x4(src);
+        const auto out = dat.Zip(Alpha);
+        out[0].Save(dst + 0);
+        out[1].Save(dst + 4);
+    }
+};
+struct Gf2RGBf_128
+{
+    static constexpr size_t M = 4, N = 12, K = 4;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = F32x4(src);
+        const auto out0 = dat.Shuffle<0, 0, 0, 1>();
+        const auto out1 = dat.Shuffle<1, 1, 2, 2>();
+        const auto out2 = dat.Shuffle<2, 3, 3, 3>();
+        out0.Save(dst + 0);
+        out1.Save(dst + 4);
+        out2.Save(dst + 8);
+    }
+};
+struct Gf2RGBAf_128
+{
+    static constexpr size_t M = 4, N = 16, K = 4;
+    F32x4 Alpha;
+    forceinline Gf2RGBAf_128(float alpha) noexcept : Alpha(alpha) {}
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = F32x4(src);
+        const auto out0 = dat.Broadcast<0>().SelectWith<0b1000>(Alpha);
+        const auto out1 = dat.Broadcast<1>().SelectWith<0b1000>(Alpha);
+        const auto out2 = dat.Broadcast<2>().SelectWith<0b1000>(Alpha);
+        const auto out3 = dat.Broadcast<3>().SelectWith<0b1000>(Alpha);
+        out0.Save(dst +  0);
+        out1.Save(dst +  4);
+        out2.Save(dst +  8);
+        out3.Save(dst + 12);
+    }
+};
+struct GAf2RGBf_128
+{
+    static constexpr size_t M = 8, N = 12, K = 4;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat0 = F32x4(src);
+        const auto dat1 = F32x4(src + 4);
+        const auto out0 = dat0.Shuffle<0, 0, 0, 2>();
+# if COMMON_ARCH_X86
+        const F32x4 out1 = _mm_shuffle_ps(dat0, dat1, 0b00001010);
+# else
+        const auto out1 = dat0.MoveToLoWith<2>(dat1).Shuffle<0, 0, 2, 2>();
+# endif
+        const auto out2 = dat1.Shuffle<0, 2, 2, 2>();
+        out0.Save(dst + 0);
+        out1.Save(dst + 4);
+        out2.Save(dst + 8);
+    }
+};
+struct GAf2RGBAf_128
+{
+    static constexpr size_t M = 4, N = 8, K = 2;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = F32x4(src);
+        const auto out0 = dat.Shuffle<0, 0, 0, 1>();
+        const auto out1 = dat.Shuffle<2, 2, 2, 3>();
+        out0.Save(dst + 0);
+        out1.Save(dst + 4);
+    }
+};
 struct RGBAToBGRA_128
 {
     static constexpr size_t M = 16, N = 16, K = 16;
@@ -1225,6 +1364,26 @@ DEFINE_FASTPATH_METHOD(G8ToRGBA8, SIMD128)
 {
     ProcessLOOP4<G2RGBA_128, &Func<LOOP>>(dest, src, count, alpha);
 }
+DEFINE_FASTPATH_METHOD(GfToGAf, SIMD128)
+{
+    ProcessLOOP4<Gf2GAf_128, &Func<LOOP>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(GfToRGBf, SIMD128)
+{
+    ProcessLOOP4<Gf2RGBf_128, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(GfToRGBAf, SIMD128)
+{
+    ProcessLOOP4<Gf2RGBAf_128, &Func<LOOP>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(GAfToRGBf, SIMD128)
+{
+    ProcessLOOP4<GAf2RGBf_128, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(GAfToRGBAf, SIMD128)
+{
+    ProcessLOOP4<GAf2RGBAf_128, &Func<LOOP>>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(RGBA8ToBGRA8, SIMD128)
 {
     ProcessLOOP4<RGBAToBGRA_128, &Func<LOOP>>(dest, src, count);
@@ -1350,6 +1509,80 @@ struct RGB4To3_SSSE3
         out1.Save(dst + 16);
         const U8x16 out2 = mid89ab.MoveToLoWith<12>(midcdef);
         out2.Save(dst + 32);
+    }
+};
+template<bool IsRGB>
+struct RGBf3To4_SSSE3
+{
+    static constexpr size_t M = 12, N = 16, K = 4;
+    F32x4 Alpha;
+    forceinline RGBf3To4_SSSE3(float alpha) noexcept : Alpha(alpha) {}
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const F32x4 dat0(src + 0); // R0 G0 B0 R1
+        const F32x4 dat1(src + 4); // G1 B1 R2 G2
+        const F32x4 dat2(src + 8); // B2 R3 G3 B3
+
+        F32x4 out0 = dat0.SelectWith<0b1000>(Alpha);
+        if constexpr (!IsRGB) out0 = out0.Shuffle<2, 1, 0, 3>();
+
+        F32x4 out3 = dat2.MoveToLoWith<1>(Alpha);
+        if constexpr (!IsRGB) out3 = out3.Shuffle<2, 1, 0, 3>();
+
+        F32x4 out1, out2;
+        if constexpr (IsRGB)
+        {
+            const auto mid1 = dat1.SelectWith<0b0100>(Alpha); // G1 B1 A G2
+            out1 = dat0.MoveToLoWith<3>(mid1);
+            const auto mid2 = dat2.SelectWith<0b0010>(Alpha); // B2 A G3 B3
+            out2 = dat1.MoveToLoWith<2>(mid2);
+        }
+        else
+        {
+            const auto mid0 = dat0.SelectWith<0b0100>(Alpha); // R0 G0 A R1
+            out1 = _mm_shuffle_ps(dat1, mid0, 0b10110001);
+            const auto mid2 = dat2.SelectWith<0b1000>(Alpha); // B2 R3 G3 A
+            const auto mid1 = dat1.Shuffle<0, 3, 2, 1>(); // G1 G2 R2 B1
+            out2 = mid1.SelectWith<0b1001>(mid2);
+        }
+
+        out0.Save(dst + 0);
+        out1.Save(dst + 4);
+        out2.Save(dst + 8);
+        out3.Save(dst + 12);
+    }
+};
+template<bool IsRGB>
+struct RGBf4To3_SSE41
+{
+    static constexpr size_t M = 16, N = 12, K = 4;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const F32x4 dat0(src);
+        const F32x4 dat1(src + 4);
+        const F32x4 dat2(src + 8);
+        const F32x4 dat3(src + 12);
+
+        F32x4 out0, out1, out2;
+        if constexpr (IsRGB)
+        {
+            out0 = _mm_insert_ps(dat0, dat1, 0b00110000); // b[00]->a[11], zero[0000]
+            out1 = _mm_shuffle_ps(dat1, dat2, 0b01001001);
+            const F32x4 mid2 = _mm_moveldup_ps(dat2); // R2 R2 B2 B2
+            out2 = mid2.MoveToLoWith<3>(dat3);
+        }
+        else
+        {
+            const auto mid0 = dat0.Shuffle<2, 1, 0, 3>(); // B0 G0 R0 A0
+            out0 = _mm_insert_ps(mid0, dat1, 0b10110000); // b[10]->a[11], zero[0000]
+            out1 = _mm_shuffle_ps(dat1, dat2, 0b01100001);
+            const auto mid3 = dat3.Shuffle<3, 2, 1, 0>(); // A3 B3 G3 R3
+            out2 = dat2.SelectWith<0b1110>(mid3);
+        }
+
+        out0.Save(dst);
+        out1.Save(dst + 4);
+        out2.Save(dst + 8);
     }
 };
 struct RGBToBGR_SSSE3
@@ -1892,6 +2125,22 @@ DEFINE_FASTPATH_METHOD(RGBA8ToBGR8, SSSE3)
 {
     ProcessLOOP4<RGB4To3_SSSE3<2, 1, 0>, &Func<LOOP>>(dest, src, count);
 }
+DEFINE_FASTPATH_METHOD(RGBfToRGBAf, SSSE3)
+{
+    ProcessLOOP4<RGBf3To4_SSSE3<true>, &Func<LOOP>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(BGRfToRGBAf, SSSE3)
+{
+    ProcessLOOP4<RGBf3To4_SSSE3<false>, &Func<LOOP>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(RGBAfToRGBf, SSE41)
+{
+    ProcessLOOP4<RGBf4To3_SSE41<true>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGBAfToBGRf, SSE41)
+{
+    ProcessLOOP4<RGBf4To3_SSE41<false>, &Func<LOOP>>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(RGB8ToBGR8, SSSE3)
 {
     ProcessLOOP4<RGBToBGR_SSSE3, &Func<LOOP>>(dest, src, count);
@@ -2184,6 +2433,76 @@ struct GA2RGBA_NEON
         vst4q_u8(reinterpret_cast<uint8_t*>(dst), out4);
     }
 };
+struct Gf2GAf_NEON
+{
+    static constexpr size_t M = 4, N = 8, K = 4;
+    F32x4 Alpha;
+    forceinline Gf2GAf_NEON(float alpha) noexcept : Alpha(alpha) {}
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = F32x4(src);
+        float32x4x2_t out2;
+        out2.val[0] = dat;
+        out2.val[1] = Alpha;
+        vst2q_f32(dst, out2);
+    }
+};
+struct Gf2RGBf_NEON
+{
+    static constexpr size_t M = 4, N = 12, K = 4;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = F32x4(src);
+        float32x4x3_t out3;
+        out3.val[0] = dat;
+        out3.val[1] = dat;
+        out3.val[2] = dat;
+        vst3q_f32(dst, out3);
+    }
+};
+struct Gf2RGBAf_NEON
+{
+    static constexpr size_t M = 4, N = 16, K = 4;
+    F32x4 Alpha;
+    forceinline Gf2RGBAf_NEON(float alpha) noexcept : Alpha(alpha) {}
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = F32x4(src);
+        float32x4x4_t out4;
+        out4.val[0] = dat;
+        out4.val[1] = dat;
+        out4.val[2] = dat;
+        out4.val[3] = Alpha;
+        vst4q_f32(dst, out4);
+    }
+};
+struct GAf2RGBf_NEON
+{
+    static constexpr size_t M = 8, N = 12, K = 4;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = vld2q_f32(src);
+        float32x4x3_t out3;
+        out3.val[0] = dat.val[0];
+        out3.val[1] = dat.val[0];
+        out3.val[2] = dat.val[0];
+        vst3q_f32(dst, out3);
+    }
+};
+struct GAf2RGBAf_NEON
+{
+    static constexpr size_t M = 8, N = 16, K = 4;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = vld2q_f32(src);
+        float32x4x4_t out4;
+        out4.val[0] = dat.val[0];
+        out4.val[1] = dat.val[0];
+        out4.val[2] = dat.val[0];
+        out4.val[3] = dat.val[1];
+        vst4q_f32(dst, out4);
+    }
+};
 template<uint8_t IdxR, uint8_t IdxG, uint8_t IdxB>
 struct RGB3To4_NEON
 {
@@ -2213,6 +2532,37 @@ struct RGB4To3_NEON
         out3.val[1] = dat.val[IdxG];
         out3.val[2] = dat.val[IdxB];
         vst3q_u8(dst, out3);
+    }
+};
+template<uint8_t IdxR, uint8_t IdxG, uint8_t IdxB>
+struct RGBf3To4_NEON
+{
+    static constexpr size_t M = 12, N = 16, K = 4;
+    F32x4 Alpha;
+    forceinline RGBf3To4_NEON(float alpha) noexcept : Alpha(alpha) {}
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = vld3q_f32(src);
+        float32x4x4_t out4;
+        out4.val[0] = dat.val[IdxR];
+        out4.val[1] = dat.val[IdxG];
+        out4.val[2] = dat.val[IdxB];
+        out4.val[3] = Alpha;
+        vst4q_f32(dst, out4);
+    }
+};
+template<uint8_t IdxR, uint8_t IdxG, uint8_t IdxB>
+struct RGBf4To3_NEON
+{
+    static constexpr size_t M = 16, N = 12, K = 4;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = vld4q_f32(src);
+        float32x4x3_t out3;
+        out3.val[0] = dat.val[IdxR];
+        out3.val[1] = dat.val[IdxG];
+        out3.val[2] = dat.val[IdxB];
+        vst3q_f32(dst, out3);
     }
 };
 struct RGBToBGR_NEON
@@ -2670,6 +3020,26 @@ DEFINE_FASTPATH_METHOD(GA8ToRGBA8, NEON)
 {
     ProcessLOOP4<GA2RGBA_NEON, &Func<LOOP>>(dest, src, count);
 }
+DEFINE_FASTPATH_METHOD(GfToGAf, NEON)
+{
+    ProcessLOOP4<Gf2GAf_NEON, &Func<LOOP>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(GfToRGBf, NEON)
+{
+    ProcessLOOP4<Gf2RGBf_NEON, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(GfToRGBAf, NEON)
+{
+    ProcessLOOP4<Gf2RGBAf_NEON, &Func<LOOP>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(GAfToRGBf, NEON)
+{
+    ProcessLOOP4<GAf2RGBf_NEON, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(GAfToRGBAf, NEON)
+{
+    ProcessLOOP4<GAf2RGBAf_NEON, &Func<LOOP>>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(RGB8ToRGBA8, NEON)
 {
     ProcessLOOP4<RGB3To4_NEON<0, 1, 2>, &Func<LOOP>>(dest, src, count, alpha);
@@ -2685,6 +3055,22 @@ DEFINE_FASTPATH_METHOD(RGBA8ToRGB8, NEON)
 DEFINE_FASTPATH_METHOD(RGBA8ToBGR8, NEON)
 {
     ProcessLOOP4<RGB4To3_NEON<2, 1, 0>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGBfToRGBAf, NEON)
+{
+    ProcessLOOP4<RGBf3To4_NEON<0, 1, 2>, &Func<LOOP>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(BGRfToRGBAf, NEON)
+{
+    ProcessLOOP4<RGBf3To4_NEON<2, 1, 0>, &Func<LOOP>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(RGBAfToRGBf, NEON)
+{
+    ProcessLOOP4<RGBf4To3_NEON<0, 1, 2>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGBAfToBGRf, NEON)
+{
+    ProcessLOOP4<RGBf4To3_NEON<2, 1, 0>, &Func<LOOP>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(RGB8ToBGR8, NEON)
 {
@@ -2904,6 +3290,34 @@ DEFINE_FASTPATH_METHOD(BGR10A2ToRGBAf, NEON)
 #endif
 
 #if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 200
+struct Gf2RGBAf_NEON64
+{
+    static constexpr size_t M = 4, N = 16, K = 4;
+    F32x4 Alpha;
+    forceinline Gf2RGBAf_NEON64(float alpha) noexcept : Alpha(alpha) {}
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = vld4q_dup_f32(src);
+        float32x4x4_t out4;
+        out4.val[0] = vextq_f32(dat.val[0], Alpha, 1);
+        out4.val[1] = vextq_f32(dat.val[1], Alpha, 1);
+        out4.val[2] = vextq_f32(dat.val[2], Alpha, 1);
+        out4.val[3] = vextq_f32(dat.val[3], Alpha, 1);
+        vst1q_f32_x4(dst, out4);
+    }
+};
+struct GAf2RGBAf_NEON64
+{
+    static constexpr size_t M = 4, N = 8, K = 2;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = vld4q_dup_f32(src);
+        float32x4x2_t out2;
+        out2.val[0] = vextq_f32(dat.val[0], dat.val[1], 1);
+        out2.val[1] = vextq_f32(dat.val[2], dat.val[3], 1);
+        vst1q_f32_x2(dst, out2);
+    }
+};
 struct RGBAToGA_NEONA64
 {
     static constexpr size_t M = 16, N = 16, K = 16;
@@ -3013,6 +3427,14 @@ struct RGB5x5ToRGB8_NEONA64
         out2.Save(dst + 32);
     }
 };
+DEFINE_FASTPATH_METHOD(GfToRGBAf, NEONA64)
+{
+    ProcessLOOP4<Gf2RGBAf_NEON64, &Func<LOOP>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(GAfToRGBAf, NEONA64)
+{
+    ProcessLOOP4<GAf2RGBAf_NEON64, &Func<LOOP>>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(RGBA8ToGA8, NEONA64)
 {
     ProcessLOOP4<RGBAToGA_NEONA64, &Func<LOOP>>(dest, src, count);
@@ -3171,6 +3593,96 @@ struct GA2RGBA_256
         out1.Save(dst + 8);
     }
 };
+struct Gf2GAf_256
+{
+    static constexpr size_t M = 8, N = 16, K = 8;
+    F32x8 Alpha;
+    forceinline Gf2GAf_256(float alpha) noexcept : Alpha(alpha) {}
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = F32x8(src);
+        const auto out = dat.Zip(Alpha);
+        out[0].Save(dst + 0);
+        out[1].Save(dst + 8);
+    }
+};
+struct Gf2RGBf_256
+{
+    static constexpr size_t M = 8, N = 24, K = 8;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = F32x8(src);
+        const auto mid0 = dat.ShuffleLane<0, 0, 0, 1>(); // 0001 4445
+        const auto mid1 = dat.ShuffleLane<1, 1, 2, 2>(); // 1122 5566
+        const auto mid2 = dat.ShuffleLane<2, 3, 3, 3>(); // 2333 6777
+        const auto out0 = mid0.PermuteLane<0, 2>(mid1); // 0001 1122
+        const auto out1 = mid2.PermuteLane<0, 3>(mid0); // 2333 4445
+        const auto out2 = mid1.PermuteLane<1, 3>(mid2); // 5566 6777
+        out0.Save(dst +  0);
+        out1.Save(dst +  8);
+        out2.Save(dst + 16);
+    }
+};
+struct Gf2RGBAf_256
+{
+    static constexpr size_t M = 8, N = 32, K = 8;
+    F32x8 Alpha;
+    forceinline Gf2RGBAf_256(float alpha) noexcept : Alpha(alpha) {}
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = F32x8(src);
+        const auto out04 = dat.BroadcastLane<0>().SelectWith<0b10001000>(Alpha);
+        const auto out15 = dat.BroadcastLane<1>().SelectWith<0b10001000>(Alpha);
+        const auto out26 = dat.BroadcastLane<2>().SelectWith<0b10001000>(Alpha);
+        const auto out37 = dat.BroadcastLane<3>().SelectWith<0b10001000>(Alpha);
+        const auto out0 = out04.PermuteLane<0, 2>(out15);
+        const auto out1 = out26.PermuteLane<0, 2>(out37);
+        const auto out2 = out04.PermuteLane<1, 3>(out15);
+        const auto out3 = out26.PermuteLane<1, 3>(out37);
+        out0.Save(dst +  0);
+        out1.Save(dst +  8);
+        out2.Save(dst + 16);
+        out3.Save(dst + 24);
+    }
+};
+struct GAf2RGBf_256
+{
+    static constexpr size_t M = 16, N = 24, K = 8;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat0 = F32x8(src);
+        const auto dat1 = F32x8(src + 8);
+
+        const auto dat02 = dat0.PermuteLane<0, 2>(dat1);
+        const auto dat13 = dat0.PermuteLane<1, 3>(dat1);
+
+        const auto mid0 = dat02.ShuffleLane<0, 0, 0, 2>();
+        const F32x8 mid1 = _mm256_shuffle_ps(dat02, dat13, 0b00001010);
+        const auto mid2 = dat13.ShuffleLane<0, 2, 2, 2>();
+
+        const auto out0 = mid0.PermuteLane<0, 2>(mid1);
+        const auto out1 = mid2.PermuteLane<0, 3>(mid0);
+        const auto out2 = mid1.PermuteLane<1, 3>(mid2);
+
+        out0.Save(dst +  0);
+        out1.Save(dst +  8);
+        out2.Save(dst + 16);
+    }
+};
+struct GAf2RGBAf_256
+{
+    static constexpr size_t M = 8, N = 16, K = 4;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = F32x8(src);
+        const auto out02 = dat.ShuffleLane<0, 0, 0, 1>();
+        const auto out13 = dat.ShuffleLane<2, 2, 2, 3>();
+        const auto out0 = out02.PermuteLane<0, 2>(out13);
+        const auto out1 = out02.PermuteLane<1, 3>(out13);
+        out0.Save(dst + 0);
+        out1.Save(dst + 8);
+    }
+};
 template<uint8_t IdxR, uint8_t IdxG, uint8_t IdxB>
 struct RGB3To4_256
 {
@@ -3267,6 +3779,90 @@ struct RGB4To3_256
         const U32x8 mergeghij = valcdefgh.Or(valijklmn); // ghij xxxx
         const auto out2 = mergeghij.SelectWith<0b11110000>(valijklmn); // 01234567
         out2.As<U8x32>().Save(dst + 64);
+    }
+};
+template<bool IsRGB>
+struct RGBf3To4_256
+{
+    static constexpr size_t M = 24, N = 32, K = 8;
+    F32x8 Alpha;
+    forceinline RGBf3To4_256(float alpha) noexcept : Alpha(alpha) {}
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const F32x8 dat0(src +  0); // R0 G0 B0 R1 | G1 B1 R2 G2
+        const F32x8 dat1(src +  8); // B2 R3 G3 B3 | R4 G4 B4 R5
+        const F32x8 dat2(src + 16); // G5 B5 R6 G6 | B6 R7 G7 B7
+
+        const auto dat03 = dat0.PermuteLane<0, 3>(dat1); // R0 G0 B0 R1 | R4 G4 B4 R5
+        const auto dat14 = dat0.PermuteLane<1, 2>(dat2); // G1 B1 R2 G2 | G5 B5 R6 G6
+        const auto dat25 = dat1.PermuteLane<0, 3>(dat2); // B2 R3 G3 B3 | B6 R7 G7 B7
+
+        F32x8 out04 = dat03.SelectWith<0b10001000>(Alpha);
+        if constexpr (!IsRGB) out04 = out04.ShuffleLane<2, 1, 0, 3>();
+
+        F32x8 out37 = dat25.MoveLaneToLoWith<1>(Alpha);
+        if constexpr (!IsRGB) out37 = out37.ShuffleLane<2, 1, 0, 3>();
+
+        F32x8 out15, out26;
+        if constexpr (IsRGB)
+        {
+            const auto mid14 = dat14.SelectWith<0b01000100>(Alpha); // G1 B1 A G2 | G5 B5 A G6
+            out15 = dat03.MoveLaneToLoWith<3>(mid14);
+            const auto mid25 = dat25.SelectWith<0b00100010>(Alpha); // B2 A G3 B3 | B6 A G7 B7
+            out26 = dat14.MoveLaneToLoWith<2>(mid25);
+        }
+        else
+        {
+            const auto mid03 = dat03.SelectWith<0b01000100>(Alpha); // R0 G0 A R1 | R4 G4 A R5
+            out15 = _mm256_shuffle_ps(dat14, mid03, 0b10110001);
+            const auto mid25 = dat25.SelectWith<0b10001000>(Alpha); // B2 R3 G3 A | B6 R7 G7 A
+            const auto mid14 = dat14.ShuffleLane<0, 3, 2, 1>(); // G1 G2 R2 B1
+            out26 = mid14.SelectWith<0b10011001>(mid25);
+        }
+
+        const auto out0 = out04.PermuteLane<0, 2>(out15);
+        const auto out1 = out26.PermuteLane<0, 2>(out37);
+        const auto out2 = out04.PermuteLane<1, 3>(out15);
+        const auto out3 = out26.PermuteLane<1, 3>(out37);
+        out0.Save(dst +  0);
+        out1.Save(dst +  8);
+        out2.Save(dst + 16);
+        out3.Save(dst + 24);
+    }
+};
+template<bool IsRGB>
+struct RGBf4To3_256
+{
+    static constexpr size_t M = 32, N = 24, K = 8;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const F32x8 dat0(src +  0);
+        const F32x8 dat1(src +  8);
+        const F32x8 dat2(src + 16);
+        const F32x8 dat3(src + 24);
+
+        F32x8 val0, val1, val2, val3;
+        if constexpr (IsRGB)
+        {
+            val0 = dat0.Shuffle<0, 1, 2, 4, 5, 6, 0, 0>(); // R0 G0 B0 R1 | G1 B1 R0 R0
+            val1 = dat1.Shuffle<2, 4, 5, 6, 0, 0, 0, 1>(); // B2 R3 G3 B3 | R2 R2 R2 G2
+            val2 = dat2.Shuffle<5, 6, 0, 0, 0, 1, 2, 4>(); // G5 B5 R4 R4 | R4 G4 B4 R5
+            val3 = dat3.Shuffle<0, 0, 0, 1, 2, 4, 5, 6>(); // R6 R6 R6 G6 | B6 R7 G7 B7
+        }
+        else
+        {
+            val0 = dat0.Shuffle<2, 1, 0, 6, 5, 4, 0, 0>(); // B0 G0 R0 B1 | G1 R1 R0 R0
+            val1 = dat1.Shuffle<0, 6, 5, 4, 0, 0, 2, 1>(); // R2 B3 G3 R3 | R2 R2 B2 G2
+            val2 = dat2.Shuffle<5, 4, 0, 0, 2, 1, 0, 6>(); // G5 R5 R4 R4 | B4 G4 R4 B5
+            val3 = dat3.Shuffle<0, 0, 2, 1, 0, 6, 5, 4>(); // R6 R6 B6 G6 | R6 B7 G7 R7
+        }
+
+        const auto out0 = val0.SelectWith<0b11000000>(val1);
+        const auto out1 = val1.SelectWith<0b11110000>(val2);
+        const auto out2 = val3.SelectWith<0b00000011>(val2);
+        out0.Save(dst +  0);
+        out1.Save(dst +  8);
+        out2.Save(dst + 16);
     }
 };
 struct RGBToBGR_256
@@ -4063,6 +4659,26 @@ DEFINE_FASTPATH_METHOD(GA8ToRGBA8, AVX2)
 {
     ProcessLOOP4<GA2RGBA_256, &Func<SSSE3>>(dest, src, count);
 }
+DEFINE_FASTPATH_METHOD(GfToGAf, AVX)
+{
+    ProcessLOOP4<Gf2GAf_256, &Func<SIMD128>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(GfToRGBf, AVX)
+{
+    ProcessLOOP4<Gf2RGBf_256, &Func<SIMD128>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(GfToRGBAf, AVX)
+{
+    ProcessLOOP4<Gf2RGBAf_256, &Func<SIMD128>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(GAfToRGBf, AVX)
+{
+    ProcessLOOP4<GAf2RGBf_256, &Func<SIMD128>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(GAfToRGBAf, AVX)
+{
+    ProcessLOOP4<GAf2RGBAf_256, &Func<SIMD128>>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(RGB8ToRGBA8, AVX2)
 {
     ProcessLOOP4<RGB3To4_256<0, 1, 2>, &Func<SSSE3>>(dest, src, count, alpha);
@@ -4078,6 +4694,22 @@ DEFINE_FASTPATH_METHOD(RGBA8ToRGB8, AVX2)
 DEFINE_FASTPATH_METHOD(RGBA8ToBGR8, AVX2)
 {
     ProcessLOOP4<RGB4To3_256<2, 1, 0>, &Func<SSSE3>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGBfToRGBAf, AVX)
+{
+    ProcessLOOP4<RGBf3To4_256<true>, &Func<SSSE3>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(BGRfToRGBAf, AVX)
+{
+    ProcessLOOP4<RGBf3To4_256<false>, &Func<SSSE3>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(RGBAfToRGBf, AVX2)
+{
+    ProcessLOOP4<RGBf4To3_256<true>, &Func<SSE41>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGBAfToBGRf, AVX2)
+{
+    ProcessLOOP4<RGBf4To3_256<false>, &Func<SSE41>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(RGB8ToBGR8, AVX2)
 {
@@ -4410,6 +5042,124 @@ struct GA2RGBA_512
         const auto out1 = _mm512_permutex2var_epi64(midLo, permuteMask1, midHi); // [10~13][14~17][18~1b][1c~1f]
         _mm512_storeu_si512(dst +  0, out0);
         _mm512_storeu_si512(dst + 16, out1);
+    }
+};
+struct Gf2GAf_512
+{
+    static constexpr size_t M = 16, N = 32, K = 16;
+    __m512 Alpha;
+    forceinline Gf2GAf_512(float alpha) noexcept : Alpha(_mm512_set1_ps(alpha)) {}
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = _mm512_loadu_ps(src);
+        const auto out0 = _mm512_mask_permutexvar_ps(Alpha, 0x5555, _mm512_set_epi32( 7,  7,  6,  6,  5,  5,  4,  4,  3,  3,  2,  2,  1,  1,  0,  0), dat);
+        const auto out1 = _mm512_mask_permutexvar_ps(Alpha, 0x5555, _mm512_set_epi32(15, 15, 14, 14, 13, 13, 12, 12, 11, 11, 10, 10,  9,  9,  8,  8), dat);
+        _mm512_storeu_ps(dst +  0, out0);
+        _mm512_storeu_ps(dst + 16, out1);
+    }
+};
+struct Gf2RGBf_512
+{
+    static constexpr size_t M = 16, N = 48, K = 16;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = _mm512_loadu_ps(src);
+        const auto out0 = _mm512_permutexvar_ps(_mm512_set_epi32( 5,  4,  4,  4,  3,  3,  3,  2,  2,  2,  1,  1,  1,  0,  0,  0), dat);
+        const auto out1 = _mm512_permutexvar_ps(_mm512_set_epi32(10, 10,  9,  9,  9,  8,  8,  8,  7,  7,  7,  6,  6,  6,  5,  5), dat);
+        const auto out2 = _mm512_permutexvar_ps(_mm512_set_epi32(15, 15, 15, 14, 14, 14, 13, 13, 13, 12, 12, 12, 11, 11, 11, 10), dat);
+        _mm512_storeu_ps(dst +  0, out0);
+        _mm512_storeu_ps(dst + 16, out1);
+        _mm512_storeu_ps(dst + 32, out2);
+    }
+};
+struct Gf2RGBAf_512
+{
+    static constexpr size_t M = 16, N = 64, K = 16;
+    __m512 Alpha;
+    forceinline Gf2RGBAf_512(float alpha) noexcept : Alpha(_mm512_set1_ps(alpha)) {}
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = _mm512_loadu_ps(src);
+        const auto out0 = _mm512_mask_permutexvar_ps(Alpha, 0x7777, _mm512_set_epi32( 3,  3,  3,  3,  2,  2,  2,  2,  1,  1,  1,  1,  0,  0,  0,  0), dat);
+        const auto out1 = _mm512_mask_permutexvar_ps(Alpha, 0x7777, _mm512_set_epi32( 7,  7,  7,  7,  6,  6,  6,  6,  5,  5,  5,  5,  4,  4,  4,  4), dat);
+        const auto out2 = _mm512_mask_permutexvar_ps(Alpha, 0x7777, _mm512_set_epi32(11, 11, 11, 11, 10, 10, 10, 10,  9,  9,  9,  9,  8,  8,  8,  8), dat);
+        const auto out3 = _mm512_mask_permutexvar_ps(Alpha, 0x7777, _mm512_set_epi32(15, 15, 15, 15, 14, 14, 14, 14, 13, 13, 13, 13, 12, 12, 12, 12), dat);
+        _mm512_storeu_ps(dst +  0, out0);
+        _mm512_storeu_ps(dst + 16, out1);
+        _mm512_storeu_ps(dst + 32, out2);
+        _mm512_storeu_ps(dst + 48, out3);
+    }
+};
+struct GAf2RGBf_512
+{
+    static constexpr size_t M = 32, N = 48, K = 16;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_ps(src +  0);
+        const auto dat1 = _mm512_loadu_ps(src + 16);
+        const auto out0 = _mm512_permutexvar_ps(_mm512_set_epi32(10,  8,  8,  8,  6,  6,  6,  4,  4,  4,  2,  2,  2,  0,  0,  0), dat0);
+        const auto out1 = _mm512_permutex2var_ps(dat0, _mm512_set_epi32(20, 20, 18, 18, 18, 16, 16, 16, 14, 14, 14, 12, 12, 12, 10, 10), dat1);
+        const auto out2 = _mm512_permutexvar_ps(_mm512_set_epi32(14, 14, 14, 12, 12, 12, 10, 10, 10,  8,  8,  8,  6,  6,  6,  4), dat1);
+        _mm512_storeu_ps(dst +  0, out0);
+        _mm512_storeu_ps(dst + 16, out1);
+        _mm512_storeu_ps(dst + 32, out2);
+    }
+};
+struct GAf2RGBAf_512
+{
+    static constexpr size_t M = 16, N = 32, K = 8;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat = _mm512_loadu_ps(src);
+        const auto out0 = _mm512_permutexvar_ps(_mm512_set_epi32( 7,  6,  6,  6,  5,  4,  4,  4,  3,  2,  2,  2,  1,  0,  0,  0), dat);
+        const auto out1 = _mm512_permutexvar_ps(_mm512_set_epi32(15, 14, 14, 14, 13, 12, 12, 12, 11, 10, 10, 10,  9,  8,  8,  8), dat);
+        _mm512_storeu_ps(dst +  0, out0);
+        _mm512_storeu_ps(dst + 16, out1);
+    }
+};
+template<uint8_t R, uint8_t G, uint8_t B>
+struct RGBf3To4_512
+{
+    static constexpr size_t M = 48, N = 64, K = 16;
+    __m512 Alpha;
+    forceinline RGBf3To4_512(float alpha) noexcept : Alpha(_mm512_set1_ps(alpha)) {}
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_ps(src +  0);
+        const auto dat1 = _mm512_loadu_ps(src + 16);
+        const auto dat2 = _mm512_loadu_ps(src + 32);
+
+        const auto out0 = _mm512_mask_permutexvar_ps(Alpha, 0x7777, _mm512_set_epi32(0, B + 9, G + 9, R + 9, 0, B + 6, G + 6, R + 6, 0, B + 3, G + 3, R + 3, 0, B + 0, G + 0, R + 0), dat0);
+        const auto mid01 = _mm512_mask_blend_ps(0x00ff, dat0, dat1);
+        const auto out1 = _mm512_mask_permutexvar_ps(Alpha, 0x7777, _mm512_set_epi32(0, B + 5, G + 5, R + 5, 0, B + 2, G + 2, R + 2, 0, (B + 15) % 16, (G + 15) % 16, (R + 15) % 16, 0, B + 12, G + 12, R + 12), mid01);
+        const auto mid12 = _mm512_mask_blend_ps(0x00ff, dat1, dat2);
+        const auto out2 = _mm512_mask_permutexvar_ps(Alpha, 0x7777, _mm512_set_epi32(0, B + 1, G + 1, R + 1, 0, (B + 14) % 16, (G + 14) % 16, (R + 14) % 16, 0, B + 11, G + 11, R + 11, 0, B + 8, G + 8, R + 8), mid12);
+        const auto out3 = _mm512_mask_permutexvar_ps(Alpha, 0x7777, _mm512_set_epi32(0, B + 13, G + 13, R + 13, 0, B + 10, G + 10, R + 10, 0, B +  7, G +  7, R +  7, 0, B +  4, G +  4, R +  4), dat2);
+        
+        _mm512_storeu_ps(dst +  0, out0);
+        _mm512_storeu_ps(dst + 16, out1);
+        _mm512_storeu_ps(dst + 32, out2);
+        _mm512_storeu_ps(dst + 48, out3);
+    }
+};
+template<uint8_t R, uint8_t G, uint8_t B>
+struct RGBf4To3_512
+{
+    static constexpr size_t M = 64, N = 48, K = 16;
+    forceinline void operator()(float* __restrict dst, const float* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_ps(src +  0);
+        const auto dat1 = _mm512_loadu_ps(src + 16);
+        const auto dat2 = _mm512_loadu_ps(src + 32);
+        const auto dat3 = _mm512_loadu_ps(src + 48);
+
+        const auto out0 = _mm512_permutex2var_ps(dat0, _mm512_set_epi32(R + 20, B + 16, G + 16, R + 16, B + 12, G + 12, R + 12, B +  8, G +  8, R +  8, B +  4, G +  4, R +  4, B +  0, G +  0, R +  0), dat1);
+        const auto out1 = _mm512_permutex2var_ps(dat1, _mm512_set_epi32(G + 24, R + 24, B + 20, G + 20, R + 20, B + 16, G + 16, R + 16, B + 12, G + 12, R + 12, B +  8, G +  8, R +  8, B +  4, G +  4), dat2);
+        const auto out2 = _mm512_permutex2var_ps(dat2, _mm512_set_epi32(B + 28, G + 28, R + 28, B + 24, G + 24, R + 24, B + 20, G + 20, R + 20, B + 16, G + 16, R + 16, B + 12, G + 12, R + 12, B +  8), dat3);
+        
+        _mm512_storeu_ps(dst +  0, out0);
+        _mm512_storeu_ps(dst + 16, out1);
+        _mm512_storeu_ps(dst + 32, out2);
     }
 };
 struct RGBfToBGRf_512
@@ -4988,6 +5738,42 @@ DEFINE_FASTPATH_METHOD(G8ToRGBA8, AVX512BW)
 DEFINE_FASTPATH_METHOD(GA8ToRGBA8, AVX512BW)
 {
     ProcessLOOP4<GA2RGBA_512, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(GfToGAf, AVX512BW)
+{
+    ProcessLOOP4<Gf2GAf_512, &Func<AVX>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(GfToRGBf, AVX512BW)
+{
+    ProcessLOOP4<Gf2RGBf_512, &Func<AVX>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(GfToRGBAf, AVX512BW)
+{
+    ProcessLOOP4<Gf2RGBAf_512, &Func<AVX>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(GAfToRGBf, AVX512BW)
+{
+    ProcessLOOP4<GAf2RGBf_512, &Func<AVX>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(GAfToRGBAf, AVX512BW)
+{
+    ProcessLOOP4<GAf2RGBAf_512, &Func<AVX>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGBfToRGBAf, AVX512BW)
+{
+    ProcessLOOP4<RGBf3To4_512<0, 1, 2>, &Func<AVX>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(BGRfToRGBAf, AVX512BW)
+{
+    ProcessLOOP4<RGBf3To4_512<2, 1, 0>, &Func<AVX>>(dest, src, count, alpha);
+}
+DEFINE_FASTPATH_METHOD(RGBAfToRGBf, AVX512BW)
+{
+    ProcessLOOP4<RGBf4To3_512<0, 1, 2>, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGBAfToBGRf, AVX512BW)
+{
+    ProcessLOOP4<RGBf4To3_512<2, 1, 0>, &Func<AVX2>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(RGBfToBGRf, AVX512BW)
 {

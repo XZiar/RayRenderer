@@ -6,6 +6,9 @@
 #include "common/MemoryStream.hpp"
 #include "common/Stream.hpp"
 #include "common/ContainerHelper.hpp"
+#if !COMMON_COMPILER_MSVC || (defined(_MSVC_TRADITIONAL) && !_MSVC_TRADITIONAL)
+#   define BOOST_PP_LIMIT_TUPLE 128
+#endif
 #include <boost/preprocessor/punctuation/comma_if.hpp>
 #include <boost/preprocessor/tuple/enum.hpp>
 #include <boost/preprocessor/tuple/to_seq.hpp>

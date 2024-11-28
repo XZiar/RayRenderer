@@ -1113,11 +1113,9 @@ struct alignas(16) F64x2 : public detail::SSE128Shared<F64x2, float>
     forceinline F64x2 VECCALL MoveToLoWith(const F64x2& hi) const noexcept
     {
         static_assert(Cnt <= 2, "move count should be in [0,2]");
-        if constexpr (Cnt == 0)
-            return *this;
-        else if constexpr (Cnt == 2)
-            return hi;
-        else return _mm_castsi128_pd(_mm_alignr_epi8(_mm_castpd_si128(hi.Data), _mm_castpd_si128(this->Data), Cnt * 8));
+        if constexpr (Cnt == 0) return *this;
+        else if constexpr (Cnt == 2) return hi;
+        else return _mm_shuffle_pd(Data, hi.Data, 0b01);
     }
 
     // compare operations
@@ -1350,10 +1348,9 @@ struct alignas(16) F32x4 : public detail::SSE128Shared<F32x4, float>
     forceinline F32x4 VECCALL MoveToLoWith(const F32x4& hi) const noexcept
     {
         static_assert(Cnt <= 4, "move count should be in [0,4]");
-        if constexpr (Cnt == 0)
-            return *this;
-        else if constexpr (Cnt == 4)
-            return hi;
+        if constexpr (Cnt == 0) return *this;
+        else if constexpr (Cnt == 4) return hi;
+        else if constexpr (Cnt == 2) return _mm_shuffle_ps(Data, hi.Data, 0b01001110);
         else return _mm_castsi128_ps(_mm_alignr_epi8(_mm_castps_si128(hi.Data), _mm_castps_si128(Data), Cnt * 4));
     }
 

@@ -107,6 +107,80 @@ Image Image::RotateTo180() const
     return img;
 }
 
+template<typename T1, typename T2, typename T3, typename T4>
+static forceinline void ConvertCopy(std::byte* destPtr, size_t destStep, const std::byte* srcPtr, size_t srcStep, uint32_t rowcnt, const uint32_t pixcnt, 
+    const ImageDataType diff, const uint32_t destChannel, const uint32_t srcChannel)
+{
+    const auto& cvter = ColorConvertor::Get();
+    if (diff == ImageDataType::ALPHA_MASK) // remove/add alpha only
+    {
+        switch (srcChannel)
+        {
+        case 4://remove alpha, 4->3
+            for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                cvter.RGBAToRGB(reinterpret_cast<T3*>(destPtr), reinterpret_cast<const T4*>(srcPtr), pixcnt);
+            break;
+        case 3://add alpha, 3->4
+            for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                cvter.RGBToRGBA(reinterpret_cast<T4*>(destPtr), reinterpret_cast<const T3*>(srcPtr), pixcnt);
+            break;
+        case 2://remove alpha, 2->1
+            for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                cvter.GrayAToGray(reinterpret_cast<T1*>(destPtr), reinterpret_cast<const T2*>(srcPtr), pixcnt);
+            break;
+        case 1://add alpha, 1->2
+            for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                cvter.GrayToGrayA(reinterpret_cast<T2*>(destPtr), reinterpret_cast<const T1*>(srcPtr), pixcnt);
+            break;
+        }
+    }
+    else if (destChannel == 4)
+    {
+        switch (srcChannel)
+        {
+        case 1:
+            for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                cvter.GrayToRGBA(reinterpret_cast<T4*>(destPtr), reinterpret_cast<const T1*>(srcPtr), pixcnt);
+            break;
+        case 2:
+            for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                cvter.GrayAToRGBA(reinterpret_cast<T4*>(destPtr), reinterpret_cast<const T2*>(srcPtr), pixcnt);
+            break;
+        case 3://change byte-order and add alpha(plain-add, see above) 
+            for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                cvter.BGRToRGBA(reinterpret_cast<T4*>(destPtr), reinterpret_cast<const T3*>(srcPtr), pixcnt);
+            break;
+        case 4://change byte-order only(plain copy, see above*2)
+            for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                cvter.RGBAToBGRA(reinterpret_cast<T4*>(destPtr), reinterpret_cast<const T4*>(srcPtr), pixcnt);
+            break;
+        }
+    }
+    else if (destChannel == 3)
+    {
+        switch (srcChannel)
+        {
+        case 1:
+            for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                cvter.GrayToRGB(reinterpret_cast<T3*>(destPtr), reinterpret_cast<const T1*>(srcPtr), pixcnt);
+            break;
+        case 2:
+            for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                cvter.GrayAToRGB(reinterpret_cast<T3*>(destPtr), reinterpret_cast<const T2*>(srcPtr), pixcnt);
+            break;
+        case 3://change byte-order only(plain copy, see above*2)
+            for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                cvter.RGBToBGR(reinterpret_cast<T3*>(destPtr), reinterpret_cast<const T3*>(srcPtr), pixcnt);
+            break;
+        case 4://change byte-order and remove alpha(plain-add, see above) 
+            for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                cvter.RGBAToBGR(reinterpret_cast<T3*>(destPtr), reinterpret_cast<const T4*>(srcPtr), pixcnt);
+            break;
+        }
+    }
+    else
+        Ensures(false);
+}
 void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t srcY, const uint32_t destX, const uint32_t destY)
 {
     if (src.Data == Data)
@@ -139,104 +213,15 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
         if (isCopyWholeRow)
             pixcnt *= rowcnt, rowcnt = 1;
         const auto diff = DataType ^ src.DataType;
-        const auto& cvter = ColorConvertor::Get();
-
         if (isSrcFloat)
         {
-            if (diff == ImageDataType::ALPHA_MASK) // remove/add alpha only
-            {
-            }
-            else if (ElementSize == 16)
-            {
-                if (src.ElementSize == 16)
-                {
-                    for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                        cvter.RGBAToBGRA(reinterpret_cast<float*>(destPtr), reinterpret_cast<const float*>(srcPtr), pixcnt);
-                    return;
-                }
-            }
-            else if (ElementSize == 12)
-            {
-                if (src.ElementSize == 12)
-                {
-                    for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                        cvter.RGBToBGR(reinterpret_cast<float*>(destPtr), reinterpret_cast<const float*>(srcPtr), pixcnt);
-                    return;
-                }
-            }
-            COMMON_THROW(BaseException, u"float datatype not supported");
-        }
-
-        if (diff == ImageDataType::ALPHA_MASK) // remove/add alpha only
-        {
-            switch (src.ElementSize)
-            {
-            case 4://remove alpha, 4->3
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    cvter.RGBAToRGB(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint32_t*>(srcPtr), pixcnt);
-                break;
-            case 3://add alpha, 3->4
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    cvter.RGBToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
-                break;
-            case 2://remove alpha, 2->1
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    cvter.GrayAToGray(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint16_t*>(srcPtr), pixcnt);
-                break;
-            case 1://add alpha, 1->2
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    cvter.GrayToGrayA(reinterpret_cast<uint16_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
-                break;
-            }
-        }
-        else if (ElementSize == 4)
-        {
-            switch (src.ElementSize)
-            {
-            case 1:
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    cvter.GrayToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
-                break;
-            case 2:
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    cvter.GrayAToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint16_t*>(srcPtr), pixcnt);
-                break;
-            case 3://change byte-order and add alpha(plain-add, see above) 
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    cvter.BGRToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
-                break;
-            case 4://change byte-order only(plain copy, see above*2)
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    cvter.RGBAToBGRA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint32_t*>(srcPtr), pixcnt);
-                break;
-            }
-        }
-        else if (ElementSize == 3)
-        {
-            switch (src.ElementSize)
-            {
-            case 1:
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    cvter.GrayToRGB(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
-                break;
-            case 2:
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    cvter.GrayAToRGB(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint16_t*>(srcPtr), pixcnt);
-                break;
-            case 3://change byte-order only(plain copy, see above*2)
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    cvter.RGBToBGR(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), pixcnt);
-                break;
-            case 4://change byte-order and remove alpha(plain-add, see above) 
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    cvter.RGBAToBGR(reinterpret_cast<uint8_t*>(destPtr), reinterpret_cast<const uint32_t*>(srcPtr), pixcnt);
-                break;
-            }
+            ConvertCopy<float, float, float, float>(destPtr, destStep, srcPtr, srcStep, rowcnt, pixcnt, diff, ElementSize / 4, src.ElementSize / 4);
         }
         else
-            Ensures(false);
+        {
+            ConvertCopy<uint8_t, uint16_t, uint8_t, uint32_t>(destPtr, destStep, srcPtr, srcStep, rowcnt, pixcnt, diff, ElementSize, src.ElementSize);
+        }
     }
-    //put finish
 }
 
 void Image::Resize(uint32_t width, uint32_t height, const bool isSRGB, const bool mulAlpha)

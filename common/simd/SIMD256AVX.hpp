@@ -1166,7 +1166,7 @@ struct alignas(__m256d) F64x4 : public detail::AVX256Shared<F64x4, double>
         static_assert(Cnt <= 2, "move count should be in [0,2]");
         if constexpr (Cnt == 0) return Data;
         else if constexpr (Cnt == 2) return hi;
-        else return _mm256_castsi256_pd(_mm256_alignr_epi8(_mm256_castpd_si256(hi.Data), _mm256_castpd_si256(Data), Cnt * 8));
+        else return _mm256_shuffle_pd(Data, hi.Data, 0b0101);
     }
 #endif
 
@@ -1488,6 +1488,7 @@ struct alignas(__m256) F32x8 : public detail::AVX256Shared<F32x8, float>
         static_assert(Cnt <= 4, "move count should be in [0,4]");
         if constexpr (Cnt == 0) return Data;
         else if constexpr (Cnt == 4) return hi;
+        else if constexpr (Cnt == 2) return _mm256_shuffle_ps(Data, hi.Data, 0b01001110);
         else return _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(hi.Data), _mm256_castps_si256(Data), Cnt * 4));
     }
 #endif
