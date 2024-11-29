@@ -73,8 +73,8 @@ struct OGLUAPI OGLTexUtil
         else
             return { GLInvalidEnum, GLInvalidEnum };
     }
-    [[nodiscard]] static bool ParseFormat(const xziar::img::ImageDataType dformat, const bool normalized, uint32_t& datatype, uint32_t& comptype) noexcept;
-    [[nodiscard]] static std::pair<uint32_t, uint32_t> ParseFormat(const xziar::img::ImageDataType dformat, const bool normalized) noexcept
+    [[nodiscard]] static bool ParseFormat(const xziar::img::ImgDType dformat, const bool normalized, uint32_t& datatype, uint32_t& comptype) noexcept;
+    [[nodiscard]] static std::pair<uint32_t, uint32_t> ParseFormat(const xziar::img::ImgDType dformat, const bool normalized) noexcept
     {
         uint32_t datatype, comptype;
         if (ParseFormat(dformat, normalized, datatype, comptype))
@@ -210,7 +210,7 @@ public:
     using oglTexBase_::SetProperty;
     [[nodiscard]] std::optional<std::vector<uint8_t>> GetCompressedData(const uint8_t level = 0);
     [[nodiscard]] std::vector<uint8_t> GetData(const xziar::img::TextureFormat format, const uint8_t level = 0);
-    [[nodiscard]] xziar::img::Image GetImage(const xziar::img::ImageDataType format, const bool flipY = true, const uint8_t level = 0);
+    [[nodiscard]] xziar::img::Image GetImage(const xziar::img::ImgDType format, const bool flipY = true, const uint8_t level = 0);
 };
 
 

@@ -290,23 +290,10 @@ static void TestDiffShow()
     log().Success(u"Test diff show img over!\n");
 }
 
-static void TestFloat()
-{
-    img::Image gfimg(img::ImageDataType::GRAYf);
-    gfimg.SetSize(16, 16);
-    float* imgPtr = gfimg.GetRawPtr<float>();
-    for (uint32_t i = 0; i < 256; ++i)
-        imgPtr[i] = (float)i;
-    auto gimg = gfimg.ConvertToFloat(255);
-    auto newgfimg = gimg.ConvertToFloat(255);
-    auto newgimg = newgfimg.ConvertToFloat(255);
-}
-
 static void ImgUtilTest()
 {
     TestImageUtil();
     //TestDiffShow();
-    TestFloat();
     getchar();
 }
 

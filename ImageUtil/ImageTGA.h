@@ -60,7 +60,7 @@ public:
     TgaReader(common::io::RandomInputStream& stream);
     virtual ~TgaReader() override {};
     [[nodiscard]] virtual bool Validate() override;
-    [[nodiscard]] virtual Image Read(ImageDataType dataType) override;
+    [[nodiscard]] virtual Image Read(ImgDType dataType) override;
 };
 
 class TgaWriter : public ImgWriter
@@ -88,7 +88,7 @@ public:
     {
         return std::make_unique<TgaWriter>(stream);
     }
-    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImageDataType, const bool) const final
+    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImgDType, const bool) const final
     { 
         return ext == u"TGA" ? 240 : 0;
     }

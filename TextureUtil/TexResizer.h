@@ -24,7 +24,7 @@ private:
     oglVBO ScreenBox;
     oglVAO NormalVAO, FlipYVAO;
     oclu::oclKernel KerToImg, KerToDat3, KerToDat4;
-    common::PromiseResult<xziar::img::Image> ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const xziar::img::ImageDataType format);
+    common::PromiseResult<xziar::img::Image> ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const xziar::img::ImgDType format);
 public:
     TexResizer(const std::shared_ptr<TexUtilWorker>& worker);
     ~TexResizer();
@@ -42,14 +42,14 @@ public:
         const uint16_t width, const uint16_t height, const xziar::img::TextureFormat output, const bool flipY = false);
 
     template<ResizeMethod>
-    common::PromiseResult<xziar::img::Image> ResizeToImg(const oclu::oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const xziar::img::ImageDataType output, const bool flipY = false);
+    common::PromiseResult<xziar::img::Image> ResizeToImg(const oclu::oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const xziar::img::ImgDType output, const bool flipY = false);
     template<ResizeMethod>
-    common::PromiseResult<xziar::img::Image> ResizeToImg(const oglTex2D& tex, const uint16_t width, const uint16_t height, const xziar::img::ImageDataType output, const bool flipY = false);
+    common::PromiseResult<xziar::img::Image> ResizeToImg(const oglTex2D& tex, const uint16_t width, const uint16_t height, const xziar::img::ImgDType output, const bool flipY = false);
     template<ResizeMethod>
-    common::PromiseResult<xziar::img::Image> ResizeToImg(const xziar::img::ImageView& img, const uint16_t width, const uint16_t height, const xziar::img::ImageDataType output, const bool flipY = false);
+    common::PromiseResult<xziar::img::Image> ResizeToImg(const xziar::img::ImageView& img, const uint16_t width, const uint16_t height, const xziar::img::ImgDType output, const bool flipY = false);
     template<ResizeMethod>
     common::PromiseResult<xziar::img::Image> ResizeToImg(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const xziar::img::TextureFormat innerFormat,
-        const uint16_t width, const uint16_t height, const xziar::img::ImageDataType output, const bool flipY = false);
+        const uint16_t width, const uint16_t height, const xziar::img::ImgDType output, const bool flipY = false);
 
 };
 

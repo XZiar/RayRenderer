@@ -223,7 +223,7 @@ static uint32_t RegisterSupportTest(const char* fileName, const int fileLine, st
     return 0;
 }
 
-template<xziar::img::ImageDataType Type, typename T, uint32_t Width, uint32_t Height, uint32_t N>
+template<xziar::img::ImgDType Type, typename T, uint32_t Width, uint32_t Height, uint32_t N>
 static void TestRead(common::span<const std::byte> file, const T(&src)[Height][Width][N], const xziar::img::ImgSupport& support, std::u16string_view ext)
 {
     constexpr auto ElementSize = xziar::img::Image::GetElementSize(Type);
@@ -312,10 +312,10 @@ static void TestRead(common::span<const std::byte> file, const T(&src)[Height][W
 }
 
 
-template<typename T, xziar::img::ImageDataType DT, auto Ref>
+template<typename T, xziar::img::ImgDType DT, auto Ref>
 struct ImgReadFixture : public ImgTestSuite<T>
 {
-    static constexpr xziar::img::ImageDataType Type = DT;
+    static constexpr xziar::img::ImgDType Type = DT;
     void Test(common::span<const std::byte> file) const
     {
         TestRead<DT>(file, *Ref, *this->Support, T::Extension);

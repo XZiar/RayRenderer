@@ -123,9 +123,10 @@ void RunDizzCore(WindowBackend& backend)
         if (ftest.has_value())
         {
             fs::path basePath = u"C:\\Programs Temps\\RayRenderer";
-            if (!fs::exists(basePath))
+            std::error_code ec;
+            if (!fs::exists(basePath, ec))
                 basePath = u"D:\\ProgramsTemps\\RayRenderer";
-            if (!fs::exists(basePath))
+            if (!fs::exists(basePath, ec))
                 basePath = u"C:\\ProgramsTemps\\RayRenderer";
             ftest.value()->SetFont(basePath / u"test.ttf");
         }

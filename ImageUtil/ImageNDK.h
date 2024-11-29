@@ -20,7 +20,7 @@ public:
     NdkReader(std::shared_ptr<const NdkSupport>&& support, common::AlignedBuffer&& src, void* decoder) noexcept;
     virtual ~NdkReader() override;
     [[nodiscard]] virtual bool Validate() override;
-    [[nodiscard]] virtual Image Read(ImageDataType dataType) override;
+    [[nodiscard]] virtual Image Read(ImgDType dataType) override;
 };
 
 class NdkWriter : public ImgWriter
@@ -46,7 +46,7 @@ public:
     ~NdkSupport() final;
     [[nodiscard]] std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, std::u16string_view) const final;
     [[nodiscard]] std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, std::u16string_view ext) const final;
-    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImageDataType dataType, const bool isRead) const final;
+    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImgDType dataType, const bool isRead) const final;
 };
 
 

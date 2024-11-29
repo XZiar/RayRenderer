@@ -162,8 +162,9 @@ public:
     static void ReadFromColorMapped(const detail::TgaHeader& header, Image& image, MapperReader& mapperReader, IndexReader& reader)
     {
         const uint64_t count = (uint64_t)image.GetWidth() * image.GetHeight();
-        const bool isOutputRGB = REMOVE_MASK(image.GetDataType(), ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::RGB;
-        const bool needAlpha = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK);
+        const auto dataType = image.GetDataType();
+        const bool isOutputRGB = !dataType.IsBGROrder();
+        const bool needAlpha = dataType.HasAlpha();
 
         const detail::ColorMapInfo mapInfo(header);
         mapperReader.Skip(mapInfo.Offset);
@@ -224,7 +225,8 @@ public:
     static void ReadDirect(const detail::TgaHeader& header, Image& image, ReadFunc& reader)
     {
         const uint64_t count = (uint64_t)image.GetWidth() * image.GetHeight();
-        const bool needAlpha = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK);
+        const auto dataType = image.GetDataType();
+        const bool needAlpha = dataType.HasAlpha();
         if (image.IsGray())
         {
             if (needAlpha)
@@ -239,7 +241,7 @@ public:
         }
         else
         {
-            const bool isOutputRGB = REMOVE_MASK(image.GetDataType(), ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::RGB;
+            const bool isOutputRGB = !dataType.IsBGROrder();
             if (needAlpha)
                 ReadColorData4(header.PixelDepth, count, image, isOutputRGB, reader);
             else
@@ -617,12 +619,12 @@ public:
     }
 };
 
-Image TgaReader::Read(ImageDataType dataType)
+Image TgaReader::Read(ImgDType dataType)
 {
     common::SimpleTimer timer;
     timer.Start();
     Image image(dataType);
-    if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))//NotSuported 
+    if (!dataType.Is(ImgDType::DataTypes::Uint8))
         return image;
     if (image.IsGray() && REMOVE_MASK(Header.ImageType, detail::TGAImgType::RLE_MASK) != detail::TGAImgType::GRAY)//down-convert, not supported
         return image;
@@ -676,9 +678,10 @@ void TgaWriter::Write(const Image& image, const uint8_t)
     constexpr char identity[] = "Truevision TGA file created by zexTGA";
     if (image.GetWidth() > INT16_MAX || image.GetHeight() > INT16_MAX)
         return;
-    if (HAS_FIELD(image.GetDataType(), ImageDataType::FLOAT_MASK))
+    const auto dstDType = image.GetDataType();
+    if (!dstDType.Is(ImgDType::DataTypes::Uint8))
         return;
-    if (image.GetDataType() == ImageDataType::GA)
+    if (dstDType == ImageDataType::GA)
         return;
     detail::TgaHeader header;
     
@@ -691,19 +694,20 @@ void TgaWriter::Write(const Image& image, const uint8_t)
     util::WordToLE(header.Width, (uint16_t)image.GetWidth());
     util::WordToLE(header.Height, (uint16_t)image.GetHeight());
     header.PixelDepth = image.GetElementSize() * 8;
-    header.ImageDescriptor = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK) ? 0x28 : 0x20;
+    header.ImageDescriptor = dstDType.HasAlpha() ? 0x28 : 0x20;
     
     Stream.Write(header);
     Stream.Write(identity);
     SimpleTimer timer;
     timer.Start();
     //next: true image data
-    if (image.IsGray())
-        TgaHelper::WriteRLEGray(image, Stream);
-    else if (HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK))
-        TgaHelper::WriteRLEColor4(image, Stream);
-    else
-        TgaHelper::WriteRLEColor3(image, Stream);
+    switch (dstDType.ChannelCount())
+    {
+    case 1: TgaHelper::WriteRLEGray  (image, Stream); break;
+    case 3: TgaHelper::WriteRLEColor3(image, Stream); break;
+    case 4: TgaHelper::WriteRLEColor4(image, Stream); break;
+    default: Ensures(false);
+    }
     timer.Stop();
     ImgLog().Debug(u"zextga write cost {} ms\n", timer.ElapseMs());
 }

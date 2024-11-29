@@ -183,13 +183,14 @@ const CtxFuncs* CtxFuncs::PrepareCurrent(const GLHost& host, void* hRC, std::pai
 
 void oglUtil::InJectRenderDoc(const common::fs::path& dllPath)
 {
+    std::error_code ec;
 #if COMMON_OS_WIN
-    if (common::fs::exists(dllPath))
+    if (common::fs::exists(dllPath, ec))
         LoadLibrary(dllPath.c_str());
     else
         LoadLibrary(L"renderdoc.dll");
 #else
-    if (common::fs::exists(dllPath))
+    if (common::fs::exists(dllPath, ec))
         dlopen(dllPath.c_str(), RTLD_LAZY);
     else
         dlopen("renderdoc.dll", RTLD_LAZY);

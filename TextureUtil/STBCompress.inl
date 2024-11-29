@@ -22,7 +22,8 @@
 namespace oglu::texutil::detail::stb
 {
 using xziar::img::ImageView;
-using xziar::img::ImageDataType;
+using xziar::img::ImgDType;
+namespace ImageDataType = xziar::img::ImageDataType;
 
 //SIMD optimized according to stb's implementation
 static forceinline void CompressBC5Block(uint8_t * __restrict dest, uint8_t * __restrict buffer)
@@ -326,22 +327,23 @@ public:
 
 static common::AlignedBuffer CompressBC5(const ImageView& img)
 {
-    if (HAS_FIELD(img.GetDataType(), ImageDataType::FLOAT_MASK))
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"float data type not supported in BC5");
+    const auto dataType = img.GetDataType();
+    if (!dataType.Is(ImgDType::DataTypes::Uint8))
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"non-uint8 data type not supported in BC5");
 
     BCBlock block;
-    switch (img.GetDataType())
+    switch (img.GetDataType().Value)
     {
-    case ImageDataType::RGBA:
+    case ImageDataType::RGBA.Value:
         //return block.EachBlock(img, 16, BCBlock::RGBA2RG, stb_compress_bc5_block);
         return block.EachBlock(img, 16, BCBlock::RGBA2RG, CompressBC5Block);
-    case ImageDataType::RGB:
+    case ImageDataType::RGB.Value:
         //return block.EachBlock(img, 16, BCBlock::RGB2RG, stb_compress_bc5_block);
         return block.EachBlock(img, 16, BCBlock::RGB2RG, CompressBC5Block);
-    case ImageDataType::RA:
+    case ImageDataType::RA.Value:
         //return block.EachBlock(img, 16, BCBlock::RG2RG, stb_compress_bc5_block);
         return block.EachBlock(img, 16, BCBlock::RG2RG, CompressBC5Block);
-    case ImageDataType::GRAY:
+    case ImageDataType::GRAY.Value:
         //return block.EachBlock(img, 16, BCBlock::R2RG, stb_compress_bc5_block);
         return block.EachBlock(img, 16, BCBlock::R2RG, CompressBC5Block);
     default:

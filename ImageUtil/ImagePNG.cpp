@@ -128,13 +128,12 @@ bool PngReader::Validate()
     return !png_sig_cmp(buf, 0, PNG_BYTES_TO_CHECK);
 }
 
-Image PngReader::Read(const ImageDataType dataType)
+Image PngReader::Read(const ImgDType dataType)
 {
     auto pngStruct = (png_structp)PngStruct;
     auto pngInfo = (png_infop)PngInfo;
     Image image(dataType);
-    if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
-        //NotSupported Yet
+    if (!dataType.Is(ImgDType::DataTypes::Uint8))
         return image;
     Stream.SetPos(0);
 
@@ -187,16 +186,16 @@ Image PngReader::Read(const ImageDataType dataType)
     if (png_get_valid(pngStruct, pngInfo, PNG_INFO_tRNS) != 0)
         png_set_tRNS_to_alpha(pngStruct);
     /* Strip alpha bytes from the input data */
-    if (!HAS_FIELD(dataType, ImageDataType::ALPHA_MASK))
+    if (!dataType.HasAlpha())
         png_set_strip_alpha(pngStruct);
     /* Swap the RGBA or GA data to ARGB or AG (or BGRA to ABGR) */
-    if (REMOVE_MASK(dataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::BGR)
+    if (dataType.IsBGROrder())
         png_set_swap_alpha(pngStruct);
 
     //handle interlace
     const uint32_t passes = (interlaceType == PNG_INTERLACE_NONE) ? 1 : png_set_interlace_handling(pngStruct);
     png_start_read_image(pngStruct);
-    const bool needAlpha = HAS_FIELD(dataType, ImageDataType::ALPHA_MASK) && (colorType & PNG_COLOR_MASK_ALPHA) == 0;
+    const bool needAlpha = dataType.HasAlpha() && (colorType & PNG_COLOR_MASK_ALPHA) == 0;
     ReadPng(PngStruct, passes, image, needAlpha, !image.IsGray());
     png_read_end(pngStruct, pngInfo);
     return image;
@@ -226,19 +225,19 @@ void PngWriter::Write(const Image& image, const uint8_t quality)
     const auto compLevel = static_cast<uint16_t>(std::pow((quality - 1)*0.01, 8) * 10);
     auto pngStruct = (png_structp)PngStruct;
     auto pngInfo = (png_infop)PngInfo;
-    if (HAS_FIELD(image.GetDataType(), ImageDataType::FLOAT_MASK))
-        //NotSupported Yet
+    const auto dstDType = image.GetDataType();
+    if (!dstDType.Is(ImgDType::DataTypes::Uint8))
         return;
     Stream.SetPos(0);
 
-    const auto alphaMask = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK) ? PNG_COLOR_MASK_ALPHA : 0;
+    const auto alphaMask = dstDType.HasAlpha() ? PNG_COLOR_MASK_ALPHA : 0;
     const auto colorMask = image.IsGray() ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGB;
     const auto colorType = alphaMask | colorMask;
     png_set_IHDR(pngStruct, pngInfo, image.GetWidth(), image.GetHeight(), 8, colorType, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
     png_set_compression_level(pngStruct, compLevel);
     png_write_info(pngStruct, pngInfo);
 
-    if (REMOVE_MASK(image.GetDataType(), ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::BGR)
+    if (dstDType.IsBGROrder())
         png_set_swap_alpha(pngStruct);
 
     auto ptrs = image.GetRowPtrs();

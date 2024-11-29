@@ -11,8 +11,9 @@ using common::asyexe::AsyncAgent;
 using oglu::oglTex2D;
 using xziar::img::Image;
 using xziar::img::ImageView;
-using xziar::img::ImageDataType;
+using xziar::img::ImgDType;
 using oglu::texutil::ResizeMethod;
+namespace ImageDataType = xziar::img::ImageDataType;
 
 
 static std::variant<uint8_t, std::pair<uint16_t, uint16_t>> CalcSize(const TexHolder& holder)

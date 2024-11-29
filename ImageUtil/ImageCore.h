@@ -12,16 +12,102 @@ namespace xziar::img
 {
 
 
-//[has-alpha|float|RGB channel]
-//[****7****|**6**|1.........0]
-enum class ImageDataType : uint8_t
+struct ImgDType
 {
-    ALPHA_MASK = 0x80, FLOAT_MASK = 0x40, EMPTY_MASK = 0x0, UNKNOWN_RESERVE = 0xff,
-    RGB = 0, RGBA = RGB | ALPHA_MASK, RGBf = RGB | FLOAT_MASK, RGBAf = RGBA | FLOAT_MASK,
-    BGR = 1, BGRA = BGR | ALPHA_MASK, BGRf = BGR | FLOAT_MASK, BGRAf = BGRA | FLOAT_MASK,
-    GRAY = 2, RED = GRAY, GA = GRAY | ALPHA_MASK, RA = GA, GRAYf = GRAY | FLOAT_MASK, REDf = GRAYf, GAf = GA | FLOAT_MASK, RAf = GAf,
+    enum class Channels : uint8_t { R = 0b000, RA = 0b001, RGB = 0b010, RGBA = 0b011, BGR = 0b110, BGRA = 0b111 };
+    enum class DataTypes : uint8_t { Composed = 0, Uint8 = 1, Fixed16 = 2, Float16 = 4, Float32 = 5 };
+
+    static constexpr bool IsBGROrder(Channels ch) noexcept { return (::common::enum_cast(ch) & 0b100); }
+    static constexpr uint32_t DataTypeToSize(DataTypes type) noexcept
+    {
+        switch (type)
+        {
+        case DataTypes::Uint8:   return 1;
+        case DataTypes::Fixed16: return 2;
+        case DataTypes::Float16: return 2;
+        case DataTypes::Float32: return 4;
+        default:                 return 0;
+        }
+    }
+    static constexpr bool IsFloat(DataTypes type) noexcept
+    {
+        switch (type)
+        {
+        case DataTypes::Float16: return true;
+        case DataTypes::Float32: return true;
+        default:                 return false;
+        }
+    }
+    //[dtype|rev|channel]
+    //[6...3|*2*|1.....0]
+    uint8_t Value;
+    constexpr ImgDType() noexcept : Value(0) {}
+    explicit constexpr ImgDType(Channels ch, DataTypes dt) noexcept : Value{ static_cast<uint8_t>(::common::enum_cast(ch) | (::common::enum_cast(dt) << 3)) } {}
+    explicit operator bool() const noexcept { return Value != 0; }
+    constexpr bool operator==(const ImgDType& rhs) const noexcept { return Value == rhs.Value; }
+    constexpr bool operator!=(const ImgDType& rhs) const noexcept { return Value != rhs.Value; }
+    constexpr Channels Channel() const noexcept { return static_cast<Channels>(Value & 0b111); }
+    constexpr DataTypes DataType() const noexcept { return static_cast<DataTypes>((Value >> 3) & 0b111); }
+    constexpr bool HasAlpha() const noexcept { return (Value & 0b1) == 1; /*ChannelCount() % 2 == 0*/ }
+    constexpr uint32_t ChannelCount() const noexcept { return (Value & 0b11) + 1; }
+    constexpr uint32_t DataTypeSize() const noexcept { return DataTypeToSize(DataType()); }
+    constexpr uint32_t ElementSize() const noexcept
+    {
+        if (DataType() != DataTypes::Composed) return DataTypeSize() * ChannelCount();
+        return 0;
+    }
+    constexpr bool IsFloat() const noexcept { return IsFloat(DataType()); }
+    constexpr bool IsBGROrder() const noexcept { return IsBGROrder(Channel()); }
+    constexpr bool Is(Channels ch) const noexcept { return Channel() == ch; }
+    constexpr bool Is(DataTypes dt) const noexcept { return DataType() == dt; }
+
+    constexpr ImgDType& SetDatatype(DataTypes dt) noexcept
+    {
+        *this = ImgDType(Channel(), dt);
+        return *this;
+    }
+    constexpr ImgDType& SetChannels(Channels ch) noexcept
+    {
+        *this = ImgDType(ch, DataType());
+        return *this;
+    }
+    constexpr ImgDType& SetChannelCount(uint8_t count) noexcept
+    {
+        Expects(count > 0 && count < 5);
+        Value = static_cast<uint8_t>((Value & 0xfc) | (count - 1));
+        return *this;
+    }
 };
-MAKE_ENUM_BITFIELD(ImageDataType)
+namespace ImageDataType
+{
+#define IMG_DT(name, ch, dt) inline constexpr ImgDType name = ImgDType(ImgDType::Channels::ch, ImgDType::DataTypes::dt)
+IMG_DT(RGBA,  RGBA, Uint8);
+IMG_DT(BGRA,  BGRA, Uint8);
+IMG_DT(RGB,   RGB,  Uint8);
+IMG_DT(BGR,   BGR,  Uint8);
+IMG_DT(GA,    RA,   Uint8);
+IMG_DT(RA,    RA,   Uint8);
+IMG_DT(GRAY,  R,    Uint8);
+IMG_DT(RED,   R,    Uint8);
+IMG_DT(RGBAf, RGBA, Float32);
+IMG_DT(BGRAf, BGRA, Float32);
+IMG_DT(RGBf,  RGB,  Float32);
+IMG_DT(BGRf,  BGR,  Float32);
+IMG_DT(GAf,   RA,   Float32);
+IMG_DT(RAf,   RA,   Float32);
+IMG_DT(GRAYf, R,    Float32);
+IMG_DT(REDf,  R,    Float32);
+IMG_DT(RGBAh, RGBA, Float16);
+IMG_DT(BGRAh, BGRA, Float16);
+IMG_DT(RGBh,  RGB,  Float16);
+IMG_DT(BGRh,  BGR,  Float16);
+IMG_DT(GAh,   RA,   Float16);
+IMG_DT(RAh,   RA,   Float16);
+IMG_DT(GRAYh, R,    Float16);
+IMG_DT(REDh,  R,    Float16);
+#undef IMG_DT
+}
+
 
 class ImageView;
 /*Custom Image Data Holder, with pixel data alignment promise*/
@@ -32,7 +118,7 @@ private:
     void ResetSize(const uint32_t width, const uint32_t height);
 protected:
     uint32_t Width, Height;
-    ImageDataType DataType;
+    ImgDType DataType;
     uint8_t ElementSize;
     void CheckSizeLegal() const
     {
@@ -40,16 +126,16 @@ protected:
             COMMON_THROW(common::BaseException, u"Size not match");
     }
 public:
-    [[nodiscard]] static constexpr uint8_t GetElementSize(const ImageDataType dataType) noexcept;
-    [[nodiscard]] static Image CombineChannels(const ImageDataType dataType, common::span<const ImageView> channels);
-    Image(const ImageDataType dataType = ImageDataType::RGBA) noexcept : Width(0), Height(0), DataType(dataType), ElementSize(GetElementSize(DataType))
+    [[nodiscard]] static constexpr uint8_t GetElementSize(const ImgDType dataType) noexcept { return static_cast<uint8_t>(dataType.ElementSize()); }
+    [[nodiscard]] static Image CombineChannels(const ImgDType dataType, common::span<const ImageView> channels);
+    Image(const ImgDType dataType = ImageDataType::RGBA) noexcept : Width(0), Height(0), DataType(dataType), ElementSize(GetElementSize(DataType))
     { }
-    Image(const common::AlignedBuffer& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)
+    Image(const common::AlignedBuffer& data, const uint32_t width, const uint32_t height, const ImgDType dataType = ImageDataType::RGBA)
         : common::AlignedBuffer(data), Width(width), Height(height), DataType(dataType), ElementSize(GetElementSize(DataType))
     {
         CheckSizeLegal();
     }
-    Image(common::AlignedBuffer&& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)
+    Image(common::AlignedBuffer&& data, const uint32_t width, const uint32_t height, const ImgDType dataType = ImageDataType::RGBA)
         : common::AlignedBuffer(std::move(data)), Width(width), Height(height), DataType(dataType), ElementSize(GetElementSize(DataType))
     {
         CheckSizeLegal();
@@ -57,10 +143,10 @@ public:
 
     using common::AlignedBuffer::GetSize;
     using common::AlignedBuffer::AsSpan;
-    [[nodiscard]] uint32_t      GetWidth()       const noexcept { return Width;       }
-    [[nodiscard]] uint32_t      GetHeight()      const noexcept { return Height;      }
-    [[nodiscard]] ImageDataType GetDataType()    const noexcept { return DataType;    }
-    [[nodiscard]] uint8_t       GetElementSize() const noexcept { return ElementSize; }
+    [[nodiscard]] uint32_t GetWidth()       const noexcept { return Width;       }
+    [[nodiscard]] uint32_t GetHeight()      const noexcept { return Height;      }
+    [[nodiscard]] ImgDType GetDataType()    const noexcept { return DataType;    }
+    [[nodiscard]] uint8_t  GetElementSize() const noexcept { return ElementSize; }
     [[nodiscard]] size_t RowSize()    const noexcept { return static_cast<size_t>(Width) * ElementSize; }
     [[nodiscard]] size_t PixelCount() const noexcept { return static_cast<size_t>(Width) * Height; }
     void SetSize(const uint32_t width, const uint32_t height, const bool zero = true)
@@ -78,7 +164,7 @@ public:
     {
         SetSize(static_cast<uint32_t>(std::get<0>(size)), static_cast<uint32_t>(std::get<1>(size)), zero);
     }
-    [[nodiscard]] bool IsGray() const noexcept { return REMOVE_MASK(DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::GRAY; }
+    [[nodiscard]] constexpr bool IsGray() const noexcept { return DataType.Channel() == ImgDType::Channels::R; }
 
     template<typename T = std::byte>
     [[nodiscard]] T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) noexcept
@@ -145,8 +231,8 @@ public:
     ///<param name="height">height</param>
     Image ResizeTo(uint32_t width, uint32_t height, const bool isSRGB = false, const bool mulAlpha = true) const;
     [[nodiscard]] Image Region(const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
-    [[nodiscard]] Image ConvertTo(const ImageDataType dataType, const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
-    [[nodiscard]] Image ConvertToFloat(const float floatRange = 1) const;
+    [[nodiscard]] Image ConvertTo(const ImgDType dataType, const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
+    [[nodiscard]] Image ConvertToFloat(const ImgDType::DataTypes dataType, const float floatRange = 1) const;
     ///<summary>Pick single channel from image</summary>  
     ///<param name="channel">channel</param>
     [[nodiscard]] Image ExtractChannel(uint8_t channel, bool keepAlpha = false) const;
@@ -228,26 +314,6 @@ public:
         return pointers;
     }
 };
-
-constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType) noexcept
-{
-    const uint8_t baseSize = HAS_FIELD(dataType, ImageDataType::FLOAT_MASK) ? 4 : 1;
-    switch (REMOVE_MASK(dataType, ImageDataType::FLOAT_MASK))
-    {
-    case ImageDataType::BGR:
-    case ImageDataType::RGB:
-        return 3 * baseSize;
-    case ImageDataType::BGRA:
-    case ImageDataType::RGBA:
-        return 4 * baseSize;
-    case ImageDataType::GA:
-        return 2 * baseSize;
-    case ImageDataType::GRAY:
-        return 1 * baseSize;
-    default:
-        return 0;
-    }
-}
 
 }
 

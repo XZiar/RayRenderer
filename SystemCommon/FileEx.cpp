@@ -110,7 +110,8 @@ FileObject::~FileObject()
 #endif
 static std::variant<FILE*, ErrType> TryOpen(const fs::path& path, const OpenFlag flag)
 {
-    if (!fs::exists(path) && !HAS_FIELD(flag, OpenFlag::FLAG_CREATE))
+    std::error_code ec;
+    if (!fs::exists(path, ec) && !HAS_FIELD(flag, OpenFlag::FLAG_CREATE))
         return ENOENT;
     FILE* fp = nullptr;
 #if COMMON_OS_WIN

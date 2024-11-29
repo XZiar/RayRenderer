@@ -140,22 +140,37 @@ bool NdkReader::Validate()
     Format = format;
     return true;
 }
-Image NdkReader::Read(ImageDataType dataType)
+Image NdkReader::Read(ImgDType dataType)
 {
     const auto decoder = reinterpret_cast<AImageDecoder*>(Decoder);
-    ImageDataType origType = ImageDataType::UNKNOWN_RESERVE;
+    ImgDType origType;
+    bool isGray = false;
+    bool isFloat = false;
     switch (Format)
     {
-    case ANDROID_BITMAP_FORMAT_RGBA_8888: origType = ImageDataType::RGBA;  break;
-    case ANDROID_BITMAP_FORMAT_A_8:       origType = ImageDataType::GRAY;  break;
-    case ANDROID_BITMAP_FORMAT_RGBA_F16:  origType = ImageDataType::RGBAf; break;
+    case ANDROID_BITMAP_FORMAT_RGBA_8888:
+        isGray = false; isFloat = false;
+        origType = ImageDataType::RGBA;
+        break;
+    case ANDROID_BITMAP_FORMAT_A_8:
+        isGray = true; isFloat = false;
+        origType = ImageDataType::GRAY;
+        break;
+    case ANDROID_BITMAP_FORMAT_RGBA_F16:
+        isGray = false; isFloat = true;
+        origType = ImageDataType::RGBAh;
+        break;
     case ANDROID_BITMAP_FORMAT_RGB_565:
-        if (const auto baseType = REMOVE_MASK(dataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK); baseType != ImageDataType::RGB && baseType != ImageDataType::BGR)
-            return {};
-        origType = REMOVE_MASK(dataType, ImageDataType::FLOAT_MASK);
+        isGray = false; isFloat = false;
+        origType = ImgDType{ dataType.Channel(), ImgDType::DataTypes::Uint8 };
         break;
     default: Expects(false); return {};
     }
+    if (!isGray && dataType.ChannelCount() < 3)
+        return {};
+    if (isFloat != dataType.IsFloat())
+        return {};
+
     Image image(origType);
     image.SetSize(Width, Height);
 
@@ -175,17 +190,16 @@ Image NdkReader::Read(ImageDataType dataType)
         common::AlignedBuffer buffer(stride * Height);
         THROW_DEC(Support->Host, DecodeImg(decoder, buffer.GetRawPtr(), stride, buffer.GetSize()), u"Failed to decode image");
         const auto& cvter = ColorConvertor::Get();
-        const auto baseType = REMOVE_MASK(dataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK);
-        if (HAS_FIELD(dataType, ImageDataType::ALPHA_MASK))
+        if (dataType.HasAlpha())
         {
-            if (baseType == ImageDataType::RGB)
+            if (!dataType.IsBGROrder())
                 cvter.RGB565ToRGBA(image.GetRawPtr<uint32_t>(), buffer.GetRawPtr<uint16_t>(), Width * Height);
             else
                 cvter.BGR565ToRGBA(image.GetRawPtr<uint32_t>(), buffer.GetRawPtr<uint16_t>(), Width * Height);
         }
         else
         {
-            if (baseType == ImageDataType::RGB)
+            if (!dataType.IsBGROrder())
                 cvter.RGB565ToRGB(image.GetRawPtr<uint8_t>(), buffer.GetRawPtr<uint16_t>(), Width * Height);
             else
                 cvter.BGR565ToRGB(image.GetRawPtr<uint8_t>(), buffer.GetRawPtr<uint16_t>(), Width * Height);
@@ -194,10 +208,20 @@ Image NdkReader::Read(ImageDataType dataType)
     case ANDROID_BITMAP_FORMAT_RGBA_F16:
     {
         // FP16 -> FP32
-        Ensures(stride * 2 == image.GetElementSize() * image.GetWidth());
-        common::AlignedBuffer tmp(image.GetSize() / 2);
-        THROW_DEC(Support->Host, DecodeImg(decoder, tmp.GetRawPtr(), stride, tmp.GetSize()), u"Failed to decode image");
-        common::CopyEx.CopyFloat(image.GetRawPtr<float>(), tmp.GetRawPtr<uint16_t>(), Width * Height);
+        Ensures(stride == image.GetElementSize() * image.GetWidth());
+        THROW_DEC(Support->Host, DecodeImg(decoder, image.GetRawPtr(), stride, image.GetSize()), u"Failed to decode image");
+        if (dataType.DataType() != origType.DataType())
+        {
+            if (dataType.DataType() == ImgDType::DataTypes::Float32)
+            {
+                Image newimg(ImgDType{ origType.Channel(), dataType.DataType() });
+                newimg.SetSize(Width, Height, false);
+                common::CopyEx.CopyFloat(newimg.GetRawPtr<float>(), image.GetRawPtr<uint16_t>(), Width * Height);
+                image = std::move(newimg);
+            }
+            else
+                return {};
+        }
     } break;
     default: Expects(false); return {};
     }
@@ -221,6 +245,8 @@ static bool NdkWriterFunc(void* userContext, const void* data, size_t size)
 
 void NdkWriter::Write(const Image& image, const uint8_t quality)
 {
+    if (!image.GetDataType().Is(ImgDType::DataTypes::Uint8))
+        return;
     ImageView view(image);
     AndroidBitmapFormat dataFormat = ANDROID_BITMAP_FORMAT_NONE;
     if (view.GetDataType() == ImageDataType::GRAY)
@@ -284,7 +310,7 @@ std::unique_ptr<ImgWriter> NdkSupport::GetWriter(common::io::RandomOutputStream&
     return std::make_unique<NdkWriter>(shared_from_this(), stream, format);
 }
 
-uint8_t NdkSupport::MatchExtension(std::u16string_view ext, ImageDataType datatype, const bool isRead) const
+uint8_t NdkSupport::MatchExtension(std::u16string_view ext, ImgDType datatype, const bool isRead) const
 {
     if (isRead)
     {
@@ -293,7 +319,7 @@ uint8_t NdkSupport::MatchExtension(std::u16string_view ext, ImageDataType dataty
     }
     else
     {
-        if (HAS_FIELD(datatype, ImageDataType::FLOAT_MASK))
+        if (!datatype.Is(ImgDType::DataTypes::Uint8))
             return 0;
         if (ext == u"JPG"sv || ext == u"JPEG"sv || ext == u"PNG"sv || ext == u"WEBP"sv)
             return 128;

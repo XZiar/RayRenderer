@@ -34,7 +34,14 @@ protected:
         using namespace oglu;
         if (UpdateDemand.Extract(FontUpdate::FONT))
         {
-            FontCreator->reloadFont(FontPath);
+            try
+            {
+                FontCreator->reloadFont(FontPath);
+            }
+            catch (const BaseException&)
+            {
+                //dizzLog().Error(u"Font Construct failure:\n{}\n", be.Message());
+            }
         }
         if (UpdateDemand.Extract(FontUpdate::TARGET))
         {

@@ -11,9 +11,10 @@ using common::BaseException;
 using common::SimpleTimer;
 using common::fs::path;
 using xziar::img::Image;
-using xziar::img::ImageDataType;
+using xziar::img::ImgDType;
 using xziar::img::TextureFormat;
 using namespace oclu;
+namespace ImageDataType = xziar::img::ImageDataType;
 
 
 struct FontInfo

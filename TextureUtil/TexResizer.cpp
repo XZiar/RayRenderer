@@ -147,7 +147,7 @@ static string_view GetSubroutine(const TextureFormat, const TextureFormat output
 }
 
 
-PromiseResult<Image> TexResizer::ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const ImageDataType format)
+PromiseResult<Image> TexResizer::ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const ImgDType format)
 {
     return Worker->AddTask([pmsTex, format](const common::asyexe::AsyncAgent& agent)
     {
@@ -237,18 +237,18 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::Comput
 }
 
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImgDType output, const bool flipY)
 {
     return ExtractImage(ResizeToTex<ResizeMethod::OpenGL>(tex, width, height, TexFormatUtil::FromImageDType(output, true), flipY), output);
 }
 
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImgDType output, const bool flipY)
 {
     return ExtractImage(ResizeToTex<ResizeMethod::Compute>(tex, width, height, TexFormatUtil::FromImageDType(output, true), flipY), output);
 }
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const oclu::oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const oclu::oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const ImgDType output, const bool flipY)
 {
     return Worker->AddTask([=, this](const common::asyexe::AsyncAgent& agent)
     {
@@ -258,7 +258,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(co
     });
 }
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const oclu::oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const oclu::oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const ImgDType output, const bool flipY)
 {
     return Worker->AddTask([=, this](const common::asyexe::AsyncAgent& agent)
     {
@@ -268,14 +268,14 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(c
     });
 }
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const ImgDType output, const bool flipY)
 {
     return Worker->AddTask([=, this](const common::asyexe::AsyncAgent& agent)
     {
         if (isSRGB)
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"sRGB texture is not supported on OpenCL");
-        const auto& ker = HAS_FIELD(output, ImageDataType::ALPHA_MASK) ? KerToDat4 : KerToDat3;
-        const auto eleSize = HAS_FIELD(output, ImageDataType::ALPHA_MASK) ? 4 : 3;
+        const auto& ker = output.HasAlpha() ? KerToDat4 : KerToDat3;
+        const auto eleSize = output.HasAlpha() ? 4 : 3;
         common::AlignedBuffer buffer(width*height*eleSize, 4096);
         auto outBuf = oclBuffer_::Create(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost, buffer.GetSize(), buffer.GetRawPtr());
         ImageInfo info{ img->Width, img->Height, width, height, 1.0f / width, 1.0f / height };
@@ -286,7 +286,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
         texLog().Success(u"CLTexResizer Kernel runs {}us.\n", pms->ElapseNs() / 1000);
         outBuf->Flush(CmdQue);
         outBuf.reset();
-        Image result(std::move(buffer), width, height, HAS_FIELD(output, ImageDataType::ALPHA_MASK) ? ImageDataType::RGBA : ImageDataType::RGB);
+        Image result(std::move(buffer), width, height, output.HasAlpha() ? ImageDataType::RGBA : ImageDataType::RGB);
         if (flipY)
             result.FlipVertical();
         if (result.GetDataType() != output)
@@ -295,7 +295,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
     });
 }
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImgDType output, const bool flipY)
 {
     return Worker->AddTask([=, this](const common::asyexe::AsyncAgent& agent) 
     {
@@ -308,7 +308,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
     });
 }
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const ImageView& img, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const ImageView& img, const uint16_t width, const uint16_t height, const ImgDType output, const bool flipY)
 {
     return Worker->AddTask([=, this](const common::asyexe::AsyncAgent& agent)
     {
@@ -333,7 +333,7 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenCL
     });
 }
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const ImageView& img, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const ImageView& img, const uint16_t width, const uint16_t height, const ImgDType output, const bool flipY)
 {
     return Worker->AddTask([=, this](const common::asyexe::AsyncAgent& agent)
     {
@@ -345,7 +345,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(c
     });
 }
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const ImageView& img, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const ImageView& img, const uint16_t width, const uint16_t height, const ImgDType output, const bool flipY)
 {
     return Worker->AddTask([=, this](const common::asyexe::AsyncAgent& agent)
     {
@@ -357,7 +357,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
 }
 
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat, const uint16_t width, const uint16_t height, const ImgDType output, const bool flipY)
 {
     return Worker->AddTask([=, this](const common::asyexe::AsyncAgent& agent)
     {
@@ -368,7 +368,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(co
     });
 }
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat, const uint16_t width, const uint16_t height, const ImgDType output, const bool flipY)
 {
     return Worker->AddTask([=, this](const common::asyexe::AsyncAgent& agent)
     {
@@ -379,7 +379,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(c
     });
 }
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat, const uint16_t width, const uint16_t height, const ImgDType output, const bool flipY)
 {
     return Worker->AddTask([=, this](const common::asyexe::AsyncAgent& agent)
     {

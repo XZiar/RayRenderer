@@ -10,7 +10,7 @@ using std::u16string;
 using std::u16string_view;
 using std::optional;
 using std::vector;
-using xziar::img::ImageDataType;
+using xziar::img::ImgDType;
 using xziar::img::TextureFormat;
 using xziar::img::TexFormatUtil;
 using xziar::img::Image;
@@ -311,7 +311,7 @@ vector<uint8_t> oglTex2D_::GetData(const TextureFormat format, const uint8_t lev
     return output;
 }
 
-Image oglTex2D_::GetImage(const ImageDataType format, const bool flipY, const uint8_t level)
+Image oglTex2D_::GetImage(const ImgDType format, const bool flipY, const uint8_t level)
 {
     CheckMipmapLevel(level);
     CheckCurrent();
@@ -948,21 +948,24 @@ bool OGLTexUtil::ParseFormat(const TextureFormat format, const bool isUpload, GL
     }
     return true;
 }
-bool OGLTexUtil::ParseFormat(const ImageDataType format, const bool normalized, GLenum& datatype, GLenum& comptype) noexcept
+bool OGLTexUtil::ParseFormat(const ImgDType format, const bool normalized, GLenum& datatype, GLenum& comptype) noexcept
 {
-    if (HAS_FIELD(format, ImageDataType::FLOAT_MASK))
-        datatype = GL_FLOAT;
-    else
-        datatype = GL_UNSIGNED_BYTE;
-    switch (REMOVE_MASK(format, ImageDataType::FLOAT_MASK))
+    switch (format.DataType())
     {
-    case ImageDataType::GRAY:   comptype = normalized ? GL_RED  : GL_RED_INTEGER; break;
-    case ImageDataType::RA:     comptype = normalized ? GL_RG   : GL_RG_INTEGER; break;
-    case ImageDataType::RGB:    comptype = normalized ? GL_RGB  : GL_RGB_INTEGER; break;
-    case ImageDataType::BGR:    comptype = normalized ? GL_BGR  : GL_BGR_INTEGER; break;
-    case ImageDataType::RGBA:   comptype = normalized ? GL_RGBA : GL_RGBA_INTEGER; break;
-    case ImageDataType::BGRA:   comptype = normalized ? GL_BGRA : GL_BGRA_INTEGER; break;
-    default:                    return false;
+    case ImgDType::DataTypes::Uint8:    datatype = GL_UNSIGNED_BYTE; break;
+    case ImgDType::DataTypes::Float32:  datatype = GL_FLOAT; break;
+    case ImgDType::DataTypes::Float16:  datatype = GL_HALF_FLOAT; break;
+    default:                            return false;
+    }
+    switch (format.Channel())
+    {
+    case ImgDType::Channels::R:     comptype = normalized ? GL_RED  : GL_RED_INTEGER; break;
+    case ImgDType::Channels::RA:    comptype = normalized ? GL_RG   : GL_RG_INTEGER; break;
+    case ImgDType::Channels::RGB:   comptype = normalized ? GL_RGB  : GL_RGB_INTEGER; break;
+    case ImgDType::Channels::BGR:   comptype = normalized ? GL_BGR  : GL_BGR_INTEGER; break;
+    case ImgDType::Channels::RGBA:  comptype = normalized ? GL_RGBA : GL_RGBA_INTEGER; break;
+    case ImgDType::Channels::BGRA:  comptype = normalized ? GL_BGRA : GL_BGRA_INTEGER; break;
+    default:                        return false;
     }
     return true;
 }

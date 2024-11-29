@@ -114,8 +114,10 @@ bool StbReader::Validate()
     return true;
 }
 
-Image StbReader::Read(ImageDataType dataType)
+Image StbReader::Read(ImgDType dataType)
 {
+    if (!dataType.Is(ImgDType::DataTypes::Uint8))
+        COMMON_THROW(BaseException, u"unsupported datatype");
     //const int32_t reqComp = Image::GetElementSize(dataType);
     int32_t width, height, comp;
     stbi__result_info resInfo;
@@ -141,7 +143,7 @@ Image StbReader::Read(ImageDataType dataType)
         COMMON_THROW(BaseException, common::str::to_u16string(stbi_failure_reason()));
     }
 
-    ImageDataType retType;
+    ImgDType retType;
     switch (comp)
     {
     case 1: retType = ImageDataType::GRAY; break;
@@ -203,13 +205,10 @@ void StbWriter::Write(const Image& image, const uint8_t quality)
 {
     ImageView view(image);
     const auto origType = image.GetDataType();
-    if (REMOVE_MASK(origType, ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK) == ImageDataType::BGR) // STB always writes RGB order
-    {
-        auto target = ImageDataType::RGB;
-        if (HAS_FIELD(origType, ImageDataType::FLOAT_MASK)) target |= ImageDataType::FLOAT_MASK;
-        if (HAS_FIELD(origType, ImageDataType::ALPHA_MASK)) target |= ImageDataType::ALPHA_MASK;
-        view = view.ConvertTo(target);
-    }
+    if (!origType.Is(ImgDType::DataTypes::Uint8))
+        return;
+    if (origType.IsBGROrder()) // STB always writes RGB order
+        view = view.ConvertTo(ImgDType{ origType.HasAlpha() ? ImgDType::Channels::RGBA : ImgDType::Channels::RGB , origType.DataType()});
 
     const auto width = static_cast<int32_t>(view.GetWidth()), height = static_cast<int32_t>(view.GetHeight());
     const int32_t reqComp = Image::GetElementSize(view.GetDataType());
@@ -227,7 +226,7 @@ void StbWriter::Write(const Image& image, const uint8_t quality)
 }
 
 
-uint8_t StbSupport::MatchExtension(std::u16string_view ext, ImageDataType datatype, const bool isRead) const
+uint8_t StbSupport::MatchExtension(std::u16string_view ext, ImgDType datatype, const bool isRead) const
 {
     if (isRead)
     {
@@ -238,7 +237,7 @@ uint8_t StbSupport::MatchExtension(std::u16string_view ext, ImageDataType dataty
     }
     else
     {
-        if (HAS_FIELD(datatype, ImageDataType::FLOAT_MASK))
+        if (!datatype.Is(ImgDType::DataTypes::Uint8))
             return 0;
         if (ext == u"JPG" || ext == u"JPEG" || ext == u"PNG" || ext == u"BMP" || ext == u"TGA")
             return 128;

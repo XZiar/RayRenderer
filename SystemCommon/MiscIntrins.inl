@@ -1113,10 +1113,11 @@ struct Sha256Round_SHANIAVX2 : public Sha256Round_SHANI
         msg2 = _mm_sha256msg1_epu32(msg2, msg3);
     }
 };
-DEFINE_FASTPATH_METHOD(Sha256, SHANIAVX2)
-{
-    return Sha256Main256<Sha256Round_SHANIAVX2>(data, size);
-}
+// skip since AVX2 does not bring perf and causes accuracy issue with zero_upper
+//DEFINE_FASTPATH_METHOD(Sha256, SHANIAVX2)
+//{
+//    return Sha256Main256<Sha256Round_SHANIAVX2>(data, size);
+//}
 # endif
 #endif
 

@@ -24,7 +24,7 @@ public:
     JpegReader(common::io::RandomInputStream& stream);
     virtual ~JpegReader() override;
     [[nodiscard]] virtual bool Validate() override;
-    [[nodiscard]] virtual Image Read(ImageDataType dataType) override;
+    [[nodiscard]] virtual Image Read(ImgDType dataType) override;
 };
 
 class JpegWriter : public ImgWriter
@@ -55,7 +55,7 @@ public:
     {
         return std::make_unique<JpegWriter>(stream);
     }
-    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImageDataType, const bool) const final
+    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImgDType, const bool) const final
     { 
         return (ext == u"JPEG" || ext == u"JPG") ? 240 : 0;
     }

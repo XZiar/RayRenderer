@@ -32,10 +32,9 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, AlignedBuf
 {
     const auto width = image.GetWidth(), height = image.GetHeight();
     const auto dataType = image.GetDataType();
-    const auto baseDataType = REMOVE_MASK(dataType, ImageDataType::ALPHA_MASK);
-    const auto needAlpha = HAS_FIELD(dataType, ImageDataType::ALPHA_MASK);
+    const auto needAlpha = dataType.HasAlpha();
     const auto isRGB = HAS_FIELD(format, PixFormat::RGB), hasAlpha = HAS_FIELD(format, PixFormat::HasAlpha);
-    const auto needSwizzle = baseDataType != (isRGB ? ImageDataType::RGB : ImageDataType::BGR);
+    const auto needSwizzle = dataType.IsBGROrder() == isRGB;
     const size_t frowsize = rowbuffer.GetSize();
     const size_t irowsize = image.RowSize();
     const auto& cvter = ColorConvertor::Get();
@@ -269,13 +268,12 @@ bool BmpReader::Validate()
     return true;
 }
 
-Image BmpReader::Read(ImageDataType dataType)
+Image BmpReader::Read(ImgDType dataType)
 {
-    if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
-        return Image();
+    if (dataType.IsFloat()) return Image();
+    if (dataType.ChannelCount() < 3) return Image();
+    
     Image image(dataType);
-    if (image.IsGray())
-        return image;
     
     const int32_t h = util::ParseDWordLE(Info.Height);
     const bool needFlip = h > 0;
@@ -296,9 +294,9 @@ Image BmpReader::Read(ImageDataType dataType)
         Stream.Read(paletteCount * 4, palette.GetRawPtr());
         Stream.SetPos(util::ParseDWordLE(Header.Offset));
 
-        const auto baseDataType = REMOVE_MASK(dataType, ImageDataType::ALPHA_MASK);
-        const auto needAlpha = HAS_FIELD(dataType, ImageDataType::ALPHA_MASK);
-        const auto needSwizzle = baseDataType != ImageDataType::BGR;
+        const auto needAlpha = dataType.HasAlpha();
+        const auto needSwizzle = !dataType.IsBGROrder();
+
         const auto& cvter = ColorConvertor::Get();
 
         const auto bufptr = buffer.GetRawPtr<uint8_t>();
@@ -350,13 +348,14 @@ void BmpWriter::Write(const Image& image, const uint8_t)
 {
     if (image.GetWidth() > INT32_MAX || image.GetHeight() > INT32_MAX)
         return;
-    if (HAS_FIELD(image.GetDataType(), ImageDataType::FLOAT_MASK))
+    const auto dstDType = image.GetDataType();
+    if (!dstDType.Is(ImgDType::DataTypes::Uint8))
         return;
-    if (image.GetDataType() == ImageDataType::GA)
+    if (dstDType == ImageDataType::GA)
         return;
 
-    const bool isInputBGR = REMOVE_MASK(image.GetDataType(), ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK) == ImageDataType::BGR;
-    const bool needAlpha = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK);
+    const bool isInputBGR = dstDType.IsBGROrder();
+    const bool needAlpha = dstDType.HasAlpha();
 
     auto header = util::EmptyStruct<detail::BmpHeader>();
     header.Sig[0] = 'B', header.Sig[1] = 'M';

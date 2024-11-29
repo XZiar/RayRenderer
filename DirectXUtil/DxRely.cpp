@@ -93,7 +93,8 @@ void LoadPixDll(common::fs::path dllPath)
     auto& pixDll = GetPixDll();
     if (pixDll == nullptr)
     {
-        if (common::fs::exists(dllPath))
+        std::error_code ec;
+        if (common::fs::exists(dllPath, ec))
             pixDll = LoadLibrary(dllPath.replace_filename(L"WinPixEventRuntime.dll").c_str());
         else
             pixDll = LoadLibrary(L"WinPixEventRuntime.dll");
@@ -273,13 +274,14 @@ bool LoadPixDll(const common::fs::path& dllPath)
 }
 bool InJectRenderDoc(common::fs::path dllPath)
 {
+    std::error_code ec;
 #if COMMON_OS_WIN
-    if (common::fs::exists(dllPath))
+    if (common::fs::exists(dllPath, ec))
         return LoadLibrary(dllPath.replace_filename(L"renderdoc.dll").c_str()) != nullptr;
     else
         return LoadLibrary(L"renderdoc.dll") != nullptr;
 #else
-    if (common::fs::exists(dllPath))
+    if (common::fs::exists(dllPath, ec))
         return dlopen(dllPath.replace_filename("renderdoc.so").c_str(), RTLD_LAZY) != nullptr;
     else
         dlopen("renderdoc.so", RTLD_LAZY) != nullptr;

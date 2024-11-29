@@ -24,7 +24,7 @@ public:
     WicReader(std::shared_ptr<const WicSupport>&& support, common::com::PtrProxy<WICDecoder>&& decoder);
     virtual ~WicReader() override;
     [[nodiscard]] virtual bool Validate() override;
-    [[nodiscard]] virtual Image Read(ImageDataType dataType) override;
+    [[nodiscard]] virtual Image Read(ImgDType dataType) override;
 };
 
 class WicWriter : public ImgWriter
@@ -49,7 +49,7 @@ public:
     ~WicSupport() final;
     [[nodiscard]] std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, std::u16string_view) const final;
     [[nodiscard]] std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, std::u16string_view ext) const final;
-    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImageDataType dataType, const bool IsRead) const final;
+    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImgDType dataType, const bool IsRead) const final;
 };
 
 

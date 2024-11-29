@@ -146,22 +146,26 @@ struct TexFormatUtil
     {
         return HAS_FIELD(format, TextureFormat::CHANNEL_A);
     }
-    [[nodiscard]] constexpr static TextureFormat FromImageDType(const ImageDataType dtype, const bool normalized = true) noexcept
+    [[nodiscard]] constexpr static TextureFormat FromImageDType(const ImgDType dtype, const bool normalized = true) noexcept
     {
-        TextureFormat baseFormat = HAS_FIELD(dtype, ImageDataType::FLOAT_MASK) ?
-            TextureFormat::DTYPE_FLOAT :
-            TextureFormat::DTYPE_U8 |
-                (normalized ? TextureFormat::DTYPE_PLAIN_NORMALIZE : TextureFormat::DTYPE_PLAIN_RAW);
-        baseFormat |= TextureFormat::DTYPE_CAT_PLAIN | TextureFormat::MASK_SRGB;
-        switch (REMOVE_MASK(dtype, ImageDataType::FLOAT_MASK))
+        TextureFormat dtFormat = TextureFormat::MASK_DTYPE;
+        switch (dtype.DataType())
         {
-        case ImageDataType::RGB:    return baseFormat | TextureFormat::CHANNEL_RGB;
-        case ImageDataType::BGR:    return baseFormat | TextureFormat::CHANNEL_BGR;
-        case ImageDataType::RGBA:   return baseFormat | TextureFormat::CHANNEL_RGBA;
-        case ImageDataType::BGRA:   return baseFormat | TextureFormat::CHANNEL_BGRA;
-        case ImageDataType::GRAY:   return baseFormat | TextureFormat::CHANNEL_R;
-        case ImageDataType::GA:     return baseFormat | TextureFormat::CHANNEL_RG;
-        default:                    return TextureFormat::ERROR;
+        case ImgDType::DataTypes::Uint8:   dtFormat = TextureFormat::DTYPE_U8 | (normalized ? TextureFormat::DTYPE_PLAIN_NORMALIZE : TextureFormat::DTYPE_PLAIN_RAW); break;
+        case ImgDType::DataTypes::Float32: dtFormat = TextureFormat::DTYPE_FLOAT; break;
+        case ImgDType::DataTypes::Float16: dtFormat = TextureFormat::DTYPE_HALF; break;
+        default:                           return TextureFormat::ERROR;
+        }
+        const auto baseFormat = dtFormat | TextureFormat::DTYPE_CAT_PLAIN | TextureFormat::MASK_SRGB;
+        switch (dtype.Channel())
+        {
+        case ImgDType::Channels::RGB:   return baseFormat | TextureFormat::CHANNEL_RGB;
+        case ImgDType::Channels::BGR:   return baseFormat | TextureFormat::CHANNEL_BGR;
+        case ImgDType::Channels::RGBA:  return baseFormat | TextureFormat::CHANNEL_RGBA;
+        case ImgDType::Channels::BGRA:  return baseFormat | TextureFormat::CHANNEL_BGRA;
+        case ImgDType::Channels::R:     return baseFormat | TextureFormat::CHANNEL_R;
+        case ImgDType::Channels::RA:    return baseFormat | TextureFormat::CHANNEL_RG;
+        default:                        return TextureFormat::ERROR;
         }
     }
     [[nodiscard]] constexpr static uint8_t BitPerPixel(const TextureFormat dformat) noexcept
@@ -245,35 +249,36 @@ struct TexFormatUtil
             return 0;
         }
     }
-    [[nodiscard]] constexpr static ImageDataType ToImageDType(const TextureFormat format, const bool relaxConvert = false) noexcept
+    [[nodiscard]] constexpr static ImgDType ToImageDType(const TextureFormat format, const bool relaxConvert = false) noexcept
     {
         if ((format & TextureFormat::MASK_DTYPE_CAT) != TextureFormat::DTYPE_CAT_PLAIN)
-            return ImageDataType::UNKNOWN_RESERVE;
-        ImageDataType floatType = ImageDataType::EMPTY_MASK;
+            return {};
+        ImgDType::DataTypes dt;
         switch (format & TextureFormat::MASK_DTYPE)
         {
         case TextureFormat::DTYPE_I8 | TextureFormat::DTYPE_PLAIN_RAW:
         case TextureFormat::DTYPE_U8 | TextureFormat::DTYPE_PLAIN_RAW:
         case TextureFormat::DTYPE_I8:
-            if (!relaxConvert) return ImageDataType::UNKNOWN_RESERVE; 
+            if (!relaxConvert) return {};
             [[fallthrough]];
-        case TextureFormat::DTYPE_U8:       floatType = ImageDataType::EMPTY_MASK; break;
-        case TextureFormat::DTYPE_FLOAT:    floatType = ImageDataType::FLOAT_MASK; break;
-        default:                                return ImageDataType::UNKNOWN_RESERVE;
+        case TextureFormat::DTYPE_U8:       dt = ImgDType::DataTypes::Uint8; break;
+        case TextureFormat::DTYPE_FLOAT:    dt = ImgDType::DataTypes::Float32; break;
+        case TextureFormat::DTYPE_HALF:     dt = ImgDType::DataTypes::Float16; break;
+        default:                            return {};
         }
         switch (format & TextureFormat::MASK_CHANNEL)
         {
         case TextureFormat::CHANNEL_G:
         case TextureFormat::CHANNEL_B:
-            if (!relaxConvert) return ImageDataType::UNKNOWN_RESERVE;
+            if (!relaxConvert) return {};
             [[fallthrough]];
-        case TextureFormat::CHANNEL_R:      return ImageDataType::GRAY | floatType;
-        case TextureFormat::CHANNEL_RG:     return ImageDataType::RA   | floatType;
-        case TextureFormat::CHANNEL_RGB:    return ImageDataType::RGB  | floatType;
-        case TextureFormat::CHANNEL_RGBA:   return ImageDataType::RGBA | floatType;
-        case TextureFormat::CHANNEL_BGR:    return ImageDataType::BGR  | floatType;
-        case TextureFormat::CHANNEL_BGRA:   return ImageDataType::BGRA | floatType;
-        default:                                return ImageDataType::UNKNOWN_RESERVE;
+        case TextureFormat::CHANNEL_R:      return ImgDType{ ImgDType::Channels::R   , dt };
+        case TextureFormat::CHANNEL_RG:     return ImgDType{ ImgDType::Channels::RA  , dt };
+        case TextureFormat::CHANNEL_RGB:    return ImgDType{ ImgDType::Channels::RGB , dt };
+        case TextureFormat::CHANNEL_RGBA:   return ImgDType{ ImgDType::Channels::RGBA, dt };
+        case TextureFormat::CHANNEL_BGR:    return ImgDType{ ImgDType::Channels::BGR , dt };
+        case TextureFormat::CHANNEL_BGRA:   return ImgDType{ ImgDType::Channels::BGRA, dt };
+        default:                            return {};
         }
     }
     [[nodiscard]] IMGUTILAPI static std::string GetFormatDetail(const TextureFormat format) noexcept;

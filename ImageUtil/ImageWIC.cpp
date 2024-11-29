@@ -44,10 +44,10 @@ struct WICEncoder : public IWICBitmapEncoder
 
 struct DataTypeCvt
 {
-    ImageDataType MidType;
+    ImgDType MidType;
     const GUID* Guid;
 };
-#define DtypeGuidPair(type, mid, name) { common::enum_cast(ImageDataType::type), { ImageDataType::mid, &GUID_WICPixelFormat##name } }
+#define DtypeGuidPair(type, mid, name) { ImageDataType::type.Value, { ImageDataType::mid, &GUID_WICPixelFormat##name } }
 static constexpr auto DataTypeGuidLookup = BuildStaticLookup(uint8_t, DataTypeCvt,
     DtypeGuidPair(RGBA,  RGBA,  32bppRGBA),
     DtypeGuidPair(BGRA,  BGRA,  32bppBGRA),
@@ -57,8 +57,13 @@ static constexpr auto DataTypeGuidLookup = BuildStaticLookup(uint8_t, DataTypeCv
     DtypeGuidPair(BGRAf, RGBAf, 128bppRGBAFloat),
     DtypeGuidPair(RGBf,  RGBf,  96bppRGBFloat),
     DtypeGuidPair(BGRf,  RGBf,  96bppRGBFloat),
+    DtypeGuidPair(RGBAh, RGBAh, 64bppRGBAHalf),
+    DtypeGuidPair(BGRAh, RGBAh, 64bppRGBAHalf),
+    DtypeGuidPair(RGBh,  RGBh,  48bppRGBHalf),
+    DtypeGuidPair(BGRh,  RGBh,  48bppRGBHalf),
     DtypeGuidPair(GRAY,  GRAY,  8bppGray),
-    DtypeGuidPair(GRAYf, GRAYf, 32bppGrayFloat));
+    DtypeGuidPair(GRAYf, GRAYf, 32bppGrayFloat),
+    DtypeGuidPair(GRAYh, GRAYh, 16bppGrayHalf));
 #undef DtypeGuidPair
 
 
@@ -74,9 +79,9 @@ bool WicReader::Validate()
     return hr && count > 0;
 }
 
-Image WicReader::Read(ImageDataType dataType)
+Image WicReader::Read(ImgDType dataType)
 {
-    const auto cvt = DataTypeGuidLookup(dataType);
+    const auto cvt = DataTypeGuidLookup(dataType.Value);
     if (!cvt)
     {
         COMMON_THROWEX(BaseException, u"datatype not supported");
@@ -110,7 +115,7 @@ WicWriter::~WicWriter() {}
 void WicWriter::Write(const Image& image, const uint8_t quality)
 {
     const auto origType = image.GetDataType();
-    const auto cvt = DataTypeGuidLookup(origType);
+    const auto cvt = DataTypeGuidLookup(origType.Value);
     if (!cvt)
     {
         COMMON_THROWEX(BaseException, u"datatype not supported");
@@ -175,8 +180,7 @@ void WicWriter::Write(const Image& image, const uint8_t quality)
         {
             ImgLog().Verbose(u"WIC asks for platte pixel format.\n");
             THROW_HR(Support->Factory->CreatePalette(platte.GetAddressOf()), u"Failed to create platte");
-            THROW_HR(platte->InitializeFromBitmap(srcBitmap.Get(), *platteColorCount, HAS_FIELD(origType, ImageDataType::ALPHA_MASK)), 
-                u"Failed to init platte");
+            THROW_HR(platte->InitializeFromBitmap(srcBitmap.Get(), *platteColorCount, origType.HasAlpha()), u"Failed to init platte");
         }
 
         Microsoft::WRL::ComPtr<IWICFormatConverter> converter;
@@ -515,11 +519,11 @@ std::unique_ptr<ImgWriter> WicSupport::GetWriter(common::io::RandomOutputStream&
     return std::make_unique<WicWriter>(shared_from_this(), std::move(encoder), type);
 }
 
-uint8_t WicSupport::MatchExtension(std::u16string_view ext, ImageDataType dataType, const bool isRead) const
+uint8_t WicSupport::MatchExtension(std::u16string_view ext, ImgDType dataType, const bool isRead) const
 {
     if (isRead)
     {
-        if (!DataTypeGuidLookup(dataType))
+        if (!DataTypeGuidLookup(dataType.Value))
             return 0;
         if (ext == u"BMP" || ext == u"HEIF" || ext == u"WEBP" || ext == u"AVIF" || ext == u"TIFF" || ext == u"TIF")
             return 240;

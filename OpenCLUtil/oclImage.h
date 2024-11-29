@@ -93,7 +93,7 @@ public:
     using oclImage_::Width; using oclImage_::Height;
 
     [[nodiscard]] static oclImg2D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::TextureFormat format, const void* ptr = nullptr);
-    [[nodiscard]] static oclImg2D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::ImageDataType dtype, const bool isNormalized = true)
+    [[nodiscard]] static oclImg2D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::ImgDType dtype, const bool isNormalized = true)
     {
         return Create(ctx, flag, width, height, xziar::img::TexFormatUtil::FromImageDType(dtype, isNormalized));
     }
@@ -113,7 +113,7 @@ public:
     using oclImage_::Width; using oclImage_::Height; using oclImage_::Depth;
     
     [[nodiscard]] static oclImg3D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const void* ptr = nullptr);
-    [[nodiscard]] static oclImg3D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::ImageDataType dtype, const bool isNormalized = true)
+    [[nodiscard]] static oclImg3D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::ImgDType dtype, const bool isNormalized = true)
     {
         return Create(ctx, flag, width, height, depth, xziar::img::TexFormatUtil::FromImageDType(dtype, isNormalized));
     }

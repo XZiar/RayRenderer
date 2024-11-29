@@ -20,7 +20,7 @@ public:
     StbReader(common::io::RandomInputStream& stream);
     virtual ~StbReader() override;
     [[nodiscard]] virtual bool Validate() override;
-    [[nodiscard]] virtual Image Read(ImageDataType dataType) override;
+    [[nodiscard]] virtual Image Read(ImgDType dataType) override;
 };
 
 class StbWriter final : public ImgWriter
@@ -47,7 +47,7 @@ public:
     {
         return std::make_unique<StbWriter>(stream, ext);
     }
-    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImageDataType, const bool IsRead) const final;
+    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImgDType, const bool IsRead) const final;
 };
 
 

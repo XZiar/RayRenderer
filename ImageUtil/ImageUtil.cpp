@@ -49,7 +49,7 @@ bool UnRegistImageSupport(const std::shared_ptr<ImgSupport>& support) noexcept
 }
 
 
-static vector<std::shared_ptr<const ImgSupport>> GenerateSupportList(std::u16string_view ext, const ImageDataType dataType, const bool isRead, const bool allowDisMatch)
+static vector<std::shared_ptr<const ImgSupport>> GenerateSupportList(std::u16string_view ext, const ImgDType dataType, const bool isRead, const bool allowDisMatch)
 {
     const auto lock = AcuireSupportLock().ReadScope();
     return common::linq::FromIterable(SUPPORT_MAP())
@@ -59,7 +59,7 @@ static vector<std::shared_ptr<const ImgSupport>> GenerateSupportList(std::u16str
         .Select([](const auto& spPair) { return spPair.first; })
         .ToVector();
 }
-std::vector<std::shared_ptr<const ImgSupport>> GetImageSupport(std::u16string_view ext, ImageDataType dataType, const bool isRead) noexcept
+std::vector<std::shared_ptr<const ImgSupport>> GetImageSupport(std::u16string_view ext, ImgDType dataType, const bool isRead) noexcept
 {
     return GenerateSupportList(ext, dataType, isRead, false);
 }
@@ -71,7 +71,7 @@ static u16string GetExtName(const common::fs::path& path)
     return ext.empty() ? ext : ext.substr(1);
 }
 
-Image ReadImage(const common::fs::path& path, const ImageDataType dataType)
+Image ReadImage(const common::fs::path& path, const ImgDType dataType)
 {
 #if defined(USEMAP) || true
     auto stream = common::file::MapFileForRead(path);
@@ -86,7 +86,7 @@ Image ReadImage(const common::fs::path& path, const ImageDataType dataType)
     return ReadImage(stream, GetExtName(path), dataType);
 }
 
-Image ReadImage(RandomInputStream& stream, const std::u16string& ext, const ImageDataType dataType)
+Image ReadImage(RandomInputStream& stream, const std::u16string& ext, const ImgDType dataType)
 {
     const auto extName = common::str::ToUpperEng(ext, common::str::Encoding::UTF16LE);
     auto testList = GenerateSupportList(extName, dataType, true, true);

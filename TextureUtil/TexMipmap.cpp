@@ -74,7 +74,8 @@ void TexMipmap::Test()
 {
     Image src(ImageDataType::RGBA);
     const auto srcPath = common::fs::temp_directory_path() / u"src.png";
-    if (common::fs::exists(srcPath))
+    std::error_code ec;
+    if (common::fs::exists(srcPath, ec))
         src = ReadImage(srcPath);
     else
     {
@@ -154,6 +155,8 @@ static vector<Info> GenerateInfo(uint32_t width, uint32_t height, const uint8_t 
 PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCL(const ImageView src, const bool isSRGB, const uint8_t levels)
 {
     auto infos = GenerateInfo(src.GetWidth(), src.GetHeight(), levels);
+    if (infos.empty())
+        return common::FinishedResult<vector<Image>>::Get(vector<Image>{});
     if (isSRGB)
     {
         return Worker->AddTask([this, src, infos = std::move(infos)](const common::asyexe::AsyncAgent& agent)

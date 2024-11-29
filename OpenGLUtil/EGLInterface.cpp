@@ -755,7 +755,8 @@ private:
             const auto envpaths = common::str::to_u16string(envstrs, common::str::DetectEncoding(envstrs));
             for (const common::fs::path p : common::str::SplitStream(envpaths, u';', false))
             {
-                if (p.is_absolute() && common::fs::exists(p))
+                std::error_code ec;
+                if (p.is_absolute() && common::fs::exists(p, ec))
                 {
                     dllpaths.emplace_back(p);
                 }

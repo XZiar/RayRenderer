@@ -255,20 +255,20 @@ bool JpegReader::Validate()
     return true;
 }
 
-Image JpegReader::Read(ImageDataType dataType)
+Image JpegReader::Read(ImgDType dataType)
 {
     auto decompStruct = (j_decompress_ptr)JpegDecompStruct;
     Image image(dataType);
-    if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
+    if (!dataType.Is(ImgDType::DataTypes::Uint8))
         return image;
-    const bool needAlpha = HAS_FIELD(dataType, ImageDataType::ALPHA_MASK);
-    switch (REMOVE_MASK(dataType, ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK))
+    const bool needAlpha = dataType.HasAlpha();
+    switch (dataType.Channel())
     {
-    case ImageDataType::BGR:
+    case ImgDType::Channels::BGR:
         decompStruct->out_color_space = JCS_EXT_BGR; break;
-    case ImageDataType::RGB:
+    case ImgDType::Channels::RGB:
         decompStruct->out_color_space = JCS_EXT_RGB; break;
-    case ImageDataType::GRAY:
+    case ImgDType::Channels::R:
         decompStruct->out_color_space = JCS_GRAYSCALE; break;
     default:
         return image;
@@ -335,19 +335,22 @@ void JpegWriter::Write(const Image& image, const uint8_t quality)
 {
     if (image.GetWidth() > JPEG_MAX_DIMENSION || image.GetHeight() > JPEG_MAX_DIMENSION)
         return;
-    if (HAS_FIELD(image.GetDataType(), ImageDataType::FLOAT_MASK))
+    const auto dstDType = image.GetDataType();
+    if (!dstDType.Is(ImgDType::DataTypes::Uint8))
         return;
+    if (dstDType.ChannelCount() < 3)
+        return;
+
     auto compStruct = (j_compress_ptr)JpegCompStruct;
-    const auto dataType = REMOVE_MASK(image.GetDataType(), ImageDataType::FLOAT_MASK);
-    switch (dataType)
+    switch (dstDType.Channel())
     {
-    case ImageDataType::BGR:
+    case ImgDType::Channels::BGR:
         compStruct->in_color_space = JCS_EXT_BGR; break;
-    case ImageDataType::BGRA:
+    case ImgDType::Channels::BGRA:
         compStruct->in_color_space = JCS_EXT_BGRA; break;
-    case ImageDataType::RGB:
+    case ImgDType::Channels::RGB:
         compStruct->in_color_space = JCS_RGB; break;
-    case ImageDataType::RGBA:
+    case ImgDType::Channels::RGBA:
         compStruct->in_color_space = JCS_EXT_RGBA; break;
     default:
         return;
