@@ -4,41 +4,79 @@
   <Type Name="xziar::img::Image" Priority="High">
     <UIVisualizer ServiceId="{A452AFEA-3DF6-46BB-9177-C0B08F318025}" Id="1" />
   </Type>
+  <Type Name="xziar::img::ImgDType" Priority="High">
+	<DisplayString Condition="Value == 0x08">R    </DisplayString>
+	<DisplayString Condition="Value == 0x09">RA   </DisplayString>
+	<DisplayString Condition="Value == 0x0a">RGB  </DisplayString>
+	<DisplayString Condition="Value == 0x0b">RGBA </DisplayString>
+	<DisplayString Condition="Value == 0x0e">BGR  </DisplayString>
+	<DisplayString Condition="Value == 0x0f">BGRA </DisplayString>
+	<DisplayString Condition="Value == 0x28">Rf   </DisplayString>
+	<DisplayString Condition="Value == 0x29">RAf  </DisplayString>
+	<DisplayString Condition="Value == 0x2a">RGBf </DisplayString>
+	<DisplayString Condition="Value == 0x2b">RGBAf</DisplayString>
+	<DisplayString Condition="Value == 0x2e">BGRf </DisplayString>
+	<DisplayString Condition="Value == 0x2f">BGRAf</DisplayString>
+	<DisplayString Condition="Value == 0x20">Rh   </DisplayString>
+	<DisplayString Condition="Value == 0x21">RAh  </DisplayString>
+	<DisplayString Condition="Value == 0x22">RGBh </DisplayString>
+	<DisplayString Condition="Value == 0x23">RGBAh</DisplayString>
+	<DisplayString Condition="Value == 0x26">BGRh </DisplayString>
+	<DisplayString Condition="Value == 0x27">BGRAh</DisplayString>
+    <Expand>
+      <Synthetic Name="[type]"     Condition="(Value &amp; 0x78) == 0x08">
+        <DisplayString>UINT8</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[type]"     Condition="(Value &amp; 0x78) == 0x20">
+        <DisplayString>FLOAT16</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[type]"     Condition="(Value &amp; 0x78) == 0x28">
+        <DisplayString>FLOAT32</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[channels]" Condition="(Value &amp; 0x07) == 0x00">
+        <DisplayString>R</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[channels]" Condition="(Value &amp; 0x07) == 0x01">
+        <DisplayString>RA</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[channels]" Condition="(Value &amp; 0x07) == 0x02">
+        <DisplayString>RGB</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[channels]" Condition="(Value &amp; 0x07) == 0x03">
+        <DisplayString>RGBA</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[channels]" Condition="(Value &amp; 0x07) == 0x06">
+        <DisplayString>BGR</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[channels]" Condition="(Value &amp; 0x07) == 0x07">
+        <DisplayString>BGRA</DisplayString>
+      </Synthetic>
+    </Expand>
+  </Type>
   <Type Name="xziar::img::Image" Priority="MediumHigh">
     <Expand>
       <Item Name="[DataType]">DataType</Item>
-      <Synthetic Name="[type]"     Condition="(DataType &amp; 0x40) == 0x0">
-        <DisplayString>UINT8</DisplayString>
-      </Synthetic>
-      <Synthetic Name="[type]"     Condition="(DataType &amp; 0x40) != 0x0">
-        <DisplayString>FLOAT32</DisplayString>
-      </Synthetic>
-      <Synthetic Name="[channels]" Condition="(DataType &amp; 0x8f) == 0x80">
-        <DisplayString>RGBA</DisplayString>
-      </Synthetic>
-      <Synthetic Name="[channels]" Condition="(DataType &amp; 0x8f) == 0x81">
-        <DisplayString>BGRA</DisplayString>
-      </Synthetic>
-      <Synthetic Name="[channels]" Condition="(DataType &amp; 0x8f) == 0x0">
-        <DisplayString>RGB</DisplayString>
-      </Synthetic>
-      <Synthetic Name="[channels]" Condition="(DataType &amp; 0x8f) == 0x1">
-        <DisplayString>BGR</DisplayString>
-      </Synthetic>
-      <Synthetic Name="[channels]" Condition="(DataType &amp; 0x8f) == 0x2">
-        <DisplayString>1</DisplayString>
-      </Synthetic>
       <Item Name="[width]">Width</Item>
       <Item Name="[height]">Height</Item>
-      <Item Name="[data]" Condition="(DataType &amp; 0x40) == 0x0">(uint8_t*)Data</Item>
-      <Item Name="[data]" Condition="(DataType &amp; 0x40) != 0x0">(float*)Data</Item>
+      <Item Name="[data]" Condition="(DataType.Value &amp; 0x78) == 0x08">(uint8_t*)Data</Item>
+      <Item Name="[data]" Condition="(DataType.Value &amp; 0x78) == 0x10">(uint16_t*)Data</Item>
+      <Item Name="[data]" Condition="(DataType.Value &amp; 0x78) == 0x20">(uint16_t*)Data</Item>
+      <Item Name="[data]" Condition="(DataType.Value &amp; 0x78) == 0x28">(float*)Data</Item>
       <Item Name="[stride]">Width * ElementSize</Item>
       <Item Name="[size]">Width * Height * ElementSize</Item>
-      <ArrayItems ExcludeView="simple" Condition="Data != nullptr &amp;&amp; (DataType &amp; 0x40) == 0x0">
+      <ArrayItems ExcludeView="simple" Condition="Data != nullptr &amp;&amp; (DataType.Value &amp; 0x78) == 0x08">
         <Size>Width * Height * ElementSize</Size>
         <ValuePointer>(const uint8_t*)Data</ValuePointer>
       </ArrayItems>
-      <ArrayItems ExcludeView="simple" Condition="Data != nullptr &amp;&amp; (DataType &amp; 0x40) != 0x0">
+      <ArrayItems ExcludeView="simple" Condition="Data != nullptr &amp;&amp; (DataType.Value &amp; 0x78) == 0x10">
+        <Size>Width * Height</Size>
+        <ValuePointer>(const uint16_t*)Data</ValuePointer>
+      </ArrayItems>
+      <ArrayItems ExcludeView="simple" Condition="Data != nullptr &amp;&amp; (DataType.Value &amp; 0x78) == 0x20">
+        <Size>Width * Height</Size>
+        <ValuePointer>(const uint16_t*)Data</ValuePointer>
+      </ArrayItems>
+      <ArrayItems ExcludeView="simple" Condition="Data != nullptr &amp;&amp; (DataType.Value &amp; 0x78) == 0x28">
         <Size>Width * Height</Size>
         <ValuePointer>(const float*)Data</ValuePointer>
       </ArrayItems>

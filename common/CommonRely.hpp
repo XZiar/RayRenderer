@@ -143,6 +143,9 @@
 #   include <ciso646>
 #endif
 
+#if COMMON_CPP_TIME >= 202302L 
+#   define COMMON_CPP_23 1
+#endif
 #if COMMON_CPP_TIME >= 202002L 
 #   define COMMON_CPP_20 1
 #endif
@@ -159,6 +162,9 @@
 #   define COMMON_CPP_03 1
 #endif
 
+#ifndef COMMON_CPP_23
+#   define COMMON_CPP_23 0
+#endif
 #ifndef COMMON_CPP_20
 #   define COMMON_CPP_20 0
 #endif
@@ -253,16 +259,6 @@
 
 
 
-/* char8_t fix */
-
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-using u8ch_t = char8_t;
-#else
-using u8ch_t = char;
-#endif
-
-
-
 /* c++ version compatible defines */
 
 
@@ -287,54 +283,6 @@ using u8ch_t = char;
 #else
 #   define COMMON_OSBIT 32
 #endif
-
-
-
-/* endian detection */
-
-#if defined(__cpp_lib_endian) && __cpp_lib_endian >= 201907L
-#   include <bit>
-namespace common::detail
-{
-inline constexpr bool is_big_endian = std::endian::native == std::endian::big;
-inline constexpr bool is_little_endian = std::endian::native == std::endian::little;
-}
-#elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
-namespace common::detail
-{
-#   if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-inline constexpr bool is_little_endian = true;
-#   else
-inline constexpr bool is_little_endian = false;
-#   endif
-#   if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-inline constexpr bool is_big_endian = true;
-#   else
-inline constexpr bool is_big_endian = false;
-#   endif
-}
-#else
-#   include <boost/predef/other/endian.h>
-namespace common::detail
-{
-#   if BOOST_ENDIAN_LITTLE_BYTE
-inline constexpr bool is_little_endian = true;
-#   else
-inline constexpr bool is_little_endian = false;
-#   endif
-#   if BOOST_ENDIAN_BIG_BYTE
-inline constexpr bool is_big_endian = true;
-#   else
-inline constexpr bool is_big_endian = false;
-#   endif
-}
-#endif
-namespace common::detail
-{
-static_assert(is_big_endian || is_little_endian);
-static_assert(is_big_endian != is_little_endian);
-}
-
 
 
 
@@ -506,6 +454,136 @@ forceinline std::remove_reference<decltype(errno)>::type memmove_s(void* dest, s
 
 #define UTF16ER_NX(X) u ## X
 #define UTF16ER(X) UTF16ER_NX(X)
+
+
+
+/* char8_t fix */
+
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+using u8ch_t = char8_t;
+#else
+using u8ch_t = char;
+#endif
+
+
+
+/* endian detection */
+
+#if defined(__cpp_lib_endian) && __cpp_lib_endian >= 201907L
+#   include <bit>
+namespace common::detail
+{
+inline constexpr bool is_big_endian = std::endian::native == std::endian::big;
+inline constexpr bool is_little_endian = std::endian::native == std::endian::little;
+}
+#elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
+namespace common::detail
+{
+#   if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+inline constexpr bool is_little_endian = true;
+#   else
+inline constexpr bool is_little_endian = false;
+#   endif
+#   if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+inline constexpr bool is_big_endian = true;
+#   else
+inline constexpr bool is_big_endian = false;
+#   endif
+}
+#else
+#   include <boost/predef/other/endian.h>
+namespace common::detail
+{
+#   if BOOST_ENDIAN_LITTLE_BYTE
+inline constexpr bool is_little_endian = true;
+#   else
+inline constexpr bool is_little_endian = false;
+#   endif
+#   if BOOST_ENDIAN_BIG_BYTE
+inline constexpr bool is_big_endian = true;
+#   else
+inline constexpr bool is_big_endian = false;
+#   endif
+}
+#endif
+namespace common::detail
+{
+static_assert(is_big_endian || is_little_endian);
+static_assert(is_big_endian != is_little_endian);
+}
+
+
+
+/* bitcast fix */
+
+#if defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
+#   include <bit>
+namespace common
+{
+template<class To, class From>
+forceinline constexpr To bit_cast(const From& src) noexcept { return std::bit_cast<To>(src); }
+}
+#else
+namespace common
+{
+template<class To, class From>
+forceinline std::enable_if_t<
+    sizeof(To) == sizeof(From) &&
+    std::is_trivially_copyable_v<From>&&
+    std::is_trivially_copyable_v<To>,
+    To>
+    bit_cast(const From& src) noexcept
+{
+    static_assert(std::is_trivially_constructible_v<To>, "This implementation additionally requires destination type to be trivially constructible");
+    To dst;
+    std::memcpy(&dst, &src, sizeof(To));
+    return dst;
+}
+}
+#endif
+
+
+
+/* extend fp fix */
+
+#ifdef __has_include
+#   if __has_include(<stdfloat>) && COMMON_CPP_23
+#       include <stdfloat>
+#   endif
+#endif
+namespace common
+{
+#if defined(__STDCPP_FLOAT16_T__)
+using fp16_t = std::float16_t
+#elif COMMON_ARCH_ARM && !COMMON_COMPILER_MSVC
+using fp16_t = __fp16;
+#else
+struct fp16_t
+{
+    uint16_t Dummy;
+    constexpr bool operator==(const fp16_t& rhs) const noexcept { return Dummy == rhs.Dummy; }
+    explicit constexpr operator  int16_t() const noexcept { return static_cast<int16_t>(Dummy); }
+    explicit constexpr operator uint16_t() const noexcept { return Dummy; }
+};
+static_assert(std::is_trivially_copyable_v<fp16_t>);
+template<> forceinline  int16_t bit_cast(const fp16_t& src) noexcept { return static_cast< int16_t>(src.Dummy); }
+template<> forceinline uint16_t bit_cast(const fp16_t& src) noexcept { return static_cast<uint16_t>(src.Dummy); }
+#endif
+#if defined(__STDCPP_BFLOAT16_T__)
+using bf16_t = std::bfloat16_t
+#else
+struct bf16_t
+{
+    uint16_t Dummy;
+    constexpr bool operator==(const bf16_t& rhs) const noexcept { return Dummy == rhs.Dummy; }
+    explicit constexpr operator  int16_t() const noexcept { return static_cast<int16_t>(Dummy); }
+    explicit constexpr operator uint16_t() const noexcept { return Dummy; }
+};
+static_assert(std::is_trivially_copyable_v<bf16_t>);
+template<> forceinline  int16_t bit_cast(const bf16_t& src) noexcept { return static_cast< int16_t>(src.Dummy); }
+template<> forceinline uint16_t bit_cast(const bf16_t& src) noexcept { return static_cast<uint16_t>(src.Dummy); }
+#endif
+}
 
 
 

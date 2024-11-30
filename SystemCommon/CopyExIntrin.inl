@@ -44,8 +44,8 @@ static_assert(::common::detail::is_little_endian, "unsupported std::byte order (
 #define CvtF32I8Info    (void)(int8_t * dest, const float* src, size_t count, float mulVal, bool saturate)
 #define CvtF32U16Info   (void)(uint16_t* dest, const float* src, size_t count, float mulVal, bool saturate)
 #define CvtF32U8Info    (void)(uint8_t * dest, const float* src, size_t count, float mulVal, bool saturate)
-#define CvtF16F32Info   (void)(float   * dest, const uint16_t* src, size_t count)
-#define CvtF32F16Info   (void)(uint16_t* dest, const float   * src, size_t count)
+#define CvtF16F32Info   (void)(float * dest, const ::common::fp16_t* src, size_t count)
+#define CvtF32F16Info   (void)(::common::fp16_t* dest, const float * src, size_t count)
 #define CvtF32F64Info   (void)(double* dest, const float * src, size_t count)
 #define CvtF64F32Info   (void)(float * dest, const double* src, size_t count)
 
@@ -1114,31 +1114,13 @@ DEFINE_CVTFP2I_SIMD4(CvtF32U8,  F32x8, U8x32,  AVX2, SIMD128)
 #endif
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100 && (defined(__F16C__) || COMMON_COMPILER_MSVC)
-struct F1632Cast
-{
-    using Src = uint16_t;
-    using Dst = float;
-    static constexpr size_t N = 8, M = 8;
-    void operator()(float* dst, const uint16_t* src) const noexcept
-    {
-        F32x8(_mm256_cvtph_ps(U16x8(src))).Save(dst);
-    }
-};
-struct F3216Cast
-{
-    static constexpr size_t N = 8, M = 8;
-    void operator()(uint16_t* dst, const float* src) const noexcept
-    {
-        U16x8(_mm256_cvtps_ph(F32x8(src), _MM_FROUND_TO_NEAREST_INT)).Save(dst);
-    }
-};
 DEFINE_FASTPATH_METHOD(CvtF16F32, F16C)
 {
-    CastSIMD4<F1632Cast, &Func<LOOP>>(dest, src, count);
+    CastSIMD4<DefaultCast<F16x8, F32x4>, &Func<LOOP>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(CvtF32F16, F16C)
 {
-    CastSIMD4<F3216Cast, &Func<LOOP>>(dest, src, count);
+    CastSIMD4<DefaultCast<F32x4, F16x8>, &Func<LOOP>>(dest, src, count);
 }
 #endif
 
@@ -1148,255 +1130,47 @@ DEFINE_FASTPATH_METHOD(CvtF32F16, F16C)
 // seeeeeeeefffffffffffffffffffffff
 // s|oooooooo|ffffffffffxxxxxxxxxxxxx
 // soooooooofffffff | fffxxxxxxxxxxxxx
-struct F1632Cast_SSE41
-{
-    using Src = uint16_t;
-    using Dst = float;
-    static constexpr size_t N = 8, M = 8;
-    forceinline void operator()(float* dst, const uint16_t* src) const noexcept
-    {
-        constexpr uint16_t SignMask = 0x8000;
-        constexpr uint16_t ExpMask  = 0x7c00;
-        constexpr uint16_t FracMask = 0x03ff;
-        constexpr uint16_t ExpShift = (127 - 15) << (16 - 1 - 8); // e' = (e - 15) + 127 => e' = e + (127 - 15)
-        constexpr uint16_t ExpMax32 = 0x7f80;
-        // fexp - 127 = trailing bit count
-        // shiter = 10 - trailing bit count = 10 + 127 - fexp
-        constexpr uint16_t FexpMax = 10 + 127;
-        // minexp = (127 - 14), curexp = (127 - 15) = minexp - 1
-        // exp = minexp - shifter = (127 - 15) + 1 - (10 + 127 - fexp) = fexp - 24
-        // exp -= 10 - (fexp - 127) => -= 10 + 127 - fexp
-        // exp = (127 - 15), exp -= FexpMax - fexp ==> exp = (127 - 15) - (FexpMax - fexp) = fexp - 25
-        constexpr uint16_t FexpAdjust = (FexpMax - (127 - 15 + 1)) << 7;
-
-        const auto misc0 = U16x8(SignMask, SignMask, ExpMask, ExpMask, FracMask, FracMask, ExpShift, ExpShift).As<U32x4>();
-        const auto misc1 = U16x8(ExpMax32, ExpMax32, FexpMax, FexpMax, FexpAdjust, FexpAdjust, 0, 0).As<U32x4>();
-        
-        const auto signMask   = misc0.Broadcast<0>().As<U16x8>();
-        const auto expMask    = misc0.Broadcast<1>().As<U16x8>();
-        const auto fracMask   = misc0.Broadcast<2>().As<U16x8>();
-        const auto expShift   = misc0.Broadcast<3>().As<U16x8>();
-        const auto expMax32   = misc1.Broadcast<0>().As<U16x8>();
-        const auto fexpMax    = misc1.Broadcast<1>().As<U16x8>();
-        const auto fexpAdjust = misc1.Broadcast<2>().As<U16x8>();
-
-        const U16x8 dat(src);
-
-        const auto ef = signMask.AndNot(dat);
-        const auto e_ = dat.And(expMask);
-        const auto f_ = dat.And(fracMask);
-        const auto e_normal = e_.ShiftRightLogic<3>().Add(expShift);
-        const auto isExpMax = e_.Compare<CompareType::Equal, MaskType::FullEle>(expMask);
-        const auto e_nm = e_normal.SelectWith<MaskType::FullEle>(expMax32, isExpMax);
-        const auto isExpMin = e_.Compare<CompareType::Equal, MaskType::FullEle>(U16x8::AllZero());
-        const auto isDenorm = U16x8(_mm_sign_epi16(isExpMin.Data, ef.Data)); // ef == 0 then become zero
-        const auto e_nmz = U16x8(_mm_sign_epi16(e_nm.Data, ef.Data)); // ef == 0 then become zero
-
-        U16x8 e, f;
-        IF_LIKELY(isDenorm.IsAllZero())
-        { // all normal
-            e = e_nmz;
-            f = f_;
-        }
-        else
-        { // calc denorm
-            const auto f_fp = f_.Cast<F32x4>();
-            const auto shufHiMask = _mm_setr_epi8(2, 3, 6, 7, 10, 11, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1);
-            const auto f_fphi0 = _mm_shuffle_epi8(f_fp[0].As<U32x4>().Data, shufHiMask);
-            const auto f_fphi1 = _mm_shuffle_epi8(f_fp[1].As<U32x4>().Data, shufHiMask);
-            const auto f_fphi = U16x8(_mm_unpacklo_epi64(f_fphi0, f_fphi1));
-
-            const auto fracShifter = fexpMax.Sub(f_fphi.ShiftRightLogic<7>());
-            const auto denormFrac = f_.ShiftLeftLogic<false>(fracShifter).And(fracMask);
-
-            const auto denormExp = f_fphi.Sub(fexpAdjust).And(expMax32);
-
-            e = e_nmz.SelectWith<MaskType::FullEle>(denormExp, isDenorm);
-            f = f_.SelectWith<MaskType::FullEle>(denormFrac, isDenorm);
-        }
-        const auto fhi = f.ShiftRightLogic<3>();
-        const auto flo = f.ShiftLeftLogic<13>();
-
-        const auto sign = dat.And(signMask);
-        const auto sefh = sign.Or(fhi).Or(e);
-        const auto out0 = flo.ZipLo(sefh).As<U32x4>(), out1 = flo.ZipHi(sefh).As<U32x4>();
-        out0.Save(reinterpret_cast<uint32_t*>(dst) + 0);
-        out1.Save(reinterpret_cast<uint32_t*>(dst) + 4);
-    }
-};
-
-struct F3216Cast_SSE41
-{
-    using Src = float;
-    using Dst = uint16_t;
-    static constexpr size_t N = 8, M = 8;
-    forceinline void operator()(uint16_t* dst, const float* src) const noexcept
-    {
-        constexpr uint16_t SignMask = 0x8000;
-        constexpr uint16_t ExpMask  = 0x7f80;
-        constexpr uint16_t FracMask = 0x03ff;
-        constexpr uint16_t ExpShift = (127 - 15) << (16 - 1 - 8); // e' = (e - 15) + 127 => e' = e + (127 - 15)
-        constexpr uint16_t ExpMin   = (127 - 15 - 10) << (16 - 1 - 8);
-        constexpr uint16_t ExpMax   = (127 + 15 + 1) << (16 - 1 - 8);
-        constexpr uint16_t FracHiBit = 0x0400;
-
-        const auto misc0 = U16x8(SignMask, SignMask, ExpMask, ExpMask, FracMask, FracMask, ExpShift, ExpShift).As<U32x4>();
-        const auto misc1 = U16x8(ExpMin, ExpMin, ExpMax, ExpMax, FracHiBit, FracHiBit, 1, 1).As<U32x4>();
-        
-        const auto signMask   = misc0.Broadcast<0>().As<U16x8>();
-        const auto expMask    = misc0.Broadcast<1>().As<U16x8>();
-        const auto fracMask   = misc0.Broadcast<2>().As<U16x8>();
-        const auto expShift   = misc0.Broadcast<3>().As<U16x8>();
-        const auto expMin     = misc1.Broadcast<0>().As<U16x8>();
-        const auto expMax     = misc1.Broadcast<1>().As<U16x8>();
-        const auto fracHiBit  = misc1.Broadcast<2>().As<U16x8>();
-        const auto one        = misc1.Broadcast<3>().As<U16x8>();
-
-        const U32x4 dat0(reinterpret_cast<const uint32_t*>(src)), dat1(reinterpret_cast<const uint32_t*>(src) + 4);
-
-        const auto shufHiMask = _mm_setr_epi8(2, 3, 6, 7, 10, 11, 14, 15,
-            0, 1, 4, 5, 8, 9, 12, 13);
-        const auto datHi0 = _mm_shuffle_epi8(dat0.Data, shufHiMask);
-        const auto datHi1 = _mm_shuffle_epi8(dat1.Data, shufHiMask);
-        const auto datHi = U16x8(_mm_unpacklo_epi64(datHi0, datHi1));
-        const auto frac0 = _mm_shuffle_epi8(dat0.ShiftLeftLogic<3>().Data, shufHiMask);
-        const auto frac1 = _mm_shuffle_epi8(dat1.ShiftLeftLogic<3>().Data, shufHiMask);
-        const auto fracPart = U16x8(_mm_unpacklo_epi64(frac0, frac1));
-        const auto frac16 = fracPart.And(fracMask);
-        const auto fracTrailing = U16x8(_mm_unpackhi_epi64(frac0, frac1));
-        const auto isHalfRound = fracTrailing.Compare<CompareType::Equal, MaskType::FullEle>(signMask);
-        const auto frac16LastBit = fracPart.ShiftLeftLogic<15>();
-        const auto isRoundUpMSB = fracTrailing.SelectWith<MaskType::FullEle>(frac16LastBit, isHalfRound);
-        const auto isRoundUpMask = isRoundUpMSB.As<I16x8>().ShiftRightArith<15>().As<U16x8>();
-        const auto e_ = datHi.And(expMask); // [0000h~7f80h][denorm,inf]
-        const auto e_hicut = e_.Min(expMax); // [0000h~4780h][denorm,2^16=inf]
-        const auto e_shifted = e_hicut.Max(expShift).Sub(expShift); // [0000h~07c0h][0=denorm,31=inf]
-        const auto e_normal = e_shifted.ShiftLeftLogic<3>(); // [0=denorm,31=inf]
-        const auto mapToZero = e_.As<I16x8>().Compare<CompareType::LessThan, MaskType::FullEle>(expMin.As<I16x8>()).As<U16x8>(); // 2^-25, < 0.5*(min-denorm of fp16)
-        const auto isNaNInf = e_.Compare<CompareType::Equal, MaskType::FullEle>(expMask); // NaN or Inf
-        const auto mapToInf   = e_hicut.Compare<CompareType::Equal, MaskType::FullEle>(expMax); // 2^16(with high cut), become inf exp
-        const auto isOverflow = isNaNInf.AndNot(mapToInf); // !isNaNInf && mapToInf
-        const auto shouldFracZero = mapToZero.Or(isOverflow);
-        const auto f_ = shouldFracZero.AndNot(frac16); // when shouldFracZero == ff, become 0
-        const auto needRoundUpMask = shouldFracZero.AndNot(isRoundUpMask);
-
-        const auto dontRequestDenorm = e_hicut.As<I16x8>().Compare<CompareType::GreaterThan, MaskType::FullEle>(expShift.As<I16x8>()).As<U16x8>();
-        const auto notDenorm = mapToZero.Or(dontRequestDenorm); // mapToZero || dontRequestDenorm
-
-        U16x8 e, f, r;
-        e = e_normal;
-        IF_LIKELY(notDenorm.Add(one).IsAllZero())
-        { // all normal
-            f = f_;
-            r = needRoundUpMask;
-        }
-        else
-        { // calc denorm
-            const auto e_denormReq = /*shiftAdj*/expShift.Sub(e_hicut).ShiftRightLogic<16 - 9>(); // [f080h~3800h] -> [1e1h~070h], only [00h~09h] valid
-            const auto f_shifted1 = f_.Or(fracHiBit).ShiftRightLogic<false>(e_denormReq);
-            const auto denormRoundUpBit = f_shifted1.And(one);
-            const auto denormRoundUp = U16x8(_mm_sign_epi16(denormRoundUpBit, signMask)); // bit==1 then become ffff, bit==0 then become 0
-            f = f_shifted1.ShiftRightLogic<1>().SelectWith<MaskType::FullEle>(f_, notDenorm); // actually shift [0~9]+1
-            r = denormRoundUp.SelectWith<MaskType::FullEle>(needRoundUpMask, notDenorm);
-        }
-        const auto sign = datHi.And(signMask);
-        const auto sef = sign.Or(e).Or(f);
-        const auto roundUpVal = _mm_abs_epi16(r); // full mask then 1, 0 then 0
-        const auto out = sef.Add(roundUpVal);
-        out.Save(dst);
-    }
-};
 DEFINE_FASTPATH_METHOD(CvtF16F32, SSE41)
 {
-    CastSIMD2<F1632Cast_SSE41, &Func<LOOP>>(dest, src, count);
+    CastSIMD2<DefaultCast<F16x8, F32x4>, &Func<LOOP>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(CvtF32F16, SSE41)
 {
-    CastSIMD2<F3216Cast_SSE41, &Func<LOOP>>(dest, src, count);
+    CastSIMD2<DefaultCast<F32x4, F16x8>, &Func<LOOP>>(dest, src, count);
 }
 #endif
 
 
 #if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 30
-struct F1632Cast1
-{
-    using Src = uint16_t;
-    using Dst = float;
-    static constexpr size_t N = 8, M = 8;
-    void operator()(float* dst, const uint16_t* src) const noexcept
-    {
-# if COMMON_SIMD_LV >= 200
-#   if COMMON_COMPILER_MSVC
-        const auto in = vld1q_u16(src); // msvc only typedef __n128 & __n64
-#   else
-        const auto in = vld1q_f16(reinterpret_cast<const float16_t*>(src));
-#   endif
-        F32x4(vcvt_f32_f16(vget_low_f16(in))).Save(dst + 0);
-        F32x4(vcvt_high_f32_f16(in))         .Save(dst + 4);
-# else
-#   if COMMON_COMPILER_MSVC
-        const auto in = vld1_u16_x2(src); // msvc only typedef __n128 & __n64
-#   else
-        const auto in = vld1_f16_x2(reinterpret_cast<const float16_t*>(src));
-#   endif
-        F32x4(vcvt_f32_f16(in.val[0])).Save(dst + 0);
-        F32x4(vcvt_f32_f16(in.val[1])).Save(dst + 4);
-# endif
-    }
-};
-struct F3216Cast1
-{
-    static constexpr size_t N = 8, M = 8;
-    void operator()(uint16_t* dst, const float* src) const noexcept
-    {
-        const auto dst_ = reinterpret_cast<float16_t*>(dst);
-        const auto in = vld1q_f32_x2(src);
-# if COMMON_SIMD_LV >= 200
-        const auto out = vcvt_high_f16_f32(vcvt_f16_f32(in.val[0]), in.val[1]);
-#   if COMMON_COMPILER_MSVC
-        vst1q_u16(dst_, out); // msvc only typedef __n128 & __n64
-#   else
-        vst1q_f16(dst_, out);
-#   endif
-# else
-        vst1_f16(dst_ + 0, vcvt_f16_f32(in.val[0]));
-        vst1_f16(dst_ + 4, vcvt_f16_f32(in.val[1]));
-# endif
-    }
-};
 DEFINE_FASTPATH_METHOD(CvtF16F32, SIMD128)
 {
-    CastSIMD4<F1632Cast1, &Func<LOOP>>(dest, src, count);
+    CastSIMD4<DefaultCast<F16x8, F32x4>, &Func<LOOP>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(CvtF32F16, SIMD128)
 {
-    CastSIMD4<F3216Cast1, &Func<LOOP>>(dest, src, count);
+    CastSIMD4<DefaultCast<F32x4, F16x8>, &Func<LOOP>>(dest, src, count);
 }
 #endif
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 310 && (!COMMON_COMPILER_MSVC || COMMON_MSVC_VER >= 191000)
 struct F1632CastAVX512
 {
-    using Src = uint16_t;
-    using Dst = float;
     static constexpr size_t N = 16, M = 16;
-    void operator()(float* dst, const uint16_t* src) const noexcept
+    void operator()(float* dst, const ::common::fp16_t* src) const noexcept
     {
-        _mm512_storeu_ps(dst, _mm512_cvtph_ps(U16x16(src)));
+        _mm512_storeu_ps(dst, _mm512_cvtph_ps(_mm256_loadu_epi16(src)));
     }
 };
 struct F3216CastAVX512
 {
     static constexpr size_t N = 16, M = 16;
-    void operator()(uint16_t* dst, const float* src) const noexcept
+    void operator()(::common::fp16_t* dst, const float* src) const noexcept
     {
-        U16x16(_mm512_cvtps_ph(_mm512_loadu_ps(src), _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC)).Save(dst);
+        _mm256_storeu_epi16(dst, _mm512_cvtps_ph(_mm512_loadu_ps(src), _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
     }
 };
 struct F3264CastAVX512
 {
-    using Src = float;
-    using Dst = double;
     static constexpr size_t N = 8, M = 8;
     void operator()(double* __restrict dst, const float* __restrict src) const noexcept
     {
@@ -1405,8 +1179,6 @@ struct F3264CastAVX512
 };
 struct F6432CastAVX512
 {
-    using Src = double;
-    using Dst = float;
     static constexpr size_t N = 8, M = 8;
     void operator()(float* __restrict dst, const double* __restrict src) const noexcept
     {

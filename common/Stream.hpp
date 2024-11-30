@@ -200,6 +200,7 @@ class RandomInputStream  : public RandomStream, public InputStream
 public:
     template<typename T>
     [[nodiscard]] detail::RandomInputStreamEnumerateSource<T> GetEnumerator();
+    [[nodiscard]] virtual std::optional<span<const std::byte>> TryGetAvaliableInMemory() const noexcept { return {}; }
 };
 class RandomOutputStream : public RandomStream, public OutputStream
 {
@@ -370,7 +371,7 @@ public:
         return std::move(BackStream);
     }
 
-    [[nodiscard]] common::span<const std::byte> ExposeAvaliable() const
+    [[nodiscard]] std::optional<span<const std::byte>> TryGetAvaliableInMemory() const noexcept final
     {
         return Buffer.AsSpan().subspan(BufPos);
     }

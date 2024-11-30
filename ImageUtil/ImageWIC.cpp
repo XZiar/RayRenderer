@@ -342,13 +342,12 @@ struct WrapInputStream final : public IStream
 std::unique_ptr<ImgReader> WicSupport::GetReader(common::io::RandomInputStream& stream, std::u16string_view) const
 {
     Microsoft::WRL::ComPtr<IStream> istream;
-    if (auto memStream = dynamic_cast<common::io::MemoryInputStream*>(&stream))
-    {
-        ImgLog().Verbose(u"WIC faces MemoryStream, bypass it.\n");
-        const auto [ptr, size] = memStream->ExposeAvaliable();
+    if (const auto space = stream.TryGetAvaliableInMemory(); space && space->size() == stream.GetSize() && space->size() <= std::numeric_limits<DWORD>::max())
+    { // all in memory and within uintmax
+        ImgLog().Verbose(u"WIC bypass Stream with mem region.\n");
         Microsoft::WRL::ComPtr<IWICStream> wicStream;
         THROW_HR(Factory->CreateStream(wicStream.GetAddressOf()), u"WIC failed to create WICStream");
-        THROW_HR(wicStream->InitializeFromMemory(reinterpret_cast<BYTE*>(const_cast<std::byte*>(ptr)), common::saturate_cast<DWORD>(size)), 
+        THROW_HR(wicStream->InitializeFromMemory(reinterpret_cast<BYTE*>(const_cast<std::byte*>(space->data())), static_cast<DWORD>(space->size())),
             u"WIC failed to init WICStream");
         THROW_HR(wicStream->QueryInterface(istream.GetAddressOf()), u"Failed to get IStream");
     }
@@ -521,10 +520,10 @@ std::unique_ptr<ImgWriter> WicSupport::GetWriter(common::io::RandomOutputStream&
 
 uint8_t WicSupport::MatchExtension(std::u16string_view ext, ImgDType dataType, const bool isRead) const
 {
+    if (!DataTypeGuidLookup(dataType.Value))
+        return 0;
     if (isRead)
     {
-        if (!DataTypeGuidLookup(dataType.Value))
-            return 0;
         if (ext == u"BMP" || ext == u"HEIF" || ext == u"WEBP" || ext == u"AVIF" || ext == u"TIFF" || ext == u"TIF")
             return 240;
         if (ext == u"JPG" || ext == u"JPEG" || ext == u"PNG")
@@ -532,7 +531,9 @@ uint8_t WicSupport::MatchExtension(std::u16string_view ext, ImgDType dataType, c
     }
     else
     {
-        if (ext == u"BMP" || ext == u"TIFF" || ext == u"TIF")
+        if (ext == u"BMP")
+            return dataType.ChannelCount() <= 2 ? 64 : 240; // WIC asks for platte with Gray Bmp
+        if (ext == u"TIFF" || ext == u"TIF")
             return 240;
         if (ext == u"JPG" || ext == u"JPEG" || ext == u"PNG" || ext == u"JXL" || ext == u"HEIF" || ext == u"WEBP")
             return 128;

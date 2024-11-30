@@ -166,6 +166,9 @@ static constexpr uint8_t Ref_RGB[35][35][3] =
 #   pragma clang diagnostic pop
 #endif
 
+using xziar::img::ImgDType;
+namespace ImageDataType = xziar::img::ImageDataType;
+
 template<typename T>
 class ImgTestSuite : public testing::Test
 {
@@ -223,9 +226,10 @@ static uint32_t RegisterSupportTest(const char* fileName, const int fileLine, st
     return 0;
 }
 
-template<xziar::img::ImgDType Type, typename T, uint32_t Width, uint32_t Height, uint32_t N>
+template<uint8_t Tval, typename T, uint32_t Width, uint32_t Height, uint32_t N>
 static void TestRead(common::span<const std::byte> file, const T(&src)[Height][Width][N], const xziar::img::ImgSupport& support, std::u16string_view ext)
 {
+    constexpr ImgDType Type{ Tval };
     constexpr auto ElementSize = xziar::img::Image::GetElementSize(Type);
     static_assert(ElementSize == sizeof(T) * N);
     common::io::MemoryInputStream input(file);
@@ -312,10 +316,10 @@ static void TestRead(common::span<const std::byte> file, const T(&src)[Height][W
 }
 
 
-template<typename T, xziar::img::ImgDType DT, auto Ref>
+template<typename T, uint8_t DT, auto Ref>
 struct ImgReadFixture : public ImgTestSuite<T>
 {
-    static constexpr xziar::img::ImgDType Type = DT;
+    static constexpr ImgDType Type = ImgDType{ DT };
     void Test(common::span<const std::byte> file) const
     {
         TestRead<DT>(file, *Ref, *this->Support, T::Extension);
@@ -329,7 +333,7 @@ struct ImgReadFixture : public ImgTestSuite<T>
 
 #define IMG_TEST_(name, ext, ftype, otype)                                  \
 struct name ## _ ## Fixture : public ImgReadFixture                         \
-    <ImgSuiteRead##ext, xziar::img::ImageDataType::otype, &Ref_ ## otype>   \
+    <ImgSuiteRead##ext, ImageDataType::otype.Value, &Ref_ ## otype>         \
 {                                                                           \
     using ImgReadFixture::ImgReadFixture;                                   \
     void TestBody() override;                                               \

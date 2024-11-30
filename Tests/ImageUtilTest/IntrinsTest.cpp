@@ -741,48 +741,6 @@ INTRIN_TEST(ColorCvt, RGBfToBf)
     TestGetChannelF<3, 2>(Intrin);
 }
 
-template<uint8_t Ch>
-void TestGetChannelA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
-{
-    const auto src = GetRandVals();
-    VarLenTest<uint32_t, uint16_t, 1, 1>(src, [&](uint16_t* dst, const uint32_t* src, size_t count)
-    {
-        intrin->RGBAGetChannelAlpha(dst, src, count, Ch);
-    }, [](uint16_t* dst, const uint32_t* src, size_t count)
-    {
-        while (count)
-        {
-            const auto val = *src++;
-            const auto r = static_cast<uint8_t>(0xff & (val >> 0));
-            const auto g = static_cast<uint8_t>(0xff & (val >> 8));
-            const auto b = static_cast<uint8_t>(0xff & (val >> 16));
-            const auto a = static_cast<uint8_t>(0xff & (val >> 24));
-            const uint8_t rgb[3] = { r,g,b };
-            reinterpret_cast<uint8_t*>(dst)[0] = rgb[Ch];
-            reinterpret_cast<uint8_t*>(dst)[1] = a;
-            dst++;
-            count--;
-        }
-    });
-}
-INTRIN_TEST(ColorCvt, RGBA8ToRA8)
-{
-    SCOPED_TRACE("ColorCvt::RGBA8ToRA8");
-    TestGetChannelA<0>(Intrin);
-}
-
-INTRIN_TEST(ColorCvt, RGBA8ToGA8)
-{
-    SCOPED_TRACE("ColorCvt::RGBA8ToGA8");
-    TestGetChannelA<1>(Intrin);
-}
-
-INTRIN_TEST(ColorCvt, RGBA8ToBA8)
-{
-    SCOPED_TRACE("ColorCvt::RGBA8ToBA8");
-    TestGetChannelA<2>(Intrin);
-}
-
 
 template<typename Src, typename Dst, size_t M, size_t N, typename F>
 static void VarLenExtractTest(common::span<const std::byte> source, F&& func)
@@ -1477,20 +1435,6 @@ TEST(IntrinPerf, RGBfGetChannel)
         dst.data(), src.data(), Size, uint8_t(2));
 }
 
-TEST(IntrinPerf, RGBAGetChannelAlpha)
-{
-    using xziar::img::ColorConvertor;
-    constexpr uint32_t Size = 1024 * 1024;
-    std::vector<uint32_t> src(Size);
-    std::vector<uint16_t> dst(Size);
-
-    PerfTester::DoFastPath(&ColorConvertor::RGBAGetChannelAlpha, "RGBA8ToRA8", Size, 100,
-        dst.data(), src.data(), Size, uint8_t(0));
-    PerfTester::DoFastPath(&ColorConvertor::RGBAGetChannelAlpha, "RGBA8ToGA8", Size, 100,
-        dst.data(), src.data(), Size, uint8_t(1));
-    PerfTester::DoFastPath(&ColorConvertor::RGBAGetChannelAlpha, "RGBA8ToBA8", Size, 100,
-        dst.data(), src.data(), Size, uint8_t(2));
-}
 
 template<typename T, size_t N> using PtrSpan = common::span<T* const, N>;
 template<size_t N> using PS8 = PtrSpan<uint8_t, N>;

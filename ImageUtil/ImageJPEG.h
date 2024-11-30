@@ -8,15 +8,14 @@ namespace xziar::img::libjpeg
 {
 using namespace common;
 struct JpegHelper;
-class StreamReader;
 
 
 class JpegReader : public ImgReader
 {
     friend JpegHelper;
 private:
-    common::io::RandomInputStream& Stream;
-    std::unique_ptr<StreamReader> Reader;
+    struct StreamBlock;
+    std::unique_ptr<StreamBlock> Block;
     void *JpegDecompStruct = nullptr;
     void *JpegSource = nullptr;
     void *JpegErrorHandler = nullptr;

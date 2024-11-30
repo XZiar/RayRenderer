@@ -48,9 +48,6 @@ private:
     void(*RGBfToRf          )(float*  __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
     void(*RGBfToGf          )(float*  __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
     void(*RGBfToBf          )(float*  __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToRA8        )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToGA8        )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToBA8        )(uint16_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
     void(*Extract8x2        )(uint8_t* const * __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*Extract8x3        )(uint8_t* const * __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
     void(*Extract8x4        )(uint8_t* const * __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
@@ -84,6 +81,7 @@ public:
     IMGUTILAPI ColorConvertor(common::span<const VarItem> requests = {}) noexcept;
     IMGUTILAPI ~ColorConvertor();
     IMGUTILAPI [[nodiscard]] bool IsComplete() const noexcept final;
+    constexpr const common::CopyManager& GetCopy() const noexcept { return CopyEx; }
 
     forceinline void GrayToGrayA(uint16_t* const dest, const uint8_t* src, const size_t count, const std::byte alpha = std::byte(0xff)) const noexcept
     {
@@ -137,6 +135,24 @@ public:
     forceinline void GrayAToGray(float* const dest, const float* src, const size_t count) const noexcept
     {
         CopyEx.TruncCopy(reinterpret_cast<uint32_t*>(dest), reinterpret_cast<const uint64_t*>(src), count);
+    }
+
+    forceinline void GrayAToAlpha(uint8_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        if (count > 0)
+        {
+            const auto src_ = reinterpret_cast<const uint8_t*>(src);
+            CopyEx.TruncCopy(dest, reinterpret_cast<const uint16_t*>(src_ + 1), count - 1);
+            dest[count - 1] = src_[count * 2 - 1];
+        }
+    }
+    forceinline void GrayAToAlpha(float* const dest, const float* src, const size_t count) const noexcept
+    {
+        if (count > 0)
+        {
+            CopyEx.TruncCopy(reinterpret_cast<uint32_t*>(dest), reinterpret_cast<const uint64_t*>(src + 1), count);
+            dest[count - 1] = src[count * 2 - 1];
+        }
     }
 
     forceinline void RGBToRGBA(uint32_t* const dest, const uint8_t* src, const size_t count, const std::byte alpha = std::byte(0xff)) const noexcept
@@ -231,17 +247,6 @@ public:
         case 0: return RGBfToRf(dest, src, count);
         case 1: return RGBfToGf(dest, src, count);
         case 2: return RGBfToBf(dest, src, count);
-        default: return;
-        }
-    }
-
-    forceinline void RGBAGetChannelAlpha(uint16_t* const dest, const uint32_t* src, const size_t count, const uint8_t channel) const noexcept
-    {
-        switch (channel)
-        {
-        case 0: return RGBA8ToRA8(dest, src, count);
-        case 1: return RGBA8ToGA8(dest, src, count);
-        case 2: return RGBA8ToBA8(dest, src, count);
         default: return;
         }
     }

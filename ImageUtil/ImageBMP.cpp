@@ -180,7 +180,7 @@ static constexpr auto Bit16MaskLUT = BuildStaticLookup(Mask4, PixFormat,
 template<typename T>
 static forceinline constexpr bool CheckOverlap(const T& items) noexcept
 {
-    for (const auto item : items)
+    for (const auto& item : items)
         if (CheckOverlap(item.Key))
             return true;
     return false;
@@ -427,6 +427,18 @@ void BmpWriter::Write(const Image& image, const uint8_t)
 
     timer.Stop();
     ImgLog().Debug(u"zexbmp write cost {} ms\n", timer.ElapseMs());
+}
+
+
+uint8_t BmpSupport::MatchExtension(std::u16string_view ext, ImgDType dataType, const bool isRead) const
+{
+    if (ext != u"BMP")
+        return 0;
+    if (dataType.DataType() != ImgDType::DataTypes::Uint8)
+        return 0;
+    if (!isRead && dataType.Channel() == ImgDType::Channels::RA)
+        return 0;
+    return 192;
 }
 
 static auto DUMMY = RegistImageSupport<BmpSupport>();

@@ -17,7 +17,10 @@ static std::string GenerateMatchStr(const std::array<T, N>& ref)
     {
         if (!isFirst)
             ret.append(", ");
-        ret.append(std::to_string(val));
+        if constexpr (std::is_same_v<T, ::common::fp16_t>)
+            ret.append(std::to_string(FP16ToFP32(val)));
+        else
+            ret.append(std::to_string(val));
         isFirst = false;
     }
     ret.append("]");
@@ -756,18 +759,6 @@ forceinline void CopyEles(const T& src, U* dst, std::index_sequence<I...>)
     constexpr auto N = V::Count;
     (..., src[I].Save(dst + N * I));
 }
-template<typename U, CastMode Mode, typename T>
-forceinline U CastSingle(T val) noexcept
-{
-    if constexpr (Mode == CastMode::RangeSaturate)
-    {
-        constexpr auto dstMin = std::numeric_limits<U>::min(), dstMax = std::numeric_limits<U>::max();
-        constexpr auto minVal = static_cast<T>(dstMin), maxVal = static_cast<T>(dstMax);
-        if (val <= minVal) return dstMin;
-        if (val >= maxVal) return dstMax;
-    }
-    return static_cast<U>(val);
-}
 template<typename T, typename U, CastMode Mode>
 static void TestCast(const T* ptr)
 {
@@ -785,7 +776,7 @@ static void TestCast(const T* ptr)
             else
                 CopyEles(output, out, std::make_index_sequence<T::Count / U::Count>{});
             for (uint8_t i = 0; i < T::Count; ++i)
-                ref[i] = CastSingle<V, Mode>(data.Val[i]);
+                ref[i] = CastSingle<V, Mode == CastMode::RangeSaturate>(data.Val[i]);
             EXPECT_THAT(out, MatchVec(ref)) << "when testing UpCast";
         }
     }
@@ -809,7 +800,7 @@ static void TestCast(const T* ptr)
             {
                 const auto& data = ptr[k * K + j];
                 for (uint8_t i = 0; i < T::Count; ++i)
-                    ref[j * T::Count + i] = CastSingle<V, Mode>(data.Val[i]);
+                    ref[j * T::Count + i] = CastSingle<V, Mode == CastMode::RangeSaturate>(data.Val[i]);
             }
             EXPECT_THAT(output.Val, MatchVec(ref)) << "when testing DownCast";
         }

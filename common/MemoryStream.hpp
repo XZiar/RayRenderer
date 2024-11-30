@@ -28,10 +28,9 @@ public:
         stream.Ptr = nullptr; stream.TotalSize = stream.CurPos = 0;
     }
     virtual ~MemoryInputStream() override {}
-
-    [[nodiscard]] constexpr std::pair<const std::byte*, size_t> ExposeAvaliable() const
-    {
-        return { Ptr + CurPos, TotalSize - CurPos };
+    [[nodiscard]] std::optional<span<const std::byte>> TryGetAvaliableInMemory() const noexcept final
+    { 
+        return span<const std::byte>{ Ptr + CurPos, TotalSize - CurPos };
     }
 
     //==========RandomStream=========//

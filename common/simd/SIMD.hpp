@@ -191,6 +191,25 @@
 # else
 #  error Unknown compiler, not supported by this header
 # endif
+// workrounds
+# if COMMON_COMPILER_MSVC // msvc only typedef __n128 & __n64
+#    define vld1q_f16 vld1q_u16
+#    define vld2q_f16 vld2q_u16
+#    define vld3q_f16 vld3q_u16
+#    define vld4q_f16 vld4q_u16
+#    define vld1q_f16_x2 vld1q_u16_x2
+#    define vld1q_f16_x3 vld1q_u16_x3
+#    define vld1q_f16_x4 vld1q_u16_x4
+#    define vst1q_f16 vst1q_u16
+#    define vst2q_f16 vst2q_u16
+#    define vst3q_f16 vst3q_u16
+#    define vst4q_f16 vst4q_u16
+#    define vst1q_f16_x2 vst1q_u16_x2
+#    define vst1q_f16_x3 vst1q_u16_x3
+#    define vst1q_f16_x4 vst1q_u16_x4
+#    define vdupq_n_f16 vdupq_n_u16
+using float16_t = uint16_t;
+# endif
 #else
 #  error Unknown architecture, not supported by this header
 #endif
@@ -226,6 +245,12 @@
 #    define COMMON_SIMD_LV COMMON_SIMD_LV_
 # endif
 
+# if defined(__AVX512FP16__)
+#   define COMMON_SIMD_FP16 1
+# endif
+# if defined(__AVX512BF16__)
+#   define COMMON_SIMD_BF16 1
+# endif
 
 # if COMMON_SIMD_LV >= 320
 #   define COMMON_SIMD_INTRIN AVX512
@@ -282,6 +307,13 @@
 # endif
 # ifndef COMMON_SIMD_LV
 #   define COMMON_SIMD_LV COMMON_SIMD_LV_
+# endif
+
+# if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC) && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#   define COMMON_SIMD_FP16 1
+# endif
+# if defined(__ARM_FEATURE_BF16_VECTOR_ARITHMETIC) && __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#   define COMMON_SIMD_BF16 1
 # endif
 
 # if COMMON_SIMD_LV >= 200

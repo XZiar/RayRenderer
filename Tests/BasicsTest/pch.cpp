@@ -1,7 +1,18 @@
 #include "pch.h"
 #include "SIMDRely.h"
 #include "3rdParty/cpuinfo/include/cpuinfo.h"
+#define HALF_ENABLE_F16C_INTRINSICS 0
+#include "3rdParty/half/half.hpp"
 
+
+::common::fp16_t FP32ToFP16(float val) noexcept
+{
+    return common::bit_cast<::common::fp16_t>(half_float::half{ val });
+}
+float FP16ToFP32(::common::fp16_t val) noexcept
+{
+    return common::bit_cast<half_float::half>(val);
+}
 
 template<size_t N>
 std::vector<std::array<uint8_t, N>> GenerateAllPoses() noexcept
@@ -46,6 +57,14 @@ alignas(32) const std::array<uint8_t, RandValBytes / 1> RandVals = []()
     std::array<uint8_t, RandValBytes / 1> vals = {};
     for (auto& val : vals)
         val = static_cast<uint8_t>(GetARand());
+    return vals;
+}();
+alignas(32) const std::array<::common::fp16_t, RandValBytes / 2> RandValsF16 = []()
+{
+    static_assert(std::is_trivially_copyable_v<half_float::half>);
+    std::array<::common::fp16_t, RandValBytes / 2> vals = {};
+    for (auto& val : vals)
+        val = ::common::bit_cast<::common::fp16_t>(static_cast<half_float::half>(static_cast<int16_t>(GetARand())));
     return vals;
 }();
 alignas(32) const std::array<float, RandValBytes / 4> RandValsF32 = []()

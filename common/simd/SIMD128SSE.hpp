@@ -17,6 +17,7 @@ struct I8x16;
 struct U8x16;
 struct I16x8;
 struct U16x8;
+struct F16x8;
 struct I32x4;
 struct U32x4;
 struct F32x4;
@@ -1493,6 +1494,34 @@ struct alignas(16) F32x4 : public detail::SSE128Shared<F32x4, float>
 };
 
 
+struct alignas(16) F16x8
+{
+    using EleType = ::common::fp16_t;
+    using VecType = __m128i;
+    static constexpr size_t Count = 8;
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Float,16,8,0 };
+    union
+    {
+        __m128i Data;
+        ::common::fp16_t Val[8];
+    };
+    forceinline constexpr F16x8() noexcept : Data() {}
+    forceinline explicit F16x8(const ::common::fp16_t* ptr) noexcept : Data(_mm_loadu_si128((const __m128i*)ptr)) {}
+    forceinline constexpr F16x8(const __m128i val) noexcept : Data(val) {}
+    forceinline F16x8(const ::common::fp16_t val) noexcept : Data(_mm_set1_epi16(::common::bit_cast<int16_t>(val))) {}
+    forceinline F16x8(const ::common::fp16_t lo0, const ::common::fp16_t lo1, const ::common::fp16_t lo2, const ::common::fp16_t lo3, 
+        const ::common::fp16_t lo4, const ::common::fp16_t lo5, const ::common::fp16_t lo6, const ::common::fp16_t hi7) noexcept : 
+        Data(_mm_setr_epi16(::common::bit_cast<int16_t>(lo0), ::common::bit_cast<int16_t>(lo1), ::common::bit_cast<int16_t>(lo2), ::common::bit_cast<int16_t>(lo3), 
+            ::common::bit_cast<int16_t>(lo4), ::common::bit_cast<int16_t>(lo5), ::common::bit_cast<int16_t>(lo6), ::common::bit_cast<int16_t>(hi7))) {}
+    forceinline constexpr operator const __m128i& () const noexcept { return Data; }
+    forceinline void VECCALL Load(const ::common::fp16_t* ptr) noexcept { Data = _mm_loadu_si128((const __m128i*)ptr); }
+    forceinline void VECCALL Save(::common::fp16_t* ptr) const noexcept { _mm_storeu_si128((__m128i*)ptr, Data); }
+
+    template<typename T, CastMode Mode = ::common::simd::detail::CstMode<F16x8, T>(), typename... Args>
+    typename CastTyper<F16x8, T>::Type VECCALL Cast(const Args&... args) const noexcept;
+};
+
+
 struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64_t>
 {
     using Common64x2<I64x2, int64_t>::Common64x2;
@@ -2295,6 +2324,83 @@ template<> forceinline I8x16 VECCALL I64x2::Cast<I8x16, CastMode::RangeTrunc>(co
 }
 
 
+template<> forceinline Pack<F32x4, 2> VECCALL F16x8::Cast<F32x4, CastMode::RangeUndef>() const noexcept
+{
+#if COMMON_SIMD_LV >= 100 && (defined(__F16C__) || COMMON_COMPILER_MSVC)
+    const auto val = _mm256_cvtph_ps(Data);
+    return { _mm256_castps256_ps128(val), _mm256_extractf128_ps(val, 1) };
+#else
+    constexpr uint16_t SignMask = 0x8000;
+    constexpr uint16_t ExpMask  = 0x7c00;
+    constexpr uint16_t FracMask = 0x03ff;
+    constexpr uint16_t ExpShift = (127 - 15) << (16 - 1 - 8); // e' = (e - 15) + 127 => e' = e + (127 - 15)
+    constexpr uint16_t ExpMax32 = 0x7f80;
+    // fexp - 127 = trailing bit count
+    // shiter = 10 - trailing bit count = 10 + 127 - fexp
+    constexpr uint16_t FexpMax = 10 + 127;
+    // minexp = (127 - 14), curexp = (127 - 15) = minexp - 1
+    // exp = minexp - shifter = (127 - 15) + 1 - (10 + 127 - fexp) = fexp - 24
+    // exp -= 10 - (fexp - 127) => -= 10 + 127 - fexp
+    // exp = (127 - 15), exp -= FexpMax - fexp ==> exp = (127 - 15) - (FexpMax - fexp) = fexp - 25
+    constexpr uint16_t FexpAdjust = (FexpMax - (127 - 15 + 1)) << 7;
+
+    const auto misc0 = U16x8(SignMask, SignMask, ExpMask, ExpMask, FracMask, FracMask, ExpShift, ExpShift).As<U32x4>();
+    const auto misc1 = U16x8(ExpMax32, ExpMax32, FexpMax, FexpMax, FexpAdjust, FexpAdjust, 0, 0).As<U32x4>();
+        
+    const auto signMask   = misc0.Broadcast<0>().As<U16x8>();
+    const auto expMask    = misc0.Broadcast<1>().As<U16x8>();
+    const auto fracMask   = misc0.Broadcast<2>().As<U16x8>();
+    const auto expShift   = misc0.Broadcast<3>().As<U16x8>();
+    const auto expMax32   = misc1.Broadcast<0>().As<U16x8>();
+    const auto fexpMax    = misc1.Broadcast<1>().As<U16x8>();
+    const auto fexpAdjust = misc1.Broadcast<2>().As<U16x8>();
+
+    const U16x8 dat(Data);
+
+    const auto ef = signMask.AndNot(dat);
+    const auto e_ = dat.And(expMask);
+    const auto f_ = dat.And(fracMask);
+    const auto e_normal = e_.ShiftRightLogic<3>().Add(expShift);
+    const auto isExpMax = e_.Compare<CompareType::Equal, MaskType::FullEle>(expMask);
+    const auto e_nm = e_normal.SelectWith<MaskType::FullEle>(expMax32, isExpMax);
+    const auto isExpMin = e_.Compare<CompareType::Equal, MaskType::FullEle>(U16x8::AllZero());
+    const auto isDenorm = U16x8(_mm_sign_epi16(isExpMin.Data, ef.Data)); // ef == 0 then become zero
+    const auto e_nmz = U16x8(_mm_sign_epi16(e_nm.Data, ef.Data)); // ef == 0 then become zero
+
+    U16x8 e, f;
+    IF_LIKELY(isDenorm.IsAllZero())
+    { // all normal
+        e = e_nmz;
+        f = f_;
+    }
+    else
+    { // calc denorm
+        const auto f_fp = f_.Cast<F32x4>();
+        const auto shufHiMask = _mm_setr_epi8(2, 3, 6, 7, 10, 11, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1);
+        const auto f_fphi0 = _mm_shuffle_epi8(f_fp[0].As<U32x4>().Data, shufHiMask);
+        const auto f_fphi1 = _mm_shuffle_epi8(f_fp[1].As<U32x4>().Data, shufHiMask);
+        const auto f_fphi = U16x8(_mm_unpacklo_epi64(f_fphi0, f_fphi1));
+
+        const auto fracShifter = fexpMax.Sub(f_fphi.ShiftRightLogic<7>());
+        const auto denormFrac = f_.ShiftLeftLogic<false>(fracShifter).And(fracMask);
+
+        const auto denormExp = f_fphi.Sub(fexpAdjust).And(expMax32);
+
+        e = e_nmz.SelectWith<MaskType::FullEle>(denormExp, isDenorm);
+        f = f_.SelectWith<MaskType::FullEle>(denormFrac, isDenorm);
+    }
+    const auto fhi = f.ShiftRightLogic<3>();
+    const auto flo = f.ShiftLeftLogic<13>();
+
+    const auto sign = dat.And(signMask);
+    const auto sefh = sign.Or(fhi).Or(e);
+    const auto out0 = flo.ZipLo(sefh).As<F32x4>(), out1 = flo.ZipHi(sefh).As<F32x4>();
+
+    return { out0, out1 };
+#endif
+}
+
+
 template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4, CastMode::RangeUndef>() const noexcept
 {
     return _mm_cvttps_epi32(Data);
@@ -2306,6 +2412,85 @@ template<> forceinline I16x8 VECCALL F32x4::Cast<I16x8, CastMode::RangeUndef>(co
 template<> forceinline U16x8 VECCALL F32x4::Cast<U16x8, CastMode::RangeUndef>(const F32x4& arg1) const noexcept
 {
     return Cast<I16x8>(arg1).As<U16x8>();
+}
+template<> forceinline F16x8 VECCALL F32x4::Cast<F16x8, CastMode::RangeUndef>(const F32x4& arg1) const noexcept
+{
+#if COMMON_SIMD_LV >= 100 && (defined(__F16C__) || COMMON_COMPILER_MSVC)
+    return _mm256_cvtps_ph(_mm256_set_m128(arg1.Data, Data), _MM_FROUND_TO_NEAREST_INT);
+#else
+    constexpr uint16_t SignMask = 0x8000;
+    constexpr uint16_t ExpMask  = 0x7f80;
+    constexpr uint16_t FracMask = 0x03ff;
+    constexpr uint16_t ExpShift = (127 - 15) << (16 - 1 - 8); // e' = (e - 15) + 127 => e' = e + (127 - 15)
+    constexpr uint16_t ExpMin   = (127 - 15 - 10) << (16 - 1 - 8);
+    constexpr uint16_t ExpMax   = (127 + 15 + 1) << (16 - 1 - 8);
+    constexpr uint16_t FracHiBit = 0x0400;
+
+    const auto misc0 = U16x8(SignMask, SignMask, ExpMask, ExpMask, FracMask, FracMask, ExpShift, ExpShift).As<U32x4>();
+    const auto misc1 = U16x8(ExpMin, ExpMin, ExpMax, ExpMax, FracHiBit, FracHiBit, 1, 1).As<U32x4>();
+        
+    const auto signMask   = misc0.Broadcast<0>().As<U16x8>();
+    const auto expMask    = misc0.Broadcast<1>().As<U16x8>();
+    const auto fracMask   = misc0.Broadcast<2>().As<U16x8>();
+    const auto expShift   = misc0.Broadcast<3>().As<U16x8>();
+    const auto expMin     = misc1.Broadcast<0>().As<U16x8>();
+    const auto expMax     = misc1.Broadcast<1>().As<U16x8>();
+    const auto fracHiBit  = misc1.Broadcast<2>().As<U16x8>();
+    const auto one        = misc1.Broadcast<3>().As<U16x8>();
+
+    const U32x4 dat0 = As<U32x4>(), dat1 = arg1.As<U32x4>();
+
+    const auto shufHiMask = _mm_setr_epi8(2, 3, 6, 7, 10, 11, 14, 15,
+        0, 1, 4, 5, 8, 9, 12, 13);
+    const auto datHi0 = _mm_shuffle_epi8(dat0.Data, shufHiMask);
+    const auto datHi1 = _mm_shuffle_epi8(dat1.Data, shufHiMask);
+    const auto datHi = U16x8(_mm_unpacklo_epi64(datHi0, datHi1));
+    const auto frac0 = _mm_shuffle_epi8(dat0.ShiftLeftLogic<3>().Data, shufHiMask);
+    const auto frac1 = _mm_shuffle_epi8(dat1.ShiftLeftLogic<3>().Data, shufHiMask);
+    const auto fracPart = U16x8(_mm_unpacklo_epi64(frac0, frac1));
+    const auto frac16 = fracPart.And(fracMask);
+    const auto fracTrailing = U16x8(_mm_unpackhi_epi64(frac0, frac1));
+    const auto isHalfRound = fracTrailing.Compare<CompareType::Equal, MaskType::FullEle>(signMask);
+    const auto frac16LastBit = fracPart.ShiftLeftLogic<15>();
+    const auto isRoundUpMSB = fracTrailing.SelectWith<MaskType::FullEle>(frac16LastBit, isHalfRound);
+    const auto isRoundUpMask = isRoundUpMSB.As<I16x8>().ShiftRightArith<15>().As<U16x8>();
+    const auto e_ = datHi.And(expMask); // [0000h~7f80h][denorm,inf]
+    const auto e_hicut = e_.Min(expMax); // [0000h~4780h][denorm,2^16=inf]
+    const auto e_shifted = e_hicut.Max(expShift).Sub(expShift); // [0000h~07c0h][0=denorm,31=inf]
+    const auto e_normal = e_shifted.ShiftLeftLogic<3>(); // [0=denorm,31=inf]
+    const auto mapToZero = e_.As<I16x8>().Compare<CompareType::LessThan, MaskType::FullEle>(expMin.As<I16x8>()).As<U16x8>(); // 2^-25, < 0.5*(min-denorm of fp16)
+    const auto isNaNInf = e_.Compare<CompareType::Equal, MaskType::FullEle>(expMask); // NaN or Inf
+    const auto mapToInf   = e_hicut.Compare<CompareType::Equal, MaskType::FullEle>(expMax); // 2^16(with high cut), become inf exp
+    const auto isOverflow = isNaNInf.AndNot(mapToInf); // !isNaNInf && mapToInf
+    const auto shouldFracZero = mapToZero.Or(isOverflow);
+    const auto f_ = shouldFracZero.AndNot(frac16); // when shouldFracZero == ff, become 0
+    const auto needRoundUpMask = shouldFracZero.AndNot(isRoundUpMask);
+
+    const auto dontRequestDenorm = e_hicut.As<I16x8>().Compare<CompareType::GreaterThan, MaskType::FullEle>(expShift.As<I16x8>()).As<U16x8>();
+    const auto notDenorm = mapToZero.Or(dontRequestDenorm); // mapToZero || dontRequestDenorm
+
+    U16x8 e, f, r;
+    e = e_normal;
+    IF_LIKELY(notDenorm.Add(one).IsAllZero())
+    { // all normal
+        f = f_;
+        r = needRoundUpMask;
+    }
+    else
+    { // calc denorm
+        const auto e_denormReq = /*shiftAdj*/expShift.Sub(e_hicut).ShiftRightLogic<16 - 9>(); // [f080h~3800h] -> [1e1h~070h], only [00h~09h] valid
+        const auto f_shifted1 = f_.Or(fracHiBit).ShiftRightLogic<false>(e_denormReq);
+        const auto denormRoundUpBit = f_shifted1.And(one);
+        const auto denormRoundUp = U16x8(_mm_sign_epi16(denormRoundUpBit, signMask)); // bit==1 then become ffff, bit==0 then become 0
+        f = f_shifted1.ShiftRightLogic<1>().SelectWith<MaskType::FullEle>(f_, notDenorm); // actually shift [0~9]+1
+        r = denormRoundUp.SelectWith<MaskType::FullEle>(needRoundUpMask, notDenorm);
+    }
+    const auto sign = datHi.And(signMask);
+    const auto sef = sign.Or(e).Or(f);
+    const auto roundUpVal = _mm_abs_epi16(r); // full mask then 1, 0 then 0
+    const auto out = sef.Add(roundUpVal);
+    return out.As<F16x8>();
+#endif
 }
 template<> forceinline I8x16 VECCALL F32x4::Cast<I8x16, CastMode::RangeUndef>(const F32x4& arg1, const F32x4& arg2, const F32x4& arg3) const noexcept
 {
@@ -2322,6 +2507,26 @@ template<> forceinline Pack<F64x2, 2> VECCALL F32x4::Cast<F64x2, CastMode::Range
 template<> forceinline F32x4 VECCALL F64x2::Cast<F32x4, CastMode::RangeUndef>(const F64x2& arg1) const noexcept
 {
     return _mm_castpd_ps(_mm_unpacklo_pd(_mm_castps_pd(_mm_cvtpd_ps(Data)), _mm_castps_pd(_mm_cvtpd_ps(arg1.Data))));
+}
+
+
+template<> forceinline F16x8 VECCALL I16x8::Cast<F16x8, CastMode::RangeUndef>() const noexcept
+{
+#if COMMON_SIMD_LV > 320 && COMMON_SIMD_FP16
+    return _mm_castph_si128(_mm_cvtepi16_ph(Data));
+#else
+    const auto val = Cast<F32x4>();
+    return val[0].Cast<F16x8>(val[1]);
+#endif
+}
+template<> forceinline F16x8 VECCALL U16x8::Cast<F16x8, CastMode::RangeUndef>() const noexcept
+{
+#if COMMON_SIMD_LV > 320 && COMMON_SIMD_FP16
+    return _mm_castph_si128(_mm_cvtepu16_ph(Data));
+#else
+    const auto val = Cast<F32x4>();
+    return val[0].Cast<F16x8>(val[1]);
+#endif
 }
 
 

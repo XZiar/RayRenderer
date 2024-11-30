@@ -99,10 +99,7 @@ public:
     {
         return std::make_unique<BmpWriter>(stream);
     }
-    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImgDType, const bool) const final
-    { 
-        return ext == u"BMP" ? 192 : 0;
-    }
+    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImgDType, const bool) const final;
 };
 
 

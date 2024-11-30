@@ -31,14 +31,16 @@ RegisterSIMDBaseTest(I8x16, 30,       Move,      SEL, MSK, Add, Sub, SatAdd, Sat
 RegisterSIMDBaseTest(U8x16, 30,       Move,      SEL, MSK, Add, Sub, SatAdd, SatSub, MulLo, MulX,          Abs, Min, Max, SLL,       SRL,       SRA);
 
 
-RegisterSIMDCastTest(I64x2, 30, I8x16,        I16x8,        I32x4                            );
-RegisterSIMDCastTest(U64x2, 30,        U8x16,        U16x8,        U32x4                     );
-RegisterSIMDCastTest(I32x4, 30, I8x16,                                    I64x2, U64x2, F32x4);
-RegisterSIMDCastTest(U32x4, 30,        U8x16,        U16x8,               I64x2, U64x2, F32x4);
-RegisterSIMDCastTest(I16x8, 30, I8x16,                      I32x4, U32x4, I64x2, U64x2, F32x4);
-RegisterSIMDCastTest(U16x8, 30,        U8x16,               I32x4, U32x4, I64x2, U64x2, F32x4);
-RegisterSIMDCastTest(I8x16, 30,               I16x8, U16x8, I32x4, U32x4, I64x2, U64x2, F32x4);
-RegisterSIMDCastTest(U8x16, 30,               I16x8, U16x8, I32x4, U32x4, I64x2, U64x2, F32x4);
+RegisterSIMDCastTest(F16x8, 30, F32x4);
+RegisterSIMDCastTest(F32x4, 30, F16x8);
+RegisterSIMDCastTest(I64x2, 30, I8x16,        I16x8,        I32x4                                   );
+RegisterSIMDCastTest(U64x2, 30,        U8x16,        U16x8,        U32x4                            );
+RegisterSIMDCastTest(I32x4, 30, I8x16,                                    I64x2, U64x2,        F32x4);
+RegisterSIMDCastTest(U32x4, 30,        U8x16,        U16x8,               I64x2, U64x2,        F32x4);
+RegisterSIMDCastTest(I16x8, 30, I8x16,                      I32x4, U32x4, I64x2, U64x2, F16x8, F32x4);
+RegisterSIMDCastTest(U16x8, 30,        U8x16,               I32x4, U32x4, I64x2, U64x2, F16x8, F32x4);
+RegisterSIMDCastTest(I8x16, 30,               I16x8, U16x8, I32x4, U32x4, I64x2, U64x2,        F32x4);
+RegisterSIMDCastTest(U8x16, 30,               I16x8, U16x8, I32x4, U32x4, I64x2, U64x2,        F32x4);
 
 
 RegisterSIMDCastModeTest(F32x4, 30, RangeSaturate, I32x4, I16x8, I8x16);

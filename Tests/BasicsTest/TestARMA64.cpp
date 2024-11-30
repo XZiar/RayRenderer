@@ -32,7 +32,8 @@ RegisterSIMDBaseTest(I8x16, 200,       Move,      SEL, MSK, Add, Sub, SatAdd, Sa
 RegisterSIMDBaseTest(U8x16, 200,       Move,      SEL, MSK, Add, Sub, SatAdd, SatSub, MulLo, MulX,          Abs, Min, Max, SLL,       SRL,       SRA);
 
 
-RegisterSIMDCastTest(F32x4, 200, F64x2);
+RegisterSIMDCastTest(F16x8, 200, F32x4);
+RegisterSIMDCastTest(F32x4, 200, F16x8, F64x2);
 RegisterSIMDCastTest(F64x2, 200, F32x4);
 RegisterSIMDCastTest(I64x2, 200, I8x16,        I16x8,        I32x4                                   );
 RegisterSIMDCastTest(U64x2, 200,        U8x16,        U16x8,        U32x4                            );

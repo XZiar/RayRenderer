@@ -77,11 +77,10 @@ StbReader::StbReader(RandomInputStream& stream) : Stream(stream)
 {
     auto context = new stbi__context();
     StbContext = context;
-    if (auto memStream = dynamic_cast<common::io::MemoryInputStream*>(&Stream))
-    {
-        ImgLog().Verbose(u"STB faces MemoryStream, bypass it.\n");
-        const auto [ptr, size] = memStream->ExposeAvaliable();
-        stbi__start_mem(context, reinterpret_cast<const unsigned char*>(ptr), static_cast<int>(size));
+    if (const auto space = Stream.TryGetAvaliableInMemory(); space && space->size() == Stream.GetSize() && space->size() <= std::numeric_limits<int>::max())
+    { // all in memory and within intmax
+        ImgLog().Verbose(u"STB bypass Stream with mem region.\n");
+        stbi__start_mem(context, reinterpret_cast<const unsigned char*>(space->data()), static_cast<int>(space->size()));
     }
     else
         stbi__start_callbacks(context, &IOCallBack, &Stream);

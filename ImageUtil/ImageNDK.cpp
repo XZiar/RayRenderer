@@ -210,18 +210,6 @@ Image NdkReader::Read(ImgDType dataType)
         // FP16 -> FP32
         Ensures(stride == image.GetElementSize() * image.GetWidth());
         THROW_DEC(Support->Host, DecodeImg(decoder, image.GetRawPtr(), stride, image.GetSize()), u"Failed to decode image");
-        if (dataType.DataType() != origType.DataType())
-        {
-            if (dataType.DataType() == ImgDType::DataTypes::Float32)
-            {
-                Image newimg(ImgDType{ origType.Channel(), dataType.DataType() });
-                newimg.SetSize(Width, Height, false);
-                common::CopyEx.CopyFloat(newimg.GetRawPtr<float>(), image.GetRawPtr<uint16_t>(), Width * Height);
-                image = std::move(newimg);
-            }
-            else
-                return {};
-        }
     } break;
     default: Expects(false); return {};
     }
@@ -279,10 +267,10 @@ std::unique_ptr<ImgReader> NdkSupport::GetReader(common::io::RandomInputStream& 
 {
     common::AlignedBuffer tmp;
     common::span<const std::byte> src;
-    if (auto memStream = dynamic_cast<common::io::MemoryInputStream*>(&stream))
-    {
-        const auto [ptr, size] = memStream->ExposeAvaliable();
-        src = { ptr, size };
+    if (const auto space = stream.TryGetAvaliableInMemory(); space && space->size() == stream.GetSize())
+    { // all in memory
+        ImgLog().Verbose(u"NDK bypass Stream with mem region.\n");
+        src = *space;
     }
     else
     {

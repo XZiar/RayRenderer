@@ -314,7 +314,7 @@ INTRIN_TEST(CopyEx, func)                           \
 F2F_TEST(CvtF32F64, float,  double, float,    double,   uint32_t)
 F2F_TEST(CvtF64F32, double, float,  double,   float,    uint32_t)
 using half = half_float::half;
-F2F_TEST(CvtF16F32, half,   float,  uint16_t, float,    uint16_t)
+F2F_TEST(CvtF16F32, half,   float,  ::common::fp16_t, float,    uint16_t)
 //F2F_TEST(CvtF32F16, float,  half,   float,    uint16_t, uint16_t)
 INTRIN_TEST(CopyEx, CvtF32F16)
 {
@@ -333,7 +333,7 @@ INTRIN_TEST(CopyEx, CvtF32F16)
     {
         std::vector<uint16_t> dst;
         dst.resize(Full16BitFP32.size());
-        Intrin->CopyFloat(dst.data(), Full16BitFP32.data(), Full16BitFP32.size());
+        Intrin->CopyFloat(reinterpret_cast<::common::fp16_t*>(dst.data()), Full16BitFP32.data(), Full16BitFP32.size());
         for (uint32_t i = 0; i < UINT16_MAX; ++i)
         {
             const auto isExpMax = (i & 0x7c00u) == 0x7c00u;
@@ -343,7 +343,7 @@ INTRIN_TEST(CopyEx, CvtF32F16)
                 EXPECT_EQ(dst[i], i) << "when test on full 16bit elements, idx[" << i <<"]";
         }
     }
-    F2FTest<float, half, float, uint16_t, uint16_t>(*Intrin);
+    F2FTest<float, half, float, ::common::fp16_t, uint16_t>(*Intrin);
 }
 
 INTRIN_TESTSUITE(MiscIntrins, common::MiscIntrins, common::MiscIntrin);
@@ -586,7 +586,7 @@ TEST(IntrinPerf, CvtF16F32)
     PerfTester tester("CvtF16F32", inputs.size());
     tester.FastPathTest<common::CopyManager>([&](const common::CopyManager& host)
     {
-        host.CopyFloat(outputs.data(), reinterpret_cast<const uint16_t*>(inputs.data()), inputs.size());
+        host.CopyFloat(outputs.data(), reinterpret_cast<const ::common::fp16_t*>(inputs.data()), inputs.size());
     });
 }
 
@@ -616,7 +616,7 @@ TEST(IntrinPerf, CvtF32F16)
             inputs.push_back(small3);
         }
     }
-    std::vector<uint16_t> outputs;
+    std::vector<::common::fp16_t> outputs;
     outputs.resize(inputs.size());
     PerfTester tester("CvtF32F16", inputs.size());
     tester.FastPathTest<common::CopyManager>([&](const common::CopyManager& host)

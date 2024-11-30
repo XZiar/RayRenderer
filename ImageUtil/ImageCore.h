@@ -42,6 +42,7 @@ struct ImgDType
     //[6...3|*2*|1.....0]
     uint8_t Value;
     constexpr ImgDType() noexcept : Value(0) {}
+    explicit constexpr ImgDType(uint8_t value) noexcept : Value(value) {}
     explicit constexpr ImgDType(Channels ch, DataTypes dt) noexcept : Value{ static_cast<uint8_t>(::common::enum_cast(ch) | (::common::enum_cast(dt) << 3)) } {}
     explicit operator bool() const noexcept { return Value != 0; }
     constexpr bool operator==(const ImgDType& rhs) const noexcept { return Value == rhs.Value; }
@@ -80,6 +81,7 @@ struct ImgDType
 };
 namespace ImageDataType
 {
+static_assert(std::is_trivially_copyable_v<ImgDType>);
 #define IMG_DT(name, ch, dt) inline constexpr ImgDType name = ImgDType(ImgDType::Channels::ch, ImgDType::DataTypes::dt)
 IMG_DT(RGBA,  RGBA, Uint8);
 IMG_DT(BGRA,  BGRA, Uint8);
@@ -220,7 +222,7 @@ public:
     ///<param name="srcY">image source's left-top position</param>
     ///<param name="destX">image destination's left-top position</param>
     ///<param name="destY">image destination's left-top position</param>
-    void PlaceImage(const Image& other, const uint32_t srcX, const uint32_t srcY, const uint32_t destX, const uint32_t destY);
+    void PlaceImage(ImageView other, const uint32_t srcX, const uint32_t srcY, const uint32_t destX, const uint32_t destY);
     ///<summary>Resize the image in-place</summary>  
     ///<param name="width">width</param>
     ///<param name="height">height</param>
@@ -232,10 +234,10 @@ public:
     Image ResizeTo(uint32_t width, uint32_t height, const bool isSRGB = false, const bool mulAlpha = true) const;
     [[nodiscard]] Image Region(const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
     [[nodiscard]] Image ConvertTo(const ImgDType dataType, const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
-    [[nodiscard]] Image ConvertToFloat(const ImgDType::DataTypes dataType, const float floatRange = 1) const;
+    [[nodiscard]] Image ConvertFloat(const ImgDType::DataTypes dataType, const float floatRange = 1) const;
     ///<summary>Pick single channel from image</summary>  
     ///<param name="channel">channel</param>
-    [[nodiscard]] Image ExtractChannel(uint8_t channel, bool keepAlpha = false) const;
+    [[nodiscard]] Image ExtractChannel(uint8_t channel) const;
     [[nodiscard]] std::vector<Image> ExtractChannels() const;
 };
 
@@ -293,7 +295,7 @@ public:
     using Image::ResizeTo;
     using Image::Region;
     using Image::ConvertTo;
-    using Image::ConvertToFloat;
+    using Image::ConvertFloat;
     using Image::IsGray;
     using Image::ExtractData;
     using Image::ExtractChannel;

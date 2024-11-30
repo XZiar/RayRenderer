@@ -1659,6 +1659,25 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
 };
 
 
+struct alignas(16) F16x8 : public detail::Neon128Common<F16x8, float16x8_t, ::common::fp16_t, 8>, public detail::Shuffle32Common<F16x8, float16x8_t>
+{
+    using Neon128Common<F16x8, float16x8_t, ::common::fp16_t, 8>::Neon128Common;
+    forceinline explicit F16x8(const ::common::fp16_t* ptr) noexcept : Neon128Common(vld1q_f16(reinterpret_cast<const float16_t*>(ptr))) {}
+    forceinline F16x8(const ::common::fp16_t val) noexcept : Neon128Common(vdupq_n_f16(::common::bit_cast<float16_t>(val))) {}
+    forceinline F16x8(const ::common::fp16_t lo0, const ::common::fp16_t lo1, const ::common::fp16_t lo2, const ::common::fp16_t lo3,
+        const ::common::fp16_t lo4, const ::common::fp16_t lo5, const ::common::fp16_t lo6, const ::common::fp16_t hi7) noexcept
+    {
+        alignas(16) ::common::fp16_t tmp[] = { lo0, lo1, lo2, lo3, lo4, lo5, lo6, hi7 };
+        Load(tmp);
+    }
+    forceinline void VECCALL Load(const ::common::fp16_t* ptr) noexcept { Data = vld1q_f16(reinterpret_cast<const float16_t*>(ptr)); }
+    forceinline void VECCALL Save(::common::fp16_t* ptr) const noexcept { vst1q_f16(reinterpret_cast<float16_t*>(ptr), Data); }
+
+    template<typename T, CastMode Mode = ::common::simd::detail::CstMode<F16x8, T>(), typename... Args>
+    typename CastTyper<F16x8, T>::Type VECCALL Cast(const Args&... args) const noexcept;
+};
+
+
 struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64x2_t, int64_t>
 {
     using Common64x2<I64x2, int64x2_t, int64_t>::Common64x2;
@@ -2868,6 +2887,18 @@ forceinline T VECCALL detail::Common8x16<T, SIMDType, E>::Shuffle(const U8x16& p
 }
 
 
+template<> forceinline Pack<F32x4, 2> VECCALL F16x8::Cast<F32x4, CastMode::RangeUndef>() const noexcept
+{
+    const auto lo = vcvt_f32_f16(vget_low_f16(Data));
+#if COMMON_SIMD_LV >= 200
+    const auto hi = vcvt_high_f32_f16(Data);
+#else
+    const auto hi = vcvt_f32_f16(vget_high_f16(Data));
+#endif
+    return { lo, hi };
+}
+
+
 template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4, CastMode::RangeUndef>() const noexcept
 {
     return vcvtq_s32_f32(Data);
@@ -2879,6 +2910,14 @@ template<> forceinline I16x8 VECCALL F32x4::Cast<I16x8, CastMode::RangeUndef>(co
 template<> forceinline U16x8 VECCALL F32x4::Cast<U16x8, CastMode::RangeUndef>(const F32x4& arg1) const noexcept
 {
     return Cast<I16x8>(arg1).As<U16x8>();
+}
+template<> forceinline F16x8 VECCALL F32x4::Cast<F16x8, CastMode::RangeUndef>(const F32x4& arg1) const noexcept
+{
+#if COMMON_SIMD_LV >= 200
+    return vcvt_high_f16_f32(vcvt_f16_f32(Data), arg1.Data);
+#else
+    return vcombine_f16(vcvt_f16_f32(Data), vcvt_f16_f32(arg1.Data));
+#endif
 }
 template<> forceinline I8x16 VECCALL F32x4::Cast<I8x16, CastMode::RangeUndef>(const F32x4& arg1, const F32x4& arg2, const F32x4& arg3) const noexcept
 {
@@ -2898,6 +2937,26 @@ template<> forceinline F32x4 VECCALL F64x2::Cast<F32x4, CastMode::RangeUndef>(co
     return vcombine_f32(vcvt_f32_f64(Data), vcvt_f32_f64(arg1));
 }
 #endif
+
+
+template<> forceinline F16x8 VECCALL I16x8::Cast<F16x8, CastMode::RangeUndef>() const noexcept
+{
+#if COMMON_SIMD_LV >= 100
+    return vcvtq_f16_s16(Data);
+#else
+    const auto val = Cast<F32x4>();
+    return val[0].Cast<F16x8>(val[1]);
+#endif
+}
+template<> forceinline F16x8 VECCALL U16x8::Cast<F16x8, CastMode::RangeUndef>() const noexcept
+{
+#if COMMON_SIMD_LV >= 100
+    return vcvtq_f16_u16(Data);
+#else
+    const auto val = Cast<F32x4>();
+    return val[0].Cast<F16x8>(val[1]);
+#endif
+}
 
 
 template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4, CastMode::RangeSaturate>() const noexcept

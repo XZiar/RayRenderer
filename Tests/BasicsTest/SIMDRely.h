@@ -17,6 +17,27 @@
 #include <cinttypes>
 
 
+::common::fp16_t FP32ToFP16(float val) noexcept;
+float FP16ToFP32(::common::fp16_t val) noexcept;
+
+template<typename U, bool Saturate, typename T>
+forceinline U CastSingle(T val) noexcept
+{
+    if constexpr (Saturate)
+    {
+        constexpr auto dstMin = std::numeric_limits<U>::min(), dstMax = std::numeric_limits<U>::max();
+        constexpr auto minVal = static_cast<T>(dstMin), maxVal = static_cast<T>(dstMax);
+        if (val <= minVal) return dstMin;
+        if (val >= maxVal) return dstMax;
+    }
+    if constexpr (std::is_same_v<U, ::common::fp16_t>)
+        return FP32ToFP16(static_cast<float>(val));
+    else if constexpr (std::is_same_v<T, ::common::fp16_t>)
+        return static_cast<U>(FP16ToFP32(val));
+    else
+        return static_cast<U>(val);
+}
+
 template<uint8_t Base, uint8_t Exp>
 inline constexpr uint64_t Pow()
 {
@@ -39,8 +60,9 @@ template<>
 std::vector<std::array<uint8_t, 8>> PosesHolder<8>::Poses;
 
 
-constexpr size_t RandValBytes = 128;
+constexpr size_t RandValBytes = 512;
 alignas(32) extern const std::array<uint8_t, RandValBytes / 1> RandVals;
+alignas(32) extern const std::array<::common::fp16_t, RandValBytes / 2> RandValsF16;
 alignas(32) extern const std::array<float,   RandValBytes / 4> RandValsF32;
 alignas(32) extern const std::array<double,  RandValBytes / 8> RandValsF64;
 template<typename T, typename U>
@@ -50,6 +72,8 @@ static const T* GetRandPtr() noexcept
         return reinterpret_cast<const T*>(RandValsF64.data());
     else if constexpr (std::is_same_v<U, float>)
         return reinterpret_cast<const T*>(RandValsF32.data());
+    else if constexpr (std::is_same_v<U, ::common::fp16_t>)
+        return reinterpret_cast<const T*>(RandValsF16.data());
     else
         return reinterpret_cast<const T*>(RandVals.data());
 }

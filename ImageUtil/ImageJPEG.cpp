@@ -17,73 +17,40 @@ using common::io::RandomInputStream;
 using common::io::RandomOutputStream;
 
 
-class StreamReader : public NonCopyable, public NonMovable
+struct JpegReader::StreamBlock
 {
-public:
-    using MemSpan = common::span<const std::byte>;
-    virtual ~StreamReader() {}
-    [[nodiscard]] virtual MemSpan Rewind() = 0;
-    [[nodiscard]] virtual MemSpan ReadFromStream() = 0;
-    [[nodiscard]] virtual MemSpan SkipStream(size_t len) = 0;
-};
-
-class BufferedStreamReader : public StreamReader
-{
-private:
-    common::io::BufferedRandomInputStream& Stream;
-public:
-    BufferedStreamReader(common::io::BufferedRandomInputStream& stream) : Stream(stream) {}
-    virtual ~BufferedStreamReader() override {}
-    [[nodiscard]] virtual MemSpan Rewind() override
-    {
-        Stream.SetPos(0);
-        return Stream.ExposeAvaliable();
-    }
-    [[nodiscard]] virtual MemSpan ReadFromStream() override
-    {
-        Stream.LoadNext();
-        return Stream.ExposeAvaliable();
-    }
-    [[nodiscard]] virtual MemSpan SkipStream(size_t len) override
-    {
-        const auto totalLen = Stream.ExposeAvaliable().size() + len;
-        Stream.Skip(totalLen);
-        return Stream.ExposeAvaliable();
-    }
-};
-
-class BasicStreamReader : public StreamReader
-{
-private:
-    common::io::RandomInputStream& Stream;
+    RandomInputStream& Stream;
     common::AlignedBuffer Buffer;
-public:
-    BasicStreamReader(common::io::RandomInputStream& stream, const size_t bufSize) : Stream(stream), Buffer(bufSize) {}
-    virtual ~BasicStreamReader() override {}
-    [[nodiscard]] virtual MemSpan Rewind() override
+    const size_t BufferSize;
+    size_t LastRegionSize = 0;
+    StreamBlock(RandomInputStream& stream, const size_t bufSize) noexcept : Stream(stream), BufferSize(bufSize) {}
+
+    [[nodiscard]] common::span<const std::byte> GetMemRegion()
     {
-        Stream.SetPos(0);
-        return ReadFromStream();
-    }
-    [[nodiscard]] virtual MemSpan ReadFromStream() override
-    {
+        Expects(LastRegionSize == 0u);
+        const auto space = Stream.TryGetAvaliableInMemory();
+        if (space)
+        {
+            LastRegionSize = space->size();
+            return *space;
+        }
+        // use buffer
+        if (Buffer.GetSize() < BufferSize)
+            Buffer = common::AlignedBuffer(BufferSize);
         const auto avaliable = Stream.ReadMany(Buffer.GetSize(), 1, Buffer.GetRawPtr());
         return Buffer.AsSpan().first(avaliable);
     }
-    [[nodiscard]] virtual MemSpan SkipStream(size_t len) override
+    void Skip(size_t count)
     {
-        Stream.Skip(len);
-        return ReadFromStream();
+        if (LastRegionSize)
+        {
+            count += LastRegionSize;
+            LastRegionSize = 0;
+        }
+        const auto ret = Stream.Skip(LastRegionSize);
+        Ensures(ret);
     }
 };
-
-[[nodiscard]] static std::unique_ptr<StreamReader> GetReader(RandomInputStream& stream)
-{
-    if (auto bufStream = dynamic_cast<common::io::BufferedRandomInputStream*>(&stream))
-        return std::make_unique<BufferedStreamReader>(*bufStream);
-    else
-        return std::make_unique<BasicStreamReader>(stream, 65536);
-}
 
 
 struct JpegHelper
@@ -93,7 +60,7 @@ struct JpegHelper
     static void EmptyCompFunc([[maybe_unused]] j_compress_ptr cinfo)
     { }
 
-    forceinline static void SetMemSpan(j_decompress_ptr cinfo, const StreamReader::MemSpan span)
+    forceinline static void SetMemSpan(j_decompress_ptr cinfo, const common::span<const std::byte> span)
     {
         if (span.size() > 0)
         {
@@ -102,7 +69,7 @@ struct JpegHelper
         }
         else
         {
-            constexpr uint8_t EndMark[4] = { 0xff, JPEG_EOI, 0, 0 };
+            static constexpr uint8_t EndMark[4] = { 0xff, JPEG_EOI, 0, 0 };
             cinfo->src->bytes_in_buffer = 2;
             cinfo->src->next_input_byte = EndMark;
         }
@@ -110,14 +77,17 @@ struct JpegHelper
 
     static void InitStream(j_decompress_ptr cinfo)
     {
-        auto& reader = *reinterpret_cast<StreamReader*>(cinfo->client_data);
-        SetMemSpan(cinfo, reader.Rewind());
+        auto& block = *reinterpret_cast<JpegReader::StreamBlock*>(cinfo->client_data);
+        block.Stream.SetPos(0);
+        block.LastRegionSize = 0u;
+        SetMemSpan(cinfo, block.GetMemRegion());
     }
 
     static boolean ReadFromStream(j_decompress_ptr cinfo)
     {
-        auto& reader = *reinterpret_cast<StreamReader*>(cinfo->client_data);
-        SetMemSpan(cinfo, reader.ReadFromStream());
+        auto& block = *reinterpret_cast<JpegReader::StreamBlock*>(cinfo->client_data);
+        block.Skip(0);
+        SetMemSpan(cinfo, block.GetMemRegion());
         return 1;
     }
 
@@ -136,8 +106,9 @@ struct JpegHelper
         else
         {
             const auto needSkip = bytes - cinfo->src->bytes_in_buffer;
-            auto& reader = *reinterpret_cast<StreamReader*>(cinfo->client_data);
-            SetMemSpan(cinfo, reader.SkipStream(needSkip));
+            auto& block = *reinterpret_cast<JpegReader::StreamBlock*>(cinfo->client_data);
+            block.Skip(needSkip);
+            SetMemSpan(cinfo, block.GetMemRegion());
         }
     }
 
@@ -191,22 +162,22 @@ struct JpegHelper
     }
 };
 
-JpegReader::JpegReader(RandomInputStream& stream) : Stream(stream)
+JpegReader::JpegReader(RandomInputStream& stream)
 {
     auto decompStruct = new jpeg_decompress_struct();
     JpegDecompStruct = decompStruct;
     jpeg_create_decompress(decompStruct);
 
-    if (auto memStream = dynamic_cast<common::io::MemoryInputStream*>(&Stream))
-    {
-        ImgLog().Verbose(u"LIBJPEG faces MemoryStream, bypass it.\n");
-        const auto [ptr, size] = memStream->ExposeAvaliable();
-        jpeg_mem_src(decompStruct, reinterpret_cast<const unsigned char*>(ptr), static_cast<unsigned long>(size));
+    stream.SetPos(0);
+    if (const auto space = stream.TryGetAvaliableInMemory(); space && space->size() == stream.GetSize() && space->size() <= std::numeric_limits<unsigned long>::max())
+    { // all in memory
+        ImgLog().Verbose(u"LIBJPEG bypass Stream with mem region.\n");
+        jpeg_mem_src(decompStruct, reinterpret_cast<const unsigned char*>(space->data()), static_cast<unsigned long>(space->size()));
     }
     else
     {
-        Reader = GetReader(stream);
-        decompStruct->client_data = Reader.get();
+        Block = std::make_unique<StreamBlock>(stream, 65536);
+        decompStruct->client_data = Block.get();
         auto jpegSource = new jpeg_source_mgr();
         JpegSource = jpegSource;
         decompStruct->src = jpegSource;
@@ -241,7 +212,6 @@ JpegReader::~JpegReader()
 
 bool JpegReader::Validate()
 {
-    Stream.SetPos(0);
     auto decompStruct = (j_decompress_ptr)JpegDecompStruct;
     try
     {
@@ -261,32 +231,41 @@ Image JpegReader::Read(ImgDType dataType)
     Image image(dataType);
     if (!dataType.Is(ImgDType::DataTypes::Uint8))
         return image;
-    const bool needAlpha = dataType.HasAlpha();
-    switch (dataType.Channel())
+    bool needPadAlpha = false;
+    const auto ch = dataType.Channel();
+    switch (ch)
     {
+    case ImgDType::Channels::BGRA:
+        decompStruct->out_color_space = JCS_EXT_BGRA; break;
+    case ImgDType::Channels::RGBA:
+        decompStruct->out_color_space = JCS_EXT_RGBA; break;
     case ImgDType::Channels::BGR:
         decompStruct->out_color_space = JCS_EXT_BGR; break;
     case ImgDType::Channels::RGB:
         decompStruct->out_color_space = JCS_EXT_RGB; break;
+    case ImgDType::Channels::RA:
+        decompStruct->out_color_space = JCS_GRAYSCALE; needPadAlpha = true; break;
     case ImgDType::Channels::R:
         decompStruct->out_color_space = JCS_GRAYSCALE; break;
     default:
         return image;
     }
+    Ensures(!needPadAlpha || dataType.HasAlpha());
 
     jpeg_start_decompress(decompStruct);
 
     image.SetSize(decompStruct->image_width, decompStruct->image_height);
-    auto ptrs = image.GetRowPtrs(needAlpha ? image.GetWidth() : 0);
+    auto ptrs = image.GetRowPtrs<uint8_t>(needPadAlpha ? image.GetWidth() : 0); // offset by width when need padding
     while (decompStruct->output_scanline < decompStruct->output_height)
     {
-        jpeg_read_scanlines(decompStruct, reinterpret_cast<uint8_t**>(&ptrs[decompStruct->output_scanline]), decompStruct->output_height - decompStruct->output_scanline);
+        jpeg_read_scanlines(decompStruct, &ptrs[decompStruct->output_scanline], decompStruct->output_height - decompStruct->output_scanline);
     }
-    if (needAlpha)
+    if (needPadAlpha)
     {
+        Ensures(ch == ImgDType::Channels::RA);
         const auto& cvter = ColorConvertor::Get();
         for (uint32_t row = 0; row < image.GetHeight(); ++row)
-            cvter.RGBToRGBA(image.GetRawPtr<uint32_t>(row), reinterpret_cast<const uint8_t*>(ptrs[row]), image.GetWidth());
+            cvter.GrayToGrayA(image.GetRawPtr<uint16_t>(row), ptrs[row], image.GetWidth());
     }
 
     jpeg_finish_decompress(decompStruct);

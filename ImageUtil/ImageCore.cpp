@@ -117,13 +117,13 @@ static forceinline constexpr uint8_t DtPair(ImgDType::DataTypes a, ImgDType::Dat
 }
 
 template<typename T1, typename T2, typename T4>
-static forceinline void ConvertChannelCopy(std::byte* destPtr, size_t destStep, const std::byte* srcPtr, size_t srcStep, uint32_t rowcnt, const uint32_t pixcnt, 
+static forceinline void ConvertChannelCopy(std::byte* destPtr, size_t destStep, const std::byte* srcPtr, size_t srcStep, uint32_t batchCnt, const uint32_t batchPix,
     const ImgDType::Channels dstChannel, const ImgDType::Channels srcChannel)
 {
     using T3 = T1;
     Expects(dstChannel != srcChannel);
     const auto& cvter = ColorConvertor::Get();
-#define ChPairFunc(sCh, dCh, sT, dT, func) case ChPair(ImgDType::Channels::sCh, ImgDType::Channels::dCh): for (; rowcnt--; destPtr += destStep, srcPtr += srcStep) { cvter.func(reinterpret_cast<dT*>(destPtr), reinterpret_cast<const sT*>(srcPtr), pixcnt); } break
+#define ChPairFunc(sCh, dCh, sT, dT, func) case ChPair(ImgDType::Channels::sCh, ImgDType::Channels::dCh): for (; batchCnt--; destPtr += destStep, srcPtr += srcStep) { cvter.func(reinterpret_cast<dT*>(destPtr), reinterpret_cast<const sT*>(srcPtr), batchPix); } break
     switch (ChPair(srcChannel, dstChannel))
     {
     ChPairFunc(RGBA, BGRA, T4, T4, RGBAToBGRA);
@@ -155,43 +155,83 @@ static forceinline void ConvertChannelCopy(std::byte* destPtr, size_t destStep, 
     }
 #undef ChPairFunc
 }
-void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t srcY, const uint32_t destX, const uint32_t destY)
+void Image::PlaceImage(ImageView src, const uint32_t srcX, const uint32_t srcY, const uint32_t destX, const uint32_t destY)
 {
-    if (src.Data == Data)
-        return;//place self,should throw
     if (srcX >= src.Width || srcY >= src.Height || destX >= Width || destY >= Height)
         return;
+
+    if (DataType.ChannelCount() <= 2 && src.DataType.ChannelCount() > 2) // not supported yet
+        COMMON_THROW(BaseException, u"need explicit conversion from color to gray image");
+
+    const auto colcnt = std::min(Width - destX, src.Width - srcX);
+    const auto rowcnt = std::min(Height - destY, src.Height - srcY);
+    Ensures(colcnt > 0 && rowcnt > 0);
+
+    if (src.Data == Data) // place self
+    {
+        if (srcX == destX && srcY == destY) return; // no change
+        Image tmpimg(DataType);
+        tmpimg.SetSize(colcnt, rowcnt);
+        tmpimg.PlaceImage(src, srcX, srcY, 0, 0);
+        return PlaceImage(tmpimg, 0, 0, destX, destY);
+    }
 
     const byte* __restrict srcPtr = src.GetRawPtr(srcY, srcX);
     byte* __restrict destPtr = GetRawPtr(destY, destX);
     const auto srcStep = src.RowSize(), destStep = RowSize();
-    const auto copypix = std::min(Width - destX, src.Width - srcX);
-    auto rowcnt = std::min(Height - destY, src.Height - srcY);
-    const bool isCopyWholeRow = copypix == Width && Width == src.Width;
-    if (src.DataType == DataType)
+    const bool isCopyWholeRow = colcnt == Width && Width == src.Width; // treat as one row
+    uint32_t batchPix = isCopyWholeRow ? colcnt * rowcnt : colcnt, batchCnt = isCopyWholeRow ? 1u : rowcnt;
+
+    if (src.DataType == DataType) // plain copy
     {
-        auto copysize = copypix * ElementSize;
-        if (isCopyWholeRow)
-            copysize *= rowcnt, rowcnt = 1;//treat as one row
-        for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+        auto copysize = batchPix * ElementSize;
+        for (; batchCnt--; destPtr += destStep, srcPtr += srcStep)
             memcpy_s(destPtr, copysize, srcPtr, copysize);
+        return;
     }
-    else
+
+    const auto srcDT = src.DataType.DataType(), dstDT = DataType.DataType();
+    const auto srcCh = src.DataType.Channel(), dstCh = DataType.Channel();
+    if (srcDT != dstDT)
     {
-        if (IsGray() && !src.IsGray()) // not supported yet
-            COMMON_THROW(BaseException, u"need explicit conversion from color to gray image");
-        const auto srcDT = src.DataType.DataType(), dstDT = DataType.DataType();
-        if (srcDT != dstDT)
-            COMMON_THROW(BaseException, u"mixing datatype not supported");
-        auto pixcnt = copypix;
-        if (isCopyWholeRow)
-            pixcnt *= rowcnt, rowcnt = 1;
-        switch(srcDT)
+        const byte* __restrict srcPtr_ = srcPtr;
+        byte* __restrict destPtr_ = destPtr;
+        uint32_t batchPix_ = colcnt, batchCnt_ = rowcnt;
+
+        Image tmpimg(ImgDType{ srcCh, dstDT });
+        if (srcCh != dstCh)
         {
-        case ImgDType::DataTypes::Float32: ConvertChannelCopy<  float,    float,    float>(destPtr, destStep, srcPtr, srcStep, rowcnt, pixcnt, DataType.Channel(), src.DataType.Channel()); break;
-        case ImgDType::DataTypes::Uint8:   ConvertChannelCopy<uint8_t, uint16_t, uint32_t>(destPtr, destStep, srcPtr, srcStep, rowcnt, pixcnt, DataType.Channel(), src.DataType.Channel()); break;
-        default: COMMON_THROW(BaseException, u"unsupported datatype");
+            tmpimg.SetSize(colcnt, rowcnt);
+            destPtr_ = tmpimg.GetRawPtr();
+            const bool isCopyWholeRow_ = colcnt == src.Width;
+            if (isCopyWholeRow_) // treat as one row
+                batchPix_ = colcnt * batchCnt_, batchCnt_ = 1;
         }
+        const auto& cvter = ColorConvertor::Get();
+        switch (DtPair(srcDT, dstDT))
+        {
+        case DtPair(ImgDType::DataTypes::Float16, ImgDType::DataTypes::Float32):
+            for (; batchCnt_--; destPtr_ += destStep, srcPtr_ += srcStep) { cvter.GetCopy().CopyFloat(reinterpret_cast<float*>(destPtr_), reinterpret_cast<const common::fp16_t*>(srcPtr_), batchPix_); } break;
+        case DtPair(ImgDType::DataTypes::Float32, ImgDType::DataTypes::Float16):
+            for (; batchCnt_--; destPtr_ += destStep, srcPtr_ += srcStep) { cvter.GetCopy().CopyFloat(reinterpret_cast<common::fp16_t*>(destPtr_), reinterpret_cast<const float*>(srcPtr_), batchPix_); } break;
+        default:
+            COMMON_THROW(BaseException, u"mixing datatype not supported");
+        }
+        if (srcCh == dstCh) return;
+        
+        src = tmpimg;
+        srcPtr = tmpimg.GetRawPtr();
+        const bool isCopyWholeRow_ = colcnt == Width;
+        if (isCopyWholeRow_) // treat as one row
+            batchPix *= batchCnt, batchCnt = 1;
+    }
+    Ensures(srcCh != dstCh);
+    Ensures(src.DataType.DataType() == dstDT);
+    switch(dstDT)
+    {
+    case ImgDType::DataTypes::Float32: ConvertChannelCopy<  float,    float,    float>(destPtr, destStep, srcPtr, srcStep, batchCnt, batchPix, dstCh, srcCh); break;
+    case ImgDType::DataTypes::Uint8:   ConvertChannelCopy<uint8_t, uint16_t, uint32_t>(destPtr, destStep, srcPtr, srcStep, batchCnt, batchPix, dstCh, srcCh); break;
+    default: COMMON_THROW(BaseException, u"unsupported datatype");
     }
 }
 
@@ -300,7 +340,7 @@ Image Image::ConvertTo(const ImgDType dataType, const uint32_t x, const uint32_t
     return newimg;
 }
 
-Image Image::ConvertToFloat(const ImgDType::DataTypes dataType, const float floatRange) const
+Image Image::ConvertFloat(const ImgDType::DataTypes dataType, const float floatRange) const
 {
     const auto origType = DataType.DataType();
     const auto isOrigFloat = DataType.IsFloat(), isDestFloat = ImgDType::IsFloat(dataType);
@@ -310,9 +350,10 @@ Image Image::ConvertToFloat(const ImgDType::DataTypes dataType, const float floa
     Image newimg(ImgDType{ DataType.Channel(), dataType });
     newimg.SetSize(Width, Height);
     const auto size = Width * Height * DataType.ChannelCount();
+    const auto& cvter = ColorConvertor::Get();
     if (isDestFloat) // non-float -> float
     {
-#define DtPairFunc(sDT, dDT, sT, dT) case DtPair(ImgDType::DataTypes::sDT, ImgDType::DataTypes::dDT): common::CopyEx.CopyToFloat(reinterpret_cast<dT*>(newimg.Data), reinterpret_cast<const sT*>(Data), size, floatRange); break
+#define DtPairFunc(sDT, dDT, sT, dT) case DtPair(ImgDType::DataTypes::sDT, ImgDType::DataTypes::dDT): cvter.GetCopy().CopyToFloat(reinterpret_cast<dT*>(newimg.Data), reinterpret_cast<const sT*>(Data), size, floatRange); break
         switch (DtPair(origType, dataType))
         {
         DtPairFunc(Uint8, Float32, uint8_t, float);
@@ -322,7 +363,7 @@ Image Image::ConvertToFloat(const ImgDType::DataTypes dataType, const float floa
     }
     else // float -> non-float
     {
-#define DtPairFunc(sDT, dDT, sT, dT) case DtPair(ImgDType::DataTypes::sDT, ImgDType::DataTypes::dDT): common::CopyEx.CopyFromFloat(reinterpret_cast<dT*>(newimg.Data), reinterpret_cast<const sT*>(Data), size, floatRange); break
+#define DtPairFunc(sDT, dDT, sT, dT) case DtPair(ImgDType::DataTypes::sDT, ImgDType::DataTypes::dDT): cvter.GetCopy().CopyFromFloat(reinterpret_cast<dT*>(newimg.Data), reinterpret_cast<const sT*>(Data), size, floatRange); break
         switch (DtPair(origType, dataType))
         {
         DtPairFunc(Float32, Uint8, float, uint8_t);
@@ -334,7 +375,7 @@ Image Image::ConvertToFloat(const ImgDType::DataTypes dataType, const float floa
 }
 
 template<typename T1, typename T2, typename T4>
-static forceinline void ExtractImgChannel(Image& newimg, const Image& img, uint8_t channel, bool keepAlpha)
+static forceinline void ExtractImgChannel(Image& newimg, const Image& img, uint8_t channel)
 {
     using T3 = T1;
     const auto chCount = img.GetDataType().ChannelCount();
@@ -344,11 +385,13 @@ static forceinline void ExtractImgChannel(Image& newimg, const Image& img, uint8
     switch (chCount)
     {
     case 2:
-        Ensures(channel == 0u && !keepAlpha);
-        cvter.GrayAToGray   (newimg.GetRawPtr<T1>(), img.GetRawPtr<T2>(), count);
+        if (channel == 0u)
+            cvter.GrayAToGray(newimg.GetRawPtr<T1>(), img.GetRawPtr<T2>(), count);
+        else
+            cvter.GrayAToAlpha(newimg.GetRawPtr<T1>(), img.GetRawPtr<T2>(), count);
         break;
     case 3:
-        cvter.RGBGetChannel (newimg.GetRawPtr<T1>(), img.GetRawPtr<T3>(), count, channel);
+        cvter.RGBGetChannel(newimg.GetRawPtr<T1>(), img.GetRawPtr<T3>(), count, channel);
         break;
     case 4: // TODO: keep alpha
         cvter.RGBAGetChannel(newimg.GetRawPtr<T1>(), img.GetRawPtr<T4>(), count, channel);
@@ -356,21 +399,11 @@ static forceinline void ExtractImgChannel(Image& newimg, const Image& img, uint8
     default: CM_UNREACHABLE();
     }
 }
-Image Image::ExtractChannel(uint8_t channel, bool keepAlpha) const
+Image Image::ExtractChannel(uint8_t channel) const
 {
     const auto chCount = DataType.ChannelCount();
     if (channel >= chCount)
         COMMON_THROW(BaseException, u"invalid channel index when extract channel");
-
-    if (DataType.HasAlpha() && keepAlpha)
-    {
-        if (channel == chCount - 1) // alpha channel
-        {
-            if (DataType == ImageDataType::GA)
-                COMMON_THROW(BaseException, u"unsupported extracting alpha from GA!");
-            keepAlpha = false;
-        }
-    }
 
     if (DataType.IsBGROrder())
     {
@@ -381,12 +414,12 @@ Image Image::ExtractChannel(uint8_t channel, bool keepAlpha) const
     if (DataType == ImageDataType::GRAY) return *this;
     Ensures(chCount > 1u);
 
-    Image newimg(ImgDType{ keepAlpha ? ImgDType::Channels::RA : ImgDType::Channels::R, DataType.DataType() });
+    Image newimg(ImgDType{ ImgDType::Channels::R, DataType.DataType() });
     newimg.SetSize(Width, Height);
     switch (DataType.DataType())
     {
-    case ImgDType::DataTypes::Float32: ExtractImgChannel<  float,    float,    float>(newimg, *this, channel, keepAlpha); break;
-    case ImgDType::DataTypes::Uint8:   ExtractImgChannel<uint8_t, uint16_t, uint32_t>(newimg, *this, channel, keepAlpha); break;
+    case ImgDType::DataTypes::Float32: ExtractImgChannel<  float,    float,    float>(newimg, *this, channel); break;
+    case ImgDType::DataTypes::Uint8:   ExtractImgChannel<uint8_t, uint16_t, uint32_t>(newimg, *this, channel); break;
     default: COMMON_THROW(BaseException, u"unsupported datatype!");
     }
     return newimg;

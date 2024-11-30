@@ -26,6 +26,8 @@ RegisterSIMDBaseTest(I32x8,  100, Load);
 RegisterSIMDBaseTest(I16x16, 100, Load);
 
 
+RegisterSIMDCastTest(F16x8,  100, F32x4);
+RegisterSIMDCastTest(F32x4,  100, F16x8);
 RegisterSIMDCastTest(I32x8,  100,               F32x8, F64x4);
 RegisterSIMDCastTest(U32x8,  100, I64x4, U64x4);
 
