@@ -18,10 +18,10 @@ using namespace COMMON_SIMD_NAMESPACE;
 #include "ShuffleTest.h"
 
 
-RegisterSIMDBaseTest(F64x4, 100, SEL, Add, Sub, Mul, Div, Neg, Abs, Min, Max, FMA, Rnd);
-RegisterSIMDBaseTest(F32x8, 100, SEL, Add, Sub, Mul, Div, Neg, Abs, Min, Max, FMA, Rnd);
+RegisterSIMDBaseTest(F64x4, 100, SEL, Add, Sub, Mul, Div, Neg, Abs, Min, Max, FMA, Rnd, Lane);
+RegisterSIMDBaseTest(F32x8, 100, SEL, Add, Sub, Mul, Div, Neg, Abs, Min, Max, FMA, Rnd, Lane);
 
-RegisterSIMDBaseTest(I64x4,  100, Load);
+RegisterSIMDBaseTest(I64x4,  100, Load, Lane);
 RegisterSIMDBaseTest(I32x8,  100, Load);
 RegisterSIMDBaseTest(I16x16, 100, Load);
 

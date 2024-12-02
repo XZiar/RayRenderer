@@ -87,9 +87,11 @@ void func ## Fixture::InnerTest()
 struct PerfTester
 {
     std::string TestName;
+    std::string ExtraText;
     std::vector<uint64_t> TimeRecords;
     size_t OpPerRun;
     uint32_t LimitMs;
+    bool NeedReport = true;
 
     PerfTester(std::string_view name, size_t opPerRun = 1, uint32_t limitMs = 300/*0.3s*/): TestName(name), OpPerRun(opPerRun), LimitMs(limitMs)
     { }

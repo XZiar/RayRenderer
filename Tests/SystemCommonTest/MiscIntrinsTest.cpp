@@ -551,6 +551,15 @@ inline void TruncPerfTest(std::string_view name)
     {
         host.TruncCopy(outputs.data(), inputs.data(), inputs.size());
     });
+
+    static_assert(sizeof(Dst) < sizeof(Src));
+    PerfTester tester2(name, inputs.size() - 1, 100u);
+    tester2.NeedReport = false;
+    tester2.ExtraText = "[unalign]";
+    tester2.FastPathTest<common::CopyManager>([&](const common::CopyManager& host)
+    {
+        host.TruncCopy(outputs.data(), reinterpret_cast<const Src*>(reinterpret_cast<const Dst*>(inputs.data()) + 1), inputs.size() - 1);
+    });
 }
 #define TRUNC_PERF_TEST(name, dst, src) TEST(IntrinPerf, name) { TruncPerfTest<dst, src>(#name); }
 TRUNC_PERF_TEST(TruncCopy21,  uint8_t, uint16_t)

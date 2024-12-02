@@ -163,6 +163,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalOptions>/Zo /bigobj %(AdditionalOptions)</AdditionalOptions>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <SupportJustMyCode>true</SupportJustMyCode>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -184,6 +185,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalOptions>/Zo /bigobj %(AdditionalOptions)</AdditionalOptions>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <SupportJustMyCode>true</SupportJustMyCode>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -205,6 +207,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalOptions>/Zo /bigobj %(AdditionalOptions)</AdditionalOptions>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <SupportJustMyCode>true</SupportJustMyCode>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -224,6 +227,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalOptions>/Zo /bigobj %(AdditionalOptions)</AdditionalOptions>
+      <SupportJustMyCode>true</SupportJustMyCode>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -245,6 +249,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalOptions>/Zo /bigobj %(AdditionalOptions)</AdditionalOptions>
+      <SupportJustMyCode>true</SupportJustMyCode>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -266,6 +271,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalOptions>/Zo /bigobj %(AdditionalOptions)</AdditionalOptions>
+      <SupportJustMyCode>true</SupportJustMyCode>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>

@@ -39,7 +39,7 @@ forceinline U CastSingle(T val) noexcept
 }
 
 template<uint8_t Base, uint8_t Exp>
-inline constexpr uint64_t Pow()
+inline constexpr uint64_t Pow() noexcept
 {
     uint64_t ret = Base;
     for (uint8_t i = 1; i < Exp; ++i)

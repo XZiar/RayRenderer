@@ -566,8 +566,8 @@ struct fp16_t
     explicit constexpr operator uint16_t() const noexcept { return Dummy; }
 };
 static_assert(std::is_trivially_copyable_v<fp16_t>);
-template<> forceinline  int16_t bit_cast(const fp16_t& src) noexcept { return static_cast< int16_t>(src.Dummy); }
-template<> forceinline uint16_t bit_cast(const fp16_t& src) noexcept { return static_cast<uint16_t>(src.Dummy); }
+template<> forceinline  int16_t bit_cast< int16_t>(const fp16_t& src) noexcept { return static_cast< int16_t>(src.Dummy); }
+template<> forceinline uint16_t bit_cast<uint16_t>(const fp16_t& src) noexcept { return static_cast<uint16_t>(src.Dummy); }
 #endif
 #if defined(__STDCPP_BFLOAT16_T__)
 using bf16_t = std::bfloat16_t
@@ -580,8 +580,8 @@ struct bf16_t
     explicit constexpr operator uint16_t() const noexcept { return Dummy; }
 };
 static_assert(std::is_trivially_copyable_v<bf16_t>);
-template<> forceinline  int16_t bit_cast(const bf16_t& src) noexcept { return static_cast< int16_t>(src.Dummy); }
-template<> forceinline uint16_t bit_cast(const bf16_t& src) noexcept { return static_cast<uint16_t>(src.Dummy); }
+template<> forceinline  int16_t bit_cast< int16_t>(const bf16_t& src) noexcept { return static_cast< int16_t>(src.Dummy); }
+template<> forceinline uint16_t bit_cast<uint16_t>(const bf16_t& src) noexcept { return static_cast<uint16_t>(src.Dummy); }
 #endif
 }
 

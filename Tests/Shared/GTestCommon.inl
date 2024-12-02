@@ -368,12 +368,15 @@ void PerfTester::PostProcess(size_t partIdx, std::string_view itemVar)
     const auto totalNs = static_cast<double>(std::accumulate(TimeRecords.begin(), TimeRecords.end(), uint64_t(0)));
     const auto nsPerRun = totalNs / keepCount;
     const auto nsPerOp = nsPerRun / OpPerRun;
-    TestCout() << "[" << TestName << "]: [" << itemVar << "] takes avg[" << nsPerOp << "]ns per operation\n";
+    TestCout() << "[" << TestName << "]" << ExtraText << ": [" << itemVar << "] takes avg[" << nsPerOp << "]ns per operation\n";
 
-    if (const auto report = GTestEnvironment::GetReport(); report)
+    if (NeedReport)
     {
-        auto& perfPart = report->PerfData[partIdx];
-        perfPart[TestName].emplace_back(itemVar, nsPerOp);
+        if (const auto report = GTestEnvironment::GetReport(); report)
+        {
+            auto& perfPart = report->PerfData[partIdx];
+            perfPart[TestName].emplace_back(itemVar, nsPerOp);
+        }
     }
 }
 

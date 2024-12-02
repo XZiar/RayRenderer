@@ -742,6 +742,76 @@ DEFINE_FASTPATH_METHOD(TruncCopy84, SIMD128)
 {
     CastSIMD4<DefaultCast<U64x2, U32x4>, &Func<LOOP>>(dest, src, count);
 }
+struct Trunc16_8_NEON
+{
+    static constexpr size_t M = 16, N = 16, K = 16;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat = vld2q_u8(reinterpret_cast<const uint8_t*>(src));
+        U8x16 out(dat.val[0]);
+        out.Save(dst);
+    }
+};
+struct Trunc32_8_NEON
+{
+    static constexpr size_t M = 16, N = 16, K = 16;
+    forceinline void operator()(uint8_t* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const auto dat = vld4q_u8(reinterpret_cast<const uint8_t*>(src));
+        U8x16 out(dat.val[0]);
+        out.Save(dst);
+    }
+};
+struct Trunc32_16_NEON
+{
+    static constexpr size_t M = 8, N = 8, K = 8;
+    forceinline void operator()(uint16_t* __restrict dst, const uint32_t* __restrict src) const noexcept
+    {
+        const auto dat = vld2q_u16(reinterpret_cast<const uint16_t*>(src));
+        U16x8 out(dat.val[0]);
+        out.Save(dst);
+    }
+};
+struct Trunc64_16_NEON
+{
+    static constexpr size_t M = 8, N = 8, K = 8;
+    forceinline void operator()(uint16_t* __restrict dst, const uint64_t* __restrict src) const noexcept
+    {
+        const auto dat = vld4q_u16(reinterpret_cast<const uint16_t*>(src));
+        U16x8 out(dat.val[0]);
+        out.Save(dst);
+    }
+};
+struct Trunc64_32_NEON
+{
+    static constexpr size_t M = 4, N = 4, K = 4;
+    forceinline void operator()(uint32_t* __restrict dst, const uint64_t* __restrict src) const noexcept
+    {
+        const auto dat = vld2q_u32(reinterpret_cast<const uint32_t*>(src));
+        U32x4 out(dat.val[0]);
+        out.Save(dst);
+    }
+};
+DEFINE_FASTPATH_METHOD(TruncCopy21, NEON)
+{
+    CastSIMD4<Trunc16_8_NEON, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(TruncCopy41, NEON)
+{
+    CastSIMD4<Trunc32_8_NEON, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(TruncCopy42, NEON)
+{
+    CastSIMD4<Trunc32_16_NEON, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(TruncCopy82, NEON)
+{
+    CastSIMD4<Trunc64_16_NEON, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(TruncCopy84, NEON)
+{
+    CastSIMD4<Trunc64_32_NEON, &Func<LOOP>>(dest, src, count);
+}
 #endif
 
 #if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 200
@@ -1343,6 +1413,9 @@ struct Trunc41AVX512F
         const auto dat1 = _mm512_loadu_epi32(src + 16);
         const auto dat2 = _mm512_loadu_epi32(src + 32);
         const auto dat3 = _mm512_loadu_epi32(src + 48);
+#if COMMON_COMPILER_MSVC // WA for https://developercommunity.visualstudio.com/t/Incorrect-AVX512-assembly-generated-with/10772485
+        std::atomic_signal_fence(std::memory_order_acquire);
+#endif
         const U8x16 out0 = _mm512_cvtepi32_epi8(dat0);
         const U8x16 out1 = _mm512_cvtepi32_epi8(dat1);
         const U8x16 out2 = _mm512_cvtepi32_epi8(dat2);
@@ -1379,6 +1452,9 @@ struct Trunc82AVX512F
         const auto dat1 = _mm512_loadu_epi64(src +  8);
         const auto dat2 = _mm512_loadu_epi64(src + 16);
         const auto dat3 = _mm512_loadu_epi64(src + 24);
+#if COMMON_COMPILER_MSVC // WA for https://developercommunity.visualstudio.com/t/Incorrect-AVX512-assembly-generated-with/10772485
+        std::atomic_signal_fence(std::memory_order_acquire);
+#endif
         const U16x8 out0 = _mm512_cvtepi64_epi16(dat0);
         const U16x8 out1 = _mm512_cvtepi64_epi16(dat1);
         const U16x8 out2 = _mm512_cvtepi64_epi16(dat2);
@@ -1398,6 +1474,9 @@ struct Trunc84AVX512F
     {
         const auto dat0 = _mm512_loadu_epi64(src + 0);
         const auto dat1 = _mm512_loadu_epi64(src + 8);
+#if COMMON_COMPILER_MSVC // WA for https://developercommunity.visualstudio.com/t/Incorrect-AVX512-assembly-generated-with/10772485
+        std::atomic_signal_fence(std::memory_order_acquire);
+#endif
         const U32x8 out0 = _mm512_cvtepi64_epi32(dat0);
         const U32x8 out1 = _mm512_cvtepi64_epi32(dat1);
         out0.Save(dst + 0);

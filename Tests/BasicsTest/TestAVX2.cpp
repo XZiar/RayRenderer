@@ -22,7 +22,7 @@ RegisterSIMDBaseTest(F64x4,  150, FMA);
 RegisterSIMDBaseTest(F32x8,  150, FMA);
 RegisterSIMDBaseTest(F64x2,  150, FMA, MSK);
 RegisterSIMDBaseTest(F32x4,  150, FMA, MSK);
-RegisterSIMDBaseTest(I64x4,  200, Move, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,              Neg, Abs, Min, Max, SLL, SLLV, SRL, SRLV, SRA, And, Or, Xor, AndNot, Not);
+RegisterSIMDBaseTest(I64x4,  200, Move, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,              Neg, Abs, Min, Max, SLL, SLLV, SRL, SRLV, SRA, And, Or, Xor, AndNot, Not, Lane);
 RegisterSIMDBaseTest(U64x4,  200, Move, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,                   Abs, Min, Max, SLL, SLLV, SRL, SRLV, SRA);
 RegisterSIMDBaseTest(I64x2,  200,      MSK, SLLV, SRLV);
 RegisterSIMDBaseTest(U64x2,  200,      MSK, SLLV, SRLV);

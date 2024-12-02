@@ -229,8 +229,10 @@ void Image::PlaceImage(ImageView src, const uint32_t srcX, const uint32_t srcY, 
     Ensures(src.DataType.DataType() == dstDT);
     switch(dstDT)
     {
-    case ImgDType::DataTypes::Float32: ConvertChannelCopy<  float,    float,    float>(destPtr, destStep, srcPtr, srcStep, batchCnt, batchPix, dstCh, srcCh); break;
-    case ImgDType::DataTypes::Uint8:   ConvertChannelCopy<uint8_t, uint16_t, uint32_t>(destPtr, destStep, srcPtr, srcStep, batchCnt, batchPix, dstCh, srcCh); break;
+    case ImgDType::DataTypes::Fixed16:
+    case ImgDType::DataTypes::Float16: ConvertChannelCopy<uint16_t, uint16_t, uint16_t>(destPtr, destStep, srcPtr, srcStep, batchCnt, batchPix, dstCh, srcCh); break;
+    case ImgDType::DataTypes::Float32: ConvertChannelCopy<   float,    float,    float>(destPtr, destStep, srcPtr, srcStep, batchCnt, batchPix, dstCh, srcCh); break;
+    case ImgDType::DataTypes::Uint8:   ConvertChannelCopy< uint8_t, uint16_t, uint32_t>(destPtr, destStep, srcPtr, srcStep, batchCnt, batchPix, dstCh, srcCh); break;
     default: COMMON_THROW(BaseException, u"unsupported datatype");
     }
 }
@@ -393,7 +395,7 @@ static forceinline void ExtractImgChannel(Image& newimg, const Image& img, uint8
     case 3:
         cvter.RGBGetChannel(newimg.GetRawPtr<T1>(), img.GetRawPtr<T3>(), count, channel);
         break;
-    case 4: // TODO: keep alpha
+    case 4:
         cvter.RGBAGetChannel(newimg.GetRawPtr<T1>(), img.GetRawPtr<T4>(), count, channel);
         break;
     default: CM_UNREACHABLE();
@@ -418,8 +420,10 @@ Image Image::ExtractChannel(uint8_t channel) const
     newimg.SetSize(Width, Height);
     switch (DataType.DataType())
     {
-    case ImgDType::DataTypes::Float32: ExtractImgChannel<  float,    float,    float>(newimg, *this, channel); break;
-    case ImgDType::DataTypes::Uint8:   ExtractImgChannel<uint8_t, uint16_t, uint32_t>(newimg, *this, channel); break;
+    case ImgDType::DataTypes::Fixed16:
+    case ImgDType::DataTypes::Float16: ExtractImgChannel<uint16_t, uint16_t, uint16_t>(newimg, *this, channel); break;
+    case ImgDType::DataTypes::Float32: ExtractImgChannel<   float,    float,    float>(newimg, *this, channel); break;
+    case ImgDType::DataTypes::Uint8:   ExtractImgChannel< uint8_t, uint16_t, uint32_t>(newimg, *this, channel); break;
     default: COMMON_THROW(BaseException, u"unsupported datatype!");
     }
     return newimg;
@@ -459,8 +463,10 @@ std::vector<Image> Image::ExtractChannels() const
 
     switch (DataType.DataType())
     {
-    case ImgDType::DataTypes::Float32: return ExtractImgChannels<  float,    float,    float>(*this, chCount);
-    case ImgDType::DataTypes::Uint8:   return ExtractImgChannels<uint8_t, uint16_t, uint32_t>(*this, chCount);
+    case ImgDType::DataTypes::Fixed16:
+    case ImgDType::DataTypes::Float16: return ExtractImgChannels<uint16_t, uint16_t, uint16_t>(*this, chCount);
+    case ImgDType::DataTypes::Float32: return ExtractImgChannels<   float,    float,    float>(*this, chCount);
+    case ImgDType::DataTypes::Uint8:   return ExtractImgChannels< uint8_t, uint16_t, uint32_t>(*this, chCount);
     default: break;
     }
     COMMON_THROW(BaseException, u"unsupported datatype!");
@@ -498,7 +504,7 @@ Image Image::CombineChannels(const ImgDType dataType, common::span<const ImageVi
     for (const auto& ch : channels)
     {
         if (ch.GetDataType() != baseType)
-            COMMON_THROW(BaseException, u"only accpet single channel image as input!");
+            COMMON_THROW(BaseException, u"only accept single channel image as input!");
         if (!wh)
             wh = { ch.GetWidth(), ch.GetHeight() };
         else if (wh->first != ch.GetWidth() || wh->second != ch.GetHeight())
@@ -514,8 +520,10 @@ Image Image::CombineChannels(const ImgDType dataType, common::span<const ImageVi
 
     switch (dataType.DataType())
     {
-    case ImgDType::DataTypes::Float32: return CombineImgChannels<  float,    float,    float>(dataType, channels, *wh);
-    case ImgDType::DataTypes::Uint8:   return CombineImgChannels<uint8_t, uint16_t, uint32_t>(dataType, channels, *wh);
+    case ImgDType::DataTypes::Fixed16:
+    case ImgDType::DataTypes::Float16: return CombineImgChannels<uint16_t, uint16_t, uint16_t>(dataType, channels, *wh);
+    case ImgDType::DataTypes::Float32: return CombineImgChannels<   float,    float,    float>(dataType, channels, *wh);
+    case ImgDType::DataTypes::Uint8:   return CombineImgChannels< uint8_t, uint16_t, uint32_t>(dataType, channels, *wh);
     default: break;
     }
     COMMON_THROW(BaseException, u"unsupported datatype!");

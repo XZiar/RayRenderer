@@ -64,17 +64,48 @@ struct AVX256Shared : public CommonOperators<T>
     forceinline T VECCALL PermuteLane(const T& other) const noexcept
     {
         static_assert(Lo <= 4 && Hi <= 4, "permute index should be in [0,4]");
-        constexpr auto imm8 = detail::GetPermuteMask(Lo, Hi);
-        if constexpr (std::is_same_v<E, double>)
-            return _mm256_permute2f128_pd(static_cast<const T*>(this)->Data, other.Data, imm8);
-        else if constexpr (std::is_same_v<E, float>)
-            return _mm256_permute2f128_ps(static_cast<const T*>(this)->Data, other.Data, imm8);
-        else
+        if constexpr (Lo == 4 && Hi == 4) return T::AllZero();
+        else if constexpr (Lo == 0 && Hi == 1) return *static_cast<const T*>(this);
+        else if constexpr (Lo == 2 && Hi == 3) return other;
+        else if constexpr ((Lo == 0 || Lo == 2) && Hi == 4) // clear Hi
+        {
+            const auto target = Lo == 0 ? static_cast<const T*>(this)->Data : other.Data;
+            if constexpr (std::is_same_v<E, double>)
+                return _mm256_zextpd128_pd256(_mm256_castpd256_pd128(target));
+            else if constexpr (std::is_same_v<E, float>)
+                return _mm256_zextps128_ps256(_mm256_castps256_ps128(target));
+            else
+                return _mm256_zextsi128_si256(_mm256_castsi256_si128(target));
+        }
+        else if constexpr ((Lo == 0 && Hi == 3) || (Lo == 2 && Hi == 1)) // blend
+        {
+            const auto& a = Lo == 0 ? static_cast<const T*>(this)->Data : other.Data;
+            const auto& b = Lo == 0 ? other.Data : static_cast<const T*>(this)->Data;
+            if constexpr (std::is_same_v<E, double>)
+                return _mm256_blend_pd(a, b, 0b1100);
+            else if constexpr (std::is_same_v<E, float>)
+                return _mm256_blend_ps(a, b, 0xf0);
+            else
 #if COMMON_SIMD_LV >= 200
-            return _mm256_permute2x128_si256(static_cast<const T*>(this)->Data, other.Data, imm8);
+                return _mm256_blend_epi32(a, b, 0xf0);
 #else
-            return _mm256_permute2f128_si256(static_cast<const T*>(this)->Data, other.Data, imm8);
+                return _mm256_castps_si256(_mm256_blend_ps(_mm256_castsi256_ps(a), _mm256_castsi256_ps(b), 0xf0));
 #endif
+        }
+        else
+        {
+            constexpr auto imm8 = detail::GetPermuteMask(Lo, Hi);
+            if constexpr (std::is_same_v<E, double>)
+                return _mm256_permute2f128_pd(static_cast<const T*>(this)->Data, other.Data, imm8);
+            else if constexpr (std::is_same_v<E, float>)
+                return _mm256_permute2f128_ps(static_cast<const T*>(this)->Data, other.Data, imm8);
+            else
+#if COMMON_SIMD_LV >= 200
+                return _mm256_permute2x128_si256(static_cast<const T*>(this)->Data, other.Data, imm8);
+#else
+                return _mm256_permute2f128_si256(static_cast<const T*>(this)->Data, other.Data, imm8);
+#endif
+        }
     }
     template<uint8_t Lo, uint8_t Hi>
     forceinline T VECCALL PermuteLane() const noexcept

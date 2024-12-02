@@ -21,6 +21,17 @@ struct SIMD128
 #endif
     }
 };
+struct NEON
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return false;
+#else
+        return CheckCPUFeature("asimd");
+#endif
+    }
+};
 struct SSE2
 {
     static bool RuntimeCheck() noexcept

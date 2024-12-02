@@ -17,6 +17,11 @@ private:
     void(*G8ToRGBA8         )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
     void(*GA8ToRGB8         )(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*GA8ToRGBA8        )(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*G16ToGA16         )(uint16_t* __restrict dest, const uint16_t* __restrict src, size_t count, uint16_t alpha) noexcept = nullptr;
+    void(*G16ToRGB16        )(uint16_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*G16ToRGBA16       )(uint16_t* __restrict dest, const uint16_t* __restrict src, size_t count, uint16_t alpha) noexcept = nullptr;
+    void(*GA16ToRGB16       )(uint16_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*GA16ToRGBA16      )(uint16_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*GfToGAf           )(float* __restrict dest, const float* __restrict src, size_t count, float alpha) noexcept = nullptr;
     void(*GfToRGBf          )(float* __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
     void(*GfToRGBAf         )(float* __restrict dest, const float* __restrict src, size_t count, float alpha) noexcept = nullptr;
@@ -26,21 +31,26 @@ private:
     void(*BGR8ToRGBA8       )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, std::byte alpha) noexcept = nullptr;
     void(*RGBA8ToRGB8       )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGBA8ToBGR8       )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB16ToRGBA16     )(uint16_t* __restrict dest, const uint16_t* __restrict src, size_t count, uint16_t alpha) noexcept = nullptr;
+    void(*BGR16ToRGBA16     )(uint16_t* __restrict dest, const uint16_t* __restrict src, size_t count, uint16_t alpha) noexcept = nullptr;
+    void(*RGBA16ToRGB16     )(uint16_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA16ToBGR16     )(uint16_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGBfToRGBAf       )(float* __restrict dest, const float* __restrict src, size_t count, float alpha) noexcept = nullptr;
     void(*BGRfToRGBAf       )(float* __restrict dest, const float* __restrict src, size_t count, float alpha) noexcept = nullptr;
     void(*RGBAfToRGBf       )(float* __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
     void(*RGBAfToBGRf       )(float* __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
     void(*RGB8ToBGR8        )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
     void(*RGBA8ToBGRA8      )(uint32_t* __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB16ToBGR16      )(uint16_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGBA16ToBGRA16    )(uint16_t* __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGBfToBGRf        )(float* __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
     void(*RGBAfToBGRAf      )(float* __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToR8         )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToG8         )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToB8         )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
-    void(*RGBA8ToA8         )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGB8ToR8          )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
     void(*RGB8ToG8          )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
     void(*RGB8ToB8          )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB16ToR16        )(uint16_t*  __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB16ToG16        )(uint16_t*  __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*RGB16ToB16        )(uint16_t*  __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*RGBAfToRf         )(float*  __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
     void(*RGBAfToGf         )(float*  __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
     void(*RGBAfToBf         )(float*  __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
@@ -51,12 +61,18 @@ private:
     void(*Extract8x2        )(uint8_t* const * __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*Extract8x3        )(uint8_t* const * __restrict dest, const uint8_t*  __restrict src, size_t count) noexcept = nullptr;
     void(*Extract8x4        )(uint8_t* const * __restrict dest, const uint32_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*Extract16x2       )(uint16_t* const * __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*Extract16x3       )(uint16_t* const * __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
+    void(*Extract16x4       )(uint16_t* const * __restrict dest, const uint16_t* __restrict src, size_t count) noexcept = nullptr;
     void(*Extract32x2       )(float* const * __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
     void(*Extract32x3       )(float* const * __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
     void(*Extract32x4       )(float* const * __restrict dest, const float* __restrict src, size_t count) noexcept = nullptr;
     void(*Combine8x2        )(uint16_t* __restrict dest, const uint8_t* const * __restrict src, size_t count) noexcept = nullptr;
     void(*Combine8x3        )(uint8_t*  __restrict dest, const uint8_t* const * __restrict src, size_t count) noexcept = nullptr;
     void(*Combine8x4        )(uint32_t* __restrict dest, const uint8_t* const * __restrict src, size_t count) noexcept = nullptr;
+    void(*Combine16x2       )(uint16_t* __restrict dest, const uint16_t* const * __restrict src, size_t count) noexcept = nullptr;
+    void(*Combine16x3       )(uint16_t* __restrict dest, const uint16_t* const * __restrict src, size_t count) noexcept = nullptr;
+    void(*Combine16x4       )(uint16_t* __restrict dest, const uint16_t* const * __restrict src, size_t count) noexcept = nullptr;
     void(*Combine32x2       )(float* __restrict dest, const float* const * __restrict src, size_t count) noexcept = nullptr;
     void(*Combine32x3       )(float* __restrict dest, const float* const * __restrict src, size_t count) noexcept = nullptr;
     void(*Combine32x4       )(float* __restrict dest, const float* const * __restrict src, size_t count) noexcept = nullptr;
@@ -87,6 +103,10 @@ public:
     {
         G8ToGA8(dest, src, count, alpha);
     }
+    forceinline void GrayToGrayA(uint16_t* const dest, const uint16_t* src, const size_t count, const uint16_t alpha = (uint16_t)0x3c00) const noexcept
+    {
+        G16ToGA16(dest, src, count, alpha);
+    }
     forceinline void GrayToGrayA(float* const dest, const float* src, const size_t count, const float alpha = 1.0f) const noexcept
     {
         GfToGAf(dest, src, count, alpha);
@@ -95,6 +115,10 @@ public:
     forceinline void GrayToRGB(uint8_t* const dest, const uint8_t* src, const size_t count) const noexcept
     {
         G8ToRGB8(dest, src, count);
+    }
+    forceinline void GrayToRGB(uint16_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        G16ToRGB16(dest, src, count);
     }
     forceinline void GrayToRGB(float* const dest, const float* src, const size_t count) const noexcept
     {
@@ -105,6 +129,10 @@ public:
     {
         G8ToRGBA8(dest, src, count, alpha);
     }
+    forceinline void GrayToRGBA(uint16_t* const dest, const uint16_t* src, const size_t count, const uint16_t alpha = (uint16_t)0x3c00) const noexcept
+    {
+        G16ToRGBA16(dest, src, count, alpha);
+    }
     forceinline void GrayToRGBA(float* const dest, const float* src, const size_t count, const float alpha = 1.0f) const noexcept
     {
         GfToRGBAf(dest, src, count, alpha);
@@ -113,6 +141,10 @@ public:
     forceinline void GrayAToRGB(uint8_t* const dest, const uint16_t* src, const size_t count) const noexcept
     {
         GA8ToRGB8(dest, src, count);
+    }
+    forceinline void GrayAToRGB(uint16_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        GA16ToRGB16(dest, src, count);
     }
     forceinline void GrayAToRGB(float* const dest, const float* src, const size_t count) const noexcept
     {
@@ -123,6 +155,10 @@ public:
     {
         GA8ToRGBA8(dest, src, count);
     }
+    forceinline void GrayAToRGBA(uint16_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        GA16ToRGBA16(dest, src, count);
+    }
     forceinline void GrayAToRGBA(float* const dest, const float* src, const size_t count) const noexcept
     {
         GAfToRGBAf(dest, src, count);
@@ -131,6 +167,10 @@ public:
     forceinline void GrayAToGray(uint8_t* const dest, const uint16_t* src, const size_t count) const noexcept
     {
         CopyEx.TruncCopy(dest, src, count);
+    }
+    forceinline void GrayAToGray(uint16_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        CopyEx.TruncCopy(dest, reinterpret_cast<const uint32_t*>(src), count);
     }
     forceinline void GrayAToGray(float* const dest, const float* src, const size_t count) const noexcept
     {
@@ -144,6 +184,14 @@ public:
             const auto src_ = reinterpret_cast<const uint8_t*>(src);
             CopyEx.TruncCopy(dest, reinterpret_cast<const uint16_t*>(src_ + 1), count - 1);
             dest[count - 1] = src_[count * 2 - 1];
+        }
+    }
+    forceinline void GrayAToAlpha(uint16_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        if (count > 0)
+        {
+            CopyEx.TruncCopy(reinterpret_cast<uint16_t*>(dest), reinterpret_cast<const uint32_t*>(src + 1), count);
+            dest[count - 1] = src[count * 2 - 1];
         }
     }
     forceinline void GrayAToAlpha(float* const dest, const float* src, const size_t count) const noexcept
@@ -163,6 +211,14 @@ public:
     {
         BGR8ToRGBA8(dest, src, count, alpha);
     }
+    forceinline void RGBToRGBA(uint16_t* const dest, const uint16_t* src, const size_t count, const uint16_t alpha = (uint16_t)0x3c00) const noexcept
+    {
+        RGB16ToRGBA16(dest, src, count, alpha);
+    }
+    forceinline void BGRToRGBA(uint16_t* const dest, const uint16_t* src, const size_t count, const uint16_t alpha = (uint16_t)0x3c00) const noexcept
+    {
+        BGR16ToRGBA16(dest, src, count, alpha);
+    }
     forceinline void RGBToRGBA(float* const dest, const float* src, const size_t count, const float alpha = 1.0f) const noexcept
     {
         RGBfToRGBAf(dest, src, count, alpha);
@@ -180,6 +236,14 @@ public:
     {
         RGBA8ToBGR8(dest, src, count);
     }
+    forceinline void RGBAToRGB(uint16_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        RGBA16ToRGB16(dest, src, count);
+    }
+    forceinline void RGBAToBGR(uint16_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        RGBA16ToBGR16(dest, src, count);
+    }
     forceinline void RGBAToRGB(float* const dest, const float* src, const size_t count) const noexcept
     {
         RGBAfToRGBf(dest, src, count);
@@ -193,6 +257,10 @@ public:
     {
         RGB8ToBGR8(dest, src, count);
     }
+    forceinline void RGBToBGR(uint16_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        RGB16ToBGR16(dest, src, count);
+    }
     forceinline void RGBToBGR(float* const dest, const float* src, const size_t count) const noexcept
     {
         RGBfToBGRf(dest, src, count);
@@ -202,6 +270,10 @@ public:
     {
         RGBA8ToBGRA8(dest, src, count);
     }
+    forceinline void RGBAToBGRA(uint16_t* const dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        RGBA16ToBGRA16(dest, src, count);
+    }
     forceinline void RGBAToBGRA(float* const dest, const float* src, const size_t count) const noexcept
     {
         RGBAfToBGRAf(dest, src, count);
@@ -209,13 +281,23 @@ public:
 
     forceinline void RGBAGetChannel(uint8_t* const dest, const uint32_t* src, const size_t count, const uint8_t channel) const noexcept
     {
-        switch (channel)
+        if (channel == 0) return CopyEx.TruncCopy(dest, src, count);
+        Expects(channel < 4);
+        if (count > 0)
         {
-        case 0: return RGBA8ToR8(dest, src, count);
-        case 1: return RGBA8ToG8(dest, src, count);
-        case 2: return RGBA8ToB8(dest, src, count);
-        case 3: return RGBA8ToA8(dest, src, count);
-        default: return;
+            const auto src_ = reinterpret_cast<const uint8_t*>(src);
+            CopyEx.TruncCopy(dest, reinterpret_cast<const uint32_t*>(src_ + channel), count - 1);
+            dest[count - 1] = src_[(count - 1) * 4 + channel];
+        }
+    }
+    forceinline void RGBAGetChannel(uint16_t* const dest, const uint16_t* src, const size_t count, const uint8_t channel) const noexcept
+    {
+        if (channel == 0) return CopyEx.TruncCopy(dest, reinterpret_cast<const uint64_t*>(src), count);
+        Expects(channel < 4);
+        if (count > 0)
+        {
+            CopyEx.TruncCopy(dest, reinterpret_cast<const uint64_t*>(src + channel), count - 1);
+            dest[count - 1] = src[(count - 1) * 4 + channel];
         }
     }
     forceinline void RGBAGetChannel(float* const dest, const float* src, const size_t count, const uint8_t channel) const noexcept
@@ -237,6 +319,16 @@ public:
         case 0: return RGB8ToR8(dest, src, count);
         case 1: return RGB8ToG8(dest, src, count);
         case 2: return RGB8ToB8(dest, src, count);
+        default: return;
+        }
+    }
+    forceinline void RGBGetChannel(uint16_t* const dest, const uint16_t* src, const size_t count, const uint8_t channel) const noexcept
+    {
+        switch (channel)
+        {
+        case 0: return RGB16ToR16(dest, src, count);
+        case 1: return RGB16ToG16(dest, src, count);
+        case 2: return RGB16ToB16(dest, src, count);
         default: return;
         }
     }
@@ -263,6 +355,18 @@ public:
     {
         Extract8x4(dest.data(), src, count);
     }
+    forceinline void RAToPlanar(common::span<uint16_t* const, 2> dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        Extract16x2(dest.data(), src, count);
+    }
+    forceinline void RGBToPlanar(common::span<uint16_t* const, 3> dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        Extract16x3(dest.data(), src, count);
+    }
+    forceinline void RGBAToPlanar(common::span<uint16_t* const, 4> dest, const uint16_t* src, const size_t count) const noexcept
+    {
+        Extract16x4(dest.data(), src, count);
+    }
     forceinline void RAToPlanar(common::span<float* const, 2> dest, const float* src, const size_t count) const noexcept
     {
         Extract32x2(dest.data(), src, count);
@@ -287,6 +391,18 @@ public:
     forceinline void PlanarToRGBA(uint32_t* dest, common::span<const uint8_t* const, 4> src, const size_t count) const noexcept
     {
         Combine8x4(dest, src.data(), count);
+    }
+    forceinline void PlanarToRA(uint16_t* dest, common::span<const uint16_t* const, 2> src, const size_t count) const noexcept
+    {
+        Combine16x2(dest, src.data(), count);
+    }
+    forceinline void PlanarToRGB(uint16_t* dest, common::span<const uint16_t* const, 3> src, const size_t count) const noexcept
+    {
+        Combine16x3(dest, src.data(), count);
+    }
+    forceinline void PlanarToRGBA(uint16_t* dest, common::span<const uint16_t* const, 4> src, const size_t count) const noexcept
+    {
+        Combine16x4(dest, src.data(), count);
     }
     forceinline void PlanarToRA(float* dest, common::span<const float* const, 2> src, const size_t count) const noexcept
     {

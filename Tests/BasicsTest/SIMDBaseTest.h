@@ -1003,7 +1003,7 @@ static void TestLoad(const T* ptr)
 }
 
 template<size_t N, typename T>
-static void TestMoveTo(const T& dat)
+static forceinline void TestMoveTo(const T& dat)
 {
     using U = typename T::EleType;
     const auto outLo = dat.template MoveToLo<N>();
@@ -1020,7 +1020,7 @@ static void TestMoveTo(const T& dat)
         TestMoveTo<N + 1>(dat);
 }
 template<size_t N, typename T>
-static void TestMoveLaneTo(const T& dat)
+static forceinline void TestMoveLaneTo(const T& dat)
 {
     using U = typename T::EleType;
     const auto outLo = dat.template MoveLaneToLo<N>();
@@ -1042,7 +1042,7 @@ static void TestMoveLaneTo(const T& dat)
         TestMoveLaneTo<N + 1>(dat);
 }
 template<size_t N, typename T>
-static void TestMoveWith(const T& datLo, const T& datHi)
+static forceinline void TestMoveWith(const T& datLo, const T& datHi)
 {
     using U = typename T::EleType;
     const auto out = datLo.template MoveToLoWith<N>(datHi);
@@ -1057,7 +1057,7 @@ static void TestMoveWith(const T& datLo, const T& datHi)
         TestMoveWith<N + 1>(datLo, datHi);
 }
 template<size_t N, typename T>
-static void TestMoveLaneWith(const T& datLo, const T& datHi)
+static forceinline void TestMoveLaneWith(const T& datLo, const T& datHi)
 {
     using U = typename T::EleType;
     const auto out = datLo.template MoveLaneToLoWith<N>(datHi);
@@ -1108,6 +1108,104 @@ static void TestMove(const T* ptr)
 }
 
 
+template<typename T, size_t V, size_t N, uint8_t... Ns>
+static forceinline void TestPermuteLaneSelf(const T& dat)
+{
+    if constexpr (sizeof...(Ns) == T::LaneCount)
+    {
+        using U = typename T::EleType;
+        constexpr uint8_t C = T::Count / T::LaneCount;
+        std::array<U, T::Count> ref = { 0 };
+        size_t v = V;
+        for (uint32_t i = 0; i < T::LaneCount; ++i)
+        {
+            const auto laneIdx = v % (T::LaneCount + 1);
+            if (laneIdx == T::LaneCount)
+                memset(ref.data() + C * i, 0x0, sizeof(T) * C);
+            else
+                memcpy(ref.data() + C * i, dat.Val + C * laneIdx, sizeof(T) * C);
+            v = V / (T::LaneCount + 1);
+        }
+        const auto out = dat.template PermuteLane<Ns...>();
+        std::string str = "when testing PermuteLaneSelf<";
+        static_assert(T::LaneCount < 9);
+        (..., void(str.push_back('0' + Ns)));
+        str.push_back('>');
+        EXPECT_THAT(out.Val, MatchVec(ref)) << str;
+    }
+    else
+    {
+        constexpr auto Idx = static_cast<uint8_t>(N % (T::LaneCount + 1));
+        constexpr auto NewN = N / (T::LaneCount + 1);
+        TestPermuteLaneSelf<T, V, NewN, Idx, Ns...>(dat);
+    }
+}
+template<typename T, size_t V, size_t N, uint8_t... Ns>
+static forceinline void TestPermuteLane(const T& dat, const T& other)
+{
+    const uint8_t TotalLane = T::LaneCount * 2;
+    if constexpr (sizeof...(Ns) == T::LaneCount)
+    {
+        using U = typename T::EleType;
+        constexpr uint8_t C = T::Count / T::LaneCount;
+        std::array<U, T::Count> ref = { 0 };
+        size_t v = V;
+        for (uint32_t i = 0; i < T::LaneCount; ++i)
+        {
+            const auto laneIdx = v % (TotalLane + 1);
+            if (laneIdx == TotalLane)
+                memset(ref.data() + C * i, 0x0, sizeof(T) * C);
+            else
+            {
+                const auto& src = laneIdx < T::LaneCount ? dat : other;
+                const auto laneIdx_ = laneIdx % (T::LaneCount);
+                memcpy(ref.data() + C * i, src.Val + C * laneIdx_, sizeof(T) * C);
+            }
+            v = V / (TotalLane + 1);
+        }
+        const auto out = dat.template PermuteLane<Ns...>(other);
+        std::string str = "when testing PermuteLane<";
+        static_assert(T::LaneCount * 2 < 9);
+        (..., void(str.push_back('0' + Ns)));
+        str.push_back('>');
+        EXPECT_THAT(out.Val, MatchVec(ref)) << str;
+    }
+    else
+    {
+        constexpr auto Idx = static_cast<uint8_t>(N % (TotalLane + 1));
+        constexpr auto NewN = N / (TotalLane + 1);
+        TestPermuteLane<T, V, NewN, Idx, Ns...>(dat, other);
+    }
+}
+template<typename T, uint32_t... Idx1, uint32_t... Idx2>
+static void TestLane_(const T* ptr, std::integer_sequence<uint32_t, Idx1...>, std::integer_sequence<uint32_t, Idx2...>)
+{
+    using U = typename T::EleType;
+    {
+        ForKItem(1)
+        {
+            const auto data = ptr[k];
+            (..., TestPermuteLaneSelf<T, Idx1, Idx1>(data));
+        }
+    }
+    {
+        ForKItem(2)
+        {
+            const auto data0 = ptr[k + 0], data1 = ptr[k + 1];
+            (..., TestPermuteLane<T, Idx2, Idx2>(data0, data1));
+        }
+    }
+}
+template<typename T>
+static void TestLane(const T* ptr)
+{
+    static_assert(is_multilane_v<T>);
+    constexpr auto N1 = static_cast<uint32_t>(Pow<T::LaneCount + 1, T::LaneCount>());
+    constexpr auto N2 = static_cast<uint32_t>(Pow<T::LaneCount * 2 + 1, T::LaneCount>());
+    TestLane_(GetRandPtr<T, typename T::EleType>(), std::make_integer_sequence<uint32_t, N1>{}, std::make_integer_sequence<uint32_t, N2>{});
+}
+
+
 #undef ForKItem
 
 enum class TestItem : uint64_t
@@ -1115,7 +1213,7 @@ enum class TestItem : uint64_t
     Add = 0x1, Sub = 0x2, SatAdd = 0x4, SatSub = 0x8, Mul = 0x10, MulLo = 0x20, MulHi = 0x40, MulX = 0x80, 
     Div = 0x100, Neg = 0x200, Abs = 0x400, Min = 0x800, Max = 0x1000, SLL = 0x2000, SLLV = 0x4000, SRL = 0x8000, SRLV = 0x10000, SRA = 0x20000,
     And = 0x100000, Or = 0x200000, Xor = 0x400000, AndNot = 0x800000, Not = 0x1000000, FMA = 0x2000000, Rnd = 0x4000000,
-    SWE = 0x10000000u, SEL = 0x20000000u, MSK = 0x40000000u, Load = 0x80000000u, Move = 0x100000000u
+    SWE = 0x10000000u, SEL = 0x20000000u, MSK = 0x40000000u, Load = 0x80000000u, Move = 0x100000000u, Lane = 0x200000000u
 };
 MAKE_ENUM_BITFIELD(TestItem)
 

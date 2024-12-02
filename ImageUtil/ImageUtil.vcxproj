@@ -157,6 +157,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
+      <SupportJustMyCode>true</SupportJustMyCode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -182,6 +183,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
+      <SupportJustMyCode>true</SupportJustMyCode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -206,6 +208,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
+      <SupportJustMyCode>true</SupportJustMyCode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
