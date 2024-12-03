@@ -200,24 +200,23 @@ static void WriteToFile(void *context, void *data, int size)
     stream.Write(size, data);
 }
 
-void StbWriter::Write(const Image& image, const uint8_t quality)
+void StbWriter::Write(ImageView image, const uint8_t quality)
 {
-    ImageView view(image);
     const auto origType = image.GetDataType();
     if (!origType.Is(ImgDType::DataTypes::Uint8))
         return;
     if (origType.IsBGROrder()) // STB always writes RGB order
-        view = view.ConvertTo(ImgDType{ origType.HasAlpha() ? ImgDType::Channels::RGBA : ImgDType::Channels::RGB , origType.DataType()});
+        image = image.ConvertTo(ImgDType{ origType.HasAlpha() ? ImgDType::Channels::RGBA : ImgDType::Channels::RGB , origType.DataType()});
 
-    const auto width = static_cast<int32_t>(view.GetWidth()), height = static_cast<int32_t>(view.GetHeight());
-    const int32_t reqComp = Image::GetElementSize(view.GetDataType());
+    const auto width = static_cast<int32_t>(image.GetWidth()), height = static_cast<int32_t>(image.GetHeight());
+    const int32_t reqComp = Image::GetElementSize(image.GetDataType());
     int32_t ret = 0; 
     switch (TargetType)
     {
-    case ImgType::BMP:  ret = stbi_write_bmp_to_func(&WriteToFile, &Stream, width, height, reqComp, view.GetRawPtr()); break;
-    case ImgType::PNG:  ret = stbi_write_png_to_func(&WriteToFile, &Stream, width, height, reqComp, view.GetRawPtr(), 0); break;
-    case ImgType::TGA:  ret = stbi_write_tga_to_func(&WriteToFile, &Stream, width, height, reqComp, view.GetRawPtr()); break;
-    case ImgType::JPG:  ret = stbi_write_jpg_to_func(&WriteToFile, &Stream, width, height, reqComp, view.GetRawPtr(), quality); break;
+    case ImgType::BMP:  ret = stbi_write_bmp_to_func(&WriteToFile, &Stream, width, height, reqComp, image.GetRawPtr()); break;
+    case ImgType::PNG:  ret = stbi_write_png_to_func(&WriteToFile, &Stream, width, height, reqComp, image.GetRawPtr(), 0); break;
+    case ImgType::TGA:  ret = stbi_write_tga_to_func(&WriteToFile, &Stream, width, height, reqComp, image.GetRawPtr()); break;
+    case ImgType::JPG:  ret = stbi_write_jpg_to_func(&WriteToFile, &Stream, width, height, reqComp, image.GetRawPtr(), quality); break;
     default:            COMMON_THROW(BaseException, u"unsupported image type");
     }
     if (ret == 0)

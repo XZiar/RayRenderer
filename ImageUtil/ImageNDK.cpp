@@ -231,31 +231,30 @@ static bool NdkWriterFunc(void* userContext, const void* data, size_t size)
     return stream.WriteMany(size, 1, data) == size;
 }
 
-void NdkWriter::Write(const Image& image, const uint8_t quality)
+void NdkWriter::Write(ImageView image, const uint8_t quality)
 {
     if (!image.GetDataType().Is(ImgDType::DataTypes::Uint8))
         return;
-    ImageView view(image);
     AndroidBitmapFormat dataFormat = ANDROID_BITMAP_FORMAT_NONE;
-    if (view.GetDataType() == ImageDataType::GRAY)
+    if (image.GetDataType() == ImageDataType::GRAY)
     {
         dataFormat = ANDROID_BITMAP_FORMAT_A_8;
     }
     else // convert to RGBA
     {
         dataFormat = ANDROID_BITMAP_FORMAT_RGBA_8888;
-        view = view.ConvertTo(ImageDataType::RGBA);
+        image = image.ConvertTo(ImageDataType::RGBA);
     }
 
     AndroidBitmapInfo info
     {
-        .width  = view.GetWidth(),
-        .height = view.GetHeight(),
-        .stride = view.GetWidth() * view.GetElementSize(),
+        .width  = image.GetWidth(),
+        .height = image.GetHeight(),
+        .stride = image.GetWidth() * image.GetElementSize(),
         .format = dataFormat,
         .flags  = 0u,
     };
-    THROW_ENC(Support->Host, EncodeImg(&info, ADATASPACE_UNKNOWN, view.GetRawPtr(), Format, quality, &Stream, &NdkWriterFunc), u"Failed to encode image");
+    THROW_ENC(Support->Host, EncodeImg(&info, ADATASPACE_UNKNOWN, image.GetRawPtr(), Format, quality, &Stream, &NdkWriterFunc), u"Failed to encode image");
 }
 
 

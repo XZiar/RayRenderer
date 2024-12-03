@@ -310,7 +310,7 @@ inline JpegWriter::~JpegWriter()
         delete (jpeg_error_mgr*)JpegErrorHandler;
 }
 
-void JpegWriter::Write(const Image& image, const uint8_t quality)
+void JpegWriter::Write(ImageView image, const uint8_t quality)
 {
     if (image.GetWidth() > JPEG_MAX_DIMENSION || image.GetHeight() > JPEG_MAX_DIMENSION)
         return;

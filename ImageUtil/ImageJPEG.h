@@ -38,7 +38,7 @@ private:
 public:
     JpegWriter(common::io::RandomOutputStream& stream);
     virtual ~JpegWriter() override;
-    virtual void Write(const Image& image, const uint8_t quality) override;
+    virtual void Write(ImageView image, const uint8_t quality) override;
 };
 
 class JpegSupport final : public ImgSupport

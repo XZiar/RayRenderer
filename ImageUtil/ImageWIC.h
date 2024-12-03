@@ -36,7 +36,7 @@ private:
 public:
     WicWriter(std::shared_ptr<const WicSupport>&& support, common::com::PtrProxy<WICEncoder>&& encoder, ImgType type);
     virtual ~WicWriter() override;
-    virtual void Write(const Image& image, const uint8_t quality) override;
+    virtual void Write(ImageView image, const uint8_t quality) override;
 };
 
 class WicSupport final : public ImgSupport, public std::enable_shared_from_this<WicSupport>

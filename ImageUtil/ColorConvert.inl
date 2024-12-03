@@ -1201,7 +1201,7 @@ struct GA2RGB16_128
 # if COMMON_ARCH_X86
         const auto out1 = dat0.SelectWith<0x0f>(dat1).Shuffle<4, 6, 6, 6, 0, 0, 0, 2>();
 # else
-        alignas(16) static const uint8_t indexes[] = { 8,9, 12,13, 12,13, 12,13, 0,1, 0,1, 0,1, 4,5 };
+        alignas(16) static const uint8_t indexes[] = { 8,9, 12,13, 12,13, 12,13, 16,17, 16,17, 16,17, 20,21 };
         const auto tbl = vld1q_u8(indexes);
         uint8x16x2_t dat01;
         dat01.val[0] = vreinterpretq_u8_u16(dat0);
@@ -2832,10 +2832,10 @@ struct GA2RGB16_NEON
 };
 struct GA2RGBA16_NEON
 {
-    static constexpr size_t M = 8, N = 16, K = 4;
+    static constexpr size_t M = 16, N = 32, K = 8;
     forceinline void operator()(uint16_t* __restrict dst, const uint16_t* __restrict src) const noexcept
     {
-        const auto dat = vld2q_f32(src);
+        const auto dat = vld2q_u16(src);
         uint16x8x4_t out4;
         out4.val[0] = dat.val[0];
         out4.val[1] = dat.val[0];
@@ -3049,7 +3049,7 @@ struct RGBToBGR16_NEON
 };
 struct RGBAToBGRA16_NEON
 {
-    static constexpr size_t M = 24, N = 24, K = 8;
+    static constexpr size_t M = 32, N = 32, K = 8;
     forceinline void operator()(uint16_t* __restrict dst, const uint16_t* __restrict src) const noexcept
     {
         const auto dat = vld4q_u16(src);
@@ -3308,7 +3308,7 @@ struct Combine8x4_NEON
 };
 struct Combine16x2_NEON
 {
-    static constexpr size_t M = 4, N = 8, K = 4;
+    static constexpr size_t M = 8, N = 16, K = 8;
     forceinline void operator()(uint16_t* __restrict dst, const uint16_t* __restrict* __restrict src) const noexcept
     {
         const U16x8 dat0(src[0]);
@@ -3322,7 +3322,7 @@ struct Combine16x2_NEON
 };
 struct Combine16x3_NEON
 {
-    static constexpr size_t M = 4, N = 12, K = 4;
+    static constexpr size_t M = 8, N = 24, K = 8;
     forceinline void operator()(uint16_t* __restrict dst, const uint16_t* __restrict* __restrict src) const noexcept
     {
         const U16x8 dat0(src[0]);
@@ -3338,7 +3338,7 @@ struct Combine16x3_NEON
 };
 struct Combine16x4_NEON
 {
-    static constexpr size_t M = 4, N = 16, K = 4;
+    static constexpr size_t M = 8, N = 32, K = 8;
     forceinline void operator()(uint16_t* __restrict dst, const uint16_t* __restrict* __restrict src) const noexcept
     {
         const U16x8 dat0(src[0]);

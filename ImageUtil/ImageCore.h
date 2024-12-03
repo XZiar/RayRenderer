@@ -38,6 +38,10 @@ struct ImgDType
         default:                 return false;
         }
     }
+    IMGUTILAPI static std::string_view Stringify(Channels ch) noexcept;
+    IMGUTILAPI static std::string_view Stringify(DataTypes type) noexcept;
+    IMGUTILAPI static std::string Stringify(const ImgDType& type, bool detail) noexcept;
+
     //[dtype|rev|channel]
     //[6...3|*2*|1.....0]
     uint8_t Value;
@@ -61,6 +65,12 @@ struct ImgDType
     constexpr bool IsBGROrder() const noexcept { return IsBGROrder(Channel()); }
     constexpr bool Is(Channels ch) const noexcept { return Channel() == ch; }
     constexpr bool Is(DataTypes dt) const noexcept { return DataType() == dt; }
+    std::string ToString() const noexcept
+    {
+        auto ret = Stringify(*this, false);
+        if (ret.empty()) return Stringify(*this, true);
+        return ret;
+    }
 
     constexpr ImgDType& SetDatatype(DataTypes dt) noexcept
     {

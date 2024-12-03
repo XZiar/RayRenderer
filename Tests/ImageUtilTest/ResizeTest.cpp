@@ -5,20 +5,33 @@
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/ConsoleEx.h"
+#include "SystemCommon/FileMapperEx.h"
 
 using namespace xziar::img;
 
 
-void WriteBmp(common::mlog::MiniLogger<false>& logger, std::u16string_view writer, std::u16string_view name, const Image& img, common::fs::path fpath)
+std::vector<std::shared_ptr<const ImgSupport>> GetSupport(common::mlog::MiniLogger<false>& logger, std::u16string ext, ImgDType dtype, bool isRead, std::u16string_view prefer)
 {
-    auto supports = GetImageSupport(u"BMP", img.GetDataType(), false);
-    const auto it = std::find_if(supports.begin(), supports.end(), [&](const auto& support) { return support->Name == writer; });
+    auto supports = GetImageSupport(ext, dtype, isRead);
+    const auto it = std::find_if(supports.begin(), supports.end(), [&](const auto& support) { return support->Name == prefer; });
     if (it != supports.end())
         std::rotate(supports.begin(), it, it + 1);
-    
+    std::u16string txt;
+    for (const auto& support : supports)
+    {
+        txt.push_back(u' ');
+        txt.append(support->Name);
+    }
+    logger.Debug(u"Support for [{}][{}][{}]: {}\n", ext, isRead ? 'R' : 'W', dtype.ToString(), txt);
+    return supports;
+}
+
+void WriteBmp(common::mlog::MiniLogger<false>& logger, std::u16string_view writer, std::u16string_view name, const Image& img, common::fs::path fpath)
+{
     common::file::FileOutputStream stream(common::file::FileObject::OpenThrow(fpath, common::file::OpenFlag::CreateNewBinary));
     logger.Debug(u"Write Image {}\n", fpath.u16string());
 
+    const auto supports = GetSupport(logger, u"BMP", img.GetDataType(), false, writer);
     for (const auto& support : supports)
     {
         try
@@ -41,7 +54,7 @@ void WriteBmp(common::mlog::MiniLogger<false>& logger, std::u16string_view write
 }
 
 
-void TestResizeImage(std::string filepath, std::string_view writer_)
+void TestResizeImage(std::string filepath, std::string_view reader_, std::string_view writer_)
 {
     common::mlog::MiniLogger<false> logger(u"ImgTest", { common::mlog::GetConsoleBackend() });
     while (filepath.empty())
@@ -51,7 +64,45 @@ void TestResizeImage(std::string filepath, std::string_view writer_)
     }
 
     common::fs::path fpath(filepath);
-    auto img0 = ReadImage(fpath, ImageDataType::RGBA);
+    fpath = common::fs::absolute(fpath);
+    Image img0;
+    {
+        auto stream = common::file::MapFileForRead(fpath);
+        logger.Debug(u"Read Image {}\n", fpath.u16string());
+        auto ext = fpath.extension().u16string();
+        if (!ext.empty()) 
+            ext = common::str::ToUpperEng(std::u16string_view(ext).substr(1), common::str::Encoding::UTF16LE);
+
+        const std::u16string reader(reader_.begin(), reader_.end());
+        const auto supports = GetSupport(logger, ext, ImageDataType::RGBA, true, reader);
+        for (const auto& support : supports)
+        {
+            try
+            {
+                const auto inputer = support->GetReader(stream, ext);
+                if (!inputer->Validate())
+                {
+                    stream.SetPos(0);
+                    continue;
+                }
+                img0 = inputer->Read(ImageDataType::RGBA);
+                logger.Info(u"readed img using {}\n", support->Name);
+            }
+            catch (const common::BaseException& be)
+            {
+                logger.Warning(u"Read Image using {} receive error {}\n", support->Name, be.Message());
+            }
+            catch (...)
+            {
+                logger.Warning(u"Read Image using {} receive error\n", support->Name);
+            }
+        }
+        if (!img0.GetSize())
+        {
+            logger.Error(u"Read Image failed with no backend support\n");
+            return;
+        }
+    }
     const auto folder = fpath.parent_path();
     const auto basename = fpath.stem().string();
     const auto w = img0.GetWidth(), h = img0.GetHeight();

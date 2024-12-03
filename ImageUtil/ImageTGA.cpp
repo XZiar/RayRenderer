@@ -345,7 +345,7 @@ public:
     }
 
     template<typename Writer>
-    static void WriteRLEColor3(const Image& image, Writer& writer)
+    static void WriteRLEColor3(const ImageView& image, Writer& writer)
     {
         if (image.GetElementSize() != 3)
             return;
@@ -386,7 +386,7 @@ public:
     }
 
     template<typename Writer>
-    static void WriteRLEColor4(const Image& image, Writer& writer)
+    static void WriteRLEColor4(const ImageView& image, Writer& writer)
     {
         if (image.GetElementSize() != 4)
             return;
@@ -424,7 +424,7 @@ public:
         }
     }
     template<typename Writer>
-    static void WriteRLEGray(const Image& image, Writer& writer)
+    static void WriteRLEGray(const ImageView& image, Writer& writer)
     {
         if (image.GetElementSize() != 1)
             return;
@@ -673,7 +673,7 @@ TgaWriter::TgaWriter(RandomOutputStream& stream) : Stream(stream)
 {
 }
 
-void TgaWriter::Write(const Image& image, const uint8_t)
+void TgaWriter::Write(ImageView image, const uint8_t)
 {
     constexpr char identity[] = "Truevision TGA file created by zexTGA";
     if (image.GetWidth() > INT16_MAX || image.GetHeight() > INT16_MAX)

@@ -32,7 +32,7 @@ private:
 public:
     NdkWriter(std::shared_ptr<const NdkSupport>&& support, common::io::RandomOutputStream& stream, int32_t format) noexcept;
     virtual ~NdkWriter() override;
-    virtual void Write(const Image& image, const uint8_t quality) override;
+    virtual void Write(ImageView image, const uint8_t quality) override;
 };
 
 class NdkSupport final : public ImgSupport, public std::enable_shared_from_this<NdkSupport>

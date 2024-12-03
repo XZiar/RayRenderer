@@ -31,7 +31,7 @@ private:
 public:
     StbWriter(common::io::RandomOutputStream& stream, std::u16string_view ext);
     virtual ~StbWriter() override;
-    virtual void Write(const Image& image, const uint8_t quality) override;
+    virtual void Write(ImageView image, const uint8_t quality) override;
 };
 
 class StbSupport final : public ImgSupport

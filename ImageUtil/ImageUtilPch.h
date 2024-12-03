@@ -7,6 +7,8 @@
 #include "SystemCommon/FileMapperEx.h"
 #include "SystemCommon/CopyEx.h"
 #include "SystemCommon/StringConvert.h"
+#include "SystemCommon/Exceptions.h"
+#include "SystemCommon/StackTrace.h"
 
 #include "common/FileBase.hpp"
 #include "common/Linq2.hpp"
@@ -21,4 +23,5 @@
 namespace xziar::img
 {
 common::mlog::MiniLogger<false>& ImgLog();
+using common::BaseException;
 }

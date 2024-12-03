@@ -15,7 +15,67 @@ using std::string;
 using std::wstring;
 using std::u16string;
 using common::BaseException;
+using namespace std::string_view_literals;
 
+
+std::string_view ImgDType::Stringify(Channels ch) noexcept
+{
+    switch (ch)
+    {
+    case Channels::R:    return "R"sv;
+    case Channels::RA:   return "RA"sv;
+    case Channels::RGB:  return "RGB"sv;
+    case Channels::RGBA: return "RGBA"sv;
+    case Channels::BGR:  return "BGR"sv;
+    case Channels::BGRA: return "BGRA"sv;
+    default:             return {};
+    }
+}
+std::string_view ImgDType::Stringify(DataTypes type) noexcept
+{
+    switch (type)
+    {
+    case DataTypes::Uint8:   return "UINT8"sv;
+    case DataTypes::Fixed16: return "FIXED16"sv;
+    case DataTypes::Float16: return "FLOAT16"sv;
+    case DataTypes::Float32: return "FLOAT32"sv;
+    default:                 return {};
+    }
+}
+std::string ImgDType::Stringify(const ImgDType& type, bool detail) noexcept
+{
+    if (!detail)
+    {
+#define CASEDT(name) case ImageDataType::name.Value: return #name
+        switch (type.Value)
+        {
+        CASEDT(RGBA);
+        CASEDT(BGRA);
+        CASEDT(RGB);
+        CASEDT(BGR);
+        CASEDT(GA);
+        CASEDT(GRAY);
+        CASEDT(RGBAf);
+        CASEDT(BGRAf);
+        CASEDT(RGBf);
+        CASEDT(BGRf);
+        CASEDT(GAf);
+        CASEDT(GRAYf);
+        CASEDT(RGBAh);
+        CASEDT(BGRAh);
+        CASEDT(RGBh);
+        CASEDT(BGRh);
+        CASEDT(GAh);
+        CASEDT(GRAYh);
+        default: return {};
+        }
+#undef CASEDT
+    }
+    const auto ch = Stringify(type.Channel());
+    const auto dt = Stringify(type.Channel());
+    if (ch.empty() || dt.empty()) return "UNKNOWN";
+    return std::string(dt).append("|").append(ch);
+}
 
 
 void Image::ResetSize(const uint32_t width, const uint32_t height)

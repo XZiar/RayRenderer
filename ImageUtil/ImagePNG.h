@@ -30,7 +30,7 @@ private:
 public:
     PngWriter(common::io::RandomOutputStream& stream);
     virtual ~PngWriter() override;
-    virtual void Write(const Image& image, const uint8_t quality) override;
+    virtual void Write(ImageView image, const uint8_t quality) override;
 };
 
 class PngSupport final : public ImgSupport

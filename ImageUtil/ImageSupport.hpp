@@ -24,7 +24,7 @@ class IMGUTILAPI ImgWriter : public common::NonCopyable
 {
 public:
     virtual ~ImgWriter() {};
-    virtual void Write(const Image& image, const uint8_t quality) = 0;
+    virtual void Write(ImageView image, const uint8_t quality) = 0;
 };
 
 class IMGUTILAPI ImgSupport

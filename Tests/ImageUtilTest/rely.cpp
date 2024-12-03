@@ -17,7 +17,7 @@ common::span<const std::byte> GetRandVals() noexcept
     return { reinterpret_cast<const std::byte*>(RandVals.data()), RandVals.size() };
 }
 
-void TestResizeImage(std::string filepath, std::string_view writer);
+void TestResizeImage(std::string filepath, std::string_view reader, std::string_view writer);
 
 int main(int argc, char **argv)                  
 {
@@ -28,17 +28,19 @@ int main(int argc, char **argv)
     printf("Running main() from %s\n", env->ExePath.empty() ? __FILE__ : env->ExePath.string().c_str());
     testing::AddGlobalTestEnvironment(env);
     std::optional<std::string_view> testimg;
-    std::string_view writer;
+    std::string_view reader, writer;
     for (const auto arg : env->GetTestArgs())
     {
         if (arg.starts_with("-testimg="))
             testimg = arg.substr(9);
         else if (arg.starts_with("-testimgwriter="))
             writer = arg.substr(15);
+        else if (arg.starts_with("-testimgreader="))
+            reader = arg.substr(15);
     }
     if (testimg)
     {
-        TestResizeImage(std::string(*testimg), writer);
+        TestResizeImage(std::string(*testimg), reader, writer);
         return 0;
     }
     return RUN_ALL_TESTS();

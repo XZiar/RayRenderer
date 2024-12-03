@@ -11,7 +11,9 @@
 }
 float FP16ToFP32(::common::fp16_t val) noexcept
 {
-    return common::bit_cast<half_float::half>(val);
+    half_float::half ret;
+    memcpy(&ret, &val, sizeof(ret)); // clang complains about trivially constructable.
+    return ret;
 }
 
 template<size_t N>

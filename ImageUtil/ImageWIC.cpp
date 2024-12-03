@@ -112,7 +112,7 @@ WicWriter::WicWriter(std::shared_ptr<const WicSupport>&& support, common::com::P
 { }
 WicWriter::~WicWriter() {}
 
-void WicWriter::Write(const Image& image, const uint8_t quality)
+void WicWriter::Write(ImageView image, const uint8_t quality)
 {
     const auto origType = image.GetDataType();
     const auto cvt = DataTypeGuidLookup(origType.Value);
@@ -120,9 +120,8 @@ void WicWriter::Write(const Image& image, const uint8_t quality)
     {
         COMMON_THROWEX(BaseException, u"datatype not supported");
     }
-    ImageView img(image);
     if (origType != cvt->MidType)
-        img = img.ConvertTo(cvt->MidType);
+        image = image.ConvertTo(cvt->MidType);
 
     Microsoft::WRL::ComPtr<IWICBitmapFrameEncode> frame;
     Microsoft::WRL::ComPtr<IPropertyBag2> props;
@@ -152,21 +151,21 @@ void WicWriter::Write(const Image& image, const uint8_t quality)
     if (!options.empty())
         THROW_HR(props->Write(static_cast<ULONG>(options.size()), options.data(), values.data()), u"Failed to set props");
     THROW_HR(frame->Initialize(props.Get()), u"Failed to init frame");
-    THROW_HR(frame->SetSize(img.GetWidth(), img.GetHeight()), u"Failed to set size");
+    THROW_HR(frame->SetSize(image.GetWidth(), image.GetHeight()), u"Failed to set size");
     GUID targetFormat = *cvt->Guid;
     THROW_HR(frame->SetPixelFormat(&targetFormat), u"Failed to set pix format");
     if (IsEqualGUID(targetFormat, *cvt->Guid))
     {
-        THROW_HR(frame->WritePixels(img.GetHeight(), gsl::narrow_cast<uint32_t>(img.GetElementSize() * img.GetWidth()), gsl::narrow_cast<uint32_t>(img.GetSize()), 
-            const_cast<BYTE*>(img.GetRawPtr<BYTE>())), u"Failed to write pixels");
+        THROW_HR(frame->WritePixels(image.GetHeight(), gsl::narrow_cast<uint32_t>(image.GetElementSize() * image.GetWidth()), gsl::narrow_cast<uint32_t>(image.GetSize()),
+            const_cast<BYTE*>(image.GetRawPtr<BYTE>())), u"Failed to write pixels");
     }
     else
     {
         ImgLog().Verbose(u"WIC asks for pixel format conversion.\n");
         Microsoft::WRL::ComPtr<IWICBitmap> srcBitmap;
-        THROW_HR(Support->Factory->CreateBitmapFromMemory(img.GetWidth(), img.GetHeight(), *cvt->Guid,
-            gsl::narrow_cast<uint32_t>(img.GetElementSize() * img.GetWidth()), gsl::narrow_cast<uint32_t>(img.GetSize()),
-            const_cast<BYTE*>(img.GetRawPtr<BYTE>()), srcBitmap.GetAddressOf()), u"Failed to create bitmap");
+        THROW_HR(Support->Factory->CreateBitmapFromMemory(image.GetWidth(), image.GetHeight(), *cvt->Guid,
+            gsl::narrow_cast<uint32_t>(image.GetElementSize() * image.GetWidth()), gsl::narrow_cast<uint32_t>(image.GetSize()),
+            const_cast<BYTE*>(image.GetRawPtr<BYTE>()), srcBitmap.GetAddressOf()), u"Failed to create bitmap");
 
         Microsoft::WRL::ComPtr<IWICPalette> platte;
         std::optional<uint32_t> platteColorCount;

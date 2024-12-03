@@ -769,7 +769,7 @@ static void TestCast(const T* ptr)
         {
             const auto data = ptr[k];
             const auto output = data.template Cast<U, Mode>();
-            std::array<V, T::Count> ref = { 0 };
+            std::array<V, T::Count> ref = { (V)0 };
             V out[T::Count] = { 0 };
             if constexpr (T::Count == U::Count)
                 output.Save(out);
@@ -795,7 +795,7 @@ static void TestCast(const T* ptr)
                     ptr[k * 8 + 4], ptr[k * 8 + 5], ptr[k * 8 + 6], ptr[k * 8 + 7]);
             else
                 static_assert(!::common::AlwaysTrue<T>, "not supported");
-            std::array<V, U::Count> ref = { 0 };
+            std::array<V, U::Count> ref = { (V)0 };
             for (size_t j = 0; j < K; ++j)
             {
                 const auto& data = ptr[k * K + j];

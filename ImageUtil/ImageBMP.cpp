@@ -1,6 +1,7 @@
 #include "ImageUtilPch.h"
 #include "ImageBMP.h"
 #include "common/StaticLookup.hpp"
+#include "SystemCommon/MiscIntrins.h"
 
 namespace xziar::img::zex
 {
@@ -16,14 +17,15 @@ using common::io::RandomOutputStream;
 
 enum class PixFormat : uint8_t
 {
-    Category = 0xf0, Detail = 0x0f, RGB = 0x00, BGR = 0x08, NoAlpha = 0x00, HasAlpha = 0x04,
-    XXXX8888 = 0x10, XXX888 = 0x20, XXX555 = 0x30, XXX565 = 0x40, Plate = 0x50,
+    Category = 0xf0, Detail = 0x0f, RGB = 0x00, BGR = 0x08, NoAlpha = 0x00, HasAlpha = 0x04, IsGray = 0x80,
+    Plate = 0x10, XXXX8888 = 0x20, XXX888 = 0x30, XXX555 = 0x40, XXX565 = 0x50, XX88 = IsGray | 0x10,
     RGBA8888 = XXXX8888 | HasAlpha | RGB, BGRA8888 = XXXX8888 | HasAlpha | BGR,
     RGBX888  = XXXX8888 |  NoAlpha | RGB, BGRX888  = XXXX8888 |  NoAlpha | BGR,
     RGB888   = XXX888   |  NoAlpha | RGB, BGR888   = XXX888   |  NoAlpha | BGR,
     RGBX555  = XXX555   |  NoAlpha | RGB, BGRX555  = XXX555   |  NoAlpha | BGR,
     RGBA5551 = XXX555   | HasAlpha | RGB, BGRA5551 = XXX555   | HasAlpha | BGR,
     RGB565   = XXX565   |  NoAlpha | RGB, BGR565   = XXX565   |  NoAlpha | BGR,
+    RA88     = XX88     | HasAlpha | RGB, AR88     = XX88     | HasAlpha | BGR,
 };
 MAKE_ENUM_BITFIELD(PixFormat)
 
@@ -33,8 +35,8 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, AlignedBuf
     const auto width = image.GetWidth(), height = image.GetHeight();
     const auto dataType = image.GetDataType();
     const auto needAlpha = dataType.HasAlpha();
-    const auto isRGB = HAS_FIELD(format, PixFormat::RGB), hasAlpha = HAS_FIELD(format, PixFormat::HasAlpha);
-    const auto needSwizzle = dataType.IsBGROrder() == isRGB;
+    const auto hasAlpha = HAS_FIELD(format, PixFormat::HasAlpha);
+    const auto needSwizzle = dataType.IsBGROrder() == HAS_FIELD(format, PixFormat::RGB);
     const size_t frowsize = rowbuffer.GetSize();
     const size_t irowsize = image.RowSize();
     const auto& cvter = ColorConvertor::Get();
@@ -42,16 +44,17 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, AlignedBuf
     {
     case PixFormat::XXXX8888:
     {
+        const auto bufptr = rowbuffer.GetRawPtr<uint32_t>();
         for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
         {
-            stream.Read(frowsize, rowbuffer.GetRawPtr());
+            stream.Read(frowsize, bufptr);
             if (needAlpha)
             {
                 const auto imgrow = image.GetRawPtr<uint32_t>(needFlip ? j : i);
                 if (needSwizzle)
-                    cvter.RGBAToBGRA(imgrow, rowbuffer.GetRawPtr<uint32_t>(), width);
+                    cvter.RGBAToBGRA(imgrow, bufptr, width);
                 else
-                    memcpy_s(imgrow, irowsize, rowbuffer.GetRawPtr(), frowsize);
+                    memcpy_s(imgrow, irowsize, bufptr, frowsize);
                 if (!hasAlpha)
                     util::FixAlpha(image.GetWidth(), imgrow);
             }
@@ -59,32 +62,33 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, AlignedBuf
             {
                 const auto imgrow = image.GetRawPtr<uint8_t>(needFlip ? j : i);
                 if (needSwizzle)
-                    cvter.RGBAToBGR(imgrow, rowbuffer.GetRawPtr<uint32_t>(), width);
+                    cvter.RGBAToBGR(imgrow, bufptr, width);
                 else
-                    cvter.RGBAToRGB(imgrow, rowbuffer.GetRawPtr<uint32_t>(), width);
+                    cvter.RGBAToRGB(imgrow, bufptr, width);
             }
         }
     } break;
     case PixFormat::XXX888:
     {
+        auto bufptr = rowbuffer.GetRawPtr<uint8_t>();
         for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
         {
-            stream.Read(frowsize, rowbuffer.GetRawPtr());
+            stream.Read(frowsize, bufptr);
             if (needAlpha)
             {
                 const auto imgrow = image.GetRawPtr<uint32_t>(needFlip ? j : i);
                 if (needSwizzle)
-                    cvter.BGRToRGBA(imgrow, rowbuffer.GetRawPtr<uint8_t>(), width);
+                    cvter.BGRToRGBA(imgrow, bufptr, width);
                 else
-                    cvter.RGBToRGBA(imgrow, rowbuffer.GetRawPtr<uint8_t>(), width);
+                    cvter.RGBToRGBA(imgrow, bufptr, width);
             }
             else
             {
                 const auto imgrow = image.GetRawPtr<uint8_t>(needFlip ? j : i);
                 if (needSwizzle)
-                    cvter.RGBToBGR(imgrow, rowbuffer.GetRawPtr<uint8_t>(), width);
+                    cvter.RGBToBGR(imgrow, bufptr, width);
                 else
-                    memcpy_s(imgrow, irowsize, rowbuffer.GetRawPtr(), frowsize);
+                    memcpy_s(imgrow, irowsize, bufptr, frowsize);
             }
         }
     } break;
@@ -136,6 +140,32 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, AlignedBuf
             }
         }
     } break;
+    case PixFormat::XX88:
+    {
+        Ensures(dataType.ChannelCount() < 3);
+        auto bufptr = rowbuffer.GetRawPtr<uint16_t>();
+        for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
+        {
+            stream.Read(frowsize, bufptr);
+            if (needAlpha)
+            {
+                const auto destPtr = image.GetRawPtr<uint16_t>(needFlip ? j : i);
+                if (needSwizzle)
+                    for (uint32_t k = 0; k < width; ++k)
+                        destPtr[k] = common::MiscIntrin.ByteSwap(bufptr[k]);
+                else
+                    memcpy_s(destPtr, irowsize, bufptr, frowsize);
+            }
+            else
+            {
+                const auto destPtr = image.GetRawPtr<uint8_t>(needFlip ? j : i);
+                if (needSwizzle)
+                    cvter.GrayAToGray(destPtr, bufptr, width);
+                else
+                    cvter.GrayAToAlpha(destPtr, bufptr, width);
+            }
+        }
+    } break;
     default:
         Ensures(false);
     }
@@ -175,6 +205,12 @@ static constexpr auto Bit16MaskLUT = BuildStaticLookup(Mask4, PixFormat,
     { { 0x7c00u, 0x03e0u, 0x001fu, 0x0000u }, PixFormat::BGRX555  },
     { { 0x001fu, 0x07e0u, 0xf800u, 0x0000u }, PixFormat::RGB565   },
     { { 0xf800u, 0x07e0u, 0x001fu, 0x0000u }, PixFormat::BGR565   },
+    { { 0x00ffu, 0x0000u, 0x0000u, 0xff00u }, PixFormat::RA88     },
+    { { 0x0000u, 0x00ffu, 0x0000u, 0xff00u }, PixFormat::RA88     },
+    { { 0x0000u, 0x0000u, 0x00ffu, 0xff00u }, PixFormat::RA88     },
+    { { 0xff00u, 0x0000u, 0x0000u, 0x00ffu }, PixFormat::AR88     },
+    { { 0x0000u, 0xff00u, 0x0000u, 0x00ffu }, PixFormat::AR88     },
+    { { 0x0000u, 0x0000u, 0xff00u, 0x00ffu }, PixFormat::AR88     },
 );
 
 template<typename T>
@@ -270,8 +306,12 @@ bool BmpReader::Validate()
 
 Image BmpReader::Read(ImgDType dataType)
 {
-    if (dataType.IsFloat()) return Image();
-    if (dataType.ChannelCount() < 3) return Image();
+    if (dataType.IsFloat())
+        COMMON_THROWEX(BaseException, u"Cannot read as float datatype");
+    const auto format = static_cast<PixFormat>(Format);
+    const auto isSrcGray = HAS_FIELD(format, PixFormat::IsGray);
+    if (dataType.ChannelCount() < 3 && !isSrcGray)
+        COMMON_THROWEX(BaseException, u"Cannot read as gray iamge");
     
     Image image(dataType);
     
@@ -284,9 +324,9 @@ Image BmpReader::Read(ImgDType dataType)
     const size_t frowsize = ((Info.BitCount * width + 31) / 32) * 4;
     AlignedBuffer buffer(frowsize);
 
-    const auto format = static_cast<PixFormat>(Format);
     if (format == PixFormat::Plate)
     {
+        Ensures(dataType.ChannelCount() >= 3);
         const uint32_t paletteCount = Info.PaletteUsed ? Info.PaletteUsed : (1u << Info.BitCount);
         AlignedBuffer palette(paletteCount * 4);
         const auto pltptr = palette.GetRawPtr<uint32_t>();
@@ -344,16 +384,17 @@ BmpWriter::BmpWriter(RandomOutputStream& stream) : Stream(stream), Header{}, Inf
 {
 }
 
-void BmpWriter::Write(const Image& image, const uint8_t)
+void BmpWriter::Write(ImageView image, const uint8_t)
 {
     if (image.GetWidth() > INT32_MAX || image.GetHeight() > INT32_MAX)
         return;
-    const auto dstDType = image.GetDataType();
-    if (!dstDType.Is(ImgDType::DataTypes::Uint8))
+    const auto origType = image.GetDataType();
+    if (!origType.Is(ImgDType::DataTypes::Uint8))
         return;
-    if (dstDType == ImageDataType::GA)
-        return;
+    if (origType.Is(ImgDType::Channels::RA))
+        image = image.ConvertTo(ImageDataType::BGRA);
 
+    const auto dstDType = image.GetDataType();
     const bool isInputBGR = dstDType.IsBGROrder();
     const bool needAlpha = dstDType.HasAlpha();
 
@@ -362,7 +403,7 @@ void BmpWriter::Write(const Image& image, const uint8_t)
     util::DWordToLE(header.Offset, detail::BMP_HEADER_SIZE + BMP_INFO_SIZE);
     auto info = util::EmptyStruct<detail::BmpInfo>();
     info.Size = static_cast<uint32_t>(BMP_INFO_SIZE);
-    util::DWordToLE(info.Width, image.GetWidth()); 
+    util::DWordToLE(info.Width, image.GetWidth());
     util::DWordToLE(info.Height, -static_cast<int32_t>(image.GetHeight()));
     info.Planes = 1;
     info.BitCount = image.GetElementSize() * 8;
@@ -375,8 +416,8 @@ void BmpWriter::Write(const Image& image, const uint8_t)
 
     const size_t frowsize = ((info.BitCount * image.GetWidth() + 31) / 32) * 4;
     const size_t irowsize = image.RowSize();
-    
-    if (image.IsGray()) // must be ImageDataType::Gray only, use plate
+
+    if (dstDType.Channel() == ImgDType::Channels::R)
     {
         static constexpr auto GrayToRGBAMAP = []()
         {
@@ -430,13 +471,11 @@ void BmpWriter::Write(const Image& image, const uint8_t)
 }
 
 
-uint8_t BmpSupport::MatchExtension(std::u16string_view ext, ImgDType dataType, const bool isRead) const
+uint8_t BmpSupport::MatchExtension(std::u16string_view ext, ImgDType dataType, const bool) const
 {
     if (ext != u"BMP")
         return 0;
     if (dataType.DataType() != ImgDType::DataTypes::Uint8)
-        return 0;
-    if (!isRead && dataType.Channel() == ImgDType::Channels::RA)
         return 0;
     return 192;
 }
