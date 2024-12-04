@@ -208,7 +208,11 @@ namespace WPFTest
 
             stkMain.DataContext = control;
             foreach (var element in Children)
+            {
+                if (element.Parent is Panel p)
+                    p.Children.Remove(element); // disconnect to reuse
                 element.DataContext = control;
+            }
 
             var ctrlGroups = control.Items.Where(x => !ExceptIds.Contains(x.Id))
                 .Select(x => x.Category)

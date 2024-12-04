@@ -82,6 +82,7 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
 
     return Compressor->AddTask([this, imgview = ImageView(std::move(img)), type, proc, picPath](const auto& agent) mutable
     {
+        Ensures(type != TexLoadType::Color || proc.Proc != TexProcType::CompressBC5);
         FakeTex tex;
         vector<ImageView> layers;
         if (proc.NeedMipmap)
@@ -97,7 +98,16 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
         case TexProcType::Plain:
             format = xziar::img::TextureFormat::RGBA8 | srgbMask; break;
         case TexProcType::CompressBC5:
-            format = xziar::img::TextureFormat::BC5;              break;
+            format = xziar::img::TextureFormat::BC5; // BC5 only takes 2 channel
+            for (auto& layer : layers)
+            {
+                Ensures(layer.GetDataType() == ImageDataType::RGBA);
+                Image rg(ImageDataType::RA);
+                rg.SetSize(layer.GetWidth(), layer.GetHeight(), false);
+                common::CopyEx.TruncCopy(rg.GetRawPtr<uint16_t>(), layer.GetRawPtr<uint32_t>(), layer.GetWidth() * layer.GetHeight());
+                layer = rg;
+            }
+            break;
         case TexProcType::CompressBC7:
             format = xziar::img::TextureFormat::BC7   | srgbMask; break;
         default:

@@ -12,21 +12,21 @@ namespace XZiar
 namespace Img
 {
 
-static PixelFormat ConvertFormat(ImageDataType dtype)
+static PixelFormat ConvertFormat(ImgDType dtype)
 {
-    switch (dtype)
+    switch (dtype.Value)
     {
-    case ImageDataType::BGR:    return PixelFormats::Bgr24;
-    case ImageDataType::BGRA:   return PixelFormats::Bgra32;
-    case ImageDataType::RGB:    return PixelFormats::Rgb24;
-    case ImageDataType::GRAY:   return PixelFormats::Gray8;
-    case ImageDataType::GRAYf:  return PixelFormats::Gray32Float;
-    case ImageDataType::RGBAf:  return PixelFormats::Rgba128Float;
-    default:                    return PixelFormats::Default;
+    case ImageDataType::BGR  .Value: return PixelFormats::Bgr24;
+    case ImageDataType::BGRA .Value: return PixelFormats::Bgra32;
+    case ImageDataType::RGB  .Value: return PixelFormats::Rgb24;
+    case ImageDataType::GRAY .Value: return PixelFormats::Gray8;
+    case ImageDataType::GRAYf.Value: return PixelFormats::Gray32Float;
+    case ImageDataType::RGBAf.Value: return PixelFormats::Rgba128Float;
+    default:                         return PixelFormats::Default;
     }
 }
 
-static ImageDataType ConvertFormat(PixelFormat pformat)
+static ImgDType ConvertFormat(PixelFormat pformat)
 {
     if (pformat == PixelFormats::Bgr24)           return ImageDataType::BGR;
     if (pformat == PixelFormats::Pbgra32)         return ImageDataType::BGRA;
@@ -37,7 +37,7 @@ static ImageDataType ConvertFormat(PixelFormat pformat)
     if (pformat == PixelFormats::Prgba128Float)   return ImageDataType::RGBAf;
     if (pformat == PixelFormats::Rgba128Float)    return ImageDataType::RGBAf;
     
-    return ImageDataType::UNKNOWN_RESERVE;
+    return {};
 }
 
 BitmapSource^ ImageUtil::ReadImage(String^ filePath)
@@ -71,10 +71,10 @@ BitmapSource^ ImageUtil::Convert(const xziar::img::Image& image)
     else
     {
         std::unique_ptr<Image> newimg;
-        switch (image.GetDataType())
+        switch (image.GetDataType().Value)
         {
-        case ImageDataType::RGBA:   newimg = std::make_unique<Image>(image.ConvertTo(ImageDataType::BGRA)); break;
-        case ImageDataType::GA:     newimg = std::make_unique<Image>(image.ConvertTo(ImageDataType::BGRA)); break;
+        case ImageDataType::RGBA.Value: newimg = std::make_unique<Image>(image.ConvertTo(ImageDataType::BGRA)); break;
+        case ImageDataType::GA  .Value: newimg = std::make_unique<Image>(image.ConvertTo(ImageDataType::BGRA)); break;
             //others currently unsupported
         }
         if (!newimg)
@@ -87,7 +87,7 @@ BitmapSource^ ImageUtil::Convert(const xziar::img::Image& image)
 Image ImageUtil::Convert(BitmapSource^ image)
 {
     const auto pf = image->Format;
-    if (const auto dt = ConvertFormat(pf); dt != ImageDataType::UNKNOWN_RESERVE)
+    if (const auto dt = ConvertFormat(pf); dt)
     {
         Image ret(dt);
         ret.SetSize(image->PixelWidth, image->PixelHeight);

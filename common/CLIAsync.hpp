@@ -35,45 +35,27 @@ inline void __cdecl SetTcsException(const gcroot<TaskCompletionSource<RetType>^>
     tcs->SetException(CPPException::FromException(e));
 }
 
-//template<auto Convertor, typename C, typename NativeT, typename ManagedT>
-//inline gcroot<ManagedT> __cdecl DoConvert(gcroot<C> that, NativeT& obj)
-//{
-//    return std::invoke(Convertor, that, obj);
-//}
 
 #pragma managed(push, off)
 
 template<auto Convertor, typename NativeT, typename ManagedT, typename Arg>
 inline void ReturnTaskNative(gcroot<TaskCompletionSource<ManagedT>^> tcs, common::PromiseResult<NativeT>&& pms, gcroot<Arg> cookie)
 {
-    const auto proxyPms = common::StagedResult::Convert(std::move(pms),
-        [=](NativeT&& obj) { return Convertor(std::move(obj), cookie); });
-    proxyPms->OnComplete([=](const common::PromiseResult<gcroot<ManagedT>>& pms_)
-        {
-            SetTcsResult(tcs, pms_->Get());
-        });
-    /*pms->OnComplete([=](const common::PromiseResult<NativeT>& pms_)
+    pms->OnComplete([=](const common::PromiseResult<NativeT>& pms_)
         {
             auto obj2 = Convertor(pms_->Get(), cookie);
             SetTcsResult(tcs, obj2);
-        });*/
+        });
 }
 
 template<auto Convertor, typename NativeT, typename ManagedT>
 inline void ReturnTaskNative(gcroot<TaskCompletionSource<ManagedT>^> tcs, common::PromiseResult<NativeT>&& pms)
 {
-    const auto proxyPms = common::StagedResult::Convert(std::move(pms),
-        [=](NativeT&& obj) { return Convertor(std::move(obj)); });
-    proxyPms->OnComplete([=](const common::PromiseResult<gcroot<ManagedT>>& pms_)
-        {
-            SetTcsResult(tcs, pms_->Get());
-        });
-
-    /*pms->OnComplete([=](const common::PromiseResult<NativeT>& pms_)
+    pms->OnComplete([=](const common::PromiseResult<NativeT>& pms_)
         {
             auto obj2 = Convertor(pms_->Get());
             SetTcsResult(tcs, obj2);
-        });*/
+        });
 }
 
 template<auto Caller, auto Convertor, typename NativeT, typename ManagedT, typename C, typename... Args>

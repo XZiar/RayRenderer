@@ -407,14 +407,10 @@ private:
     protected:
         [[nodiscard]] RetType GetResult() override
         {
-            if constexpr (std::is_same_v<RetType, void>)
-                return;
-            else
-            {
-                this->CheckResultExtracted();
-                auto lock = Pms.PromiseLock.WriteScope();
-                return std::move(Result.value());
-            }
+            static_assert(!std::is_same_v<RetType, void>);
+            this->CheckResultExtracted();
+            auto lock = Pms.PromiseLock.WriteScope();
+            return std::move(Result.value());
         }
     public:
         StagedResult_(PromiseResult<MidType> stage1, PostExecute stage2)
