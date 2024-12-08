@@ -3,6 +3,7 @@
 
 #include "SystemCommon/ThreadEx.h"
 #include "SystemCommon/Exceptions.h"
+#include "SystemCommon/PromiseTask.h"
 #include "common/ContainerEx.hpp"
 #include <mutex>
 #include <future>
@@ -128,6 +129,11 @@ bool WindowBackend::Stop()
         }
     }
     return false;
+}
+
+common::PromiseResult<std::vector<std::u16string>> WindowBackend::OpenFilePicker(const FilePickerInfo&)
+{
+    return common::ErroredResult<std::vector<std::u16string>>::Get(common::BaseException{ u"FilePicker unimplemented" });
 }
 
 

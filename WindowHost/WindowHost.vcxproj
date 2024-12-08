@@ -189,6 +189,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">
+      <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\SystemCommon\SystemCommon.vcxproj">
       <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>
     </ProjectReference>

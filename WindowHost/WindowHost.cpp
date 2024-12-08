@@ -39,8 +39,7 @@ struct CastEventType<WindowEventDelegate<Args...>>
 
 enum class WindowFlag : uint32_t
 {
-    None = 0x0, Running = 0x1, ContentDirty = 0x2, TitleChanged = 0x4, 
-    TitleLocked = 0x80000000u
+    None = 0x0, Running = 0x1, ContentDirty = 0x2
 };
 MAKE_ENUM_BITFIELD(WindowFlag)
 
@@ -57,7 +56,10 @@ struct alignas(uint64_t) WindowHost_::Pimpl
     common::container::ResourceDict Data;
     common::SimpleTimer DrawTimer;
     common::AtomicBitfield<WindowFlag> Flags;
+    detail::LockField AttributeLock;
     common::RWSpinLock DataLock;
+    detail::OpaqueResource NewIcon;
+    detail::OpaqueResource BgImg;
     uint16_t TargetFPS;
 #define DEF_DELEGATE(name) typename CastEventType<decltype(std::declval<WindowHost_&>().name())>::DlgType name;
     WD_EVT_EACH(DEF_DELEGATE)
@@ -67,14 +69,22 @@ struct alignas(uint64_t) WindowHost_::Pimpl
 };
 
 
-detail::WindowManager::TitleLock::TitleLock(WindowHost_* host) : Host(host)
+detail::LockField& detail::WindowManager::GetResourceLock(WindowHost_* host) noexcept 
 {
-    while (Host->Impl->Flags.Add(WindowFlag::TitleLocked))
-        COMMON_PAUSE();
+    return host->Impl->AttributeLock;
 }
-detail::WindowManager::TitleLock::~TitleLock()
+detail::OpaqueResource* detail::WindowManager::GetWindowResource(WindowHost_* host, uint8_t resIdx) noexcept
 {
-    Host->Impl->Flags.Extract(WindowFlag::TitleLocked | WindowFlag::TitleChanged);
+    if (host)
+    {
+        switch (resIdx)
+        {
+        case detail::WdAttrIndex::Icon:         return &host->Impl->NewIcon;
+        case detail::WdAttrIndex::Background:   return &host->Impl->BgImg;
+        default: /*Logger.Warning(u"Access wrong resource [{}]\n"sv, resIdx);*/ break;
+        }
+    }
+    return nullptr;
 }
 
 
@@ -377,14 +387,56 @@ WindowHost WindowHost_::GetSelf()
     return shared_from_this();
 }
 
+template<uint8_t Index>
+struct ProducerLock
+{
+    static_assert(Index < 16);
+    detail::LockField& Target;
+    const bool AlreadyChanged = false;
+    ProducerLock(detail::LockField& target) noexcept : Target(target), AlreadyChanged(detail::LockField::LockChange(Target, Index))
+    { }
+    COMMON_NO_COPY(ProducerLock)
+    COMMON_NO_MOVE(ProducerLock)
+    ~ProducerLock()
+    {
+        detail::LockField::DoUnlock(Target, Index);
+    }
+    constexpr operator bool() const noexcept { return AlreadyChanged; }
+};
+using TitleLock = ProducerLock<detail::WdAttrIndex::Title>;
+using IconLock  = ProducerLock<detail::WdAttrIndex::Icon>;
+using BgLock    = ProducerLock<detail::WdAttrIndex::Background>;
+
 void WindowHost_::SetTitle(const std::u16string_view title)
 {
-    while (Impl->Flags.Add(WindowFlag::TitleLocked))
-        COMMON_PAUSE();
+    TitleLock lock(Impl->AttributeLock);
     Title.assign(title.begin(), title.end());
-    if (!Impl->Flags.Add(WindowFlag::TitleChanged))
+    if (!lock)
         Manager.UpdateTitle(this);
-    Impl->Flags.Extract(WindowFlag::TitleLocked);
+}
+
+void WindowHost_::SetIcon(xziar::img::ImageView img)
+{
+    auto icon = Manager.PrepareIcon(*this, img);
+    if (!icon) return;
+    IconLock lock(Impl->AttributeLock);
+    Impl->NewIcon = std::move(icon);
+    if (!lock)
+        Manager.UpdateIcon(this);
+}
+
+void WindowHost_::SetBackground(std::optional<xziar::img::ImageView> img)
+{
+    detail::OpaqueResource cimg;
+    if (img)
+    {
+        cimg = Manager.CacheRenderImage(*this, *img);
+        if (!cimg) return;
+    }
+    BgLock lock(Impl->AttributeLock);
+    Impl->BgImg = std::move(cimg);
+    if (!lock)
+        Manager.UpdateBgImg(this);
 }
 
 void WindowHost_::Invoke(std::function<void(void)> task)

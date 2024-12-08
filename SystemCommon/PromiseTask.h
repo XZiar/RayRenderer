@@ -533,6 +533,48 @@ public:
 };
 
 
+template<typename T>
+class ErroredResult
+{
+private:
+    class COMMON_EMPTY_BASES ErroredResult_ final : protected detail::ResultExHolder<void>, protected PromiseProvider,
+        public detail::PromiseResult_<T>
+    {
+        [[nodiscard]] PromiseState GetState() noexcept final
+        {
+            return PromiseState::Executed;
+        }
+        PromiseState WaitPms() noexcept final
+        {
+            return PromiseState::Executed;
+        }
+        [[noreturn]] T GetResult() final
+        {
+            ExtraResult();
+            CM_UNREACHABLE();
+        }
+    public:
+        template<typename U>
+        ErroredResult_(U&& ex)
+        {
+            SetException(std::forward<U>(ex));
+        }
+        ~ErroredResult_() final {}
+        [[nodiscard]] PromiseProvider& GetPromise() noexcept final
+        {
+            return *this;
+        }
+    };
+public:
+    template<typename U>
+    [[nodiscard]] static PromiseResult<T> Get(U&& ex)
+    {
+        static_assert(std::is_same_v<decltype(std::declval<detail::ResultExHolder<void>&>().SetException(std::forward<U>(ex))), void>);
+        return std::make_shared<ErroredResult_>(std::forward<U>(ex));
+    }
+};
+
+
 class SYSCOMMONAPI BasicPromiseProvider : public PromiseProvider
 {
     template<typename, typename> friend class detail::BasicResult_;

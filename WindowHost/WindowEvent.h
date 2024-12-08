@@ -71,6 +71,7 @@ public:
     DropFileEvent(Position pos, common::StringPool<char16_t>&& namepool, std::vector<common::StringPiece<char16_t>>&& names) noexcept :
         MouseEvent(pos), FileNamePool(std::move(namepool)), FileNamePieces(std::move(names)) { }
     size_t Size() const noexcept { return FileNamePieces.size(); }
+    size_t size() const noexcept { return FileNamePieces.size(); }
     std::u16string_view operator[](size_t idx) const noexcept 
     { 
         return FileNamePool.GetStringView(FileNamePieces[idx]);

@@ -2,6 +2,7 @@
 
 #include "WindowHostRely.h"
 #include "WindowEvent.h"
+#include "ImageUtil/ImageCore.h"
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/LoopBase.h"
 #include "SystemCommon/PromiseTask.h"
@@ -34,6 +35,15 @@ struct CreateInfo
     std::u16string Title;
     uint32_t Width = 1280, Height = 720;
     uint16_t TargetFPS = 0;
+};
+
+struct FilePickerInfo
+{
+    std::u16string Title;
+    std::vector<std::pair<std::u16string, std::u16string>> ExtensionFilters;
+    bool IsOpen = true;
+    bool IsFolder = false;
+    bool AllowMultiSelect = true;
 };
 
 
@@ -103,6 +113,7 @@ public:
         return nullptr;
     }
     virtual WindowHost Create(const CreateInfo& info = {}) = 0;
+    virtual common::PromiseResult<std::vector<std::u16string>> OpenFilePicker(const FilePickerInfo& info);
 };
 
 
@@ -236,15 +247,19 @@ public:
     WindowEventDelegate<const event::DropFileEvent&> DropFile() const noexcept;
 
     // below delegates are called from any thread
+
     void Show(const std::function<std::any(std::string_view)>& provider = {});
     void Close();
     WindowHost GetSelf();
     void SetTitle(const std::u16string_view title);
+    void SetIcon(xziar::img::ImageView img);
+    void SetBackground(std::optional<xziar::img::ImageView> img);
     void Invoke(std::function<void(void)> task);
     void InvokeUI(std::function<void(WindowHost_&)> task);
     virtual void Invalidate();
     void SetTargetFPS(uint16_t fps) noexcept;
 };
+
 
 class Win32Backend : public WindowBackend
 {
@@ -265,6 +280,7 @@ public:
     };
     using WindowBackend::Create;
     [[nodiscard]] virtual std::shared_ptr<Win32WdHost> Create(const Win32CreateInfo& info = {}) = 0;
+    common::PromiseResult<std::vector<std::u16string>> OpenFilePicker(const FilePickerInfo& info) final;
 };
 using Win32WdHost = std::shared_ptr<Win32Backend::Win32WdHost>;
 

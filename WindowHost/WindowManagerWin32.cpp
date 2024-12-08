@@ -2,9 +2,12 @@
 #include "Win32MsgName.hpp"
 #include "WindowHost.h"
 
+#include "SystemCommon/ErrorCodeHelper.h"
+#include "SystemCommon/PromiseTaskSTD.h"
 #include "SystemCommon/SystemCommonRely.h"
 #include "common/ContainerEx.hpp"
 #include "common/StaticLookup.hpp"
+#include "common/StringPool.hpp"
 
 
 #define WIN32_LEAN_AND_MEAN 1
@@ -12,19 +15,127 @@
 #include <Windows.h>
 #include <windowsx.h>
 #include <shellapi.h>
+#define STRICT_TYPED_ITEMIDS
+#include <shobjidl.h>
+#include <wrl/client.h>
 
 constexpr uint32_t MessageCreate    = WM_USER + 1;
 constexpr uint32_t MessageTask      = WM_USER + 2;
-constexpr uint32_t MessageUpdTitle  = WM_USER + 3;
-constexpr uint32_t MessageClose     = WM_USER + 4;
-constexpr uint32_t MessageStop      = WM_USER + 5;
-constexpr uint32_t MessageDpi       = WM_USER + 6;
+constexpr uint32_t MessageClose     = WM_USER + 3;
+constexpr uint32_t MessageStop      = WM_USER + 4;
+constexpr uint32_t MessageDpi       = WM_USER + 5;
+constexpr uint32_t MessageUpdTitle  = WM_USER + 10;
+constexpr uint32_t MessageUpdIcon   = WM_USER + 11;
 
 
-namespace xziar::gui::detail
+namespace xziar::gui
 {
 using namespace std::string_view_literals;
+using common::HResultHolder;
+using xziar::img::Image;
+using xziar::img::ImageView;
 using event::CommonKeys;
+
+
+struct HBMPHolder
+{
+    HBITMAP Bitmap = nullptr;
+    constexpr HBMPHolder() noexcept = default;
+    constexpr HBMPHolder(HBITMAP bmp) noexcept : Bitmap(bmp) {};
+    COMMON_NO_COPY(HBMPHolder)
+    HBMPHolder(HBMPHolder&& rhs) noexcept : Bitmap(rhs.Bitmap)
+    {
+        rhs.Bitmap = nullptr;
+    }
+    HBMPHolder& operator= (HBMPHolder&& rhs) noexcept
+    {
+        if (&rhs != this)
+        {
+            std::swap(Bitmap, rhs.Bitmap);
+            if (rhs.Bitmap) DeleteObject(rhs.Bitmap);
+            rhs.Bitmap = nullptr;
+        }
+        return *this;
+    }
+    ~HBMPHolder()
+    {
+        if (Bitmap) DeleteObject(Bitmap);
+    }
+    explicit constexpr operator bool() const noexcept { return Bitmap; }
+    constexpr operator HGDIOBJ () const noexcept { return Bitmap; }
+    constexpr operator HBITMAP& () noexcept { return Bitmap; }
+    constexpr HBITMAP Extract() noexcept
+    {
+        auto ret = Bitmap;
+        Bitmap = nullptr;
+        return ret;
+    }
+    static HBMPHolder Create(ImageView img, HDC dc, bool useDDB)
+    {
+        BITMAPINFO bmpinfo{};
+        bmpinfo.bmiHeader.biSize = sizeof(bmpinfo.bmiHeader);
+        bmpinfo.bmiHeader.biPlanes = 1;
+        bmpinfo.bmiHeader.biWidth = gsl::narrow_cast<LONG>(img.GetWidth());
+        bmpinfo.bmiHeader.biHeight = -1 * gsl::narrow_cast<LONG>(img.GetHeight());
+        {
+            const auto dtype = img.GetDataType();
+            if (!dtype.Is(xziar::img::ImgDType::DataTypes::Uint8))
+                return {};
+            std::optional<xziar::img::ImgDType> convert;
+            if (!dtype.IsBGROrder())
+                convert = dtype.HasAlpha() ? xziar::img::ImageDataType::BGRA : xziar::img::ImageDataType::BGR;
+            if ((img.GetWidth() * 3) % 4) // needs 4 channel
+                convert = xziar::img::ImageDataType::BGRA;
+            if (convert && convert != dtype)
+                img = img.ConvertTo(*convert);
+        }
+        const auto dtype = img.GetDataType();
+        Ensures(dtype == xziar::img::ImageDataType::BGRA || dtype == xziar::img::ImageDataType::BGR);
+        bmpinfo.bmiHeader.biBitCount = static_cast<WORD>(dtype.ChannelCount() * 8);
+        bmpinfo.bmiHeader.biCompression = BI_RGB; // 32bpp ensures DWORD alignment
+        HBITMAP bmp = nullptr;
+        if (useDDB)
+            bmp = CreateDIBitmap(dc, &bmpinfo.bmiHeader, CBM_INIT, img.GetRawPtr(), &bmpinfo, DIB_RGB_COLORS);
+        else
+        {
+            void* ptr = nullptr;
+            bmp = CreateDIBSection(dc, &bmpinfo, DIB_RGB_COLORS, &ptr, nullptr, 0);
+            if (bmp)
+                memcpy_s(ptr, img.GetSize(), img.GetRawPtr(), img.GetSize());
+        }
+        return { bmp };
+    }
+};
+
+namespace detail
+{
+
+struct IconHolder : public OpaqueResource
+{
+    explicit IconHolder(HICON sicon, HICON bicon) noexcept : OpaqueResource(&TheDisposer, reinterpret_cast<uintptr_t>(sicon), reinterpret_cast<uintptr_t>(bicon)) {}
+    HICON SmallIcon() const noexcept { return reinterpret_cast<HICON>(static_cast<uintptr_t>(Cookie[0])); }
+    HICON BigIcon() const noexcept { return reinterpret_cast<HICON>(static_cast<uintptr_t>(Cookie[1])); }
+    static void TheDisposer(const OpaqueResource& res) noexcept
+    {
+        const auto& holder = static_cast<const IconHolder&>(res);
+        const auto sicon = holder.SmallIcon(), bicon = holder.BigIcon();
+        if (sicon) DeleteObject(sicon);
+        if (bicon) DeleteObject(bicon);
+    }
+};
+
+struct RenderImgHolder : public OpaqueResource
+{
+    explicit RenderImgHolder(HBITMAP bmp, uint32_t w, uint32_t h) noexcept : OpaqueResource(&TheDisposer, reinterpret_cast<uintptr_t>(bmp), static_cast<uint64_t>(w) << 32 | h) {}
+    HBITMAP Bitmap() const noexcept { return reinterpret_cast<HBITMAP>(static_cast<uintptr_t>(Cookie[0])); }
+    std::pair<uint32_t, uint32_t> Size() const noexcept { return { static_cast<uint32_t>(Cookie[1] >> 32), static_cast<uint32_t>(Cookie[1]) }; }
+    static void TheDisposer(const OpaqueResource& res) noexcept
+    {
+        const auto& holder = static_cast<const RenderImgHolder&>(res);
+        const auto bmp = holder.Bitmap();
+        if (bmp) DeleteObject(bmp);
+    }
+};
 
 
 class WindowManagerWin32 final : public Win32Backend, public WindowManager
@@ -35,14 +146,79 @@ private:
     class WdHost final : public Win32Backend::Win32WdHost
     {
     public:
+        struct Backbuffer
+        {
+            HRGN Region = nullptr;
+            int32_t Width = 0, Height = 0;
+            bool UpdateSize(WdHost& wd) noexcept
+            {
+                if (wd.Width != Width || wd.Height != wd.Height)
+                {
+                    Width = wd.Width, Height = wd.Height;
+                    const auto bmp = CreateCompatibleBitmap(wd.DCHandle, wd.Width, wd.Height);
+                    const auto oldBmp = SelectObject(wd.MemDC, bmp);
+                    if (oldBmp) DeleteObject(oldBmp);
+                    if (Region) DeleteObject(Region);
+                    Region = CreateRectRgn(0, 0, Width, Height);
+                    return true;
+                }
+                return false;
+            }
+        };
         HWND Handle = nullptr;
         HDC DCHandle = nullptr;
+        HDC MemDC = nullptr;
+        HBRUSH BGBrush = nullptr;
+        Backbuffer BackBuf;
         bool NeedBackground = true;
         WdHost(WindowManagerWin32& manager, const Win32CreateInfo& info) noexcept :
             Win32WdHost(manager, info) { }
-        ~WdHost() final {}
+        ~WdHost() final 
+        {
+            DeleteDC(MemDC);
+        }
         void* GetHDC() const noexcept final { return DCHandle; }
         void* GetHWND() const noexcept final { return Handle; }
+        void OnDisplay() noexcept final
+        {
+            const bool sizeChanged = BackBuf.UpdateSize(*this);
+            bool needDraw = false;
+            {
+                BgLock lock(this);
+                const auto& holder = static_cast<RenderImgHolder&>(*GetWindowResource(this, WdAttrIndex::Background));
+                if (lock || sizeChanged)
+                {
+                    common::SimpleTimer timer;
+                    timer.Start();
+                    FillRgn(MemDC, BackBuf.Region, BGBrush);
+                    if (holder)
+                    {
+                        const auto& bmp = holder.Bitmap();
+                        const auto [w, h] = holder.Size();
+                        const auto dw = BackBuf.Width, dh = BackBuf.Height;
+                        const auto wAlignH = uint64_t(dw) * h / w, hAlignW = uint64_t(dh) * w / h;
+                        Ensures((wAlignH <= (uint32_t)dh) || (hAlignW <= (uint32_t)dw));
+                        int32_t tw = 0, th = 0;
+                        if (wAlignH <= (uint32_t)Height) // W-align
+                            tw = dw, th = static_cast<int32_t>(wAlignH);
+                        else // H-align
+                            tw = static_cast<int32_t>(hAlignW), th = dh;
+
+                        const auto bmpDC = CreateCompatibleDC(DCHandle);
+                        const auto oldbmp = SelectObject(bmpDC, bmp);
+                        [[maybe_unused]] const auto ret = StretchBlt(MemDC, 0, 0, tw, th, bmpDC, 0, 0, static_cast<int>(w), static_cast<int>(h), SRCCOPY);
+                        GdiFlush();
+                        SelectObject(bmpDC, oldbmp);
+                    }
+                    timer.Stop();
+                    Manager.Logger.Verbose(u"Window [{}] rebuild backbuffer in [{} ms].\n", reinterpret_cast<uintptr_t>(Handle), timer.ElapseMs());
+                }
+                needDraw = NeedBackground || sizeChanged || holder || lock;
+            }
+            if (needDraw)
+                BitBlt(DCHandle, 0, 0, BackBuf.Width, BackBuf.Height, MemDC, 0, 0, SRCCOPY);
+            WindowHost_::OnDisplay();
+        }
     };
 
     //static intptr_t __stdcall WindowProc(uintptr_t, uint32_t, uintptr_t, intptr_t);
@@ -72,6 +248,7 @@ private:
     }
 
     void* InstanceHandle = nullptr;
+    HDC MemDC;
     uint32_t BuildNumber;
     uint32_t ThreadId = 0;
     static inline const auto DPIModes =
@@ -82,7 +259,7 @@ private:
         DPI_AWARENESS_CONTEXT_UNAWARE
     };
 public:
-    WindowManagerWin32() : Win32Backend(true), BuildNumber(common::GetWinBuildNumber())
+    WindowManagerWin32() : Win32Backend(true), MemDC(CreateCompatibleDC(nullptr)), BuildNumber(common::GetWinBuildNumber())
     {
         Logger.Info(u"Win32 WindowManager with build number [{}].\n", BuildNumber);
         if (BuildNumber >= 15063) // since win10 1703(rs2)
@@ -163,13 +340,6 @@ public:
                 case MessageTask:
                     HandleTask();
                     continue;
-                case MessageUpdTitle:
-                {
-                    const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(msg.wParam));
-                    TitleLock lock(host);
-                    SetWindowTextW(host->Handle,
-                        reinterpret_cast<const wchar_t*>(host->Title.c_str())); // expects return after finish
-                } continue;
                 case MessageClose:
                     DestroyWindow(static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(msg.wParam))->Handle);
                     continue;
@@ -184,6 +354,24 @@ public:
                 case MessageStop:
                     finish = true;
                     break;
+                case MessageUpdTitle:
+                {
+                    const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(msg.wParam));
+                    TitleLock lock(host);
+                    SetWindowTextW(host->Handle, reinterpret_cast<const wchar_t*>(host->Title.c_str())); // expects return after finish
+                } continue;
+                case MessageUpdIcon:
+                {
+                    const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(msg.wParam));
+                    const auto ptrIcon = GetWindowResource(host, WdAttrIndex::Icon);
+                    if (ptrIcon)
+                    {
+                        IconLock lock(host);
+                        const auto& holder = static_cast<IconHolder&>(*ptrIcon);
+                        DefWindowProcW(host->Handle, WM_SETICON, ICON_SMALL, (LPARAM)holder.SmallIcon());
+                        DefWindowProcW(host->Handle, WM_SETICON, ICON_BIG, (LPARAM)holder.BigIcon());
+                    }
+                } continue;
                 default:
                     Logger.Verbose(FmtString(u"Thread unknown MSG[{:x}]\n"), msg.message);
                 }
@@ -259,6 +447,18 @@ public:
     {
         SendGeneralMessage(reinterpret_cast<uintptr_t>(host), MessageUpdTitle);
     }
+    void UpdateIcon(WindowHost_* host) const final
+    {
+        SendGeneralMessage(reinterpret_cast<uintptr_t>(host), MessageUpdIcon);
+    }
+    void UpdateBgImg(WindowHost_* host_) const final
+    {
+        const auto host = static_cast<WdHost*>(host_);
+        if (0 == RedrawWindow(host->Handle, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASENOW | RDW_NOCHILDREN))
+        {
+            Logger.Error(u"Error when asking redraw window: {}\n", GetLastError());
+        }
+    }
     void CloseWindow(WindowHost_* host) const final
     {
         SendGeneralMessage(reinterpret_cast<uintptr_t>(host), MessageClose);
@@ -268,6 +468,101 @@ public:
         UnregisterHost(host_);
         const auto host = static_cast<WdHost*>(host_);
         ReleaseDC(host->Handle, host->DCHandle);
+    }
+
+    OpaqueResource PrepareIcon(WindowHost_& host, xziar::img::ImageView img) const noexcept final
+    {
+        if (!img.GetDataType().Is(xziar::img::ImgDType::DataTypes::Uint8))
+            return {};
+        const auto ow = img.GetWidth(), oh = img.GetHeight();
+        if (!ow || !oh)
+            return {};
+
+        const auto osize = std::min(ow, oh);
+        uint16_t tsize = 0;
+        if (osize > 256u)
+            tsize = 256; // resize to 256x256
+        else if (osize < 32u)
+            tsize = 32;
+        else if (osize % 16 != 0)
+            tsize = static_cast<uint16_t>(osize / 16 * 16);
+        if (tsize)
+            img = img.ResizeTo(tsize, tsize, true, true);
+        else
+            tsize = static_cast<uint16_t>(osize);
+        Ensures(tsize <= 256u && tsize >= 32u && tsize % 16 == 0u);
+        const auto simg = img.ResizeTo(16, 16, true, true); // small icon
+        Ensures(simg.GetDataType() == img.GetDataType());
+
+        std::vector<uint8_t> maskdata((16 * 16 + tsize * tsize) / 8u, 0);
+        if (simg.GetDataType().HasAlpha())
+        {
+            const auto alphaCh = static_cast<uint8_t>(simg.GetDataType().ChannelCount() - 1);
+            const auto salpha = simg.ExtractChannel(alphaCh), balpha = img.ExtractChannel(alphaCh);
+            uint8_t* mask = maskdata.data();
+            const auto toMask = [&](const Image& ch, uint32_t size) 
+            {
+                auto data = ch.GetRawPtr<uint64_t>();
+                for (uint32_t i = 0; i < size * size; i += 16)
+                {
+                    uint8_t out = 0;
+                    const auto pix8 = *data++;
+                    out |= static_cast<uint8_t>((pix8 >> ( 8 - 1)) & 0x01u);
+                    out |= static_cast<uint8_t>((pix8 >> (16 - 2)) & 0x02u);
+                    out |= static_cast<uint8_t>((pix8 >> (24 - 3)) & 0x04u);
+                    out |= static_cast<uint8_t>((pix8 >> (32 - 4)) & 0x08u);
+                    out |= static_cast<uint8_t>((pix8 >> (40 - 5)) & 0x10u);
+                    out |= static_cast<uint8_t>((pix8 >> (48 - 6)) & 0x20u);
+                    out |= static_cast<uint8_t>((pix8 >> (56 - 7)) & 0x40u);
+                    out |= static_cast<uint8_t>((pix8 >> (64 - 8)) & 0x80u);
+                    *mask++ = out;
+                }
+            };
+            toMask(salpha, 16);
+            toMask(balpha, tsize);
+        }
+        const auto smask = CreateBitmap(16, 16, 1, 1, maskdata.data());
+        const auto bmask = CreateBitmap(tsize, tsize, 1, 1, maskdata.data() + (16 * 16 / 8));
+
+        bool useDDB = true;
+        auto dc = static_cast<WdHost&>(host).DCHandle;
+        if (!dc)
+        {
+            useDDB = false;
+            dc = MemDC;
+        }
+        const auto toIcon = [&](ImageView img, HBITMAP mask) 
+        {
+            auto bmp = HBMPHolder::Create(img, dc, useDDB);
+            ICONINFO iconInfo
+            {
+                .fIcon = TRUE,
+                .xHotspot = 0u,
+                .yHotspot = 0u,
+                .hbmMask = mask,
+                .hbmColor = bmp,
+            };
+            return CreateIconIndirect(&iconInfo);
+        };
+        const auto sicon = toIcon(simg, smask);
+        const auto bicon = toIcon( img, bmask);
+
+        return static_cast<OpaqueResource>(IconHolder(sicon, bicon));
+    }
+
+    OpaqueResource CacheRenderImage(WindowHost_& host, xziar::img::ImageView img) const noexcept 
+    {
+        bool useDDB = true;
+        auto dc = static_cast<WdHost&>(host).DCHandle;
+        if (!dc)
+        {
+            useDDB = false;
+            dc = MemDC;
+        }
+        auto bmp = HBMPHolder::Create(img, dc, useDDB);
+        if (bmp)
+            return static_cast<OpaqueResource>(RenderImgHolder(bmp.Extract(), img.GetWidth(), img.GetHeight()));
+        return {};
     }
 
     WindowHost Create(const CreateInfo& info_) final
@@ -370,6 +665,12 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
         SetWindowLongPtrW(hwnd, 0, reinterpret_cast<LONG_PTR>(host));
         host->Handle = hwnd;
         host->DCHandle = GetDC(hwnd);
+        host->MemDC = CreateCompatibleDC(host->DCHandle);
+        host->BGBrush = GetSysColorBrush(COLOR_WINDOW);
+        {
+            SetStretchBltMode(host->MemDC, STRETCH_HALFTONE);
+            SetBrushOrgEx(host->MemDC, 0, 0, nullptr);
+        }
         if (payload.ExtraData)
         {
             const auto bg_ = (*payload.ExtraData)("background");
@@ -432,13 +733,10 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
             } return 0;
 
             case WM_ERASEBKGND:
-                if (host->NeedBackground) // let defwndproc to handle it
-                    break;
-                else // return 1(handled) to ignore
-                    return 1;
+                // return 1(handled) to ignore
+                return 1;
             case WM_PAINT:
             {
-                host->Invalidate();
                 RECT rect;
                 if (GetUpdateRect(hwnd, &rect, FALSE))
                 {
@@ -446,6 +744,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                     BeginPaint(hwnd, &ps);
                     EndPaint(hwnd, &ps);
                 }
+                host->Invalidate();
             } return 0; // clear redraw flag
 
             case WM_MOUSELEAVE:
@@ -590,6 +889,118 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
+}
+
+
+using PickerRet = std::vector<std::u16string>;
+common::PromiseResult<std::vector<std::u16string>> Win32Backend::OpenFilePicker(const FilePickerInfo& info)
+{
+    common::StringPool<char16_t> pool;
+    std::vector<std::pair<common::StringPiece<char16_t>, common::StringPiece<char16_t>>> extFilters;
+    if (!info.ExtensionFilters.empty())
+    {
+        for (const auto& p : info.ExtensionFilters)
+        {
+            const auto desc = pool.AllocateConcatString(p.first, u"\0"sv);
+            const auto ext = pool.AllocateConcatString(u"*."sv, p.second, u"\0"sv);
+            extFilters.emplace_back(desc, ext);
+        }
+    }
+    std::promise<PickerRet> pms_;
+    auto res = common::PromiseResultSTD<PickerRet>::Get(pms_.get_future());
+
+    std::thread thr([=, title = info.Title, pool = std::move(pool), exts = std::move(extFilters), pms = std::move(pms_)](bool isOpen, bool isFolder, bool isMultiSelect) mutable
+    {
+        Microsoft::WRL::ComPtr<IFileDialog> fd;
+
+        if (HResultHolder hr = CoCreateInstance(isOpen ? CLSID_FileOpenDialog : CLSID_FileSaveDialog, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&fd)); !hr)
+        {
+            pms.set_value({});
+            return;
+        }
+        fd->SetTitle(reinterpret_cast<LPCWSTR>(title.data()));
+
+        FILEOPENDIALOGOPTIONS opts = {};
+        fd->GetOptions(&opts);
+        opts |= FOS_PATHMUSTEXIST | FOS_NOCHANGEDIR | FOS_FORCEFILESYSTEM | FOS_FORCESHOWHIDDEN;
+        if (isFolder) opts |= FOS_PICKFOLDERS;
+        if (isOpen)
+        {
+            opts |= FOS_FILEMUSTEXIST;
+            if (isMultiSelect) opts |= FOS_ALLOWMULTISELECT;
+        }
+        else 
+            opts |= FOS_NOREADONLYRETURN | FOS_CREATEPROMPT;
+        fd->SetOptions(opts);
+
+        if (!exts.empty())
+        {
+            std::vector<COMDLG_FILTERSPEC> filters;
+            for (const auto& [desc, ext] : exts)
+                filters.push_back({ reinterpret_cast<const wchar_t*>(pool.GetStringView(desc).data()), reinterpret_cast<const wchar_t*>(pool.GetStringView(ext).data()) });
+            fd->SetFileTypes(gsl::narrow_cast<UINT>(filters.size()), filters.data());
+            fd->SetFileTypeIndex(1);
+        }
+
+        if (HResultHolder hr = fd->Show(nullptr); !hr)
+        {
+            pms.set_value({});
+            return;
+        }
+
+        std::vector<std::u16string> fpaths;
+        const auto addPath = [&](const auto& item)
+        {
+            if (item)
+            {
+                PWSTR fpath = nullptr;
+                item->GetDisplayName(SIGDN_FILESYSPATH, &fpath);
+                if (fpath)
+                    fpaths.emplace_back(reinterpret_cast<const char16_t*>(fpath));
+                CoTaskMemFree(fpath);
+            }
+        };
+        if (isOpen && isMultiSelect)
+        {
+            Microsoft::WRL::ComPtr<IFileOpenDialog> fod;
+            if (HResultHolder hr = fd->QueryInterface(fod.GetAddressOf()); !hr)
+            {
+                pms.set_value({});
+                return;
+            }
+            Microsoft::WRL::ComPtr<IShellItemArray> results;
+            fod->GetResults(&results);
+            if (!results)
+            {
+                pms.set_value({});
+                return;
+            }
+            DWORD resCount = 0;
+            results->GetCount(&resCount);
+            if (!resCount)
+            {
+                pms.set_value({});
+                return;
+            }
+            for (uint32_t i = 0; i < resCount; ++i)
+            {
+                Microsoft::WRL::ComPtr<IShellItem> item;
+                results->GetItemAt(i, &item);
+                addPath(item);
+            }
+        }
+        else
+        {
+            Microsoft::WRL::ComPtr<IShellItem> item;
+            fd->GetResult(&item);
+            addPath(item);
+        }
+
+        pms.set_value(std::move(fpaths));
+    }, info.IsOpen, info.IsFolder, info.AllowMultiSelect);
+    thr.detach();
+    return res;
+}
 
 
 }

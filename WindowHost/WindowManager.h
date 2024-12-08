@@ -94,6 +94,128 @@ inline const T* TryGetFinally(const std::any& dat) noexcept
 //    { }
 //};
 
+struct OpaqueResource
+{
+    using TDispose = void(const OpaqueResource&) noexcept;
+    std::array<uint64_t, 3> Cookie;
+    TDispose* Disposer;
+    constexpr OpaqueResource() noexcept : Cookie{ 0u,0u,0u }, Disposer(nullptr) {}
+    OpaqueResource(TDispose* disposer, void* ptr) noexcept : Cookie{ reinterpret_cast<uintptr_t>(ptr), 0u, 0u }, Disposer(disposer) {}
+    constexpr OpaqueResource(TDispose* disposer, uint64_t val0, uint64_t val1, uint64_t val2) noexcept : Cookie{ val0, val1, val2 }, Disposer(disposer) {}
+    constexpr OpaqueResource(TDispose* disposer, uint64_t val0, uint64_t val1) noexcept : OpaqueResource(disposer, val0, val1, 1u) {}
+    constexpr OpaqueResource(TDispose* disposer, uint64_t val0) noexcept : OpaqueResource(disposer, val0, 0u, 1u) {}
+    COMMON_NO_COPY(OpaqueResource)
+    OpaqueResource(OpaqueResource&& rhs) noexcept : Cookie(rhs.Cookie), Disposer(rhs.Disposer)
+    {
+        rhs.Disposer = nullptr;
+    }
+    OpaqueResource& operator= (OpaqueResource&& rhs) noexcept
+    {
+        if (&rhs != this)
+        {
+            std::swap(Cookie, rhs.Cookie);
+            std::swap(Disposer, rhs.Disposer);
+            rhs.~OpaqueResource();
+        }
+        return *this;
+    }
+    ~OpaqueResource()
+    {
+        if (Disposer)
+        {
+            Disposer(*this);
+            Disposer = nullptr;
+        }
+    }
+    constexpr operator bool() const noexcept { return Disposer; }
+};
+
+
+struct LockField
+{
+    std::atomic<uint32_t> Data;
+    constexpr LockField() noexcept : Data(0) {}
+    
+    static forceinline void DoLock(LockField& target, uint8_t index) noexcept
+    {
+        const auto bit = 1u << (index * 2);
+        while (true)
+        {
+            const auto oldVal = target.Data.fetch_or(bit);
+            if (!(oldVal & bit)) break;
+            COMMON_PAUSE();
+        }
+    }
+    static forceinline void DoUnlock(LockField& target, uint8_t index) noexcept
+    {
+        const auto bit = 1u << (index * 2);
+        target.Data.fetch_and(~bit);
+    }
+    static forceinline bool LockChange(LockField& target, uint8_t index) noexcept // lock bit + set change bit
+    {
+        const auto lockbit = 1u << (index * 2);
+        const auto changebit = 10u << (index * 2);
+        while (true)
+        {
+            const auto oldVal = target.Data.fetch_or(lockbit);
+            if (!(oldVal & lockbit)) // get lock
+            {
+                if (!(oldVal & changebit)) // change bit unset
+                {
+                    target.Data.fetch_or(changebit);
+                    return false;
+                }
+                return true;
+            }
+            COMMON_PAUSE();
+        }
+        CM_UNREACHABLE();
+    }
+    static forceinline bool LockApply(LockField& target, uint8_t index) noexcept // lock bit + unset change bit
+    {
+        const auto lockbit = 1u << (index * 2);
+        const auto changebit = 10u << (index * 2);
+        while (true)
+        {
+            const auto oldVal = target.Data.fetch_or(lockbit);
+            if (!(oldVal & lockbit)) // get lock
+            {
+                if (oldVal & changebit) // change bit set
+                {
+                    target.Data.fetch_and(~changebit);
+                    return true;
+                }
+                return false;
+            }
+            COMMON_PAUSE();
+        }
+        CM_UNREACHABLE();
+    }
+    template<uint8_t Index>
+    struct ConsumerLock
+    {
+        static_assert(Index < 16);
+        LockField& Target;
+        const bool Changed;
+        ConsumerLock(LockField& target) noexcept : Target(target), Changed(LockApply(Target, Index)) {}
+        COMMON_NO_COPY(ConsumerLock)
+        COMMON_NO_MOVE(ConsumerLock)
+        ~ConsumerLock()
+        {
+            DoUnlock(Target, Index);
+        }
+        constexpr operator bool() const noexcept { return Changed; }
+    };
+};
+
+namespace WdAttrIndex
+{
+inline constexpr uint8_t Title = 0;
+inline constexpr uint8_t Icon = 1;
+inline constexpr uint8_t Background = 2;
+}
+
+
 class WindowManager
 {
     friend WindowRunner;
@@ -106,20 +228,21 @@ private:
 
     std::vector<std::pair<uintptr_t, WindowHost>> WindowList;
     common::container::IntrusiveDoubleLinkList<InvokeNode, common::spinlock::WRSpinLock> InvokeList;
+    static LockField& GetResourceLock(WindowHost_* host) noexcept;
 protected:
-    WindowManager();
-
-    class TitleLock
+    static OpaqueResource* GetWindowResource(WindowHost_* host, uint8_t resIdx) noexcept; // only get ptr, should lock before access content when needed
+    template<uint8_t Index>
+    class ResApplyLock : private LockField::ConsumerLock<Index>
     {
-        WindowHost_* Host;
     public:
-        TitleLock(WindowHost_* host);
-        TitleLock(const TitleLock&) noexcept = delete;
-        TitleLock(TitleLock&&) noexcept = delete;
-        TitleLock& operator=(const TitleLock&) noexcept = delete;
-        TitleLock& operator=(TitleLock&&) noexcept = delete;
-        ~TitleLock();
+        ResApplyLock(WindowHost_* host) noexcept : LockField::ConsumerLock<Index>(GetResourceLock(host)) {}
+        using LockField::ConsumerLock<Index>::operator bool;
     };
+    using TitleLock = ResApplyLock<WdAttrIndex::Title>;
+    using IconLock = ResApplyLock<WdAttrIndex::Icon>;
+    using BgLock = ResApplyLock<WdAttrIndex::Background>;
+    
+    WindowManager();
 
     template<typename T>
     void RegisterHost(T handle, WindowHost_* host)
@@ -152,9 +275,13 @@ public:
     virtual void BeforeWindowOpen(WindowHost_*) const {}
     virtual void AfterWindowOpen(WindowHost_*) const {}
     virtual void UpdateTitle(WindowHost_* host) const = 0;
+    virtual void UpdateIcon(WindowHost_*) const {}
+    virtual void UpdateBgImg(WindowHost_*) const {}
     virtual void CloseWindow(WindowHost_* host) const = 0;
     virtual void ReleaseWindow(WindowHost_* host) = 0;
     virtual const void* GetWindowData(const WindowHost_* host, std::string_view name) const noexcept;
+    virtual OpaqueResource PrepareIcon(WindowHost_&, xziar::img::ImageView) const noexcept { return {}; }
+    virtual OpaqueResource CacheRenderImage(WindowHost_&, xziar::img::ImageView) const noexcept { return {}; }
 
     void AddInvoke(std::function<void(void)>&& task);
 

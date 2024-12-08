@@ -1,12 +1,17 @@
 #include "TestRely.h"
 #include "WindowHost/WindowHost.h"
+#include "ImageUtil/ImageUtil.h"
 #include "SystemCommon/ConsoleEx.h"
+#include "common/ResourceHelper.h"
+#include "resource.h"
 #include <thread>
 
 using namespace common;
 using namespace common::mlog;
 using namespace xziar::gui;
 using std::string;
+using xziar::img::Image;
+using xziar::img::ImageView;
 
 static MiniLogger<false>& log()
 {
@@ -29,12 +34,51 @@ constexpr auto BtnToStr = [](xziar::gui::event::MouseButton btn)
     }
 };
 
+template<typename T>
+static void SetBgImg(xziar::gui::WindowHost_& wd, const T& files) noexcept
+{
+    const auto cnt = std::size(files);
+    for (size_t i = 0; i < cnt; ++i)
+    {
+        log().Verbose(u"--{}\n", files[i]);
+    }
+    for (size_t i = 0; i < cnt; ++i)
+    {
+        const auto fpath = files[i];
+        try
+        {
+            const auto img = xziar::img::ReadImage(fpath, xziar::img::ImageDataType::BGRA);
+            if (img.GetSize())
+            {
+                wd.SetBackground(img);
+                return;
+            }
+        }
+        catch (common::BaseException& be)
+        {
+            log().Error(u"Failed when try read image [{}]: {}\n", fpath, be.Message());
+        }
+        catch (...) {}
+    }
+};
 static void OpenTestWindow(WindowBackend& backend)
 {
+    Image iconimg;
+    {
+        const auto icondat = common::ResourceHelper::GetData(L"BIN", IDR_IMG_TITLEICON);
+        common::io::MemoryInputStream stream(icondat);
+        iconimg = xziar::img::ReadImage(stream, u"PNG", xziar::img::ImageDataType::BGRA);
+    }
+
     xziar::gui::CreateInfo wdInfo;
     wdInfo.Width = 1280, wdInfo.Height = 720, wdInfo.TargetFPS = 60, wdInfo.Title = u"WdHostTest";
     const auto window = backend.Create(wdInfo);
-    window->Openning() += [](const auto&) { log().Info(u"opened.\n"); };
+    window->Openning() += [&](const auto&) 
+    { 
+        log().Info(u"opened.\n");
+        if (iconimg.GetSize())
+            window->SetIcon(iconimg);
+    };
     window->Closing() += [clickcnt = 0](const auto&, bool& should) mutable 
     {
         log().Info(u"attempt to close [{}].\n", clickcnt);
@@ -45,7 +89,6 @@ static void OpenTestWindow(WindowBackend& backend)
     {
         if (idx++ % 300 == 0)
         {
-            log().Info(u"display.\n");
             if (idx > 1)
             {
                 tm.Stop();
@@ -66,13 +109,10 @@ static void OpenTestWindow(WindowBackend& backend)
     {
         log().Info(u"DPI change to [{:4} x {:4}].\n", x, y);
     };
-    window->DropFile() += [](const auto&, const auto& evt)
+    window->DropFile() += [](auto& wd, const auto& evt)
     {
         log().Info(u"drop {} files at [{:4},{:4}]:\n", evt.Size(), evt.Pos.X, evt.Pos.Y);
-        for (size_t i = 0; i < evt.Size(); ++i)
-        {
-            log().Verbose(u"--{}\n", evt[i]);
-        }
+        SetBgImg(wd, evt);
     };
     window->MouseEnter() += [](auto& wd, const auto& evt)
     {
@@ -120,6 +160,38 @@ static void OpenTestWindow(WindowBackend& backend)
     };
     window->KeyDown() += keyHandler;
     window->KeyUp() += keyHandler;
+    window->KeyDown() += [&](auto& wd, const auto& evt)
+    {
+        using namespace std::string_view_literals;
+        const auto printKey = evt.ChangedKey.TryGetPrintable();
+        if (evt.HasCtrl() && printKey == '1')
+        {
+            if (evt.HasShift())
+            {
+                wd.SetBackground({});
+            }
+            else
+            {
+                static const xziar::gui::FilePickerInfo fpInfo
+                {
+                    .Title = u"Open Image As Background"
+                };
+                const auto pms = backend.OpenFilePicker(fpInfo);
+                pms->OnComplete([host = wd.GetSelf()](const auto& ret)
+                {
+                    try
+                    {
+                        SetBgImg(*host, ret->Get());
+                    }
+                    catch (common::BaseException& be)
+                    {
+                        log().Warning(u"Failed to pick image: {}.\n", be.Message());
+                    }
+                    catch (...) {}
+                });
+            }
+        }
+    };
     window->Show();
     getchar();
     window->Close();
