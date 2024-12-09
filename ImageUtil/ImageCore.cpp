@@ -2,6 +2,11 @@
 #include "ImageCore.h"
 #include "ColorConvert.h"
 #include "SystemCommon/FormatExtra.h"
+#include "common/StaticLookup.hpp"
+
+#include <boost/preprocessor/punctuation/comma_if.hpp>
+#include <boost/preprocessor/seq/for_each_i.hpp>
+#include <boost/preprocessor/variadic/to_seq.hpp>
 
 // #define STB_IMAGE_RESIZE2_IMPLEMENTATION
 // #define STB_IMAGE_RESIZE_STATIC
@@ -36,40 +41,29 @@ std::string_view ImgDType::Stringify(DataTypes type) noexcept
     switch (type)
     {
     case DataTypes::Uint8:   return "UINT8"sv;
+    case DataTypes::Uint16:  return "UINT16"sv;
     case DataTypes::Fixed16: return "FIXED16"sv;
     case DataTypes::Float16: return "FLOAT16"sv;
     case DataTypes::Float32: return "FLOAT32"sv;
     default:                 return {};
     }
 }
+#define DTLookupItem(r, dummy, i, name) BOOST_PP_COMMA_IF(i) { ImageDataType::name.Value, STRINGIZE(name)""sv }
+#define DTLookup(...) BuildStaticLookup(uint8_t, std::string_view, BOOST_PP_SEQ_FOR_EACH_I(DTLookupItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)))
+static constexpr auto DataTypeNameLookup = DTLookup(
+    RGBA,   BGRA,   RGB,   BGR,   GA,   GRAY,
+    RGBA16, BGRA16, RGB16, BGR16, GA16, GRAY16,
+    RGBAf,  BGRAf,  RGBf,  BGRf,  GAf,  GRAYf,
+    RGBAh,  BGRAh,  RGBh,  BGRh,  GAh,  GRAYh);
+#undef DTLookupItem
+#undef DTLookup
 std::string ImgDType::Stringify(const ImgDType& type, bool detail) noexcept
 {
     if (!detail)
     {
-#define CASEDT(name) case ImageDataType::name.Value: return #name
-        switch (type.Value)
-        {
-        CASEDT(RGBA);
-        CASEDT(BGRA);
-        CASEDT(RGB);
-        CASEDT(BGR);
-        CASEDT(GA);
-        CASEDT(GRAY);
-        CASEDT(RGBAf);
-        CASEDT(BGRAf);
-        CASEDT(RGBf);
-        CASEDT(BGRf);
-        CASEDT(GAf);
-        CASEDT(GRAYf);
-        CASEDT(RGBAh);
-        CASEDT(BGRAh);
-        CASEDT(RGBh);
-        CASEDT(BGRh);
-        CASEDT(GAh);
-        CASEDT(GRAYh);
-        default: return {};
-        }
-#undef CASEDT
+        const auto knownName = DataTypeNameLookup(type.Value);
+        if (knownName) return std::string(*knownName);
+        return {};
     }
     const auto ch = Stringify(type.Channel());
     const auto dt = Stringify(type.Channel());
@@ -238,7 +232,8 @@ void Image::PlaceImage(ImageView src, const uint32_t srcX, const uint32_t srcY, 
 
     const byte* __restrict srcPtr = src.GetRawPtr(srcY, srcX);
     byte* __restrict destPtr = GetRawPtr(destY, destX);
-    const auto srcStep = src.RowSize(), destStep = RowSize();
+    auto srcStep = src.RowSize();
+    const auto destStep = RowSize();
     const bool isCopyWholeRow = colcnt == Width && Width == src.Width; // treat as one row
     uint32_t batchPix = isCopyWholeRow ? colcnt * rowcnt : colcnt, batchCnt = isCopyWholeRow ? 1u : rowcnt;
 
@@ -256,7 +251,7 @@ void Image::PlaceImage(ImageView src, const uint32_t srcX, const uint32_t srcY, 
     {
         const byte* __restrict srcPtr_ = srcPtr;
         byte* __restrict destPtr_ = destPtr;
-        uint32_t batchPix_ = colcnt, batchCnt_ = rowcnt;
+        uint32_t batchUnit = colcnt * src.DataType.ChannelCount(), batchCnt_ = rowcnt;
 
         Image tmpimg(ImgDType{ srcCh, dstDT });
         if (srcCh != dstCh)
@@ -265,15 +260,19 @@ void Image::PlaceImage(ImageView src, const uint32_t srcX, const uint32_t srcY, 
             destPtr_ = tmpimg.GetRawPtr();
             const bool isCopyWholeRow_ = colcnt == src.Width;
             if (isCopyWholeRow_) // treat as one row
-                batchPix_ = colcnt * batchCnt_, batchCnt_ = 1;
+                batchUnit = batchUnit * batchCnt_, batchCnt_ = 1;
         }
         const auto& cvter = ColorConvertor::Get();
         switch (DtPair(srcDT, dstDT))
         {
+        case DtPair(ImgDType::DataTypes::Uint8, ImgDType::DataTypes::Uint16):
+            for (; batchCnt_--; destPtr_ += destStep, srcPtr_ += srcStep) { cvter.Gray8To16(reinterpret_cast<uint16_t*>(destPtr_), reinterpret_cast<const uint8_t*>(srcPtr_), batchUnit); } break;
+        case DtPair(ImgDType::DataTypes::Uint16, ImgDType::DataTypes::Uint8):
+            for (; batchCnt_--; destPtr_ += destStep, srcPtr_ += srcStep) { cvter.Gray16To8(reinterpret_cast<uint8_t*>(destPtr_), reinterpret_cast<const uint16_t*>(srcPtr_), batchUnit); } break;
         case DtPair(ImgDType::DataTypes::Float16, ImgDType::DataTypes::Float32):
-            for (; batchCnt_--; destPtr_ += destStep, srcPtr_ += srcStep) { cvter.GetCopy().CopyFloat(reinterpret_cast<float*>(destPtr_), reinterpret_cast<const common::fp16_t*>(srcPtr_), batchPix_); } break;
+            for (; batchCnt_--; destPtr_ += destStep, srcPtr_ += srcStep) { cvter.GetCopy().CopyFloat(reinterpret_cast<float*>(destPtr_), reinterpret_cast<const common::fp16_t*>(srcPtr_), batchUnit); } break;
         case DtPair(ImgDType::DataTypes::Float32, ImgDType::DataTypes::Float16):
-            for (; batchCnt_--; destPtr_ += destStep, srcPtr_ += srcStep) { cvter.GetCopy().CopyFloat(reinterpret_cast<common::fp16_t*>(destPtr_), reinterpret_cast<const float*>(srcPtr_), batchPix_); } break;
+            for (; batchCnt_--; destPtr_ += destStep, srcPtr_ += srcStep) { cvter.GetCopy().CopyFloat(reinterpret_cast<common::fp16_t*>(destPtr_), reinterpret_cast<const float*>(srcPtr_), batchUnit); } break;
         default:
             COMMON_THROW(BaseException, u"mixing datatype not supported");
         }
@@ -281,6 +280,7 @@ void Image::PlaceImage(ImageView src, const uint32_t srcX, const uint32_t srcY, 
         
         src = tmpimg;
         srcPtr = tmpimg.GetRawPtr();
+        srcStep = tmpimg.RowSize();
         const bool isCopyWholeRow_ = colcnt == Width;
         if (isCopyWholeRow_) // treat as one row
             batchPix *= batchCnt, batchCnt = 1;
@@ -289,6 +289,7 @@ void Image::PlaceImage(ImageView src, const uint32_t srcX, const uint32_t srcY, 
     Ensures(src.DataType.DataType() == dstDT);
     switch(dstDT)
     {
+    case ImgDType::DataTypes::Uint16:
     case ImgDType::DataTypes::Fixed16:
     case ImgDType::DataTypes::Float16: ConvertChannelCopy<uint16_t, uint16_t, uint16_t>(destPtr, destStep, srcPtr, srcStep, batchCnt, batchPix, dstCh, srcCh); break;
     case ImgDType::DataTypes::Float32: ConvertChannelCopy<   float,    float,    float>(destPtr, destStep, srcPtr, srcStep, batchCnt, batchPix, dstCh, srcCh); break;
@@ -480,6 +481,7 @@ Image Image::ExtractChannel(uint8_t channel) const
     newimg.SetSize(Width, Height);
     switch (DataType.DataType())
     {
+    case ImgDType::DataTypes::Uint16:
     case ImgDType::DataTypes::Fixed16:
     case ImgDType::DataTypes::Float16: ExtractImgChannel<uint16_t, uint16_t, uint16_t>(newimg, *this, channel); break;
     case ImgDType::DataTypes::Float32: ExtractImgChannel<   float,    float,    float>(newimg, *this, channel); break;
@@ -523,6 +525,7 @@ std::vector<Image> Image::ExtractChannels() const
 
     switch (DataType.DataType())
     {
+    case ImgDType::DataTypes::Uint16:
     case ImgDType::DataTypes::Fixed16:
     case ImgDType::DataTypes::Float16: return ExtractImgChannels<uint16_t, uint16_t, uint16_t>(*this, chCount);
     case ImgDType::DataTypes::Float32: return ExtractImgChannels<   float,    float,    float>(*this, chCount);
@@ -580,6 +583,7 @@ Image Image::CombineChannels(const ImgDType dataType, common::span<const ImageVi
 
     switch (dataType.DataType())
     {
+    case ImgDType::DataTypes::Uint16:
     case ImgDType::DataTypes::Fixed16:
     case ImgDType::DataTypes::Float16: return CombineImgChannels<uint16_t, uint16_t, uint16_t>(dataType, channels, *wh);
     case ImgDType::DataTypes::Float32: return CombineImgChannels<   float,    float,    float>(dataType, channels, *wh);

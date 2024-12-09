@@ -65,26 +65,29 @@
   - [x] Make Image mutable
   - [x] Add stb as fallback handler
   - [x] Add more format suppprt
-  - [ ] Use TexFormat instead of ImageDataType
   - [ ] Add DataType-based support query
   - [ ] Throw proper exception when facing error
   - [ ] Return multiple image for image-sequence or planar image(e.g, YUV420)
   - [ ] Add intel oneVPL(media sdk) decoder/encoder
-  - [ ] Add android AImageDecoder decoder
-  - [ ] Add windows WIC decoder/encoder
-  - [ ] Move DataTypeConvertor to cpp, with runtime path selection
-  - [ ] Add test for DataTypeConvertor
+  - [x] Add android AImageDecoder decoder
+  - [x] Add windows WIC decoder/encoder
+  - [x] Move DataTypeConvertor to cpp, with runtime path selection
+  - [x] Add test for DataTypeConvertor
+  - [ ] Add test for Imagecore's core operation
+  - [ ] Add color space/gamma conversion
 
 * WindowHost
   - [ ] Add support for direct image blit (for offscreen rendering)
+  - [ ] Add support for D2d rendering
   - [ ] Add support for wayland
   - [ ] Add support for iOS (Cocoa Touch)
   - [ ] Add support for gesture
   - [ ] Add support for touch screen logic
-  - [ ] Add support for remote redering on Android (with IPC and shares ANativeWindow?)
+  - [ ] Add support for remote redering via IPC or network
   - [x] Add multi-backend support
   - [ ] Add Icon support
   - [ ] Add timer support
+  - [ ] Add invoke basic WM widges for operation like message/filepicker
   - [x] Revert to use std::any for data storage to ensure lifetime management
 
 * Nailang
@@ -252,6 +255,7 @@
   - [ ] More buttons and proper icon
   - [x] Develop AnyDock
   - [ ] Fix scrollview's crash when switching to other selection
+  - [ ] Move OGLView to DX based rendering with texture sharing
 
 * AnyDock
   - [ ] Replace with DockPanel to provide better Dock State

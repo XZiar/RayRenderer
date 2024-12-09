@@ -85,7 +85,7 @@ struct HexTest
 
 
 template<typename Src, typename Dst, size_t M, size_t N, typename F, typename R>
-static void VarLenTest(common::span<const std::byte> source, F&& func, R&& reff)
+static void VarLenTest(common::span<const std::byte> source, F&& func, R&& reff, common::span<const size_t> testSizes = TestSizes)
 {
     constexpr bool TryInplace = std::is_same_v<Src, Dst> && M == N;
     const auto src = reinterpret_cast<const Src*>(source.data());
@@ -93,7 +93,7 @@ static void VarLenTest(common::span<const std::byte> source, F&& func, R&& reff)
     std::vector<Dst> ref;
     ref.resize(total * N, static_cast<Dst>(0xcc));
     reff(ref.data(), src, total);
-    for (const auto size : TestSizes)
+    for (const auto size : testSizes)
     {
         const auto count = std::min(total, size);
         std::vector<Dst> dsts[TryInplace ? 2 : 1];
@@ -1192,6 +1192,60 @@ INTRIN_TEST(ColorCvt, Combine32x4)
     });
 }
 
+
+template<typename T>
+static common::span<const std::byte> GetFillArray() noexcept
+{
+    static const auto Data = []() 
+    {
+        constexpr auto N = 1u << (sizeof(T) * 8);
+        std::array<T, N> ret = {};
+        for (size_t i = 0; i < N; ++i)
+            ret[i] = static_cast<T>(i);
+        return ret;
+    }();
+    return { reinterpret_cast<const std::byte*>(Data.data()), sizeof(Data) };
+}
+
+INTRIN_TEST(ColorCvt, G8ToG16)
+{
+    const auto func = [&](uint16_t* dst, const uint8_t* src, size_t count)
+    {
+        Intrin->Gray8To16(dst, src, count);
+    };
+    constexpr auto reff = [](uint16_t* dst, const uint8_t* src, size_t count)
+    {
+        while (count)
+        {
+            const auto val = *src++;
+            *dst++ = static_cast<uint16_t>((val * 1.0f / UINT8_MAX) * UINT16_MAX);
+            count--;
+        }
+    };
+    VarLenTest<uint8_t, uint16_t, 1, 1>(GetRandVals(), func, reff);
+    size_t fulltest[] = { 1u << 8 };
+    VarLenTest<uint8_t, uint16_t, 1, 1>(GetFillArray<uint8_t>(), func, reff, fulltest);
+}
+INTRIN_TEST(ColorCvt, G16ToG8)
+{
+    const auto func = [&](uint8_t* dst, const uint16_t* src, size_t count)
+    {
+        Intrin->Gray16To8(dst, src, count);
+    };
+    constexpr auto reff = [](uint8_t* dst, const uint16_t* src, size_t count)
+    {
+        while (count)
+        {
+            const auto val = *src++;
+            *dst++ = static_cast<uint8_t>((val * 1.0f / UINT16_MAX) * UINT8_MAX);
+            count--;
+        }
+    };
+    VarLenTest<uint16_t, uint8_t, 1, 1>(GetRandVals(), func, reff);
+    size_t fulltest[] = { 1u << 16 };
+    VarLenTest<uint16_t, uint8_t, 1, 1>(GetFillArray<uint16_t>(), func, reff, fulltest);
+}
+
 template<bool isRGB>
 void Test555ToRGB(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
 {
@@ -1904,6 +1958,17 @@ TEST(IntrinPerf, Combine32)
         dst.data(), PSC32<3>{ ptrs, 3}, Size);
     PerfTester::DoFastPath(Cmb32x4, "Combine32x4", Size, 100,
         dst.data(), PSC32<4>{ ptrs, 4}, Size);
+}
+
+TEST(IntrinPerf, G8To16)
+{
+    using xziar::img::ColorConvertor;
+    constexpr uint32_t Size = 1024 * 1024;
+    std::vector<uint8_t > dat8 (Size);
+    std::vector<uint16_t> dat16(Size);
+
+    PerfTester::DoFastPath(&ColorConvertor::Gray8To16, "G8ToG16", Size, 100,
+        dat16.data(), dat8.data(), Size);
 }
 
 TEST(IntrinPerf, RGB555ToRGBA)

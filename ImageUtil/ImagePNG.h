@@ -46,10 +46,7 @@ public:
     {
         return std::make_unique<PngWriter>(stream);
     }
-    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImgDType, const bool) const final
-    { 
-        return ext == u"PNG" ? 240 : 0;
-    }
+    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImgDType, const bool) const final;
 };
 
 

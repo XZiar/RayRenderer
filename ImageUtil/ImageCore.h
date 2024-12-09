@@ -15,7 +15,7 @@ namespace xziar::img
 struct ImgDType
 {
     enum class Channels : uint8_t { R = 0b000, RA = 0b001, RGB = 0b010, RGBA = 0b011, BGR = 0b110, BGRA = 0b111 };
-    enum class DataTypes : uint8_t { Composed = 0, Uint8 = 1, Fixed16 = 2, Float16 = 4, Float32 = 5 };
+    enum class DataTypes : uint8_t { Composed = 0, Uint8 = 1, Uint16 = 2, Fixed16 = 3, Float16 = 4, Float32 = 5 };
 
     static constexpr bool IsBGROrder(Channels ch) noexcept { return (::common::enum_cast(ch) & 0b100); }
     static constexpr uint32_t DataTypeToSize(DataTypes type) noexcept
@@ -23,6 +23,7 @@ struct ImgDType
         switch (type)
         {
         case DataTypes::Uint8:   return 1;
+        case DataTypes::Uint16:  return 2;
         case DataTypes::Fixed16: return 2;
         case DataTypes::Float16: return 2;
         case DataTypes::Float32: return 4;
@@ -93,30 +94,38 @@ namespace ImageDataType
 {
 static_assert(std::is_trivially_copyable_v<ImgDType>);
 #define IMG_DT(name, ch, dt) inline constexpr ImgDType name = ImgDType(ImgDType::Channels::ch, ImgDType::DataTypes::dt)
-IMG_DT(RGBA,  RGBA, Uint8);
-IMG_DT(BGRA,  BGRA, Uint8);
-IMG_DT(RGB,   RGB,  Uint8);
-IMG_DT(BGR,   BGR,  Uint8);
-IMG_DT(GA,    RA,   Uint8);
-IMG_DT(RA,    RA,   Uint8);
-IMG_DT(GRAY,  R,    Uint8);
-IMG_DT(RED,   R,    Uint8);
-IMG_DT(RGBAf, RGBA, Float32);
-IMG_DT(BGRAf, BGRA, Float32);
-IMG_DT(RGBf,  RGB,  Float32);
-IMG_DT(BGRf,  BGR,  Float32);
-IMG_DT(GAf,   RA,   Float32);
-IMG_DT(RAf,   RA,   Float32);
-IMG_DT(GRAYf, R,    Float32);
-IMG_DT(REDf,  R,    Float32);
-IMG_DT(RGBAh, RGBA, Float16);
-IMG_DT(BGRAh, BGRA, Float16);
-IMG_DT(RGBh,  RGB,  Float16);
-IMG_DT(BGRh,  BGR,  Float16);
-IMG_DT(GAh,   RA,   Float16);
-IMG_DT(RAh,   RA,   Float16);
-IMG_DT(GRAYh, R,    Float16);
-IMG_DT(REDh,  R,    Float16);
+IMG_DT(RGBA,    RGBA, Uint8);
+IMG_DT(BGRA,    BGRA, Uint8);
+IMG_DT(RGB,     RGB,  Uint8);
+IMG_DT(BGR,     BGR,  Uint8);
+IMG_DT(GA,      RA,   Uint8);
+IMG_DT(RA,      RA,   Uint8);
+IMG_DT(GRAY,    R,    Uint8);
+IMG_DT(RED,     R,    Uint8);
+IMG_DT(RGBA16,  RGBA, Uint16);
+IMG_DT(BGRA16,  BGRA, Uint16);
+IMG_DT(RGB16,   RGB,  Uint16);
+IMG_DT(BGR16,   BGR,  Uint16);
+IMG_DT(GA16,    RA,   Uint16);
+IMG_DT(RA16,    RA,   Uint16);
+IMG_DT(GRAY16,  R,    Uint16);
+IMG_DT(RED16,   R,    Uint16);
+IMG_DT(RGBAf,   RGBA, Float32);
+IMG_DT(BGRAf,   BGRA, Float32);
+IMG_DT(RGBf,    RGB,  Float32);
+IMG_DT(BGRf,    BGR,  Float32);
+IMG_DT(GAf,     RA,   Float32);
+IMG_DT(RAf,     RA,   Float32);
+IMG_DT(GRAYf,   R,    Float32);
+IMG_DT(REDf,    R,    Float32);
+IMG_DT(RGBAh,   RGBA, Float16);
+IMG_DT(BGRAh,   BGRA, Float16);
+IMG_DT(RGBh,    RGB,  Float16);
+IMG_DT(BGRh,    BGR,  Float16);
+IMG_DT(GAh,     RA,   Float16);
+IMG_DT(RAh,     RA,   Float16);
+IMG_DT(GRAYh,   R,    Float16);
+IMG_DT(REDh,    R,    Float16);
 #undef IMG_DT
 }
 

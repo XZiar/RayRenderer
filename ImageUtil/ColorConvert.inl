@@ -98,6 +98,8 @@
 #define Combine32x2Info     (void)(float* __restrict dest, const float* const * __restrict src, size_t count)
 #define Combine32x3Info     (void)(float* __restrict dest, const float* const * __restrict src, size_t count)
 #define Combine32x4Info     (void)(float* __restrict dest, const float* const * __restrict src, size_t count)
+#define G8ToG16Info         (void)(uint16_t* __restrict dest, const uint8_t * __restrict src, size_t count)
+#define G16ToG8Info         (void)(uint8_t * __restrict dest, const uint16_t* __restrict src, size_t count)
 #define RGB555ToRGB8Info    (void)(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count)
 #define BGR555ToRGB8Info    (void)(uint8_t*  __restrict dest, const uint16_t* __restrict src, size_t count)
 #define RGB555ToRGBA8Info   (void)(uint32_t* __restrict dest, const uint16_t* __restrict src, size_t count)
@@ -132,6 +134,7 @@ DEFINE_FASTPATHS(ColorConvertor,
     RGB8ToR8, RGB8ToG8, RGB8ToB8, RGB16ToR16, RGB16ToG16, RGB16ToB16, RGBAfToRf, RGBAfToGf, RGBAfToBf, RGBAfToAf, RGBfToRf, RGBfToGf, RGBfToBf,
     Extract8x2, Extract8x3, Extract8x4, Extract16x2, Extract16x3, Extract16x4, Extract32x2, Extract32x3, Extract32x4,
     Combine8x2, Combine8x3, Combine8x4, Combine16x2, Combine16x3, Combine16x4, Combine32x2, Combine32x3, Combine32x4,
+    G8ToG16, G16ToG8,
     RGB555ToRGB8, BGR555ToRGB8, RGB555ToRGBA8, BGR555ToRGBA8, RGB5551ToRGBA8, BGR5551ToRGBA8,
     RGB565ToRGB8, BGR565ToRGB8, RGB565ToRGBA8, BGR565ToRGBA8,
     RGB10ToRGBf, BGR10ToRGBf, RGB10ToRGBAf, BGR10ToRGBAf, RGB10A2ToRGBAf, BGR10A2ToRGBAf)
@@ -664,6 +667,19 @@ DEFINE_FASTPATH_METHOD(Combine32x3, LOOP)
 DEFINE_FASTPATH_METHOD(Combine32x4, LOOP)
 {
     CombineX<float, 4>(dest, src, count);
+}
+
+DEFINE_FASTPATH_METHOD(G8ToG16, LOOP)
+{
+#define LOOP_8_16 do { const uint32_t val = *src++; *dest++ = static_cast<uint16_t>((val << 8) | val); } while(0)
+    LOOP8(LOOP_8_16)
+#undef LOOP_8_16
+}
+DEFINE_FASTPATH_METHOD(G16ToG8, LOOP)
+{
+#define LOOP_16_8 do { const uint32_t val = *src++; *dest++ = static_cast<uint8_t>(val / (UINT16_MAX / UINT8_MAX)); } while(0)
+    LOOP8(LOOP_16_8)
+#undef LOOP_16_8
 }
 
 template<uint8_t IdxR, uint8_t IdxG, uint8_t IdxB, uint8_t BitR, uint8_t BitG, uint8_t BitB>
@@ -1467,6 +1483,18 @@ struct Combine32x4_128
         out23[1].Save(dst + 12);
     }
 };
+struct G8ToG16_128
+{
+    static constexpr size_t M = 16, N = 16, K = 16;
+    forceinline void operator()(uint16_t* __restrict dst, const uint8_t* __restrict src) const noexcept
+    {
+        const U8x16 dat(src);
+
+        const auto out = dat.Zip(dat).As<U16x8>();
+        out[0].Save(dst + 0);
+        out[1].Save(dst + 8);
+    }
+};
 template<bool Is555>
 struct RGB5x5ToRGB8_128Base
 {
@@ -1623,6 +1651,10 @@ DEFINE_FASTPATH_METHOD(Combine32x2, SIMD128)
 DEFINE_FASTPATH_METHOD(Combine32x4, SIMD128)
 {
     CombineLOOP4<4, Combine32x4_128, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(G8ToG16, SIMD128)
+{
+    ProcessLOOP4<G8ToG16_128, &Func<LOOP>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(RGB555ToRGBA8, SIMD128)
 {
@@ -2302,6 +2334,25 @@ struct Combine32x3_SSSE3
         out2.Save(dst + 8);
     }
 };
+struct G16ToG8_SSSE3
+{
+    static constexpr size_t M = 16, N = 16, K = 16;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const U16x8 dat0(src);
+        const U16x8 dat1(src + 8);
+        const U16x8 muler((uint16_t)0xff01u); // y => x / 0xffff * 0xff => x / 257 => ((x << 24) / 257) >> 24 => (x * (1 << 24) / 257) >> 24 ~> (x * 0xff01) >> 24
+
+        const auto mid0 = dat0.MulHi(muler);
+        const auto mid1 = dat1.MulHi(muler);
+
+        const auto val0 = mid0.As<U8x16>().Shuffle<1, 3, 5, 7, 9, 11, 13, 15, 0, 2, 4, 6, 8, 10, 12, 14>();
+        const auto val1 = mid1.As<U8x16>().Shuffle<1, 3, 5, 7, 9, 11, 13, 15, 0, 2, 4, 6, 8, 10, 12, 14>();
+        const auto out = val0.As<U64x2>().ZipLo(val1.As<U64x2>()).As<U8x16>();
+
+        out.Save(dst);
+    }
+};
 template<bool IsRGB, bool Is555>
 struct RGB5x5ToRGB8_SSE41 : RGB5x5ToRGB8_128Base<Is555>
 {
@@ -2599,6 +2650,10 @@ DEFINE_FASTPATH_METHOD(Combine32x3, SSSE3)
     CombineLOOP4<3, Combine32x3_SSSE3, &Func<LOOP>>(dest, src, count);
 }
 
+DEFINE_FASTPATH_METHOD(G16ToG8, SSSE3)
+{
+    ProcessLOOP4<G16ToG8_SSSE3, &Func<LOOP>>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(RGB555ToRGB8, SSE41)
 {
     ProcessLOOP4<RGB5x5ToRGB8_SSE41<true, true>, &Func<LOOP>>(dest, src, count);
@@ -3402,6 +3457,30 @@ struct Combine32x4_NEON
         vst4q_f32(dst, out4);
     }
 };
+struct G16ToG8_NEON
+{
+    static constexpr size_t M = 16, N = 16, K = 16;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat = vld1q_u16_x2(src);
+        const U16x8 dat0(dat.val[0]);
+        const U16x8 dat1(dat.val[1]);
+        const U16x8 muler((uint16_t)0xff01u); // y => x / 0xffff * 0xff => x / 257 => ((x << 24) / 257) >> 24 => (x * (1 << 24) / 257) >> 24 ~> (x * 0xff01) >> 24
+
+        const auto mid0 = dat0.MulX(muler).As<U16x8>();
+        const auto mid1 = dat0.MulX(muler).As<U16x8>();
+# if COMMON_SIMD_LV >= 200
+        const auto val0 = vreinterpretq_u8_u16(vuzp2q_u16(mid0[0], mid0[1]));
+        const auto val1 = vreinterpretq_u8_u16(vuzp2q_u16(mid1[0], mid1[1]));
+        const U8x16 out = vuzp2q_u8(val0, val1);
+# else
+        const auto val0 = vreinterpretq_u8_u16(vuzpq_u16(mid0[0], mid0[1]).val[1]);
+        const auto val1 = vreinterpretq_u8_u16(vuzpq_u16(mid1[0], mid1[1]).val[1]);
+        const U8x16 out = vuzpq_u8(val0, val1).val[1];
+# endif
+        out.Save(dst);
+    }
+};
 template<bool IsRGB, bool Is555>
 struct RGB5x5ToRGB8_NEON : RGB5x5ToRGB8_128Base<Is555>
 {
@@ -3803,6 +3882,10 @@ DEFINE_FASTPATH_METHOD(Combine32x4, NEON)
     CombineLOOP4<4, Combine32x4_NEON, &Func<LOOP>>(dest, src, count);
 }
 
+DEFINE_FASTPATH_METHOD(G16ToG8, NEON)
+{
+    ProcessLOOP4<G16ToG8_NEON, &Func<LOOP>>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(RGB555ToRGB8, NEON)
 {
     ProcessLOOP4<RGB5x5ToRGB8_NEON<true, true>, &Func<LOOP>>(dest, src, count);
@@ -5325,6 +5408,37 @@ struct Combine32x4_256
         out23[1].Save(dst + 24);
     }
 };
+struct G8ToG16_256
+{
+    static constexpr size_t M = 32, N = 32, K = 32;
+    forceinline void operator()(uint16_t* __restrict dst, const uint8_t* __restrict src) const noexcept
+    {
+        const U8x32 dat(src);
+
+        const auto out = dat.Zip(dat).As<U16x16>();
+        out[0].Save(dst +  0);
+        out[1].Save(dst + 16);
+    }
+};
+struct G16ToG8_256
+{
+    static constexpr size_t M = 32, N = 32, K = 32;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const U16x16 dat0(src);
+        const U16x16 dat1(src + 16);
+        const U16x16 muler((uint16_t)0xff01u); // y => x / 0xffff * 0xff => x / 257 => ((x << 24) / 257) >> 24 => (x * (1 << 24) / 257) >> 24 ~> (x * 0xff01) >> 24
+
+        const auto mid0 = dat0.MulHi(muler);
+        const auto mid1 = dat1.MulHi(muler);
+
+        const auto val0 = mid0.As<U8x32>().ShuffleLane<1, 3, 5, 7, 9, 11, 13, 15, 0, 2, 4, 6, 8, 10, 12, 14>().As<U64x4>().Shuffle<0, 2, 0, 2>(); // 01 01
+        const auto val1 = mid1.As<U8x32>().ShuffleLane<1, 3, 5, 7, 9, 11, 13, 15, 0, 2, 4, 6, 8, 10, 12, 14>().As<U64x4>().Shuffle<0, 2, 0, 2>(); // 23 23
+        const auto out = val0.SelectWith<0b1100>(val1).As<U8x32>();
+
+        out.Save(dst);
+    }
+};
 template<bool Is555>
 struct RGB5x5ToRGB8_256Base
 {
@@ -5778,6 +5892,14 @@ DEFINE_FASTPATH_METHOD(Combine32x4, AVX2)
     CombineLOOP4<4, Combine32x4_256, &Func<SIMD128>>(dest, src, count);
 }
 
+DEFINE_FASTPATH_METHOD(G8ToG16, AVX2)
+{
+    ProcessLOOP4<G8ToG16_256, &Func<SIMD128>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(G16ToG8, AVX2)
+{
+    ProcessLOOP4<G16ToG8_256, &Func<SSSE3>>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(RGB555ToRGB8, AVX2)
 {
     ProcessLOOP4<RGB5x5ToRGB8_256<true, true>, &Func<SSE41>>(dest, src, count);
@@ -6781,6 +6903,41 @@ struct Combine32x4_512
         _mm512_storeu_ps(dst + 48, out3);
     }
 };
+struct G8ToG16_512
+{
+    static constexpr size_t M = 64, N = 64, K = 64;
+    forceinline void operator()(uint16_t* __restrict dst, const uint8_t* __restrict src) const noexcept
+    {
+        const auto dat = _mm512_loadu_epi8(src);
+
+        const auto mixLo = _mm512_unpacklo_epi8(dat, dat); // 0246
+        const auto mixHi = _mm512_unpackhi_epi8(dat, dat); // 1357
+
+        const auto out0 = _mm512_permutex2var_epi64(mixLo, _mm512_set_epi64(11, 10, 3, 2,  9,  8, 1, 0), mixHi);
+        const auto out1 = _mm512_permutex2var_epi64(mixLo, _mm512_set_epi64(15, 14, 7, 6, 13, 12, 5, 4), mixHi);
+
+        _mm512_storeu_epi16(dst +  0, out0);
+        _mm512_storeu_epi16(dst + 32, out1);
+    }
+};
+struct G16ToG8_512
+{
+    static constexpr size_t M = 64, N = 64, K = 64;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi8(src);
+        const auto dat1 = _mm512_loadu_epi8(src + 32);
+        const auto muler = _mm512_set1_epi16(static_cast<short>(0xff01));
+
+        const auto mid0 = _mm512_srli_epi16(_mm512_mulhi_epu16(dat0, muler), 8);
+        const auto mid1 = _mm512_srli_epi16(_mm512_mulhi_epu16(dat1, muler), 8);
+        const U8x32 out0 = _mm512_cvtepi16_epi8(mid0);
+        const U8x32 out1 = _mm512_cvtepi16_epi8(mid1);
+
+        out0.Save(dst +  0);
+        out1.Save(dst + 32);
+    }
+};
 template<bool Is555>
 struct RGB5x5ToRGB8_512Base
 {
@@ -7155,6 +7312,14 @@ DEFINE_FASTPATH_METHOD(Combine32x4, AVX512BW)
     CombineLOOP4<4, Combine32x4_512, &Func<AVX2>>(dest, src, count);
 }
 
+DEFINE_FASTPATH_METHOD(G8ToG16, AVX512BW)
+{
+    ProcessLOOP4<G8ToG16_512, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(G16ToG8, AVX512BW)
+{
+    ProcessLOOP4<G16ToG8_512, &Func<AVX2>>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(RGB555ToRGB8, AVX512BW)
 {
     ProcessLOOP4<RGB5x5ToRGB8_256<true, true>, &Func<LOOP>>(dest, src, count);
@@ -7631,6 +7796,39 @@ struct Combine8x3_512VBMI
         _mm512_storeu_epi8(dst + 128, out2);
     }
 };
+struct G8ToG16_512VBMI
+{
+    static constexpr size_t M = 64, N = 64, K = 64;
+    forceinline void operator()(uint16_t* __restrict dst, const uint8_t* __restrict src) const noexcept
+    {
+        const auto dat = _mm512_loadu_epi8(src);
+
+        const auto out0 = _mm512_permutexvar_epi8(_mm512_set_epi8(31, 31, 30, 30, 29, 29, 28, 28, 27, 27, 26, 26, 25, 25, 24, 24, 23, 23, 22, 22, 21, 21, 20, 20, 19, 19, 18, 18, 17, 17, 16, 16,
+            15, 15, 14, 14, 13, 13, 12, 12, 11, 11, 10, 10, 9, 9, 8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0), dat);
+        const auto out1 = _mm512_permutexvar_epi8(_mm512_set_epi8(63, 63, 62, 62, 61, 61, 60, 60, 59, 59, 58, 58, 57, 57, 56, 56, 55, 55, 54, 54, 53, 53, 52, 52, 51, 51, 50, 50, 49, 49, 48, 48,
+            47, 47, 46, 46, 45, 45, 44, 44, 43, 43, 42, 42, 41, 41, 40, 40, 39, 39, 38, 38, 37, 37, 36, 36, 35, 35, 34, 34, 33, 33, 32, 32), dat);
+
+        _mm512_storeu_epi16(dst +  0, out0);
+        _mm512_storeu_epi16(dst + 32, out1);
+    }
+};
+struct G16ToG8_512VBMI
+{
+    static constexpr size_t M = 64, N = 64, K = 64;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi16(src);
+        const auto dat1 = _mm512_loadu_epi16(src + 32);
+        const auto muler = _mm512_set1_epi16(static_cast<short>(0xff01));
+
+        const auto mid0 = _mm512_mulhi_epu16(dat0, muler);
+        const auto mid1 = _mm512_mulhi_epu16(dat1, muler);
+        const auto out = _mm512_permutex2var_epi8(mid0, _mm512_set_epi8(127, 125, 123, 121, 119, 117, 115, 113, 111, 109, 107, 105, 103, 101, 99, 97, 95, 93, 91, 89, 87, 85, 83, 81, 79, 77, 75, 73, 71, 69, 67, 65,
+            63, 61, 59, 57, 55, 53, 51, 49, 47, 45, 43, 41, 39, 37, 35, 33, 31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1), mid1);
+        
+        _mm512_storeu_epi8(dst + 0, out);
+    }
+};
 template<bool IsRGB, bool Is555>
 struct RGB5x5ToRGB8_512VBMI : RGB5x5ToRGB8_512Base<Is555>
 {
@@ -7735,6 +7933,14 @@ DEFINE_FASTPATH_METHOD(Extract8x4, AVX512VBMI)
 DEFINE_FASTPATH_METHOD(Combine8x3, AVX512VBMI)
 {
     CombineLOOP4<3, Combine8x3_512VBMI, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(G8ToG16, AVX512VBMI)
+{
+    ProcessLOOP4<G8ToG16_512VBMI, &Func<AVX2>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(G16ToG8, AVX512VBMI)
+{
+    ProcessLOOP4<G16ToG8_512VBMI, &Func<AVX2>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(RGB555ToRGB8, AVX512VBMI)
 {
