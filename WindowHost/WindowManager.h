@@ -241,7 +241,35 @@ protected:
     using TitleLock = ResApplyLock<WdAttrIndex::Title>;
     using IconLock = ResApplyLock<WdAttrIndex::Icon>;
     using BgLock = ResApplyLock<WdAttrIndex::Background>;
-    
+    template<typename T>
+    struct CacheRect
+    {
+        T Width = 0, Height = 0;
+        // return { sizeChanged, needInitialize }
+        constexpr std::pair<bool, bool> Update(const WindowHost_& wd) noexcept
+        {
+            if (Width != wd.Width || Height != wd.Height)
+            {
+                const bool initilized = Width > 0 && Height > 0;
+                Width = static_cast<T>(wd.Width), Height = static_cast<T>(wd.Height);
+                return { true, !initilized };
+            }
+            return { false, false };
+        }
+        constexpr std::pair<T, T> ResizeWithin(uint32_t w, uint32_t h) const noexcept
+        {
+            const auto dw = Width, dh = Height;
+            const auto wAlignH = uint64_t(dw) * h / w, hAlignW = uint64_t(dh) * w / h;
+            Ensures((wAlignH <= (uint32_t)dh) || (hAlignW <= (uint32_t)dw));
+            T tw = 0, th = 0;
+            if (wAlignH <= (uint32_t)dh) // W-align
+                tw = dw, th = static_cast<T>(wAlignH);
+            else // H-align
+                tw = static_cast<T>(hAlignW), th = dh;
+            return { tw, th };
+        }
+    };
+
     WindowManager();
 
     template<typename T>

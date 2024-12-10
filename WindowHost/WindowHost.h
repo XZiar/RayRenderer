@@ -185,6 +185,7 @@ private:
     void RefreshMouseButton(event::MouseButton pressed) noexcept;
 protected:
     WindowHost_(detail::WindowManager& manager, const CreateInfo& info) noexcept;
+    detail::WindowManager& GetManager() noexcept { return Manager; }
     using LoopBase::Wakeup;
     bool HandleInvoke() noexcept;
 

@@ -4,16 +4,23 @@
 
 #include "SystemCommon/Exceptions.h"
 #include "common/ContainerEx.hpp"
+#include "common/FrozenDenseSet.hpp"
 #include "common/StaticLookup.hpp"
 #include "common/StringEx.hpp"
 #include "common/StringPool.hpp"
 #include "common/StringLinq.hpp"
+#include "common/MemoryStream.hpp"
+#include "common/Linq2.hpp"
 
 #include <boost/container/small_vector.hpp>
 
 #include <X11/Xlib.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb.h>
+#include <xcb/bigreq.h>
+#include <xcb/dri2.h>
+#include <xcb/dri3.h>
+//#include <xcb/xcb_image.h>
 #define explicit explicit_
 #include <xcb/xkb.h>
 #undef explicit
@@ -25,16 +32,21 @@
 
 constexpr uint32_t MessageCreate    = 1;
 constexpr uint32_t MessageTask      = 2;
-constexpr uint32_t MessageUpdTitle  = 3;
-constexpr uint32_t MessageClose     = 4;
-constexpr uint32_t MessageStop      = 5;
-constexpr uint32_t MessageDpi       = 6;
+constexpr uint32_t MessageClose     = 3;
+constexpr uint32_t MessageStop      = 4;
+constexpr uint32_t MessageDpi       = 5;
+//constexpr uint32_t MessageBuildBG   = 6;
+constexpr uint32_t MessageUpdTitle  = 10;
+constexpr uint32_t MessageUpdIcon   = 11;
 
 
 namespace xziar::gui::detail
 {
 using namespace std::string_view_literals;
 using xziar::gui::event::CommonKeys;
+using xziar::img::Image;
+using xziar::img::ImageView;
+using xziar::img::ImgDType;
 
 
 struct DragInfos
@@ -54,6 +66,35 @@ struct DragInfos
     }
 };
 
+struct IconHolder : public OpaqueResource
+{
+    explicit IconHolder(common::span<const uint32_t> pixels, uint32_t w, uint32_t h) noexcept : 
+        OpaqueResource(&TheDisposer, pixels.size() + 2, reinterpret_cast<uintptr_t>(new uint32_t[pixels.size() + 2])) 
+    {
+        const auto data = Data();
+        data[0] = w, data[1] = h;
+        memcpy_s(&data[2], data.size_bytes() - 4, pixels.data(), pixels.size() * sizeof(uint32_t));
+    }
+    common::span<uint32_t> Data() noexcept { return { reinterpret_cast<uint32_t*>(Cookie[1]), static_cast<size_t>(Cookie[0]) }; }
+    common::span<const uint32_t> Data() const noexcept { return { reinterpret_cast<const uint32_t*>(Cookie[1]), static_cast<size_t>(Cookie[0]) }; }
+    static void TheDisposer(const OpaqueResource& res) noexcept
+    {
+        const auto& holder = static_cast<const IconHolder&>(res);
+        const auto data = holder.Data();
+        ::delete[] data.data();
+    }
+};
+struct RenderImgHolder : public OpaqueResource
+{
+    explicit RenderImgHolder(const ImageView& img) noexcept : OpaqueResource(&TheDisposer, reinterpret_cast<uintptr_t>(new ImageView(img))) {}
+    const ImageView& Image() const noexcept { return *reinterpret_cast<const ImageView*>(Cookie[0]); }
+    static void TheDisposer(const OpaqueResource& res) noexcept
+    {
+        const auto& holder = static_cast<const RenderImgHolder&>(res);
+        delete &holder.Image();
+    }
+};
+
 class WindowManagerXCB final : public XCBBackend, public WindowManager
 {
 public:
@@ -62,28 +103,79 @@ private:
     class WdHost final : public XCBBackend::XCBWdHost
     {
     public:
+        WindowManagerXCB& GetManager() noexcept { return static_cast<WindowManagerXCB&>(WindowHost_::GetManager()); }
         xcb_window_t Handle = 0;
+        xcb_gcontext_t GContext = 0;
+        xcb_pixmap_t BackImage = 0;
+        CacheRect<uint16_t> BackBuf;
         DragInfos DragInfo;
         bool NeedBackground = true;
         WdHost(WindowManagerXCB& manager, const XCBCreateInfo& info) noexcept :
             XCBWdHost(manager, info) { }
         ~WdHost() final {}
         uint32_t GetWindow() const noexcept final { return Handle; }
+        void OnDisplay() noexcept final
+        {
+            auto& manager = GetManager();
+            const auto [ sizeChanged, needInit ] = BackBuf.Update(*this);
+            if (sizeChanged)
+            {
+                if (!needInit) manager.Free(BackImage);
+                manager.GeneralHandleError(xcb_create_pixmap(manager.Connection, manager.Screen->root_depth, BackImage, Handle, BackBuf.Width, BackBuf.Height));
+            }
+            bool needDraw = false;
+            {
+                BgLock lock(this);
+                const bool bgChanged = lock;
+                const auto& holder = static_cast<RenderImgHolder&>(*GetWindowResource(this, WdAttrIndex::Background));
+                if (bgChanged || sizeChanged)
+                {
+                    common::SimpleTimer timer;
+                    timer.Start();
+                    xcb_rectangle_t rect{ .x = 0, .y = 0, .width = BackBuf.Width, .height = BackBuf.Height };
+                    manager.GeneralHandleError(xcb_poly_fill_rectangle(manager.Connection, BackImage, GContext, 1, &rect));
+                    if (holder)
+                    {
+                        const auto& img = holder.Image();
+                        const auto [tw, th] = BackBuf.ResizeWithin(img.GetWidth(), img.GetHeight());
+                        const auto newimg = img.ResizeTo(tw, th, true, true);
+                        manager.PutImageInPixmap(*this, BackImage, newimg, BackBuf.Width, BackBuf.Height);
+                        timer.Stop();
+                        Manager.Logger.Verbose(u"Window [{:x}] rebuild backbuffer in [{} ms].\n", Handle, timer.ElapseMs());
+                    }
+                }
+                needDraw = NeedBackground || bgChanged || (sizeChanged && holder);
+            }
+            if (needDraw)
+            {
+                xcb_copy_area(manager.Connection, BackImage, Handle, GContext, 0, 0, 0, 0, BackBuf.Width, BackBuf.Height);
+                xcb_flush(manager.Connection);
+            }
+            WindowHost_::OnDisplay();
+        }
     };
 
     xcb_connection_t* Connection = nullptr;
     Display* TheDisplay = nullptr;
     int32_t DefScreen = 0;
+    ImgDType PixmapDType;
+    size_t ReqMaxSize = 0;
     xkb_context* XKBContext = nullptr;
     xkb_keymap* XKBKeymap = nullptr;
     xkb_state* XKBState = nullptr;
     xcb_screen_t* Screen = nullptr;
+    common::container::FrozenDenseSet<std::string_view> Extensions;
+    std::map<std::string, std::variant<uint32_t, std::string, std::array<uint16_t, 4>>, std::less<>> XSettings;
+    uint32_t BGColor = 0;
     xcb_window_t ControlWindow = 0;
     xcb_atom_t MsgAtom = 0;
     xcb_atom_t WMProtocolAtom = 0;
     xcb_atom_t WMStateAtom = 0;
     xcb_atom_t WMStateHiddenAtom = 0;
+    xcb_atom_t WMIconAtom = 0;
     xcb_atom_t CloseAtom = 0;
+    xcb_atom_t XSServerAtom = 0;
+    xcb_atom_t XSSettingAtom = 0;
     xcb_atom_t XdndProxyAtom = 0;
     xcb_atom_t XdndAwareAtom = 0;
     xcb_atom_t XdndTypeListAtom = 0;
@@ -117,7 +209,7 @@ private:
     void* GetConnection() const noexcept final { return Connection; }
     int32_t GetDefaultScreen() const noexcept final { return DefScreen; }
 
-    bool GeneralHandleError(xcb_generic_error_t* err) noexcept
+    bool GeneralHandleError(xcb_generic_error_t* err) const noexcept
     {
         if (err)
         {
@@ -127,7 +219,7 @@ private:
         }
         return true;
     }
-    forceinline bool GeneralHandleError(xcb_void_cookie_t cookie) noexcept
+    forceinline bool GeneralHandleError(xcb_void_cookie_t cookie) const noexcept
     {
         return GeneralHandleError(xcb_request_check(Connection, cookie));
     }
@@ -151,6 +243,7 @@ private:
         boost::container::small_vector<std::byte, 48> data;
         do
         {
+            Ensures(offset % 4 == 0);
             xcb_get_property_cookie_t cookie = xcb_get_property(Connection, 0, window, prop, type, offset / 4, (want + 3) / 4);
             xcb_generic_error_t *err = nullptr;
             xcb_get_property_reply_t* reply = xcb_get_property_reply(Connection, cookie, &err);
@@ -164,13 +257,14 @@ private:
             }
             const auto ptr = xcb_get_property_value(reply);
             const auto readLen = xcb_get_property_value_length(reply);
+            want = reply->bytes_after;
             if (readLen)
             {
-                data.resize(offset + readLen);
-                memcpy_s(&data[offset], readLen, ptr, readLen);
-                offset += readLen;
+                const auto copyLen = (want > 0 && readLen % 4 != 0) ? readLen / 4 * 4 : readLen; // u32 unit
+                data.resize(offset + copyLen);
+                memcpy_s(&data[offset], copyLen, ptr, copyLen);
+                offset += copyLen;
             }
-            want = reply->bytes_after;
             free(reply);
         } while (want);
         data.resize(offset);
@@ -225,6 +319,81 @@ private:
         xcb_change_property(Connection, XCB_PROP_MODE_REPLACE, window, XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8,
             gsl::narrow_cast<uint32_t>(title.size()), title.c_str());
     }
+    void SetIcon(xcb_window_t window, common::span<const uint32_t> data)
+    {
+        xcb_change_property(Connection, XCB_PROP_MODE_REPLACE, window, WMIconAtom, XCB_ATOM_CARDINAL, 32,
+            gsl::narrow_cast<uint32_t>(data.size()), data.data());
+    }
+    void LoadXSettings()
+    {
+        if (!XSServerAtom) return;
+        const auto ownerReply = xcb_get_selection_owner_reply(Connection, xcb_get_selection_owner(Connection, XSServerAtom), nullptr);
+        if (!ownerReply) return;
+        const auto xsWindow = ownerReply->owner;
+        free(ownerReply);
+        if (!xsWindow) return;
+        const auto settings = QueryProperty(xsWindow, XSSettingAtom, XCB_ATOM_ANY);
+        if (!settings.has_value()) return;
+        common::io::MemoryInputStream stream(common::span<const std::byte>{settings->data(), settings->size()});
+        struct Header
+        {
+            uint8_t ByteOrder = XCB_IMAGE_ORDER_LSB_FIRST;
+            uint8_t Padding[3] = { 0 };
+            uint8_t Serial[4] = { 0 };
+            int32_t Count = 0;
+        };
+        Header header;
+        if (!stream.Read(header) || header.ByteOrder != XCB_IMAGE_ORDER_LSB_FIRST) return;
+        bool isSuccess = true;
+        while (header.Count-- && isSuccess)
+        {
+            static constexpr uint8_t TypeInteger = 0;
+            static constexpr uint8_t TypeString  = 1;
+            static constexpr uint8_t TypeColor   = 2;
+            struct SettingHeader
+            {
+                uint8_t Type = 0;
+                uint8_t Padding = 0;
+                uint16_t NameSize = 0;
+            };
+            SettingHeader sHead;
+            isSuccess = stream.Read(sHead);
+            std::string name;
+            const uint32_t nameUnit = (sHead.NameSize + 3) / 4 * 4; // u32 align
+            isSuccess = isSuccess && nameUnit > 0 && sHead.Type <= TypeColor // valid setting
+                && stream.ReadTo(name, nameUnit) == nameUnit // name with padding
+                && stream.Skip(4); // serial
+            if (isSuccess)
+            {
+                name.resize(sHead.NameSize);
+                switch (sHead.Type)
+                {
+                case TypeInteger:
+                    if (uint32_t val = 0; (isSuccess = stream.Read(val)))
+                        XSettings.insert_or_assign(std::move(name), val);
+                    break;
+                case TypeString:
+                {
+                    uint32_t strSize = 0;
+                    isSuccess = stream.Read(strSize);
+                    std::string str;
+                    const auto strUnit = (strSize + 3) / 4 * 4; // u32 align
+                    isSuccess = isSuccess && strUnit > 0 && stream.ReadTo(str, strUnit) == strUnit;
+                    if (isSuccess)
+                    {
+                        str.resize(strSize);
+                        XSettings.insert_or_assign(std::move(name), std::move(str));
+                    }
+                } break;
+                case TypeColor:
+                    if (std::array<uint16_t, 4> clr = {}; (isSuccess = stream.Read(clr)))
+                        XSettings.insert_or_assign(std::move(name), clr);
+                    break;
+                default: CM_UNREACHABLE();
+                }
+            }
+        }
+    }
 public:
     WindowManagerXCB() : XCBBackend(true) { }
     ~WindowManagerXCB() override { }
@@ -264,6 +433,52 @@ public:
                 COMMON_THROW(BaseException, u"Can't get xcb connection from display");
             }
         }
+        // list extensions
+        {
+            xcb_generic_error_t *err = nullptr;
+            const auto ck = xcb_list_extensions(Connection);
+            const auto reply = xcb_list_extensions_reply(Connection, ck, &err);
+            GeneralHandleError(err);
+            if (reply)
+            {
+                std::vector<std::string_view> exts;
+                for (auto extIter = xcb_list_extensions_names_iterator(reply); extIter.rem; xcb_str_next(&extIter))
+                {
+                    const auto str = xcb_str_name(extIter.data);
+                    const auto len = xcb_str_name_length(extIter.data);
+                    exts.emplace_back(str, len);
+                }
+                Extensions = exts;
+                std::string exttxts("xcb Extensions:\n");
+                for (const auto& ext : Extensions)
+                    exttxts.append(ext).push_back('\n');
+                Logger.Verbose(u"{}", exttxts);
+                free(reply);
+            }
+        }
+        // no need to explicit enable big request
+#if 0
+        if (Extensions.Has("BIG-REQUESTS"))
+        {
+            xcb_generic_error_t *err = nullptr;
+            const auto ck = xcb_big_requests_enable(Connection);
+            const auto reply = xcb_big_requests_enable_reply(Connection, ck, &err);
+            GeneralHandleError(err);
+            if (reply)
+            {
+                ReqMaxSize = reply->maximum_request_length * sizeof(uint32_t);
+                free(reply);
+            }
+        }
+#endif
+        ReqMaxSize = xcb_get_maximum_request_length(Connection) * sizeof(uint32_t);
+
+        auto setup = xcb_get_setup(Connection);
+        Ensures(setup->image_byte_order == XCB_IMAGE_ORDER_LSB_FIRST);
+        std::string_view vendor;
+        if (const auto vlen = xcb_setup_vendor_length(setup); vlen > 0)
+            vendor = { xcb_setup_vendor(setup), static_cast<size_t>(vlen) };
+        Logger.Debug(u"xcb initialized as [{}.{}], vendor[{}], max-req-size[{}]\n"sv, setup->protocol_major_version, setup->protocol_minor_version, vendor, ReqMaxSize);
 
         // Setup xkb
         uint16_t xkbVersion[2] = {0};
@@ -284,13 +499,81 @@ public:
         CapsLockIndex = xkb_keymap_mod_get_index(XKBKeymap, XKB_MOD_NAME_CAPS);
         UpdateXKBState();
 
-        auto setup = xcb_get_setup(Connection);
-        Logger.Debug(u"xcb initialized as [{}.{}]\n"sv, setup->protocol_major_version, setup->protocol_minor_version);
         // Find XCB screen
-        auto screenIter = xcb_setup_roots_iterator(setup);
-        for (auto screenCnt = DefScreen; screenIter.rem && screenCnt--;)
-            xcb_screen_next(&screenIter);
-        Screen = screenIter.data;
+        {
+            auto screenIter = xcb_setup_roots_iterator(setup);
+            for (auto screenCnt = DefScreen; screenIter.rem && screenCnt--;)
+                xcb_screen_next(&screenIter);
+            Screen = screenIter.data;
+        }
+        const xcb_format_t* pixmapFormat = nullptr;
+        {
+            const auto ptrFmt = xcb_setup_pixmap_formats(setup);
+            const auto count = xcb_setup_pixmap_formats_length(setup);
+            for (int i = 0; i < count; ++i)
+            {
+                if (ptrFmt[i].depth == Screen->root_depth)
+                {
+                    Logger.Verbose(u"match pixmap format: [{}]bpp, pad[{}]\n"sv, ptrFmt[i].bits_per_pixel, ptrFmt[i].scanline_pad);
+                    if (!pixmapFormat) pixmapFormat = &ptrFmt[i];
+                }
+            }
+        }
+        {
+            struct VisaulDType
+            {
+                ImgDType Type;
+                uint8_t TotalBits;
+                uint8_t BitPerComp;
+                uint32_t RedMask;
+                uint32_t GreenMask;
+                uint32_t BlueMask;
+                constexpr bool operator==(const xcb_visualtype_t& v) const noexcept
+                {
+                    return v.bits_per_rgb_value == BitPerComp && v.red_mask == RedMask && v.green_mask == GreenMask && v.blue_mask == BlueMask;
+                }
+            };
+            static constexpr VisaulDType VDMap[] = 
+            {
+                { xziar::img::ImageDataType::RGBA,   32,  8, 0x000000ffu, 0x0000ff00u, 0x00ff0000u },
+                { xziar::img::ImageDataType::BGRA,   32,  8, 0x00ff0000u, 0x0000ff00u, 0x000000ffu },
+                { xziar::img::ImageDataType::RGB,    24,  8, 0x000000ffu, 0x0000ff00u, 0x00ff0000u },
+                { xziar::img::ImageDataType::BGR,    24,  8, 0x00ff0000u, 0x0000ff00u, 0x000000ffu },
+                { xziar::img::ImageDataType::GA,     16,  8, 0x000000ffu, 0x00000000u, 0x00000000u },
+                { xziar::img::ImageDataType::GRAY,    8,  8, 0x000000ffu, 0x00000000u, 0x00000000u },
+                { xziar::img::ImageDataType::RGBA16, 64, 16, 0x000000ffu, 0x0000ff00u, 0x00ff0000u },
+                { xziar::img::ImageDataType::BGRA16, 64, 16, 0x00ff0000u, 0x0000ff00u, 0x000000ffu },
+                { xziar::img::ImageDataType::RGB16,  48, 16, 0x000000ffu, 0x0000ff00u, 0x00ff0000u },
+                { xziar::img::ImageDataType::BGR16,  48, 16, 0x00ff0000u, 0x0000ff00u, 0x000000ffu },
+                { xziar::img::ImageDataType::GA16,   32, 16, 0x000000ffu, 0x00000000u, 0x00000000u },
+                { xziar::img::ImageDataType::GRAY16, 16, 16, 0x000000ffu, 0x00000000u, 0x00000000u },
+            };
+            const auto targetBPP = pixmapFormat ? pixmapFormat->bits_per_pixel : Screen->root_depth;
+            const xcb_visualtype_t* matchVisual = nullptr;
+            for (auto depthIter = xcb_screen_allowed_depths_iterator(Screen); depthIter.rem; xcb_depth_next(&depthIter))
+            {
+                const auto visuals = xcb_depth_visuals(depthIter.data);
+                const auto count = xcb_depth_visuals_length(depthIter.data);
+                for (int i = 0; i < count; ++i)
+                {
+                    if (const auto& visual = visuals[i]; visual.visual_id == Screen->root_visual)
+                    {
+                        const auto dtype = common::linq::FromIterable(VDMap)
+                            .Where([&](const VisaulDType& vd){ return vd.TotalBits == targetBPP && vd == visual; })
+                            .TryGetFirst();
+                        Logger.Verbose(u"match visual: [{}]bit each, R[{:08X}] G[{:08X}] B[{:08X}]\n"sv, visual.bits_per_rgb_value, visual.red_mask, visual.green_mask, visual.blue_mask);
+                        if (!PixmapDType && dtype)
+                        {
+                            matchVisual = &visual;
+                            PixmapDType = dtype->Type;
+                        }
+                        else if (!matchVisual)
+                            matchVisual = &visual;
+                    }
+                }
+            }
+        }
+        Logger.Debug(u"screen: [{}x{}] depth[{}] visual[{}]({})\n"sv, Screen->width_in_pixels, Screen->height_in_pixels, Screen->root_depth, Screen->root_visual, PixmapDType.ToString());
 
         // control window 
         ControlWindow = xcb_generate_id(Connection);
@@ -315,13 +598,17 @@ public:
 
         // prepare atoms
         {
+            const auto xsName = std::string("0_XSETTINGS_S") + std::to_string(DefScreen);
             const std::pair<xcb_atom_t*, std::string_view> atomList[] = 
             {
                 { &MsgAtom,             "1XZIAR_GUI_MSG"sv       },
                 { &WMProtocolAtom,      "0WM_PROTOCOLS"sv        },
                 { &WMStateAtom,         "0_NET_WM_STATE"sv       },
                 { &WMStateHiddenAtom,   "0_NET_WM_STATE_HIDDEN"sv},
+                { &WMIconAtom,          "0_NET_WM_ICON"sv        },
                 { &CloseAtom,           "0WM_DELETE_WINDOW"sv    },
+                { &XSServerAtom,        xsName                   },
+                { &XSSettingAtom,       "0_XSETTINGS_SETTINGS"sv },
                 { &XdndProxyAtom,       "0XdndProxy"sv           },
                 { &XdndAwareAtom,       "0XdndAware"sv           },
                 { &XdndTypeListAtom,    "0XdndTypeList"sv        },
@@ -350,11 +637,64 @@ public:
             size_t atomIdx = 0;
             for (const auto& cookie : atomCookies)
             {
-                xcb_intern_atom_reply_t* reply = xcb_intern_atom_reply(Connection, cookie, nullptr);
-                *atomList[atomIdx++].first = reply->atom;
-                free(reply);
+                const auto reply = xcb_intern_atom_reply(Connection, cookie, nullptr);
+                if (reply)
+                {
+                    *atomList[atomIdx++].first = reply->atom;
+                    free(reply);
+                }
             }
         }
+        // read xsettings
+        LoadXSettings();
+        {
+            std::string str;
+            common::str::Formatter<char> fmter;
+            for (const auto& [k, v] : XSettings)
+            {
+                switch (v.index())
+                {
+                case 0: fmter.FormatToStatic(str, FmtString("[{}] = [{}]\n"), k, std::get<0>(v)); break;
+                case 1: fmter.FormatToStatic(str, FmtString("[{}] = [{}]\n"), k, std::get<1>(v)); break;
+                case 2: fmter.FormatToStatic(str, FmtString("[{}] = [{}]\n"), k, common::span<const uint16_t>(std::get<2>(v))); break;
+                }
+            }
+            if (!str.empty())
+                Logger.Verbose(u"XSettings:\n{}", str);
+            if (const auto it = XSettings.find("Net/ThemeName"); it != XSettings.end() && it->second.index() == 1)
+                BGColor = common::str::ToLowerEng(std::get<1>(it->second)).ends_with("dark") ? Screen->black_pixel : Screen->white_pixel;
+            else
+                BGColor = Screen->black_pixel;
+        }
+#if 0
+        {
+            const auto rmdb = xcb_xrm_database_from_default(Connection);
+
+            if (rmdb)
+            {
+                const char* names[] = 
+                {
+                    "background",
+                    "foreground",
+                    "color0",  // Black
+                    "color1",  // Red
+                    "color2",  // Green
+                    "kde.palette.activeBackground",
+                    "kde.palette.activeForeground"
+                };
+                for (const auto name : names)
+                {
+                    char* val = nullptr;
+                    if (0 == xcb_xrm_resource_get_string(rmdb, name, nullptr, &val) && val)
+                    {
+                        Logger.Verbose(u"xrm: [{}]: [{}]\n", name, val);
+                    }
+                }
+                xcb_xrm_database_free(rmdb);
+            }
+        }
+#endif
+
         xcb_flush(Connection);
         XCBBackend::OnInitialize(info_);
     }
@@ -389,12 +729,6 @@ public:
         {
             HandleTask();
         } break;
-        case MessageUpdTitle:
-        {
-            const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(ptr));
-            TitleLock lock(host);
-            SetTitle(host->Handle, host->Title);
-        } break;
         case MessageClose:
         {
             const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(ptr));
@@ -410,6 +744,23 @@ public:
             const auto wpix = Screen->width_in_pixels, hpix = Screen->height_in_pixels;
             const auto dpix = 25.4f * wpix / wmm, dpiy = 25.4f * hpix / hmm;
             host->OnDPIChange(dpix, dpiy);
+        } break;
+        case MessageUpdTitle:
+        {
+            const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(ptr));
+            TitleLock lock(host);
+            SetTitle(host->Handle, host->Title);
+        } break;
+        case MessageUpdIcon:
+        {
+            const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(ptr));
+            const auto ptrIcon = GetWindowResource(host, WdAttrIndex::Icon);
+            if (ptrIcon)
+            {
+                IconLock lock(host);
+                const auto& holder = static_cast<IconHolder&>(*ptrIcon);
+                SetIcon(host->Handle, holder.Data());
+            }
         } break;
         case MessageStop:
             return false;
@@ -481,9 +832,10 @@ public:
                 if (dragInfo.TargetType)
                 {
                     sendData[1] = 1;
-                    sendData[4] = XdndActionLinkAtom;
+                    sendData[4] = XdndActionCopyAtom;
                 }
                 SendClientMessage(dragInfo.SourceWindow, XdndStatusAtom, sendData);
+                xcb_flush(Connection);
             }
             else if (dragInfo.SourceWindow)
                 dragInfo.Clear();
@@ -535,6 +887,10 @@ public:
         {
             const auto host = static_cast<WdHost*>(host_);
             host->Handle = window;
+            host->GContext = xcb_generate_id(Connection);
+            host->BackImage = xcb_generate_id(Connection);
+            uint32_t values[] = { BGColor, 0 };
+            xcb_create_gc(Connection, host->GContext, host->Handle, XCB_GC_FOREGROUND | XCB_GC_GRAPHICS_EXPOSURES, values);
             host->Initialize();
         }
     }
@@ -544,7 +900,7 @@ public:
         bool shouldContinue = true;
         while (shouldContinue && (evt = xcb_wait_for_event(Connection)))
         {
-            // Logger.Verbose(u"Recieve message [{}]\n", (uint32_t)event->response_type);
+            // Logger.Verbose(u"Recieve message [{}]\n", (uint32_t)evt->response_type);
             switch (const auto evtType = evt->response_type & 0x7f; evtType)
             {
             case XCB_CREATE_NOTIFY:
@@ -650,6 +1006,9 @@ public:
                     host->Invalidate();
                 }
             } break;
+            case XCB_NO_EXPOSURE: // simply ignore
+            {
+            } break;
             case XCB_SELECTION_NOTIFY:
             {
                 const auto& msg = *reinterpret_cast<xcb_selection_notify_event_t*>(evt);
@@ -668,7 +1027,7 @@ public:
                         Expects(dragInfo.SourceWindow);
                         uint32_t sendData[3] = { host->Handle, 1, XdndActionCopyAtom };
                         SendClientMessage(dragInfo.SourceWindow, XdndFinishedAtom, sendData);
-
+                        xcb_flush(Connection);
                         if (ret)
                         {
                             const auto cookie = xcb_translate_coordinates(Connection, Screen->root, host->Handle, dragInfo.PosX, dragInfo.PosY);
@@ -828,6 +1187,18 @@ public:
             static_cast<uint32_t>(ptr & 0xffffffff),
             static_cast<uint32_t>((ptr >> 32) & 0xffffffff));
     }
+    void UpdateIcon(WindowHost_* host) const final
+    {
+        if (!WMIconAtom)
+        {
+            Logger.Warning(u"Not updating icon due to atom not found.\n");
+            return;
+        }
+        const uint64_t ptr = reinterpret_cast<uintptr_t>(host);
+        SendControlRequest(MessageUpdIcon,
+            static_cast<uint32_t>(ptr & 0xffffffff),
+            static_cast<uint32_t>((ptr >> 32) & 0xffffffff));
+    }
     void CloseWindow(WindowHost_* host) const final
     {
         const uint64_t ptr = reinterpret_cast<uintptr_t>(host);
@@ -837,7 +1208,89 @@ public:
     }
     void ReleaseWindow(WindowHost_* host) final
     {
+        auto& wd = *static_cast<WdHost*>(host);
+        //xcb_free_pixmap(Connection, wd.BackImage);
+        xcb_free_gc(Connection, wd.GContext);
         UnregisterHost(host);
+    }
+
+    OpaqueResource PrepareIcon(WindowHost_& host, ImageView img) const noexcept final
+    {
+        if (!img.GetDataType().Is(ImgDType::DataTypes::Uint8))
+            return {};
+        const auto ow = img.GetWidth(), oh = img.GetHeight();
+        if (!ow || !oh)
+            return {};
+
+        const auto osize = std::min(ow, oh);
+        uint16_t tsize = 0;
+        if (osize > 256u)
+            tsize = 256; // resize to 256x256
+        else if (osize < 32u)
+            tsize = 32;
+        else if (osize % 16 != 0)
+            tsize = static_cast<uint16_t>(osize / 16 * 16);
+        if (tsize)
+            img = img.ResizeTo(tsize, tsize, true, true);
+        else
+            tsize = static_cast<uint16_t>(osize);
+        Ensures(tsize <= 256u && tsize >= 32u && tsize % 16 == 0u);
+
+        if (img.GetDataType() != xziar::img::ImageDataType::BGRA)
+            img = img.ConvertTo(xziar::img::ImageDataType::BGRA);
+
+        return static_cast<OpaqueResource>(IconHolder(img.AsSpan<uint32_t>(), tsize, tsize));
+    }
+
+    bool PutImageInPixmap(WindowHost_& host_, xcb_pixmap_t pixmap, const ImageView& img, uint16_t pw, uint16_t ph) const noexcept
+    {
+        const auto w = img.GetWidth(), h = img.GetHeight(); 
+        Expects(w <= pw && h <= ph);
+        Expects(img.GetDataType() == PixmapDType);
+        auto& host = static_cast<WdHost&>(host_);
+        const auto rowStep = img.RowSize();
+        const auto maxHeight = ReqMaxSize / rowStep;
+        const auto trunks = (h + maxHeight - 1) / maxHeight;
+        if (trunks > 1)
+        {
+            Logger.Verbose(u"Image is big [{}x{}], need to transfer with {} trunk({} row each).\n", w, h, trunks, maxHeight);
+            std::vector<xcb_void_cookie_t> cks;
+            cks.reserve(trunks);
+            for (uint16_t i = 0; i < h;)
+            {
+                const auto row = std::min<size_t>(maxHeight, h - i);
+                const auto sendSize = gsl::narrow_cast<uint32_t>(row * rowStep);
+                cks.emplace_back(xcb_put_image(Connection, XCB_IMAGE_FORMAT_Z_PIXMAP, pixmap, host.GContext, 
+                    w, row, 0, i, 0, Screen->root_depth, sendSize, img.GetRawPtr<uint8_t>() + i * rowStep));
+                i += row;
+            }
+            for (const auto& ck : cks)
+                if (!GeneralHandleError(ck)) return false;
+        }
+        else
+        {
+            const auto ck = xcb_put_image(Connection, XCB_IMAGE_FORMAT_Z_PIXMAP, pixmap, host.GContext, 
+                w, h, 0, 0, 0, Screen->root_depth, gsl::narrow_cast<uint32_t>(img.GetSize()), img.GetRawPtr<uint8_t>());
+            if (!GeneralHandleError(ck)) return false;
+        }
+        xcb_flush(Connection);
+        Logger.Verbose(u"Image transfer complete.\n");
+        return true;
+    }
+    OpaqueResource CacheRenderImage(WindowHost_& host_, ImageView img) const noexcept 
+    {
+        if (!PixmapDType) return {};
+        if (const auto w = img.GetWidth(), h = img.GetHeight(); w >= UINT16_MAX || h >= UINT16_MAX)
+        {
+            uint32_t neww = 0, newh = 0;
+            (w > h ? neww : newh) = UINT16_MAX;
+            img = img.ResizeTo(neww, newh, true, true);
+        }
+        if (img.GetDataType() != PixmapDType)
+        {
+            img = img.ConvertTo(PixmapDType);
+        }
+        return static_cast<OpaqueResource>(RenderImgHolder(img));
     }
 
     WindowHost Create(const CreateInfo& info_) final
@@ -849,6 +1302,11 @@ public:
     std::shared_ptr<XCBWdHost> Create(const XCBCreateInfo& info) final
     {
         return std::make_shared<WdHost>(*this, info);
+    }
+
+    void Free(xcb_pixmap_t pixmap) const noexcept
+    {
+        GeneralHandleError(xcb_free_pixmap(Connection, pixmap));
     }
 
     static inline const auto Dummy = RegisterBackend<WindowManagerXCB>();

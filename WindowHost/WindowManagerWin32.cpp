@@ -146,6 +146,7 @@ private:
     class WdHost final : public Win32Backend::Win32WdHost
     {
     public:
+
         struct Backbuffer
         {
             HRGN Region = nullptr;
@@ -155,7 +156,7 @@ private:
                 if (wd.Width != Width || wd.Height != wd.Height)
                 {
                     Width = wd.Width, Height = wd.Height;
-                    const auto bmp = CreateCompatibleBitmap(wd.DCHandle, wd.Width, wd.Height);
+                    const auto bmp = CreateCompatibleBitmap(wd.DCHandle, Width, Height);
                     const auto oldBmp = SelectObject(wd.MemDC, bmp);
                     if (oldBmp) DeleteObject(oldBmp);
                     if (Region) DeleteObject(Region);
@@ -169,7 +170,9 @@ private:
         HDC DCHandle = nullptr;
         HDC MemDC = nullptr;
         HBRUSH BGBrush = nullptr;
-        Backbuffer BackBuf;
+        HRGN Region = nullptr;
+        CacheRect<int32_t> BackBuf;
+        //Backbuffer BackBuf;
         bool NeedBackground = true;
         WdHost(WindowManagerWin32& manager, const Win32CreateInfo& info) noexcept :
             Win32WdHost(manager, info) { }
@@ -181,39 +184,40 @@ private:
         void* GetHWND() const noexcept final { return Handle; }
         void OnDisplay() noexcept final
         {
-            const bool sizeChanged = BackBuf.UpdateSize(*this);
+            const auto [ sizeChanged, needInit ] = BackBuf.Update(*this);
+            if (sizeChanged)
+            {
+                const auto bmp = CreateCompatibleBitmap(DCHandle, BackBuf.Width, BackBuf.Height);
+                const auto oldBmp = SelectObject(MemDC, bmp);
+                if (oldBmp) DeleteObject(oldBmp);
+                if (Region) DeleteObject(Region);
+                Region = CreateRectRgn(0, 0, BackBuf.Width, BackBuf.Height);
+            }
             bool needDraw = false;
             {
                 BgLock lock(this);
+                const bool bgChanged = lock;
                 const auto& holder = static_cast<RenderImgHolder&>(*GetWindowResource(this, WdAttrIndex::Background));
-                if (lock || sizeChanged)
+                if (bgChanged || sizeChanged)
                 {
                     common::SimpleTimer timer;
                     timer.Start();
-                    FillRgn(MemDC, BackBuf.Region, BGBrush);
+                    FillRgn(MemDC, Region, BGBrush);
                     if (holder)
                     {
                         const auto& bmp = holder.Bitmap();
                         const auto [w, h] = holder.Size();
-                        const auto dw = BackBuf.Width, dh = BackBuf.Height;
-                        const auto wAlignH = uint64_t(dw) * h / w, hAlignW = uint64_t(dh) * w / h;
-                        Ensures((wAlignH <= (uint32_t)dh) || (hAlignW <= (uint32_t)dw));
-                        int32_t tw = 0, th = 0;
-                        if (wAlignH <= (uint32_t)Height) // W-align
-                            tw = dw, th = static_cast<int32_t>(wAlignH);
-                        else // H-align
-                            tw = static_cast<int32_t>(hAlignW), th = dh;
-
+                        const auto [tw, th] = BackBuf.ResizeWithin(w, h);
                         const auto bmpDC = CreateCompatibleDC(DCHandle);
                         const auto oldbmp = SelectObject(bmpDC, bmp);
                         [[maybe_unused]] const auto ret = StretchBlt(MemDC, 0, 0, tw, th, bmpDC, 0, 0, static_cast<int>(w), static_cast<int>(h), SRCCOPY);
                         GdiFlush();
                         SelectObject(bmpDC, oldbmp);
+                        timer.Stop();
+                        Manager.Logger.Verbose(u"Window [{:x}] rebuild backbuffer in [{} ms].\n", reinterpret_cast<uintptr_t>(Handle), timer.ElapseMs());
                     }
-                    timer.Stop();
-                    Manager.Logger.Verbose(u"Window [{}] rebuild backbuffer in [{} ms].\n", reinterpret_cast<uintptr_t>(Handle), timer.ElapseMs());
                 }
-                needDraw = NeedBackground || sizeChanged || holder || lock;
+                needDraw = NeedBackground || bgChanged || (sizeChanged && holder);
             }
             if (needDraw)
                 BitBlt(DCHandle, 0, 0, BackBuf.Width, BackBuf.Height, MemDC, 0, 0, SRCCOPY);
@@ -467,6 +471,8 @@ public:
     {
         UnregisterHost(host_);
         const auto host = static_cast<WdHost*>(host_);
+        if (host->MemDC) DeleteObject(host->MemDC);
+        if (host->Region) DeleteObject(host->Region);
         ReleaseDC(host->Handle, host->DCHandle);
     }
 

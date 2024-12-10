@@ -77,15 +77,16 @@
   - [ ] Add color space/gamma conversion
 
 * WindowHost
-  - [ ] Add support for direct image blit (for offscreen rendering)
+  - [x] Add support for direct image blit (for offscreen rendering)
   - [ ] Add support for D2d rendering
   - [ ] Add support for wayland
   - [ ] Add support for iOS (Cocoa Touch)
   - [ ] Add support for gesture
   - [ ] Add support for touch screen logic
   - [ ] Add support for remote redering via IPC or network
+  - [ ] Add backend for termux
   - [x] Add multi-backend support
-  - [ ] Add Icon support
+  - [x] Add Icon support
   - [ ] Add timer support
   - [ ] Add invoke basic WM widges for operation like message/filepicker
   - [x] Revert to use std::any for data storage to ensure lifetime management

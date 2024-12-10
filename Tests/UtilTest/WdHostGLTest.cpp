@@ -94,6 +94,11 @@ static void RunTest(WindowBackend& backend)
 #if COMMON_OS_WIN
     const auto loader = static_cast<WGLLoader*>(oglLoader::GetLoader("WGL"));
     using WdType = Win32Backend::Win32WdHost;
+#elif COMMON_OS_ANDROID
+    const auto loader = static_cast<EGLLoader*>(oglLoader::GetLoader("EGL"));
+    using WdType = XCBBackend::XCBWdHost;
+    const auto& xcbBackend = static_cast<XCBBackend&>(backend);
+    const auto host = loader->CreateHostFromXcb(xcbBackend.GetDisplay(), xcbBackend.GetDefaultScreen(), false);
 #elif COMMON_OS_LINUX
     const auto loader = static_cast<GLXLoader*>(oglLoader::GetLoader("GLX"));
     using WdType = XCBBackend::XCBWdHost;
@@ -110,6 +115,8 @@ static void RunTest(WindowBackend& backend)
         log().Info(u"opened.\n"); 
 #if COMMON_OS_WIN
         const auto host = loader->CreateHost(window->GetHDC());
+#elif COMMON_OS_ANDROID
+        host->InitSurface(window->GetWindow());
 #elif COMMON_OS_LINUX
         host->InitDrawable(window->GetWindow());
 #endif
