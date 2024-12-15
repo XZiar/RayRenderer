@@ -3,6 +3,7 @@ import os
 import platform
 import time
 import re
+import subprocess
 from collections import deque,OrderedDict
 from enum import Flag
 from . import writeItems,writeItem
@@ -95,14 +96,34 @@ class Project:
         self.targetName = ""
         pass
 
+    @staticmethod
+    def procLib(target:list):
+        newlist = []
+        def proc(item:str):
+            mth = re.findall(r"(\$pkg-config\(([a-zA-Z0-9-.]+)\))", item)
+            if len(mth) > 0:
+                key = mth[0][1]
+                try:
+                    ret = subprocess.run(["pkg-config", "--libs-only-l", key], capture_output=True, text=True)
+                    print(f"pkg-config for [{key}] get: [{ret.stdout.strip()}]")
+                    for x in ret.stdout.split():
+                        if x.startswith("-l"):
+                            newlist.append(item[2:])
+                finally: pass
+            else:
+                newlist.append(item)
+        for item in target:
+            proc(item)
+        return newlist
+
     def solveTargets(self, env:dict):
         def procLibEle(ret:tuple, ele:dict, env:dict):
             return tuple(list(env[i[1:]] if i.startswith("@") else i for i in x) for x in ret)
         
         osname = platform.system()
         self.linkflags  = PList.solveElementList(self.raw,  "linkflags", env)[0]
-        self.libStatic  = PList.solveElementList(self.libs, "static",  env, procLibEle)[0]
-        self.libDynamic = PList.solveElementList(self.libs, "dynamic", env, procLibEle)[0]
+        self.libStatic  = Project.procLib(PList.solveElementList(self.libs, "static",  env, procLibEle)[0])
+        self.libDynamic = Project.procLib(PList.solveElementList(self.libs, "dynamic", env, procLibEle)[0])
         self.libDirs    = PList.solveElementList(self.libs, "path", env)[0]
         self.linkflags += [f"-L{x}" for x in self.libDirs]
         if osname == 'Darwin':

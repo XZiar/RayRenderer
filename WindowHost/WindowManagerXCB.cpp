@@ -17,10 +17,8 @@
 #include <X11/Xlib.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb.h>
-#include <xcb/bigreq.h>
-#include <xcb/dri2.h>
-#include <xcb/dri3.h>
-//#include <xcb/xcb_image.h>
+//#include <xcb/dri2.h>
+//#include <xcb/dri3.h>
 #define explicit explicit_
 #include <xcb/xkb.h>
 #undef explicit

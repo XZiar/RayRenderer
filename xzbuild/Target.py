@@ -42,7 +42,7 @@ class BuildTarget(metaclass=abc.ABCMeta):
         if len(mth) > 0:
             key = mth[0][1]
             try:
-                ret = subprocess.run(["pkg-config", "--cflags", key], capture_output=True, text=True)
+                ret = subprocess.run(["pkg-config", "--cflags-only-I", key], capture_output=True, text=True)
                 print(f"pkg-config for [{key}] get: [{ret.stdout.strip()}]")
                 for x in ret.stdout.split():
                     if x.startswith("-I"):
