@@ -654,9 +654,9 @@ public:
             {
                 switch (v.index())
                 {
-                case 0: fmter.FormatToStatic(str, FmtString("[{}] = [{}]\n"), k, std::get<0>(v)); break;
-                case 1: fmter.FormatToStatic(str, FmtString("[{}] = [{}]\n"), k, std::get<1>(v)); break;
-                case 2: fmter.FormatToStatic(str, FmtString("[{}] = [{}]\n"), k, common::span<const uint16_t>(std::get<2>(v))); break;
+                case 0: fmter.FormatToStatic(str, FmtString("--[{}] = [{}]\n"), k, std::get<0>(v)); break;
+                case 1: fmter.FormatToStatic(str, FmtString("--[{}] = [{}]\n"), k, std::get<1>(v)); break;
+                case 2: fmter.FormatToStatic(str, FmtString("--[{}] = [{}]\n"), k, common::span<const uint16_t>(std::get<2>(v))); break;
                 }
             }
             if (!str.empty())
@@ -1099,7 +1099,6 @@ public:
         const auto host = static_cast<WdHost*>(payload.Host);
 
         int visualId = Screen->root_visual;
-        bool needBackground = true;
         if (payload.ExtraData)
         {
             const auto vi_ = (*payload.ExtraData)("visual");
@@ -1122,11 +1121,11 @@ public:
         uint32_t valuemask = XCB_CW_EVENT_MASK;
         std::array<uint32_t, 2> valuelist = {0};
         size_t valueIdx = 0;
-        if (needBackground)
-        {
-            valuemask |= XCB_CW_BACK_PIXEL;
-            valuelist[valueIdx++] = Screen->white_pixel;
-        }
+        //if (host->NeedBackground)
+        //{
+        //    valuemask |= XCB_CW_BACK_PIXEL;
+        //    valuelist[valueIdx++] = BGColor;
+        //}
         valuelist[valueIdx++] = eventmask;
 
         const auto cookie0 = xcb_create_window(
@@ -1277,7 +1276,7 @@ public:
         Logger.Verbose(u"Image transfer complete.\n");
         return true;
     }
-    OpaqueResource CacheRenderImage(WindowHost_& host_, ImageView img) const noexcept 
+    OpaqueResource CacheRenderImage(WindowHost_& host_, ImageView img) const noexcept final
     {
         if (!PixmapDType) return {};
         if (const auto w = img.GetWidth(), h = img.GetHeight(); w >= UINT16_MAX || h >= UINT16_MAX)

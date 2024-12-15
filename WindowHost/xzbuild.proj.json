@@ -8,7 +8,7 @@
         "static": [],
         "dynamic": 
         [
-            {"ifneq": {"osname": "Darwin"}, "+": ["X11", "X11-xcb", "xkbcommon", "xkbcommon-x11"]}
+            {"ifneq": {"osname": "Darwin"}, "+": ["X11", "X11-xcb", "xkbcommon", "xkbcommon-x11", "dbus-1"]}
         ]
     },
     "framework":
@@ -19,6 +19,7 @@
     {
         "cpp":
         {
+            "incpath": ["$pkg-config(dbus-1)"],
             "sources": 
             [
                 "*.cpp",

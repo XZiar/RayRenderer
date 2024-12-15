@@ -38,6 +38,19 @@ common::span<WindowBackend* const> WindowBackend::GetBackends() noexcept
     return { ptr, backends.size() };
 }
 
+auto& AllFilePicker() noexcept
+{
+    static std::vector<std::unique_ptr<IFilePicker>> Supports;
+    return Supports;
+}
+void detail::RegisterInteraction(std::unique_ptr<IFilePicker> support) noexcept
+{
+    AllFilePicker().emplace_back(std::move(support));
+}
+
+IFilePicker::~IFilePicker() {}
+
+
 enum class BackendStatus : uint8_t
 {
     None = 0, Inited = 1, Running = 2
@@ -131,9 +144,13 @@ bool WindowBackend::Stop()
     return false;
 }
 
-common::PromiseResult<std::vector<std::u16string>> WindowBackend::OpenFilePicker(const FilePickerInfo&)
+common::PromiseResult<std::vector<std::u16string>> WindowBackend::OpenFilePicker(const FilePickerInfo& info) noexcept
 {
-    return common::ErroredResult<std::vector<std::u16string>>::Get(common::BaseException{ u"FilePicker unimplemented" });
+    const auto& supports = AllFilePicker();
+    if (supports.empty())
+        return common::ErroredResult<std::vector<std::u16string>>::Get(common::BaseException{ u"FilePicker unimplemented" });
+    else
+        return supports.front()->OpenFilePicker(info);
 }
 
 

@@ -21,6 +21,7 @@
 
 common::fs::path FindPath();
 const std::vector<std::string_view>& GetCmdArgs();
+bool IsAutoMode();
 uint32_t RegistTest(const char *name, void(*func)());
 std::string LoadShaderFallback(const std::u16string& filename, int32_t id);
 
@@ -62,7 +63,8 @@ forceinline uint32_t SelectIdx(const T& container, std::u16string_view name, F&&
     {
         fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}Default select {@<y}{}[0]\n"), name);
         PrintToConsole(fmter);
-        common::console::ConsoleEx::ReadCharImmediate(false);
+        if (!IsAutoMode())
+            common::console::ConsoleEx::ReadCharImmediate(false);
         return 0;
     }
     fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}Select {@<w}{}:\n"), name);

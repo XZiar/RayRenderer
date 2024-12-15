@@ -36,6 +36,8 @@
   - [x] Add delayed stacktrace resolve for Exceptions
   - [ ] Use libdawrf/libdw as fallback support for stacktrace
   - [x] Add direct support for output color-segemented text for Console
+  - [ ] Include WDHost's dbus support
+  - [ ] Include ImageUtil's IStream support
   * StringUtil
     - [x] Add general charset default value
     - [x] Add compile-time LE/BE decision

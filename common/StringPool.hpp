@@ -57,9 +57,28 @@ template<typename T>
 class StringPool
 {
 protected:
+    struct Allocation
+    {
+        StringPool<T>& Host;
+        uint32_t Offset = 0, Length = 0;
+        Allocation(StringPool<T>& host) : Host(host), Offset(gsl::narrow_cast<uint32_t>(Host.Pool.size())) {}
+        template<typename... Args>
+        Allocation& Add(const Args&... str) noexcept
+        {
+            Ensures(Offset + Length == Host.Pool.size());
+            const auto ret = Host.AllocateConcatString(str...);
+            Ensures(ret.Offset == Offset + Length);
+            Length += ret.Length;
+            return *this;
+        }
+        constexpr operator StringPiece<T>() const noexcept
+        {
+            return { Offset, Length };
+        }
+    };
     std::vector<T> Pool;
 public:
-    StringPiece<T> AllocateString(const std::basic_string_view<T> str)
+    StringPiece<T> AllocateString(const std::basic_string_view<T> str) noexcept
     {
         const uint32_t offset = gsl::narrow_cast<uint32_t>(Pool.size()),
             size = gsl::narrow_cast<uint32_t>(str.size());
@@ -67,12 +86,16 @@ public:
         return { offset, size };
     }
     template<typename... Args>
-    StringPiece<T> AllocateConcatString(const Args&... str)
+    StringPiece<T> AllocateConcatString(const Args&... str) noexcept
     {
         const uint32_t offset = gsl::narrow_cast<uint32_t>(Pool.size());
-        (..., void(Pool.insert(Pool.end(), str.begin(), str.end())));
+        (..., void(Pool.insert(Pool.end(), std::begin(str), std::end(str))));
         const uint32_t size = gsl::narrow_cast<uint32_t>(Pool.size() - offset);
         return { offset, size };
+    }
+    Allocation Allocate() noexcept
+    {
+        return { *this };
     }
     forceinline std::basic_string_view<T> GetStringView(const StringPiece<T>& piece) const noexcept
     {

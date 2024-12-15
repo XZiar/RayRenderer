@@ -332,7 +332,7 @@ static void DXStub()
 {
     const auto devs = DxDevice_::GetDevices();
     const auto& xcdevs = xcomp::ProbeDevice();
-    const bool isAuto = common::container::FindInVec(GetCmdArgs(), [](const auto str) { return str == "auto"; }) != nullptr;
+    const bool isAuto = IsAutoMode();
     if (devs.size() == 0)
     {
         log().Error(u"No DirectX12 devices found!\n");

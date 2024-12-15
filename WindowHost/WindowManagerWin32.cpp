@@ -899,7 +899,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
 
 
 using PickerRet = std::vector<std::u16string>;
-common::PromiseResult<std::vector<std::u16string>> Win32Backend::OpenFilePicker(const FilePickerInfo& info)
+common::PromiseResult<std::vector<std::u16string>> Win32Backend::OpenFilePicker(const FilePickerInfo& info) noexcept
 {
     common::StringPool<char16_t> pool;
     std::vector<std::pair<common::StringPiece<char16_t>, common::StringPiece<char16_t>>> extFilters;
@@ -907,8 +907,14 @@ common::PromiseResult<std::vector<std::u16string>> Win32Backend::OpenFilePicker(
     {
         for (const auto& p : info.ExtensionFilters)
         {
+            if (p.second.empty()) continue;
             const auto desc = pool.AllocateConcatString(p.first, u"\0"sv);
-            const auto ext = pool.AllocateConcatString(u"*."sv, p.second, u"\0"sv);
+            auto ext = pool.Allocate();
+            uint32_t i = 0;
+            for (const auto name : p.second)
+                ext.Add(i++ ? u";"sv : u""sv, u"*."sv, name);
+            ext.Add(u"\0"sv);
+            //const auto ext = pool.AllocateConcatString(u"*."sv, p.second, u"\0"sv);
             extFilters.emplace_back(desc, ext);
         }
     }

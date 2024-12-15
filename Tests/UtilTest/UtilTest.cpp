@@ -37,7 +37,7 @@ fs::path FindPath()
 }
 
 
-std::vector<std::string_view>& GetCmdArgs_()
+static std::vector<std::string_view>& GetCmdArgs_() noexcept
 {
     static std::vector<std::string_view> ARGS;
     return ARGS;
@@ -45,6 +45,15 @@ std::vector<std::string_view>& GetCmdArgs_()
 const std::vector<std::string_view>& GetCmdArgs()
 {
     return GetCmdArgs_();
+}
+static bool& IsAutoMode_() noexcept
+{
+    static bool isAuto = false;
+    return isAuto;
+}
+bool IsAutoMode()
+{
+    return IsAutoMode_();
 }
 
 
@@ -167,7 +176,12 @@ int main(int argc, char *argv[])
         for (const std::string_view arg : common::span<char*>(argv, argv + argc))
         {
             if (common::str::IsBeginWith(arg, "-"))
-                GetCmdArgs_().push_back(arg.substr(1));
+            {
+                if (arg == "-auto")
+                    IsAutoMode_() = true;
+                else
+                    GetCmdArgs_().push_back(arg.substr(1));
+            }
             else
                 args.push_back(arg);
         }

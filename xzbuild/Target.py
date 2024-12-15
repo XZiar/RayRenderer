@@ -3,6 +3,7 @@ import glob
 import inspect
 import os
 import re
+import subprocess
 from . import COLOR, writeItems, writeItem
 from . import PowerList as PList
 from .Environment import findAppInPath
@@ -35,6 +36,20 @@ class BuildTarget(metaclass=abc.ABCMeta):
         path = path.replace("$(BuildDir)", self.buildDir)
         path = path.replace("$(usrDir)", os.environ.get("PREFIX", "/usr"))
         return os.path.normpath(path)
+
+    def procIncPath(self, target:list, path:str):
+        mth = re.findall(r"(\$pkg-config\(([a-zA-Z0-9-.]+)\))", path)
+        if len(mth) > 0:
+            key = mth[0][1]
+            try:
+                ret = subprocess.run(["pkg-config", "--cflags", key], capture_output=True, text=True)
+                print(f"pkg-config for [{key}] get: [{ret.stdout.strip()}]")
+                for x in ret.stdout.split():
+                    if x.startswith("-I"):
+                        target.append(os.path.normpath(x[2:]))
+            finally: pass
+        else:
+            target.append(self.porcPathDefine(path))
     
     def write(self, file):
         file.write(f"\n\n# For target [{self.prefix()}]\n")
@@ -52,7 +67,10 @@ class BuildTarget(metaclass=abc.ABCMeta):
         self.baseDirs = set()
         self.solveTarget(targets, proj, env)
         if hasattr(self, "incpath"):
-            self.incpath = [self.porcPathDefine(path) for path in self.incpath]
+            newpaths = []
+            for item in self.incpath:
+                self.procIncPath(newpaths, item)
+            self.incpath = newpaths
 
     def solveSource(self, targets:dict, env:dict):
         def adddir(ret:tuple, ele:dict, env:dict):

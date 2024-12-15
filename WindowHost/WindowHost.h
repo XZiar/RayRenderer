@@ -40,14 +40,18 @@ struct CreateInfo
 struct FilePickerInfo
 {
     std::u16string Title;
-    std::vector<std::pair<std::u16string, std::u16string>> ExtensionFilters;
+    std::vector<std::pair<std::u16string, std::vector<std::u16string>>> ExtensionFilters;
     bool IsOpen = true;
     bool IsFolder = false;
     bool AllowMultiSelect = true;
 };
+struct IFilePicker
+{
+    virtual ~IFilePicker() = 0;
+    virtual common::PromiseResult<std::vector<std::u16string>> OpenFilePicker(const FilePickerInfo& info) noexcept = 0;
+};
 
-
-class WindowBackend
+class WindowBackend : public IFilePicker
 {
 private:
     struct Pimpl;
@@ -113,7 +117,7 @@ public:
         return nullptr;
     }
     virtual WindowHost Create(const CreateInfo& info = {}) = 0;
-    virtual common::PromiseResult<std::vector<std::u16string>> OpenFilePicker(const FilePickerInfo& info);
+    common::PromiseResult<std::vector<std::u16string>> OpenFilePicker(const FilePickerInfo& info) noexcept override;
 };
 
 
@@ -281,7 +285,7 @@ public:
     };
     using WindowBackend::Create;
     [[nodiscard]] virtual std::shared_ptr<Win32WdHost> Create(const Win32CreateInfo& info = {}) = 0;
-    common::PromiseResult<std::vector<std::u16string>> OpenFilePicker(const FilePickerInfo& info) final;
+    common::PromiseResult<std::vector<std::u16string>> OpenFilePicker(const FilePickerInfo& info) noexcept final;
 };
 using Win32WdHost = std::shared_ptr<Win32Backend::Win32WdHost>;
 

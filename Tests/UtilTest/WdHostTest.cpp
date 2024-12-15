@@ -174,7 +174,8 @@ static void OpenTestWindow(WindowBackend& backend)
             {
                 static const xziar::gui::FilePickerInfo fpInfo
                 {
-                    .Title = u"Open Image As Background"
+                    .Title = u"Open Image As Background",
+                    .ExtensionFilters = { { u"image", { u"png", u"jpg", u"bmp" } } }
                 };
                 const auto pms = backend.OpenFilePicker(fpInfo);
                 pms->OnComplete([host = wd.GetSelf()](const auto& ret)
@@ -185,7 +186,7 @@ static void OpenTestWindow(WindowBackend& backend)
                     }
                     catch (common::BaseException& be)
                     {
-                        log().Warning(u"Failed to pick image: {}.\n", be.Message());
+                        log().Warning(u"Failed to pick image: {}, {}.\n", be.Message(), be.GetDetailMessage());
                     }
                     catch (...) {}
                 });
@@ -222,7 +223,7 @@ static void WDHost()
     if (backend.CheckFeature("NewThread"))
     {
         GetConsole().Print(common::CommonColor::BrightWhite, u"Run WdHost on new thread? [y/n]\n");
-        while (true)
+        while (!IsAutoMode())
         {
             const auto ch = common::console::ConsoleEx::ReadCharImmediate(false);
                  if (ch == 'y' || ch == 'Y') { runInplace = false; break; }

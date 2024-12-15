@@ -21,6 +21,7 @@ namespace detail
 {
 common::mlog::MiniLogger<false>& wdLog();
 
+void RegisterInteraction(std::unique_ptr<IFilePicker> support) noexcept;
 void RegisterBackend(std::unique_ptr<WindowBackend> backend) noexcept;
 template<typename T>
 inline bool RegisterBackend() noexcept
