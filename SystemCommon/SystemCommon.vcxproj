@@ -330,6 +330,7 @@
     <ClInclude Include="PromiseTaskSTD.h" />
     <ClInclude Include="RawFileEx.h" />
     <ClInclude Include="RuntimeFastPath.h" />
+    <ClInclude Include="SharedMemory.h" />
     <ClInclude Include="SpinLock.h" />
     <ClInclude Include="StackTrace.h" />
     <ClInclude Include="StrEncoding.hpp" />

@@ -266,7 +266,7 @@ static void OGLStub()
 
         auto& loader = *loaders[ldridx];
 #if COMMON_OS_WIN
-            using TW = GDIWindow;
+        using TW = GDIWindow;
 #elif COMMON_OS_DARWIN
         using TW = NullWindow;
 #else

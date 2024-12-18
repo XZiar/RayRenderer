@@ -618,7 +618,7 @@ private:
     {
         if (CheckSupportPlatformDisplay())
         {
-            if (Extensions.Has("EGL_MESA_platform_xcb"sv))
+            if (Extensions.Has("EGL_EXT_platform_xcb"sv) || Extensions.Has("EGL_MESA_platform_xcb"sv))
             {
                 EGLDisplay disp = GetPlatformDisplayCombine(EGL_PLATFORM_XCB_EXT, connection, [&](auto& list)
                     {

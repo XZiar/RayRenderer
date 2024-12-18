@@ -131,4 +131,10 @@ void TestResizeImage(std::string filepath, std::string_view reader_, std::string
     WriteBmp(logger, writer, u"G channel", channels[1], folder / (basename + "-g.bmp"));
     WriteBmp(logger, writer, u"B channel", channels[2], folder / (basename + "-b.bmp"));
 
+    Image combine3(ImageDataType::GRAY);
+    combine3.SetSize(w * 3 / 2, h / 2);
+    channels[0].ResizeTo(combine3, 0, 0, 0, 0, w / 2, h / 2, true);
+    channels[1].ResizeTo(combine3, 0, 0, w / 2, 0, w / 2, h, true);
+    channels[2].ResizeTo(combine3, w / 4, 0, w, 0, w, h / 2, true);
+    WriteBmp(logger, writer, u"Gray Combine", combine3, folder / (basename + "-c3-half.bmp"));
 }

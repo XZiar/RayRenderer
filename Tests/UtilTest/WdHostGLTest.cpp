@@ -48,7 +48,7 @@ struct Lutter
         LUTFrame = oglu::oglLayeredFrameBuffer_::Create();
         LUTFrame->AttachColorTexture(LutTex);
         log().Info(u"LUT FBO status:{}\n", LUTFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
-        LutGenerator->SetVal("step", 1.0f / (64 - 1));
+        LutGenerator->SetVal("curStep", 1.0f / (64 - 1));
         LutGenerator->SetVal("exposure", 1.0f);
         LutGenerator->SetVal("lutSize", 64);
     }
@@ -71,15 +71,59 @@ static void TestErr()
         log().Warning(u"Here occurs error due to {}.\n", e.value());
 }
 
+static std::shared_ptr<GLHost> CreateHostAndinit(WindowBackend& backend, xziar::gui::WindowHost_& window, oglLoader* loader)
+{
+    const auto name = loader->Name();
+    if (name == "WGL")
+    {
+        return static_cast<WGLLoader*>(loader)->CreateHost(static_cast<Win32Backend::Win32WdHost&>(window).GetHDC());
+    }
+    else if (name == "GLX")
+    {
+        const auto& xcbBackend = static_cast<XCBBackend&>(backend);
+        auto host = static_cast<GLXLoader*>(loader)->CreateHost(xcbBackend.GetDisplay(), xcbBackend.GetDefaultScreen());
+        host->InitDrawable(static_cast<XCBBackend::XCBWdHost&>(window).GetWindow());
+        return host;
+    }
+    else if (name == "EGL")
+    {
+        const auto& xcbBackend = static_cast<XCBBackend&>(backend);
+        auto& ld = *static_cast<EGLLoader*>(loader);
+        const auto wd = static_cast<XCBBackend::XCBWdHost&>(window).GetWindow();
+        if (auto host = ld.CreateHostFromXcb(xcbBackend.GetConnection(), xcbBackend.GetDefaultScreen(), false); host)
+        {
+            host->InitSurface(wd);
+            return host;
+        }
+#if COMMON_OS_ANDROID
+        if (auto host = ld.CreateHostFromAndroid(true); host)
+        {
+            host->InitSurface(wd);
+            return host;
+        }
+#endif
+        if (auto host = ld.CreateHost(xcbBackend.GetDisplay(), false); host)
+        {
+            host->InitSurface(wd);
+            return host;
+        }
+        return {};
+    }
+    return {};
+}
+
 static void RunTest(WindowBackend& backend)
 {
     auto glType = GLType::Desktop;
+    std::vector<std::string_view> loaderPref;
     for (const auto& cmd : GetCmdArgs())
     {
         if (cmd == "renderdoc")
             oglu::oglUtil::InJectRenderDoc("");
         else if (cmd == "es")
             glType = GLType::ES;
+        else if (cmd.starts_with("glbe="))
+            loaderPref.emplace_back(cmd.substr(5));
     }
     
     oglContext context;
@@ -92,38 +136,58 @@ static void RunTest(WindowBackend& backend)
     bool shouldLut = false;
 
 #if COMMON_OS_WIN
-    const auto loader = static_cast<WGLLoader*>(oglLoader::GetLoader("WGL"));
-    using WdType = Win32Backend::Win32WdHost;
+    loaderPref.emplace_back("WGL");
+    loaderPref.emplace_back("EGL");
 #elif COMMON_OS_ANDROID
-    const auto loader = static_cast<EGLLoader*>(oglLoader::GetLoader("EGL"));
-    using WdType = XCBBackend::XCBWdHost;
-    const auto& xcbBackend = static_cast<XCBBackend&>(backend);
-    const auto host = loader->CreateHostFromXcb(xcbBackend.GetDisplay(), xcbBackend.GetDefaultScreen(), false);
+    glType = GLType::ES;
+    loaderPref.emplace_back("EGL");
+    loaderPref.emplace_back("GLX");
 #elif COMMON_OS_LINUX
-    const auto loader = static_cast<GLXLoader*>(oglLoader::GetLoader("GLX"));
-    using WdType = XCBBackend::XCBWdHost;
-    const auto& xcbBackend = static_cast<XCBBackend&>(backend);
-    const auto host = loader->CreateHost(xcbBackend.GetDisplay(), xcbBackend.GetDefaultScreen());
+    loaderPref.emplace_back("GLX");
+    loaderPref.emplace_back("EGL");
 #endif
+    const auto loaders_ = oglLoader::GetLoaders();
+    std::vector<oglLoader*> loaders;
+    for (const auto& pref : loaderPref)
+    {
+        for (const auto& loader : loaders_)
+        {
+            if (loader->Name() == pref)
+                loaders.emplace_back(loader.get());
+        }
+    }
+    if (loaders.size() == 0)
+    {
+        log().Error(u"No OpenGL loader found!\n");
+        return;
+    }
 
     xziar::gui::CreateInfo wdInfo;
     wdInfo.Width = 1280, wdInfo.Height = 720, wdInfo.Title = u"WdHostGLTest";
-    const auto window = std::dynamic_pointer_cast<WdType>(backend.Create(wdInfo));
+    const auto window = backend.Create(wdInfo);
     std::promise<void> closePms;
     window->Openning() += [&](const auto&) 
     {
-        log().Info(u"opened.\n"); 
-#if COMMON_OS_WIN
-        const auto host = loader->CreateHost(window->GetHDC());
-#elif COMMON_OS_ANDROID
-        host->InitSurface(window->GetWindow());
-#elif COMMON_OS_LINUX
-        host->InitDrawable(window->GetWindow());
-#endif
+        log().Info(u"opened.\n");
         oglu::CreateInfo cinfo;
         cinfo.Type = glType;
         cinfo.PrintFuncLoadFail = cinfo.PrintFuncLoadSuccess = true;
-        context = host->CreateContext(cinfo);
+
+        for (const auto loader : loaders)
+        {
+            auto host = CreateHostAndinit(backend, *window, loader);
+            if (host)
+            {
+                const auto name = loader->Name();
+                log().Info(u"GLhost created using [{}].\n", name);
+                if (name == "GLX")
+                    window->SetWindowData("visual", static_cast<GLXLoader::GLXHost&>(*host).GetVisualId());
+                else if (name == "EGL")
+                    window->SetWindowData("visual", static_cast<EGLLoader::EGLHost&>(*host).GetVisualId());
+                context = host->CreateContext(cinfo);
+                break;
+            }
+        }
         context->UseContext();
         context->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
         TestErr();
@@ -162,7 +226,7 @@ static void RunTest(WindowBackend& backend)
                 lutGenerator->State()
                     .SetSubroutine("ToneMap", "ACES")
                     .SetImage(lutImg, "result");
-                lutGenerator->SetVal("step", 1.0f / 64);
+                lutGenerator->SetVal("curStep", 1.0f / 64);
                 lutGenerator->SetVal("exposure", 1.0f);
                 lutGenerator->Run(64, 64, 64);
                 TestErr();
@@ -254,10 +318,11 @@ static void RunTest(WindowBackend& backend)
     {
         if (name == "background")
             return false;
-#if COMMON_OS_LINUX
         else if (name == "visual")
-            return host->GetVisualId();
-#endif
+        {
+            const auto dat = window->GetWindowData<int>("visual");
+            if (dat) return *dat;
+        }
         return {};
     });
 

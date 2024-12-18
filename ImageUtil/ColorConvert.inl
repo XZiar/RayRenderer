@@ -143,8 +143,8 @@ DEFINE_FASTPATHS(ColorConvertor,
 #ifdef IMGU_FASTPATH_STB
 forceinline void CallStbResize(const ::xziar::img::STBResize::ResizeInfo& info)
 {
-    ::stbir_resize(info.Input, static_cast<int32_t>(info.InputSizes.first), static_cast<int32_t>(info.InputSizes.second), 0,
-        info.Output, static_cast<int32_t>(info.OutputSizes.first), static_cast<int32_t>(info.OutputSizes.second), 0,
+    ::stbir_resize(info.Input, static_cast<int32_t>(info.InputSizes.first), static_cast<int32_t>(info.InputSizes.second), static_cast<int>(info.InputRowStride),
+        info.Output, static_cast<int32_t>(info.OutputSizes.first), static_cast<int32_t>(info.OutputSizes.second), static_cast<int>(info.OutputRowStride),
         static_cast<stbir_pixel_layout>(info.Layout), static_cast<stbir_datatype>(info.Datatype), static_cast<stbir_edge>(info.Edge), static_cast<stbir_filter>(info.Filter));
 }
 # if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200

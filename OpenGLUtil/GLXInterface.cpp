@@ -53,6 +53,21 @@ constexpr int VisualAttrs2[] =
     GLX_DOUBLEBUFFER,   1,
     0
 };
+constexpr int VisualAttrs3[] =
+{
+    GLX_X_RENDERABLE,   1,
+    GLX_X_VISUAL_TYPE,  GLX_TRUE_COLOR,
+    GLX_RENDER_TYPE,    GLX_RGBA_BIT,
+    GLX_DRAWABLE_TYPE,  GLX_PBUFFER_BIT,
+    GLX_RED_SIZE,       8,
+    GLX_GREEN_SIZE,     8,
+    GLX_BLUE_SIZE,      8,
+    GLX_ALPHA_SIZE,     8,
+    GLX_DEPTH_SIZE,     24,
+    GLX_STENCIL_SIZE,   8,
+    GLX_DOUBLEBUFFER,   1,
+    0
+};
 
 
 DEFINE_FUNC(XFree,                     FreeXObject);
@@ -118,8 +133,8 @@ private:
             glXCreateContextAttribsARB  = GetFunction<PFNGLXCREATECONTEXTATTRIBSARBPROC> ("glXCreateContextAttribsARB");
             glXQueryRendererIntegerMESA = GetFunction<PFNGLXQUERYRENDERERINTEGERMESAPROC>("glXQueryRendererIntegerMESA");
             glXQueryRendererStringMESA  = GetFunction<PFNGLXQUERYRENDERERSTRINGMESAPROC> ("glXQueryRendererStringMESA");
-            const char* exts = loader.QueryExtensionsString(DeviceContext, screen);
-            Extensions = common::str::Split(exts, ' ', false);
+            if (const char* exts = loader.QueryExtensionsString(DeviceContext, screen); true)//exts)
+                Extensions = common::str::Split(exts, ' ', false);
             SupportES = Extensions.Has("GLX_EXT_create_context_es2_profile");
             SupportSRGBFrameBuffer = Extensions.Has("GLX_ARB_framebuffer_sRGB") || Extensions.Has("GLX_EXT_framebuffer_sRGB");
             SupportFlushControl = Extensions.Has("GLX_ARB_context_flush_control");
@@ -299,6 +314,8 @@ private:
         auto host = std::make_shared<GLXHost>(*this, disp, screen);
         int fbCount = 0;
         host->FBConfigs = ChooseFBConfig(disp, screen, useOffscreen ? VisualAttrs2 : VisualAttrs, &fbCount);
+        if (!host->FBConfigs && useOffscreen)
+            host->FBConfigs = ChooseFBConfig(disp, screen, VisualAttrs3, &fbCount);
         if (!host->FBConfigs || fbCount == 0)
             return {};
         if (0 != GetFBConfigAttrib(disp, host->FBConfigs[0], GLX_VISUAL_ID, &host->VisualId))

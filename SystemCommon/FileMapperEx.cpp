@@ -1,5 +1,6 @@
 #include "SystemCommonPch.h"
 #include "FileMapperEx.h"
+#include "SharedMemory.h"
 
 #include <cstddef>
 #include <cstdio>
@@ -11,12 +12,18 @@
 #   include <mach-o/dyld.h>
 #endif
 
-namespace common::file
+namespace common
 {
 using std::string;
 using std::u16string;
 using std::byte;
+
+
+namespace file
+{
+
 MAKE_ENABLER_IMPL(FileMappingObject)
+
 
 fs::path LocateCurrentExecutable() noexcept
 {
@@ -101,7 +108,8 @@ fs::path LocateCurrentExecutable() noexcept
 FileMappingObject::FileMappingObject(std::shared_ptr<RawFileObject> file, const MappingFlag flag,
     const HandleType handle, const uint64_t offset, std::byte* ptr, const size_t size)
     : RawFile(std::move(file)), Offset(offset), MappingHandle(handle), Ptr(ptr), Size(size), Flag(flag)
-{ }
+{
+}
 
 
 static std::optional<FileErrReason> CheckFlagCompatible(const OpenFlag openflag, const MappingFlag flag)
@@ -115,13 +123,17 @@ static std::optional<FileErrReason> CheckFlagCompatible(const OpenFlag openflag,
 
 static uint64_t GetMappingAlign()
 {
+    static const uint64_t Align = []() 
+    {
 #if COMMON_OS_WIN
-    SYSTEM_INFO info;
-    GetSystemInfo(&info);
-    return info.dwAllocationGranularity;
+        SYSTEM_INFO info;
+        GetSystemInfo(&info);
+        return info.dwAllocationGranularity;
 #else
-    return sysconf(_SC_PAGE_SIZE);
+        return sysconf(_SC_PAGE_SIZE);
 #endif
+    }();
+    return Align;
 }
 
 static std::tuple<uint64_t, uint64_t> HandleMappingAlign(const uint64_t offset)
@@ -133,7 +145,7 @@ static std::tuple<uint64_t, uint64_t> HandleMappingAlign(const uint64_t offset)
 }
 
 static std::optional<std::tuple<FileMappingObject::HandleType, byte*, uint64_t, size_t>>
-TryMap (RawFileObject::HandleType fileHandle, const MappingFlag flag, const std::pair<uint64_t, uint64_t>& region)
+TryMap(RawFileObject::HandleType fileHandle, const MappingFlag flag, const std::pair<uint64_t, uint64_t>& region)
 {
     Expects(region.second == UINT64_MAX || ((region.first + region.second) > region.first));
     Expects(region.second == UINT64_MAX || ((region.first + region.second) > region.second));
@@ -153,15 +165,15 @@ TryMap (RawFileObject::HandleType fileHandle, const MappingFlag flag, const std:
     else if (flag == MappingFlag::ReadOnly)
         access = PAGE_READONLY;
 
-    const auto mapHandle = CreateFileMapping(fileHandle, nullptr, access, realMapSize.HighPart, realMapSize.LowPart, nullptr);
+    const auto mapHandle = CreateFileMappingW(fileHandle, nullptr, access, realMapSize.HighPart, realMapSize.LowPart, nullptr);
     if (mapHandle != NULL)
     {
         DWORD mapMode = 0;
-        if (flag == MappingFlag::ReadWrite)         
+        if (flag == MappingFlag::ReadWrite)
             mapMode = FILE_MAP_WRITE;
-        else if (flag == MappingFlag::CopyOnWrite)  
+        else if (flag == MappingFlag::CopyOnWrite)
             mapMode = FILE_MAP_COPY;
-        else if (flag == MappingFlag::ReadOnly)     
+        else if (flag == MappingFlag::ReadOnly)
             mapMode = FILE_MAP_READ;
 
         const auto [offset, padding] = HandleMappingAlign(region.first);
@@ -198,13 +210,13 @@ TryMap (RawFileObject::HandleType fileHandle, const MappingFlag flag, const std:
     const size_t realSize = offset < realLen ? saturate_cast<size_t>(realLen - offset) : 0u;
 
     const auto ptr = mmap(nullptr, realSize, prot, MAP_PRIVATE, fileHandle, offset);
-    
+
     if (ptr != MAP_FAILED)
     {
         const auto realPtr = reinterpret_cast<byte*>(ptr) + padding;
         return std::make_tuple(ptr, realPtr, offset, realSize);
     }
-    
+
     return {};
 #endif
 }
@@ -223,7 +235,7 @@ std::shared_ptr<FileMappingObject> FileMappingObject::OpenMapping(std::shared_pt
     return {};
 }
 
-std::shared_ptr<FileMappingObject> FileMappingObject::OpenThrow(std::shared_ptr<RawFileObject> rawFile, 
+std::shared_ptr<FileMappingObject> FileMappingObject::OpenThrow(std::shared_ptr<RawFileObject> rawFile,
     const MappingFlag flag, const std::pair<uint64_t, uint64_t>& region)
 {
     const auto& path = rawFile->Path();
@@ -237,26 +249,26 @@ std::shared_ptr<FileMappingObject> FileMappingObject::OpenThrow(std::shared_ptr<
 #if COMMON_OS_WIN
     switch (GetLastError())
     {
-    case ERROR_FILE_NOT_FOUND:      
-        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist,       path, u"cannot map target file, not exists");
-    case ERROR_ACCESS_DENIED:       
+    case ERROR_FILE_NOT_FOUND:
+        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist, path, u"cannot map target file, not exists");
+    case ERROR_ACCESS_DENIED:
         COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::PermissionDeny, path, u"cannot map target file, no permission");
     case ERROR_FILE_EXISTS:
-        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::AlreadyExist,   path, u"cannot map target file, already exists");
-    case ERROR_SHARING_VIOLATION:   
+        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::AlreadyExist, path, u"cannot map target file, already exists");
+    case ERROR_SHARING_VIOLATION:
         COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::SharingViolate, path, u"cannot map target file, conflict sharing");
     case ERROR_INVALID_PARAMETER:
-        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::WrongParam,     path, u"cannot map target file, invalid params");
+        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::WrongParam, path, u"cannot map target file, invalid params");
 #else
     switch (errno)
     {
-    case ENOENT:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist,          path, u"cannot map target file, not exists");
+    case ENOENT:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist, path, u"cannot map target file, not exists");
     case ENOMEM:    throw std::bad_alloc(/*"fopen reported no enough memory error"*/);
-    case EACCES:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::PermissionDeny,    path, u"cannot map target file, no permission");
-    case EEXIST:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::AlreadyExist,      path, u"cannot map target file, already exists");
-    case EINVAL:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::WrongParam,        path, u"cannot map target file, invalid params");
+    case EACCES:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::PermissionDeny, path, u"cannot map target file, no permission");
+    case EEXIST:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::AlreadyExist, path, u"cannot map target file, already exists");
+    case EINVAL:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::WrongParam, path, u"cannot map target file, invalid params");
 #endif
-    default:        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::UnknowErr,         path, u"cannot map target file");
+    default:        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::UnknowErr, path, u"cannot map target file");
     }
 }
 
@@ -271,10 +283,11 @@ FileMappingObject::~FileMappingObject()
 }
 
 
-FileMappingStream::FileMappingStream(std::shared_ptr<FileMappingObject>&& mapping) noexcept
-    : MappingObject(std::move(mapping)) { }
+FileMappingStream::FileMappingStream(std::shared_ptr<FileMappingObject> && mapping) noexcept
+    : MappingObject(std::move(mapping)) {
+}
 
-FileMappingStream::~FileMappingStream() { }
+FileMappingStream::~FileMappingStream() {}
 
 void FileMappingStream::WriteCheck() const
 {
@@ -283,9 +296,10 @@ void FileMappingStream::WriteCheck() const
 }
 
 void FileMappingStream::ReadCheck() const
-{ }
+{
+}
 
-common::span<std::byte> FileMappingStream::GetSpan() const noexcept { return common::span<std::byte>(MappingObject->Ptr,MappingObject->Size); }
+common::span<std::byte> FileMappingStream::GetSpan() const noexcept { return common::span<std::byte>(MappingObject->Ptr, MappingObject->Size); }
 
 void FileMappingStream::FlushRange(const size_t offset, const size_t len, const bool async) const noexcept
 {
@@ -295,7 +309,7 @@ void FileMappingStream::FlushRange(const size_t offset, const size_t len, const 
         FlushFileBuffers(MappingObject->GetRawFileHandle());
 #else
     const auto [newOffset, padding] = HandleMappingAlign(offset);
-    msync(MappingObject->Ptr + newOffset, 
+    msync(MappingObject->Ptr + newOffset,
         static_cast<size_t>(len + padding),
         (async ? MS_ASYNC : MS_SYNC) | MS_INVALIDATE);
 #endif
@@ -303,12 +317,14 @@ void FileMappingStream::FlushRange(const size_t offset, const size_t len, const 
 
 
 FileMappingInputStream::FileMappingInputStream(std::shared_ptr<FileMappingObject> mapping)
-    : FileMappingStream(std::move(mapping)), 
-    MemoryInputStream(this->GetSpan()) { }
+    : FileMappingStream(std::move(mapping)),
+    MemoryInputStream(this->GetSpan()) {
+}
 
-FileMappingInputStream::FileMappingInputStream(FileMappingInputStream&& stream) noexcept
+FileMappingInputStream::FileMappingInputStream(FileMappingInputStream && stream) noexcept
     : FileMappingStream(std::move(stream.MappingObject)),
-    MemoryInputStream(std::move(stream)) { }
+    MemoryInputStream(std::move(stream)) {
+}
 
 FileMappingInputStream::~FileMappingInputStream()
 {
@@ -317,12 +333,14 @@ FileMappingInputStream::~FileMappingInputStream()
 FileMappingOutputStream::FileMappingOutputStream(std::shared_ptr<FileMappingObject> mapping)
     : FileMappingStream(std::move(mapping)),
     MemoryOutputStream(this->GetSpan()),
-    ModifyRange({ 0,0 }) { }
+    ModifyRange({ 0,0 }) {
+}
 
-FileMappingOutputStream::FileMappingOutputStream(FileMappingOutputStream&& stream) noexcept
+FileMappingOutputStream::FileMappingOutputStream(FileMappingOutputStream && stream) noexcept
     : FileMappingStream(std::move(stream.MappingObject)),
     MemoryOutputStream(std::move(stream)),
-    ModifyRange(stream.ModifyRange) { }
+    ModifyRange(stream.ModifyRange) {
+}
 
 FileMappingOutputStream::~FileMappingOutputStream()
 {
@@ -352,13 +370,76 @@ void FileMappingOutputStream::Flush() noexcept
     ModifyRange.second = 0;
 }
 
-FileMappingInputStream MapFileForRead(const fs::path& fpath)
+FileMappingInputStream MapFileForRead(const fs::path & fpath)
 {
     return FileMappingInputStream(
         FileMappingObject::OpenThrow(
             RawFileObject::OpenThrow(fpath, OpenFlag::ReadBinary),
             MappingFlag::ReadOnly)
     );
+}
+
+}
+
+MAKE_ENABLER_IMPL(SharedMemory)
+
+
+struct SharedMemory::Holder final : public AlignedBuffer::ExternBufInfo
+{
+    std::shared_ptr<const SharedMemory> Host;
+    Holder(std::shared_ptr<const SharedMemory> host) : Host(std::move(host)) {}
+    ~Holder() final {}
+    [[nodiscard]] size_t GetSize() const noexcept final { return Host->Space.size(); }
+    [[nodiscard]] byte* GetPtr() const noexcept final { return Host->Space.data(); }
+};
+
+[[nodiscard]] AlignedBuffer SharedMemory::AsBuffer() const noexcept
+{
+    return AlignedBuffer::CreateBuffer(std::make_unique<Holder>(shared_from_this()), gsl::narrow_cast<size_t>(file::GetMappingAlign()));
+}
+SharedMemory::~SharedMemory()
+{
+#if COMMON_OS_WIN
+    UnmapViewOfFile(Space.data());
+    CloseHandle(reinterpret_cast<HANDLE>(Handle));
+#else
+    shmctl(static_cast<int>(Handle), IPC_RMID, nullptr);
+    shmdt(Space.data());
+#endif
+}
+
+
+std::shared_ptr<SharedMemory> SharedMemory::CreateAnonymous(size_t size_)
+{
+    const auto align = file::GetMappingAlign();
+    const size_t sizeAligned = (static_cast<uint64_t>(size_) + align - 1) / align * align;
+#if COMMON_OS_WIN
+    const size_t size = saturate_cast<LONGLONG>(sizeAligned);
+    LARGE_INTEGER realMapSize{};
+    realMapSize.QuadPart = static_cast<LONGLONG>(size);
+    const auto mapHandle = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, realMapSize.HighPart, realMapSize.LowPart, nullptr);
+    if (mapHandle != NULL)
+    {
+        const auto ptr = MapViewOfFile(mapHandle, FILE_MAP_ALL_ACCESS, 0, 0, realMapSize.QuadPart);
+        if (ptr)
+        {
+            return MAKE_ENABLER_SHARED(SharedMemory, (reinterpret_cast<uintptr_t>(mapHandle), span<byte>{ reinterpret_cast<byte*>(ptr), size }));
+        }
+        CloseHandle(mapHandle);
+    }
+#else
+    const auto handle = shmget(IPC_PRIVATE, sizeAligned, IPC_CREAT | S_IRUSR | S_IWUSR);
+    if (handle != -1)
+    {
+        const auto ptr = shmat(handle, nullptr, 0);
+        if (ptr && ptr != (void*)-1)
+        {
+            return MAKE_ENABLER_SHARED(SharedMemory, (static_cast<uintptr_t>(handle), span<byte>{ reinterpret_cast<byte*>(ptr), sizeAligned }));
+        }
+        shmctl(handle, IPC_RMID, nullptr);
+    }
+#endif
+    return {};
 }
 
 }

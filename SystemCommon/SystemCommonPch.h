@@ -49,6 +49,7 @@
 #   include <sys/stat.h>
 #   include <sys/types.h>
 #   include <sys/wait.h>
+#   include <sys/shm.h>
 #   if COMMON_OS_DARWIN
 #       include <sys/sysctl.h>
 #       include <mach/mach_types.h>

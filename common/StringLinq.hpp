@@ -111,9 +111,18 @@ template<typename T, typename Judger>
     using U = std::decay_t<T>; 
     if constexpr (std::is_pointer_v<U>)
     {
-        auto sv = std::basic_string_view(source);
-        using Char = std::remove_cv_t<typename decltype(sv)::value_type>;
-        return detail::ToSplitStream<Char>(sv, std::forward<Judger>(judger), keepblank);
+        using V = decltype(std::basic_string_view(source));
+        using Char = std::remove_cv_t<typename V::value_type>;
+        V str{};
+#if COMMON_COMPILER_GCC
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wnonnull-compare"
+#endif
+        if (source) str = source;
+#if COMMON_COMPILER_GCC
+#pragma GCC diagnostic pop
+#endif
+        return detail::ToSplitStream<Char>(str, std::forward<Judger>(judger), keepblank);
     }
     else if constexpr (common::has_valuetype_v<U>)
     {

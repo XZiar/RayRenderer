@@ -16,7 +16,7 @@
         [
             "pthread", "readline", "dl",
             {"ifeq": {"osname": "Darwin"}, "+": "objc"},
-            {"ifhas": "android", "+": "log"},
+            {"ifhas": "android", "+": ["log", "android-shmem"]},
             {"ifhas": "fslib_d", "+": "@fslib_d"},
             {"ifneq": {"compiler": "clang"}, "+": "backtrace"}
         ]

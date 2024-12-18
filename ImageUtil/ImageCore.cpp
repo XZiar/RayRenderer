@@ -298,25 +298,8 @@ void Image::PlaceImage(ImageView src, const uint32_t srcX, const uint32_t srcY, 
     }
 }
 
-void Image::Resize(uint32_t width, uint32_t height, const bool isSRGB, const bool mulAlpha)
+static void DoResize(const ImgDType datatype, const std::byte* src, std::byte* dst, const uint32_t srcRowStride, const uint32_t dstRowStride, const uint32_t srcW, const uint32_t srcH, const uint32_t dstW, const uint32_t dstH, const bool isSRGB, const bool mulAlpha)
 {
-    *this = ResizeTo(width, height, isSRGB, mulAlpha);
-}
-
-Image Image::ResizeTo(uint32_t width, uint32_t height, const bool isSRGB, const bool mulAlpha) const
-{
-    if (width == 0 && height == 0)
-        COMMON_THROW(BaseException, u"image size cannot be all zero!");
-    /*if (mulAlpha && !HAS_FIELD(DataType, ImageDataType::ALPHA_MASK))
-        ImgLog().Warning(u"Asks for premultiplied alpha for non-alpha source, ignored");*/
-    if (isSRGB && DataType.DataType() != ImgDType::DataTypes::Uint8)
-        ImgLog().Warning(u"Asks for sRGB handling for non-Uint8 type, ignored");
-
-    width = width == 0 ? (uint32_t)((uint64_t)height * Width / Height) : width;
-    height = height == 0 ? (uint32_t)((uint64_t)width * Height / Width) : height;
-    Image output(DataType);
-    output.SetSize(width, height);
-
     static const STBResize& resizer = []() -> const STBResize&
     {
         const auto& stbResizer = STBResize::Get();
@@ -343,35 +326,86 @@ Image Image::ResizeTo(uint32_t width, uint32_t height, const bool isSRGB, const 
 
     STBResize::ResizeInfo info
     {
-        .Input = Data,
-        .Output = output.GetRawPtr(),
-        .InputSizes = { Width, Height },
-        .OutputSizes = { width, height },
+        .Input = src,
+        .Output = dst,
+        .InputRowStride = srcRowStride,
+        .OutputRowStride = dstRowStride,
+        .InputSizes = { srcW, srcH },
+        .OutputSizes = { dstW, dstH },
         .Layout = 0,
         .Datatype = 0,
         .Edge = static_cast<uint8_t>(STBIR_EDGE_REFLECT),
         .Filter = static_cast<uint8_t>(STBIR_FILTER_TRIANGLE),
     };
-    switch (DataType.Channel())
+    switch (datatype.Channel())
     {
     case ImgDType::Channels::RGBA:  info.Layout = static_cast<uint8_t>(mulAlpha ? STBIR_RGBA_PM : STBIR_RGBA); break;
     case ImgDType::Channels::BGRA:  info.Layout = static_cast<uint8_t>(mulAlpha ? STBIR_BGRA_PM : STBIR_BGRA); break;
     case ImgDType::Channels::RGB:   info.Layout = static_cast<uint8_t>(STBIR_RGB); break;
     case ImgDType::Channels::BGR:   info.Layout = static_cast<uint8_t>(STBIR_BGR); break;
-    case ImgDType::Channels::RA:    info.Layout = static_cast<uint8_t>(mulAlpha ? STBIR_RA_PM   : STBIR_RA  ); break;
+    case ImgDType::Channels::RA:    info.Layout = static_cast<uint8_t>(mulAlpha ? STBIR_RA_PM : STBIR_RA); break;
     case ImgDType::Channels::R:     info.Layout = static_cast<uint8_t>(STBIR_1CHANNEL); break;
     default: CM_UNREACHABLE();
     }
-    switch (DataType.DataType())
+    switch (datatype.DataType())
     {
     case ImgDType::DataTypes::Uint8:    info.Datatype = static_cast<uint8_t>(isSRGB ? STBIR_TYPE_UINT8_SRGB : STBIR_TYPE_UINT8); break;
     case ImgDType::DataTypes::Float32:  info.Datatype = static_cast<uint8_t>(STBIR_TYPE_FLOAT); break;
     case ImgDType::DataTypes::Float16:  info.Datatype = static_cast<uint8_t>(STBIR_TYPE_HALF_FLOAT); break;
     default: COMMON_THROW(BaseException, u"unsupported datatype!");
     }
-
     resizer.Resize(info);
+}
+
+Image Image::ResizeTo(uint32_t width, uint32_t height, const bool isSRGB, const bool mulAlpha) const
+{
+    if (width == 0 && height == 0)
+        COMMON_THROW(BaseException, u"image size cannot be all zero!");
+    /*if (mulAlpha && !HAS_FIELD(DataType, ImageDataType::ALPHA_MASK))
+        ImgLog().Warning(u"Asks for premultiplied alpha for non-alpha source, ignored");*/
+    if (isSRGB && DataType.DataType() != ImgDType::DataTypes::Uint8)
+        ImgLog().Warning(u"Asks for sRGB handling for non-Uint8 type, ignored");
+
+    width = width == 0 ? (uint32_t)((uint64_t)height * Width / Height) : width;
+    height = height == 0 ? (uint32_t)((uint64_t)width * Height / Width) : height;
+    Image output(DataType);
+    output.SetSize(width, height);
+    DoResize(DataType, GetRawPtr(), output.GetRawPtr(), 0, 0, Width, Height, width, height, isSRGB, mulAlpha);
     return output;
+}
+
+void Image::ResizeTo(Image& dst, const uint32_t srcX, const uint32_t srcY, const uint32_t destX, const uint32_t destY, uint32_t width, uint32_t height, const bool isSRGB, const bool mulAlpha) const
+{
+    if (dst.GetSize() == 0)
+        COMMON_THROW(BaseException, u"dst image size cannot be zero!");
+    const auto totalW = dst.GetWidth(), totalH = dst.GetHeight();
+    if (srcX >= Width || srcY >= Height || destX >= totalW || destY >= totalH)
+        return;
+    auto dstW = totalW - destX, dstH = totalH - destY;
+    auto srcW = Width - srcX, srcH = Height - srcY;
+    /*if (mulAlpha && !HAS_FIELD(DataType, ImageDataType::ALPHA_MASK))
+        ImgLog().Warning(u"Asks for premultiplied alpha for non-alpha source, ignored");*/
+    if (isSRGB && DataType.DataType() != ImgDType::DataTypes::Uint8)
+        ImgLog().Warning(u"Asks for sRGB handling for non-Uint8 type, ignored");
+
+    if (width > dstW)
+        srcW = dstW * srcW / width;
+    else if (width > 0)
+        dstW = width;
+    if (height > dstH)
+        srcH = dstH * srcH / height;
+    else if (height > 0)
+        dstH = height;
+
+    if (DataType == dst.DataType)
+        DoResize(DataType, GetRawPtr(srcY, srcX), dst.GetRawPtr(destY, destX), Width * DataType.ElementSize(), totalW * DataType.ElementSize(), srcW, srcH, dstW, dstH, isSRGB, mulAlpha);
+    else
+    {
+        Image tmp(DataType);
+        tmp.SetSize(dstW, dstH, false);
+        DoResize(DataType, GetRawPtr(srcY, srcX), tmp.GetRawPtr(), Width * DataType.ElementSize(), 0, srcW, srcH, dstW, dstH, isSRGB, mulAlpha);
+        dst.PlaceImage(tmp, 0, 0, destX, destY);
+    }
 }
 
 

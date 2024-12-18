@@ -96,7 +96,7 @@ public:
     void (GLAPIENTRYP MultiDrawElements) (GLenum mode, const GLsizei* count, GLenum type, const void* const* indices, GLsizei drawcount) = nullptr;
     void (GLAPIENTRYP MultiDrawArraysIndirect_) (GLenum mode, const void* indirect, GLsizei drawcount, GLsizei stride) = nullptr;
     void (GLAPIENTRYP DrawArraysInstancedBaseInstance_) (GLenum mode, GLint first, GLsizei count, GLsizei instancecount, GLuint baseinstance) = nullptr;
-    void (GLAPIENTRYP DrawArraysInstanced_) (GLenum mode, GLint first, GLsizei count, GLsizei instancecount);
+    void (GLAPIENTRYP DrawArraysInstanced_) (GLenum mode, GLint first, GLsizei count, GLsizei instancecount) = nullptr;
     void (GLAPIENTRYP MultiDrawElementsIndirect_) (GLenum mode, GLenum type, const void* indirect, GLsizei drawcount, GLsizei stride) = nullptr;
     void (GLAPIENTRYP DrawElementsInstancedBaseVertexBaseInstance_) (GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei instancecount, GLint basevertex, GLuint baseinstance) = nullptr;
     void (GLAPIENTRYP DrawElementsInstancedBaseInstance_) (GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei instancecount, GLuint baseinstance) = nullptr;
@@ -256,8 +256,8 @@ public:
     void   (GLAPIENTRYP FramebufferTexture2D_) (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level) = nullptr;
     void   (GLAPIENTRYP NamedFramebufferTexture3DEXT_) (GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset) = nullptr;
     void   (GLAPIENTRYP FramebufferTexture3D_) (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer) = nullptr;
-    void   (GLAPIENTRYP NamedFramebufferTexture_) (GLuint framebuffer, GLenum attachment, GLuint texture, GLint level);
-    void   (GLAPIENTRYP FramebufferTexture_) (GLenum target, GLenum attachment, GLuint texture, GLint level);
+    void   (GLAPIENTRYP NamedFramebufferTexture_) (GLuint framebuffer, GLenum attachment, GLuint texture, GLint level) = nullptr;
+    void   (GLAPIENTRYP FramebufferTexture_) (GLenum target, GLenum attachment, GLuint texture, GLint level) = nullptr;
     void   (GLAPIENTRYP NamedFramebufferTextureLayer_) (GLuint framebuffer, GLenum attachment, GLuint texture, GLint level, GLint layer) = nullptr;
     void   (GLAPIENTRYP FramebufferTextureLayer_) (GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer) = nullptr;
     GLenum (GLAPIENTRYP CheckNamedFramebufferStatus_) (GLuint framebuffer, GLenum target) = nullptr;

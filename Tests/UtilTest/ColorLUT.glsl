@@ -108,7 +108,7 @@ vec3 SRGBToLinear(const vec3 color)
 }
 
 
-uniform float step;
+uniform float curStep;
 #endif
 
 
@@ -126,7 +126,7 @@ OGLU_IMG writeonly uniform image3D result;
 layout(local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
 void main()
 {
-    /*const*/ vec3 srcColor = vec3(gl_GlobalInvocationID.xyz) * step;
+    /*const*/ vec3 srcColor = vec3(gl_GlobalInvocationID.xyz) * curStep;
     /*const*/ vec3 linearColor = LogUEToLinear(srcColor);
     /*const*/ vec3 acesColor = ToneMapping(linearColor);
     /*const*/ vec3 srgbColor = LinearToSRGB(acesColor);
@@ -183,7 +183,7 @@ void main()
     /*const*/ int yIdx = int(float(lutSize) - gl_FragCoord.y);
     /*const*/ int zIdx = ogluLayer;
     /*const*/ ivec3 lutPos = ivec3(xIdx, yIdx, zIdx);
-    /*const*/ vec3 srcColor = vec3(lutPos) * step;
+    /*const*/ vec3 srcColor = vec3(lutPos) * curStep;
     /*const*/ vec3 linearColor = LogUEToLinear(srcColor);
     /*const*/ vec3 acesColor = ToneMapping(linearColor);
     /*const*/ vec3 srgbColor = LinearToSRGB(acesColor);

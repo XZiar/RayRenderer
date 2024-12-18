@@ -498,6 +498,8 @@ public:
     {
         const void* Input;
         void* Output;
+        size_t InputRowStride;
+        size_t OutputRowStride;
         std::pair<uint32_t, uint32_t> InputSizes;
         std::pair<uint32_t, uint32_t> OutputSizes;
         uint8_t Layout;

@@ -245,12 +245,16 @@ public:
     ///<summary>Resize the image in-place</summary>  
     ///<param name="width">width</param>
     ///<param name="height">height</param>
-    void Resize(uint32_t width, uint32_t height, const bool isSRGB = false, const bool mulAlpha = true);
+    void Resize(uint32_t width, uint32_t height, const bool isSRGB = false, const bool mulAlpha = true)
+    {
+        *this = ResizeTo(width, height, isSRGB, mulAlpha);
+    }
 
     ///<summary>Resize the image</summary>  
     ///<param name="width">width</param>
     ///<param name="height">height</param>
     Image ResizeTo(uint32_t width, uint32_t height, const bool isSRGB = false, const bool mulAlpha = true) const;
+    void ResizeTo(Image& dst, const uint32_t srcX, const uint32_t srcY, const uint32_t destX, const uint32_t destY, uint32_t width = 0, uint32_t height = 0, const bool isSRGB = false, const bool mulAlpha = true) const;
     [[nodiscard]] Image Region(const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
     [[nodiscard]] Image ConvertTo(const ImgDType dataType, const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
     [[nodiscard]] Image ConvertFloat(const ImgDType::DataTypes dataType, const float floatRange = 1) const;

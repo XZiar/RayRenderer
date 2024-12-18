@@ -193,7 +193,15 @@ static void OpenTestWindow(WindowBackend& backend)
             }
         }
     };
-    window->Show();
+    window->Show([&](std::string_view name) -> std::any 
+    {
+        if (name == "pixmap-shm")
+        {
+            const auto args = GetCmdArgs();
+            return std::find(args.begin(), args.end(), std::string_view("noshm")) == args.end();
+        }
+        return {};
+    });
     getchar();
     window->Close();
 }

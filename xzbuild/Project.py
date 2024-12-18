@@ -108,7 +108,7 @@ class Project:
                     print(f"pkg-config for [{key}] get: [{ret.stdout.strip()}]")
                     for x in ret.stdout.split():
                         if x.startswith("-l"):
-                            newlist.append(item[2:])
+                            newlist.append(x[2:])
                 finally: pass
             else:
                 newlist.append(item)

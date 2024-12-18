@@ -1,7 +1,7 @@
 #include "WindowManager.h"
 #include "WindowHost.h"
 #include "SystemCommon/StringConvert.h"
-
+#include "SystemCommon/SharedMemory.h"
 #include "SystemCommon/Exceptions.h"
 #include "common/ContainerEx.hpp"
 #include "common/FrozenDenseSet.hpp"
@@ -19,6 +19,7 @@
 #include <xcb/xcb.h>
 //#include <xcb/dri2.h>
 //#include <xcb/dri3.h>
+#include <xcb/shm.h>
 #define explicit explicit_
 #include <xcb/xkb.h>
 #undef explicit
@@ -33,7 +34,6 @@ constexpr uint32_t MessageTask      = 2;
 constexpr uint32_t MessageClose     = 3;
 constexpr uint32_t MessageStop      = 4;
 constexpr uint32_t MessageDpi       = 5;
-//constexpr uint32_t MessageBuildBG   = 6;
 constexpr uint32_t MessageUpdTitle  = 10;
 constexpr uint32_t MessageUpdIcon   = 11;
 
@@ -82,13 +82,13 @@ struct IconHolder : public OpaqueResource
         ::delete[] data.data();
     }
 };
-struct RenderImgHolder : public OpaqueResource
+struct ImgHolder : public OpaqueResource
 {
-    explicit RenderImgHolder(const ImageView& img) noexcept : OpaqueResource(&TheDisposer, reinterpret_cast<uintptr_t>(new ImageView(img))) {}
+    explicit ImgHolder(const ImageView& img) noexcept : OpaqueResource(&TheDisposer, reinterpret_cast<uintptr_t>(new ImageView(img))) {}
     const ImageView& Image() const noexcept { return *reinterpret_cast<const ImageView*>(Cookie[0]); }
     static void TheDisposer(const OpaqueResource& res) noexcept
     {
-        const auto& holder = static_cast<const RenderImgHolder&>(res);
+        const auto& holder = static_cast<const ImgHolder&>(res);
         delete &holder.Image();
     }
 };
@@ -101,11 +101,58 @@ private:
     class WdHost final : public XCBBackend::XCBWdHost
     {
     public:
+        struct BackImageHolder : public CacheRect<uint16_t>
+        {
+            std::shared_ptr<common::SharedMemory> Memory;
+            Image RealImage;
+            xcb_shm_seg_t ShmSeg = 0;
+            xcb_pixmap_t Pixmap = 0;
+            bool TryShm(const WdHost& wd, WindowManagerXCB& manager) noexcept
+            {
+                const auto size = static_cast<size_t>(Width) * Height * manager.PixmapDType.ElementSize();
+                if (!Memory || Memory->AsSpan().size() < size) // need new size
+                {
+                    if (Memory)
+                    {
+                        if (!manager.GeneralHandleError(xcb_shm_detach_checked(manager.Connection, ShmSeg)))
+                            return false;
+                    }
+                    Memory = common::SharedMemory::CreateAnonymous(size);
+                    manager.Logger.Verbose(u"Resize shm to [{}].\n", Memory->AsSpan().size());
+                    Ensures(Memory->AsSpan().size() >= size);
+                    if (!manager.GeneralHandleError(xcb_shm_attach_checked(manager.Connection, ShmSeg, static_cast<uint32_t>(Memory->GetHandle()), 0)))
+                        return false;
+                }
+                if (!manager.GeneralHandleError(xcb_shm_create_pixmap_checked(manager.Connection, Pixmap, wd.Handle, 
+                    Width, Height, manager.Screen->root_depth, ShmSeg, 0)))
+                    return false;
+                RealImage = Image(Memory->AsBuffer().CreateSubBuffer(0, size), Width, Height, manager.PixmapDType);
+                return true;
+            }
+            bool Update(const WdHost& wd, WindowManagerXCB& manager) noexcept
+            {
+                const auto [ sizeChanged, needInit ] = CacheRect::Update(wd);
+                if (sizeChanged)
+                {
+                    if (!needInit) manager.Free(Pixmap);
+                    if (ShmSeg)
+                    {
+                        if (TryShm(wd, manager))
+                            return sizeChanged;
+                        manager.Logger.Warning(u"Failed using SHM for pixmap, fallback to normal copy.\n");
+                        RealImage = {};
+                        Memory.reset();
+                        ShmSeg = 0;
+                    }
+                    manager.GeneralHandleError(xcb_create_pixmap_checked(manager.Connection, manager.Screen->root_depth, Pixmap, wd.Handle, Width, Height));
+                }
+                return sizeChanged;
+            }
+        };
         WindowManagerXCB& GetManager() noexcept { return static_cast<WindowManagerXCB&>(WindowHost_::GetManager()); }
         xcb_window_t Handle = 0;
         xcb_gcontext_t GContext = 0;
-        xcb_pixmap_t BackImage = 0;
-        CacheRect<uint16_t> BackBuf;
+        BackImageHolder BackImage;
         DragInfos DragInfo;
         bool NeedBackground = true;
         WdHost(WindowManagerXCB& manager, const XCBCreateInfo& info) noexcept :
@@ -115,29 +162,31 @@ private:
         void OnDisplay() noexcept final
         {
             auto& manager = GetManager();
-            const auto [ sizeChanged, needInit ] = BackBuf.Update(*this);
-            if (sizeChanged)
-            {
-                if (!needInit) manager.Free(BackImage);
-                manager.GeneralHandleError(xcb_create_pixmap(manager.Connection, manager.Screen->root_depth, BackImage, Handle, BackBuf.Width, BackBuf.Height));
-            }
+            const auto sizeChanged = BackImage.Update(*this, manager);
             bool needDraw = false;
             {
                 BgLock lock(this);
                 const bool bgChanged = lock;
-                const auto& holder = static_cast<RenderImgHolder&>(*GetWindowResource(this, WdAttrIndex::Background));
+                const auto& holder = static_cast<ImgHolder&>(*GetWindowResource(this, WdAttrIndex::Background));
                 if (bgChanged || sizeChanged)
                 {
                     common::SimpleTimer timer;
                     timer.Start();
-                    xcb_rectangle_t rect{ .x = 0, .y = 0, .width = BackBuf.Width, .height = BackBuf.Height };
-                    manager.GeneralHandleError(xcb_poly_fill_rectangle(manager.Connection, BackImage, GContext, 1, &rect));
+                    xcb_rectangle_t rect{ .x = 0, .y = 0, .width = BackImage.Width, .height = BackImage.Height };
+                    xcb_poly_fill_rectangle(manager.Connection, BackImage.Pixmap, GContext, 1, &rect);
                     if (holder)
                     {
                         const auto& img = holder.Image();
-                        const auto [tw, th] = BackBuf.ResizeWithin(img.GetWidth(), img.GetHeight());
-                        const auto newimg = img.ResizeTo(tw, th, true, true);
-                        manager.PutImageInPixmap(*this, BackImage, newimg, BackBuf.Width, BackBuf.Height);
+                        const auto [tw, th] = BackImage.ResizeWithin(img.GetWidth(), img.GetHeight());
+                        if (BackImage.ShmSeg)
+                        {
+                            img.ResizeTo(BackImage.RealImage, 0, 0, 0, 0, tw, th, true, true);
+                        }
+                        else
+                        {
+                            const auto newimg = img.ResizeTo(tw, th, true, true);
+                            manager.PutImageInPixmap(*this, BackImage.Pixmap, newimg, BackImage.Width, BackImage.Height);
+                        }
                         timer.Stop();
                         Manager.Logger.Verbose(u"Window [{:x}] rebuild backbuffer in [{} ms].\n", Handle, timer.ElapseMs());
                     }
@@ -146,7 +195,7 @@ private:
             }
             if (needDraw)
             {
-                xcb_copy_area(manager.Connection, BackImage, Handle, GContext, 0, 0, 0, 0, BackBuf.Width, BackBuf.Height);
+                xcb_copy_area(manager.Connection, BackImage.Pixmap, Handle, GContext, 0, 0, 0, 0, BackImage.Width, BackImage.Height);
                 xcb_flush(manager.Connection);
             }
             WindowHost_::OnDisplay();
@@ -192,6 +241,7 @@ private:
     xkb_mod_index_t CapsLockIndex = 0;
     uint8_t XKBEventID = 0;
     uint8_t XKBErrorID = 0;
+    bool CanPixmapShm = false;
     bool IsCapsLock = false;
 
     std::string_view Name() const noexcept final { return BackendName; }
@@ -207,12 +257,19 @@ private:
     void* GetConnection() const noexcept final { return Connection; }
     int32_t GetDefaultScreen() const noexcept final { return DefScreen; }
 
-    bool GeneralHandleError(xcb_generic_error_t* err) const noexcept
+    bool GeneralHandleError(xcb_generic_error_t* err, bool freeErr = true) const noexcept
     {
         if (err)
         {
-            Logger.Error(u"Error: [{}] [{},{}]\n", err->error_code, err->major_code, err->minor_code);
-            free(err);
+            std::string txtBuf;
+            if (TheDisplay)
+            {
+                txtBuf.resize(1024, '\0');
+                XGetErrorText(TheDisplay, err->error_code, txtBuf.data(), 1024);
+            }
+            Logger.Error(u"Error: [{:>3d}]({}) [{:>3d},{}]\n", err->error_code, txtBuf, err->major_code, err->minor_code);
+            if (freeErr)
+                free(err);
             return false;
         }
         return true;
@@ -497,6 +554,20 @@ public:
         CapsLockIndex = xkb_keymap_mod_get_index(XKBKeymap, XKB_MOD_NAME_CAPS);
         UpdateXKBState();
 
+        if (Extensions.Has("MIT-SHM"))
+        {
+            const auto reply = xcb_shm_query_version_reply(Connection, xcb_shm_query_version(Connection), nullptr);
+            if (reply)
+            {
+                CanPixmapShm = reply->shared_pixmaps && reply->pixmap_format == XCB_IMAGE_FORMAT_Z_PIXMAP;
+                Logger.Debug(u"xcb-shm initialized as [{}.{}], pixmaps: shared[{}] format[{}] enable[{}].\n"sv, 
+                    reply->major_version, reply->minor_version, reply->shared_pixmaps ? 'Y' : 'N', reply->pixmap_format, CanPixmapShm ? 'Y' : 'N');
+                free(reply);
+            }
+            else
+                Logger.Warning(u"xcb-shm not initialized...\n");
+        }
+
         // Find XCB screen
         {
             auto screenIter = xcb_setup_roots_iterator(setup);
@@ -579,7 +650,7 @@ public:
         const uint32_t eventmask = XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT;
         const uint32_t valuelist[] = { eventmask };
 
-        const auto cookie0 = xcb_create_window(
+        GeneralHandleError(xcb_create_window_checked(
             Connection,
             XCB_COPY_FROM_PARENT,
             ControlWindow,
@@ -591,8 +662,7 @@ public:
             Screen->root_visual,
             valuemask,
             valuelist
-        );
-        GeneralHandleError(cookie0);
+        ));
 
         // prepare atoms
         {
@@ -632,16 +702,25 @@ public:
                 const auto namePtr  = item.second.data() + 1;
                 atomCookies.emplace_back(xcb_intern_atom_unchecked(Connection, onlyIfExists, nameSize, namePtr));
             }
+            std::string fails;
             size_t atomIdx = 0;
             for (const auto& cookie : atomCookies)
             {
                 const auto reply = xcb_intern_atom_reply(Connection, cookie, nullptr);
+                auto& item = atomList[atomIdx++];
                 if (reply)
                 {
-                    *atomList[atomIdx++].first = reply->atom;
+                    *item.first = reply->atom;
                     free(reply);
                 }
+                if (!*item.first)
+                {
+                    if (!fails.empty()) fails.append(", ");
+                    fails.append(item.second, 1);
+                }
             }
+            if (!fails.empty())
+                Logger.Verbose(u"Following atoms not recognized: [{}].\n", fails);
         }
         // read xsettings
         LoadXSettings();
@@ -767,6 +846,7 @@ public:
     }
     void HandleClientMessage(WindowHost_* host_, xcb_window_t window, const xcb_atom_t atom, const xcb_client_message_data_t& data)
     {
+        if (atom == 0) return;
         const auto host = static_cast<WdHost*>(host_);
         if (atom == WMProtocolAtom)
         {
@@ -806,10 +886,13 @@ public:
             Logger.Info(u"DragEnter from [{}] with {} types:\n", uint32_t(dragInfo.SourceWindow), dragInfo.Types.size());
             for (const auto& type : dragInfo.Types)
             {
-                if (type == UrlListAtom)
-                    dragInfo.TargetType = type;
-                const auto name = QueryAtomName(type);
-                Logger.Verbose(u"--[{:6}]: [{}]\n", type, name);
+                if (type)
+                {
+                    const auto name = QueryAtomName(type);
+                    Logger.Verbose(u"--[{:6}]: [{}]\n", type, name);
+                    if (type == UrlListAtom || name == "text/uri-list")
+                        dragInfo.TargetType = type;
+                }
             }
         }
         else if (atom == XdndLeaveAtom)
@@ -884,12 +967,13 @@ public:
         if (const auto host_ = GetWindow(window); host_)
         {
             const auto host = static_cast<WdHost*>(host_);
-            host->Handle = window;
-            host->GContext = xcb_generate_id(Connection);
-            host->BackImage = xcb_generate_id(Connection);
-            uint32_t values[] = { BGColor, 0 };
-            xcb_create_gc(Connection, host->GContext, host->Handle, XCB_GC_FOREGROUND | XCB_GC_GRAPHICS_EXPOSURES, values);
-            host->Initialize();
+            if (!host->Handle)
+            {
+                host->Handle = window;
+                uint32_t values[] = { BGColor, 0 };
+                GeneralHandleError(xcb_create_gc_checked(Connection, host->GContext, host->Handle, XCB_GC_FOREGROUND | XCB_GC_GRAPHICS_EXPOSURES, values));
+                host->Initialize();
+            }
         }
     }
     void OnMessageLoop() final
@@ -1066,8 +1150,8 @@ public:
             } break;
             case 0: // error
             {
-                const auto& err = *reinterpret_cast<xcb_generic_error_t*>(evt);
-                Logger.Error(u"Error: [{}] [{},{}]\n", err.error_code, err.major_code, err.minor_code);
+                const auto err = reinterpret_cast<xcb_generic_error_t*>(evt);
+                GeneralHandleError(err, false);
             } break;
             default:
             {
@@ -1095,8 +1179,9 @@ public:
     void CreateNewWindow_(CreatePayload& payload)
     {
         const auto host = static_cast<WdHost*>(payload.Host);
-
         int visualId = Screen->root_visual;
+        bool tryShm = CanPixmapShm && PixmapDType;
+
         if (payload.ExtraData)
         {
             const auto vi_ = (*payload.ExtraData)("visual");
@@ -1105,7 +1190,15 @@ public:
             const auto bg_ = (*payload.ExtraData)("background");
             if (const auto bg = TryGetFinally<bool>(bg_); bg)
                 host->NeedBackground = *bg;
+            const auto shm_ = (*payload.ExtraData)("pixmap-shm");
+            if (const auto shm = TryGetFinally<bool>(shm_); shm)
+                tryShm = tryShm && *shm;
         }
+
+        host->GContext = xcb_generate_id(Connection);
+        host->BackImage.Pixmap = xcb_generate_id(Connection);
+        if (tryShm)
+            host->BackImage.ShmSeg = xcb_generate_id(Connection);
 
         // Create XID's for window 
         xcb_window_t window = xcb_generate_id(Connection);
@@ -1148,11 +1241,14 @@ public:
         // //Set the proxy on me to point to me (as per the spec)
         // XChangeProperty(disp, w, XdndProxy, XA_WINDOW, 32, PropModeReplace, (unsigned char*)&w, 1);
 
-        const auto dummy = QueryProperty(Screen->root, XdndProxyAtom, XCB_ATOM_ANY);
-        // set Xdnd
-        xcb_change_property(Connection, XCB_PROP_MODE_REPLACE, window, XdndProxyAtom, XCB_ATOM_WINDOW, 32, 1, &window);
-        constexpr xcb_atom_t xdndVersion = 5;
-        xcb_change_property(Connection, XCB_PROP_MODE_REPLACE, window, XdndAwareAtom, XCB_ATOM_ATOM, 32, 1, &xdndVersion);
+        if (XdndProxyAtom)
+        {
+            const auto dummy = QueryProperty(Screen->root, XdndProxyAtom, XCB_ATOM_ANY);
+            // set Xdnd
+            xcb_change_property(Connection, XCB_PROP_MODE_REPLACE, window, XdndProxyAtom, XCB_ATOM_WINDOW, 32, 1, &window);
+            constexpr xcb_atom_t xdndVersion = 5;
+            xcb_change_property(Connection, XCB_PROP_MODE_REPLACE, window, XdndAwareAtom, XCB_ATOM_ATOM, 32, 1, &xdndVersion);
+        }
 
         // set close
         xcb_change_property(Connection, XCB_PROP_MODE_APPEND, window, WMProtocolAtom, XCB_ATOM_ATOM, 32, 1, &CloseAtom);
@@ -1287,7 +1383,7 @@ public:
         {
             img = img.ConvertTo(PixmapDType);
         }
-        return static_cast<OpaqueResource>(RenderImgHolder(img));
+        return static_cast<OpaqueResource>(ImgHolder(img));
     }
 
     WindowHost Create(const CreateInfo& info_) final
