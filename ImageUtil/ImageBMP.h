@@ -37,12 +37,18 @@ struct BmpInfo
     uint32_t PaletteUsed;
     uint32_t PaletteImportant;
 };
-struct BmpInfoV4 : public BmpInfo
+struct BmpInfoV2 : public BmpInfo
 {
     uint32_t MaskRed;
     uint32_t MaskGreen;
     uint32_t MaskBlue;
+};
+struct BmpInfoV3 : public BmpInfoV2
+{
     uint32_t MaskAlpha;
+};
+struct BmpInfoV4 : public BmpInfoV3
+{
     uint32_t ColorSpace;
     uint32_t CIEEndPoint[3][3];
     uint16_t GammaRed[2];
@@ -65,11 +71,14 @@ private:
     common::io::RandomInputStream& Stream;
     detail::BmpHeader Header;
     detail::BmpInfoV5 Info;
+    size_t PixelOffset = 0;
+    size_t InfoOffset = 0;
     uint8_t Format = 0;
 public:
     BmpReader(common::io::RandomInputStream& stream);
     virtual ~BmpReader() override {};
     [[nodiscard]] virtual bool Validate() override;
+    IMGUTILAPI [[nodiscard]] bool ValidateNoHeader(uint32_t pixOffset);
     [[nodiscard]] virtual Image Read(ImgDType dataType) override;
 };
 
@@ -87,7 +96,7 @@ public:
 };
 
 
-class BmpSupport final : public ImgSupport {
+class IMGUTILAPI BmpSupport final : public ImgSupport {
 public:
     BmpSupport() : ImgSupport(u"ZexBmp") {}
     ~BmpSupport() final {}

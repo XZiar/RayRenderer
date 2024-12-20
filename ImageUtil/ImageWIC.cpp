@@ -1,5 +1,6 @@
 #include "ImageUtilPch.h"
 #include "ImageWIC.h"
+#include "ImageUtil.h"
 #include "SystemCommon/Format.h"
 #include "SystemCommon/Exceptions.h"
 #include "SystemCommon/StackTrace.h"
@@ -21,12 +22,14 @@
 } } while(0)
 
 
-namespace xziar::img::wic
+namespace xziar::img
 {
 using common::BaseException;
 using common::HResultHolder;
-using common::com::PtrProxy;
 
+namespace wic
+{
+using common::com::PtrProxy;
 
 struct WICFactory : public IWICImagingFactory
 {
@@ -69,7 +72,8 @@ static constexpr auto DataTypeGuidLookup = BuildStaticLookup(uint8_t, DataTypeCv
 
 WicReader::WicReader(std::shared_ptr<const WicSupport>&& support, common::com::PtrProxy<WICDecoder>&& decoder) :
     Support(std::move(support)), Decoder(std::move(decoder))
-{ }
+{
+}
 WicReader::~WicReader() {}
 
 bool WicReader::Validate()
@@ -97,7 +101,7 @@ Image WicReader::Read(ImgDType dataType)
         u"Failed to init converter");
 
     Image image(cvt->MidType);
-    image.SetSize(width, height);
+    image.SetSize(width, height, false);
     THROW_HR(converter->CopyPixels(nullptr, gsl::narrow_cast<uint32_t>(image.GetElementSize() * width), gsl::narrow_cast<uint32_t>(image.GetSize()), image.GetRawPtr<BYTE>()),
         u"Failed to copy pixels");
 
@@ -109,7 +113,8 @@ Image WicReader::Read(ImgDType dataType)
 
 WicWriter::WicWriter(std::shared_ptr<const WicSupport>&& support, common::com::PtrProxy<WICEncoder>&& encoder, ImgType type) :
     Support(std::move(support)), Encoder(std::move(encoder)), Type(type)
-{ }
+{
+}
 WicWriter::~WicWriter() {}
 
 void WicWriter::Write(ImageView image, const uint8_t quality)
@@ -171,23 +176,23 @@ void WicWriter::Write(ImageView image, const uint8_t quality)
         std::optional<uint32_t> platteColorCount;
 #define SetPlatte(bpp) if (IsEqualGUID(targetFormat, GUID_WICPixelFormat##bpp##bppIndexed)) platteColorCount = 1u << bpp
         SetPlatte(1);
-        else SetPlatte(2);
-        else SetPlatte(4);
-        else SetPlatte(8);
+else SetPlatte(2);
+    else SetPlatte(4);
+    else SetPlatte(8);
 #undef SetPlatte
-        if (platteColorCount)
-        {
-            ImgLog().Verbose(u"WIC asks for platte pixel format.\n");
-            THROW_HR(Support->Factory->CreatePalette(platte.GetAddressOf()), u"Failed to create platte");
-            THROW_HR(platte->InitializeFromBitmap(srcBitmap.Get(), *platteColorCount, origType.HasAlpha()), u"Failed to init platte");
-        }
+    if (platteColorCount)
+    {
+        ImgLog().Verbose(u"WIC asks for platte pixel format.\n");
+        THROW_HR(Support->Factory->CreatePalette(platte.GetAddressOf()), u"Failed to create platte");
+        THROW_HR(platte->InitializeFromBitmap(srcBitmap.Get(), *platteColorCount, origType.HasAlpha()), u"Failed to init platte");
+    }
 
-        Microsoft::WRL::ComPtr<IWICFormatConverter> converter;
-        THROW_HR(Support->Factory->CreateFormatConverter(converter.GetAddressOf()), u"Failed to create converter");
-        THROW_HR(converter->Initialize(srcBitmap.Get(), targetFormat, WICBitmapDitherTypeNone, platte.Get(), 0.0f, WICBitmapPaletteTypeCustom),
-            u"Failed to init converter");
+    Microsoft::WRL::ComPtr<IWICFormatConverter> converter;
+    THROW_HR(Support->Factory->CreateFormatConverter(converter.GetAddressOf()), u"Failed to create converter");
+    THROW_HR(converter->Initialize(srcBitmap.Get(), targetFormat, WICBitmapDitherTypeNone, platte.Get(), 0.0f, WICBitmapPaletteTypeCustom),
+        u"Failed to init converter");
 
-        THROW_HR(frame->WriteSource(converter.Get(), nullptr), u"Failed to write bitmap");
+    THROW_HR(frame->WriteSource(converter.Get(), nullptr), u"Failed to write bitmap");
     }
     frame->Commit();
     Encoder->Commit();
@@ -204,9 +209,11 @@ WicSupport::WicSupport() : ImgSupport(u"Wic")
     else
         COMMON_THROWEX(BaseException, u"Init multi-thread COM failed").Attach("HResult", ret).Attach("detail", ret.ToStr());
 }
-WicSupport::~WicSupport() 
+WicSupport::~WicSupport()
 {
 }
+PtrProxy<WICFactory> WicSupport::GetFactory() const { return Factory; }
+
 
 
 struct WrapInputStream final : public IStream
@@ -216,7 +223,7 @@ struct WrapInputStream final : public IStream
     WrapInputStream(common::io::RandomInputStream& stream) noexcept : RefCount{ 1u }, Stream(&stream) {}
 
     ULONG STDMETHODCALLTYPE AddRef(void) final { return ++RefCount; }
-    ULONG STDMETHODCALLTYPE Release(void) final 
+    ULONG STDMETHODCALLTYPE Release(void) final
     {
         const auto count = --RefCount;
         if (!count)
@@ -226,7 +233,7 @@ struct WrapInputStream final : public IStream
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) final
     {
         if (!ppvObject) return E_POINTER;
-        if (riid == __uuidof(IUnknown) || riid == __uuidof(IStream) || riid == __uuidof(ISequentialStream)) 
+        if (riid == __uuidof(IUnknown) || riid == __uuidof(IStream) || riid == __uuidof(ISequentialStream))
         {
             *ppvObject = static_cast<IStream*>(this);
             AddRef();
@@ -249,7 +256,7 @@ struct WrapInputStream final : public IStream
         size_t newPos = 0;
         switch (dwOrigin)
         {
-        case STREAM_SEEK_SET: 
+        case STREAM_SEEK_SET:
             if (const auto pos = static_cast<ULONGLONG>(dlibMove.QuadPart); pos > size)
                 return STG_E_INVALIDFUNCTION;
             else
@@ -368,7 +375,7 @@ struct WrapOutputStream final : public IStream
     WrapOutputStream(common::io::RandomOutputStream& stream) noexcept : RefCount{ 1u }, Stream(&stream) {}
 
     ULONG STDMETHODCALLTYPE AddRef(void) final { return ++RefCount; }
-    ULONG STDMETHODCALLTYPE Release(void) final 
+    ULONG STDMETHODCALLTYPE Release(void) final
     {
         const auto count = --RefCount;
         if (!count)
@@ -378,7 +385,7 @@ struct WrapOutputStream final : public IStream
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) final
     {
         if (!ppvObject) return E_POINTER;
-        if (riid == __uuidof(IUnknown) || riid == __uuidof(IStream) || riid == __uuidof(ISequentialStream)) 
+        if (riid == __uuidof(IUnknown) || riid == __uuidof(IStream) || riid == __uuidof(ISequentialStream))
         {
             *ppvObject = static_cast<IStream*>(this);
             AddRef();
@@ -541,21 +548,140 @@ uint8_t WicSupport::MatchExtension(std::u16string_view ext, ImgDType dataType, c
 }
 
 
-static auto DUMMY = []() 
+static auto DUMMY = []()
 {
     try
     {
         auto support = std::make_shared<WicSupport>();
-        return RegistImageSupport(std::move(support));
+        RegistImageSupport(support);
+        return support;
     }
     catch (const BaseException& be)
     {
-        common::mlog::LogInitMessage(common::mlog::LogLevel::Warning, "ImageWIC", 
+        common::mlog::LogInitMessage(common::mlog::LogLevel::Warning, "ImageWIC",
             common::str::Formatter<char>{}.FormatStatic(FmtString("{}: {}.\n"), be.Message(), be.GetDetailMessage()));
     }
-    return 0u;
+    return std::shared_ptr<WicSupport>{};
 }();
 
 
 }
 
+
+static Image ConvertFromBITMAP(const HBITMAP& hbmp, const BITMAP& bmp, const HDC& hdc)
+{
+    ImgLog().Verbose(u"Image from HBITMAP: BITMAP w[{}] h[{}] plane[{}] bpp[{}] line[{}].\n", bmp.bmWidth, bmp.bmHeight, bmp.bmPlanes, bmp.bmBitsPixel, bmp.bmWidthBytes);
+    
+    ImgDType srcDT, realDT;
+    switch (static_cast<uint32_t>(bmp.bmPlanes) | bmp.bmBitsPixel)
+    {
+    case (4 << 16 | 32):    srcDT = ImageDataType::BGRA; realDT = ImageDataType::BGRA; break;
+    case (3 << 16 | 32):    srcDT = ImageDataType::BGRA; realDT = ImageDataType::BGR;  break;
+    case (3 << 16 | 24):    srcDT = ImageDataType::BGR;  realDT = ImageDataType::BGR;  break;
+    case (1 << 16 | 8 ):    srcDT = ImageDataType::GRAY; realDT = ImageDataType::GRAY; break;
+    default: break;
+    }
+    if (srcDT && realDT)
+    {
+        Image img(realDT);
+        img.SetSize(bmp.bmWidth, bmp.bmHeight, false);
+        auto dstPtr = img.GetRawPtr();
+        uint32_t batchCnt = bmp.bmHeight, batchPix = bmp.bmWidth;
+        if (bmp.bmWidthBytes == img.RowSize())
+            batchPix *= batchCnt, batchCnt = 1;
+
+        common::AlignedBuffer buf;
+        auto srcPtr = reinterpret_cast<const std::byte*>(bmp.bmBits);
+        if (!srcPtr)
+        {
+            BITMAPINFO bmi =
+            {
+                .bmiHeader =
+                {
+                    .biSize = sizeof(BITMAPINFOHEADER),
+                    .biWidth = bmp.bmWidth,
+                    .biHeight = -bmp.bmHeight,
+                    .biPlanes = 1,
+                    .biBitCount = bmp.bmBitsPixel,
+                    .biCompression = BI_RGB,
+                    .biSizeImage = 0,
+                    .biXPelsPerMeter = 96,
+                    .biYPelsPerMeter = 96,
+                    .biClrUsed = 0,
+                    .biClrImportant = 0,
+                }
+            };
+            if (batchCnt == 1) // full match
+            {
+                if (GetDIBits((HDC)hdc, hbmp, 0, bmp.bmHeight, dstPtr, &bmi, DIB_RGB_COLORS))
+                    return img;
+                else
+                    return {};
+            }
+            buf = common::AlignedBuffer(bmp.bmWidthBytes * bmp.bmHeight);
+            if (GetDIBits((HDC)hdc, hbmp, 0, 1, buf.GetRawPtr(), &bmi, DIB_RGB_COLORS))
+                srcPtr = buf.GetRawPtr();
+            else
+                return {};
+        }
+        Ensures(srcPtr);
+        if (srcDT == realDT)
+        {
+            for (; batchCnt--; dstPtr += img.RowSize(), srcPtr += img.RowSize())
+                memcpy(dstPtr, srcPtr, batchPix * img.GetElementSize());
+        }
+        else
+        {
+            Ensures(srcDT == ImageDataType::BGRA && realDT == ImageDataType::BGR);
+            const auto& cvter = ColorConvertor::Get();
+            for (; batchCnt--; dstPtr += img.RowSize(), srcPtr += img.RowSize())
+                cvter.RGBAToRGB(reinterpret_cast<uint8_t*>(dstPtr), reinterpret_cast<const uint32_t*>(srcPtr), batchPix);
+        }
+        return img;
+    }
+    return {};
+};
+Image ConvertFromHBITMAP(void* hbitmap, void* hdc)
+{
+    const auto hbmp = reinterpret_cast<HBITMAP>(hbitmap);
+    if (wic::DUMMY)
+    {
+        try
+        {
+            const auto factory = wic::DUMMY->GetFactory();
+            Microsoft::WRL::ComPtr<IWICBitmap> wicBitmap;
+            THROW_HR(factory->CreateBitmapFromHBITMAP(hbmp, nullptr, WICBitmapUseAlpha, wicBitmap.GetAddressOf()),
+                u"Failed to create wic bitmap from hbitmap");
+            WICPixelFormatGUID srcFormat = {};
+            THROW_HR(wicBitmap->GetPixelFormat(&srcFormat), u"Failed to get wicbitmap's format");
+            for (const auto& cvt : wic::DataTypeGuidLookup.Items)
+            {
+                if (IsEqualGUID(srcFormat, *cvt.Value.Guid))
+                {
+                    uint32_t width = 0, height = 0;
+                    THROW_HR(wicBitmap->GetSize(&width, &height), u"Failed to get size");
+                    Image img(cvt.Value.MidType);
+                    img.SetSize(width, height, false);
+                    THROW_HR(wicBitmap->CopyPixels(nullptr, gsl::narrow_cast<uint32_t>(img.GetElementSize() * width), gsl::narrow_cast<uint32_t>(img.GetSize()), img.GetRawPtr<BYTE>()),
+                        u"Failed to copy pixels");
+                    return img;
+                }
+            }
+        }
+        catch (BaseException&) {} // already logged
+    }
+    DIBSECTION dib{};
+    if (GetObjectW(hbmp, sizeof(DIBSECTION), &dib))
+        ImgLog().Verbose(u"Image from HBITMAP: DIBSECT w[{}] h[{}] plane[{}] bpp[{}] comp[{}].\n", dib.dsBmih.biWidth, dib.dsBmih.biHeight, dib.dsBmih.biPlanes, dib.dsBmih.biBitCount, dib.dsBmih.biCompression);
+    else if (GetObjectW(hbmp, sizeof(BITMAP), &dib.dsBm)) {}
+    
+    if (dib.dsBm.bmWidth && dib.dsBm.bmHeight)
+    {
+        if (auto img = ConvertFromBITMAP(hbmp, dib.dsBm, reinterpret_cast<HDC>(hdc)); img.GetSize())
+            return img;
+    }
+    return {};
+}
+
+
+}

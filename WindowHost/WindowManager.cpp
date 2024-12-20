@@ -144,11 +144,11 @@ bool WindowBackend::Stop()
     return false;
 }
 
-common::PromiseResult<std::vector<std::u16string>> WindowBackend::OpenFilePicker(const FilePickerInfo& info) noexcept
+common::PromiseResult<FileList> WindowBackend::OpenFilePicker(const FilePickerInfo& info) noexcept
 {
     const auto& supports = AllFilePicker();
     if (supports.empty())
-        return common::ErroredResult<std::vector<std::u16string>>::Get(common::BaseException{ u"FilePicker unimplemented" });
+        return common::ErroredResult<FileList>::Get(common::BaseException{ u"FilePicker unimplemented" });
     else
         return supports.front()->OpenFilePicker(info);
 }

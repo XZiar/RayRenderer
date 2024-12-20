@@ -29,4 +29,8 @@ template<typename T>
     return output;
 }
 
+#if COMMON_OS_WIN
+IMGUTILAPI Image ConvertFromHBITMAP(void* hbitmap, void* hdc = nullptr);
+#endif
+
 }

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "WindowHostRely.h"
-#include "common/StringPool.hpp"
 #include <optional>
 
 namespace xziar::gui::event
@@ -62,13 +61,13 @@ struct MouseScrollEvent : public MouseEvent
 };
 
 
-struct DropFileEvent : public MouseEvent
+struct DropFileEvent2 : public MouseEvent
 {
 private:
     common::StringPool<char16_t> FileNamePool;
     std::vector<common::StringPiece<char16_t>> FileNamePieces;
 public:
-    DropFileEvent(Position pos, common::StringPool<char16_t>&& namepool, std::vector<common::StringPiece<char16_t>>&& names) noexcept :
+    DropFileEvent2(Position pos, common::StringPool<char16_t>&& namepool, std::vector<common::StringPiece<char16_t>>&& names) noexcept :
         MouseEvent(pos), FileNamePool(std::move(namepool)), FileNamePieces(std::move(names)) { }
     size_t Size() const noexcept { return FileNamePieces.size(); }
     size_t size() const noexcept { return FileNamePieces.size(); }
@@ -76,6 +75,12 @@ public:
     { 
         return FileNamePool.GetStringView(FileNamePieces[idx]);
     }
+};
+
+struct DropFileEvent : public MouseEvent, public FileList
+{
+public:
+    DropFileEvent(Position pos, FileList&& list) noexcept : MouseEvent(pos), FileList(std::move(list)) { }
 };
 
 

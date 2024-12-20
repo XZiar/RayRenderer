@@ -2,12 +2,16 @@
 #include "Win32MsgName.hpp"
 #include "WindowHost.h"
 
+#include "ImageUtil/ImageUtil.h"
+#include "ImageUtil/ImageBMP.h"
 #include "SystemCommon/ErrorCodeHelper.h"
 #include "SystemCommon/PromiseTaskSTD.h"
+#include "SystemCommon/Exceptions.h"
 #include "SystemCommon/SystemCommonRely.h"
 #include "common/ContainerEx.hpp"
 #include "common/StaticLookup.hpp"
 #include "common/StringPool.hpp"
+#include "common/Linq2.hpp"
 
 
 #define WIN32_LEAN_AND_MEAN 1
@@ -32,6 +36,7 @@ namespace xziar::gui
 {
 using namespace std::string_view_literals;
 using common::HResultHolder;
+using common::BaseException;
 using xziar::img::Image;
 using xziar::img::ImageView;
 using event::CommonKeys;
@@ -182,47 +187,8 @@ private:
         }
         void* GetHDC() const noexcept final { return DCHandle; }
         void* GetHWND() const noexcept final { return Handle; }
-        void OnDisplay() noexcept final
-        {
-            const auto [ sizeChanged, needInit ] = BackBuf.Update(*this);
-            if (sizeChanged)
-            {
-                const auto bmp = CreateCompatibleBitmap(DCHandle, BackBuf.Width, BackBuf.Height);
-                const auto oldBmp = SelectObject(MemDC, bmp);
-                if (oldBmp) DeleteObject(oldBmp);
-                if (Region) DeleteObject(Region);
-                Region = CreateRectRgn(0, 0, BackBuf.Width, BackBuf.Height);
-            }
-            bool needDraw = false;
-            {
-                BgLock lock(this);
-                const bool bgChanged = lock;
-                const auto& holder = static_cast<RenderImgHolder&>(*GetWindowResource(this, WdAttrIndex::Background));
-                if (bgChanged || sizeChanged)
-                {
-                    common::SimpleTimer timer;
-                    timer.Start();
-                    FillRgn(MemDC, Region, BGBrush);
-                    if (holder)
-                    {
-                        const auto& bmp = holder.Bitmap();
-                        const auto [w, h] = holder.Size();
-                        const auto [tw, th] = BackBuf.ResizeWithin(w, h);
-                        const auto bmpDC = CreateCompatibleDC(DCHandle);
-                        const auto oldbmp = SelectObject(bmpDC, bmp);
-                        [[maybe_unused]] const auto ret = StretchBlt(MemDC, 0, 0, tw, th, bmpDC, 0, 0, static_cast<int>(w), static_cast<int>(h), SRCCOPY);
-                        GdiFlush();
-                        SelectObject(bmpDC, oldbmp);
-                        timer.Stop();
-                        Manager.Logger.Verbose(u"Window [{:x}] rebuild backbuffer in [{} ms].\n", reinterpret_cast<uintptr_t>(Handle), timer.ElapseMs());
-                    }
-                }
-                needDraw = NeedBackground || bgChanged || (sizeChanged && holder);
-            }
-            if (needDraw)
-                BitBlt(DCHandle, 0, 0, BackBuf.Width, BackBuf.Height, MemDC, 0, 0, SRCCOPY);
-            WindowHost_::OnDisplay();
-        }
+        void OnDisplay() noexcept final;
+        void GetClipboard(const std::function<bool(ClipBoardTypes, std::any)>& handler, ClipBoardTypes type) final;
     };
 
     //static intptr_t __stdcall WindowProc(uintptr_t, uint32_t, uintptr_t, intptr_t);
@@ -239,6 +205,21 @@ private:
             SetClassLongPtrW(hwnd, GCLP_WNDPROC, reinterpret_cast<LONG_PTR>(WindowProc)); // replace with normal wndproc
         }
         return DefWindowProcW(hwnd, msg, wParam, lParam);
+    }
+    static FileList ProcessDropFile(HDROP hdrop) noexcept
+    {
+        FileList list;
+        const auto count = DragQueryFileW(hdrop, 0xFFFFFFFF, nullptr, 0);
+        std::u16string tmp;
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            const auto len = DragQueryFileW(hdrop, i, nullptr, 0);
+            tmp.resize(len + 1); // reserve for null-end
+            DragQueryFileW(hdrop, i, reinterpret_cast<wchar_t*>(tmp.data()), static_cast<uint32_t>(tmp.size()));
+            tmp.resize(len);
+            list.AppendFile(tmp);
+        }
+        return list;
     }
 
     std::string_view Name() const noexcept { return BackendName; }
@@ -582,8 +563,188 @@ public:
         return std::make_shared<WdHost>(*this, info);
     }
 
+
+
     static inline const auto Dummy = RegisterBackend<WindowManagerWin32>();
 };
+
+
+void WindowManagerWin32::WdHost::OnDisplay() noexcept
+{
+    const auto [ sizeChanged, needInit ] = BackBuf.Update(*this);
+    if (sizeChanged)
+    {
+        const auto bmp = CreateCompatibleBitmap(DCHandle, BackBuf.Width, BackBuf.Height);
+        const auto oldBmp = SelectObject(MemDC, bmp);
+        if (oldBmp) DeleteObject(oldBmp);
+        if (Region) DeleteObject(Region);
+        Region = CreateRectRgn(0, 0, BackBuf.Width, BackBuf.Height);
+    }
+    bool needDraw = false;
+    {
+        BgLock lock(this);
+        const bool bgChanged = lock;
+        const auto& holder = static_cast<RenderImgHolder&>(*GetWindowResource(this, WdAttrIndex::Background));
+        if (bgChanged || sizeChanged)
+        {
+            common::SimpleTimer timer;
+            timer.Start();
+            FillRgn(MemDC, Region, BGBrush);
+            if (holder)
+            {
+                const auto& bmp = holder.Bitmap();
+                const auto [w, h] = holder.Size();
+                const auto [tw, th] = BackBuf.ResizeWithin(w, h);
+                const auto bmpDC = CreateCompatibleDC(DCHandle);
+                const auto oldbmp = SelectObject(bmpDC, bmp);
+                [[maybe_unused]] const auto ret = StretchBlt(MemDC, 0, 0, tw, th, bmpDC, 0, 0, static_cast<int>(w), static_cast<int>(h), SRCCOPY);
+                GdiFlush();
+                SelectObject(bmpDC, oldbmp);
+                timer.Stop();
+                Manager.Logger.Verbose(u"Window [{:x}] rebuild backbuffer in [{} ms].\n", reinterpret_cast<uintptr_t>(Handle), timer.ElapseMs());
+            }
+        }
+        needDraw = NeedBackground || bgChanged || (sizeChanged && holder);
+    }
+    if (needDraw)
+        BitBlt(DCHandle, 0, 0, BackBuf.Width, BackBuf.Height, MemDC, 0, 0, SRCCOPY);
+    WindowHost_::OnDisplay();
+}
+
+void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoardTypes, std::any)>& handler, ClipBoardTypes type)
+{
+    enum class States { Continue, Handled, Faulted };
+    if (!OpenClipboard(Handle)) return;
+    auto& logger = Manager.Logger;
+    const auto wrapException = [&](auto&& func, std::u16string_view msg) noexcept
+    {
+        try
+        {
+            func();
+            return true;
+        }
+        catch (BaseException& be)
+        {
+            logger.Warning(u"Exception during {}: {}, {}\n", msg, be.Message(), be.GetDetailMessage());
+        }
+        catch (...)
+        {
+            logger.Warning(u"Exception during {}\n", msg);
+        }
+        return false;
+    };
+    auto state = States::Continue;
+    const auto handleData = [&](ClipBoardTypes type, std::any dat) noexcept
+    {
+        if (!wrapException([&](){ state = handler(type, dat) ? States::Handled : States::Continue; }, u"handle clipboard"))
+            state = States::Faulted;
+    };
+    wchar_t tmp[256] = { L'\0' };
+    for (uint32_t format = EnumClipboardFormats(0); format && state == States::Continue; format = EnumClipboardFormats(format))
+    {
+        const size_t strlen = GetClipboardFormatNameW(format, tmp, 255);
+        logger.Verbose(u"At clipboard format[{}]({}).\n", format, std::wstring_view{ tmp, strlen });
+        switch (format)
+        {
+        case CF_UNICODETEXT:
+        case CF_TEXT:
+            if (HAS_FIELD(type, ClipBoardTypes::Text))
+            {
+                const auto data = GetClipboardData(format);
+                const auto size = GlobalSize(data);
+                const auto ptr = GlobalLock(data);
+                if (ptr && size)
+                {
+                    if (format == CF_UNICODETEXT)
+                        handleData(ClipBoardTypes::Text, std::u16string_view{ reinterpret_cast<const char16_t*>(ptr), size });
+                    else
+                        handleData(ClipBoardTypes::Text, std::   string_view{ reinterpret_cast<const char    *>(ptr), size });
+                }
+                GlobalUnlock(data);
+            } break;
+        case CF_BITMAP:
+        case CF_DSPBITMAP:
+            if (HAS_FIELD(type, ClipBoardTypes::Image))
+            {
+                const auto hbitmap = GetClipboardData(format);
+                if (const auto img = xziar::img::ConvertFromHBITMAP(hbitmap); img.GetSize())
+                    handleData(ClipBoardTypes::Image, ImageView(img));
+            } break;
+        case CF_DIB:
+        case CF_DIBV5:
+            if (HAS_FIELD(type, ClipBoardTypes::Image))
+            {
+                const auto data = GetClipboardData(format);
+                const size_t size = GlobalSize(data);
+                const auto ptr = reinterpret_cast<const std::byte*>(data);
+                if (!ptr || size <= sizeof(BITMAPINFOHEADER))
+                    break;
+
+                const auto& bmpHeader = reinterpret_cast<const BITMAPINFOHEADER*>(ptr);
+                const auto pixOffset = size - bmpHeader->biSizeImage;
+                if (pixOffset < (format == CF_DIBV5 ? sizeof(BITMAPV5HEADER) : sizeof(BITMAPINFOHEADER)))
+                    break;
+                
+                std::optional<ImageView> img;
+                const auto zexbmp = common::linq::FromContainer(xziar::img::GetImageSupport(u"BMP", xziar::img::ImageDataType::RGBA, true))
+                    .Select([](const auto& support) { return std::dynamic_pointer_cast<const xziar::img::zex::BmpSupport>(support); })
+                    .Where([](const auto& support) { return static_cast<bool>(support); })
+                    .TryGetFirst();
+                if (zexbmp)
+                {
+                    wrapException([&]()
+                    {
+                        common::io::MemoryInputStream stream(common::span<const std::byte>{ptr, size});
+                        const auto reader_ = (*zexbmp)->GetReader(stream, u"BMP");
+                        auto& reader = *static_cast<xziar::img::zex::BmpReader*>(reader_.get());
+                        if (reader.ValidateNoHeader(gsl::narrow_cast<uint32_t>(pixOffset)))
+                        {
+                            if (const auto img_ = reader.Read(xziar::img::ImageDataType::BGRA); img_.GetSize())
+                                img = img_;
+                        }
+                    }, u"read DIB directly");
+                }
+                if (!img)
+                {
+                    const auto fsize = size + sizeof(BITMAPFILEHEADER);
+                    common::AlignedBuffer buffer(fsize);
+                    BITMAPFILEHEADER header
+                    {
+                        .bfType = 0x4d42, // LE
+                        .bfSize = gsl::narrow_cast<uint32_t>(fsize),
+                        .bfReserved1 = 0,
+                        .bfReserved2 = 0,
+                        .bfOffBits = gsl::narrow_cast<uint32_t>(pixOffset + sizeof(BITMAPFILEHEADER)),
+                    };
+                    memcpy(buffer.GetRawPtr(), &header, sizeof(header));
+                    memcpy(buffer.GetRawPtr() + sizeof(header), ptr, size);
+                    common::io::MemoryInputStream stream(buffer.AsSpan());
+                    wrapException([&]()
+                    {
+                        if (const auto img_ = xziar::img::ReadImage(stream, u"BMP", xziar::img::ImageDataType::RGBA); img_.GetSize())
+                            img = img_;
+                    }, u"read DIB with header");
+                }
+                if (img)
+                    handleData(ClipBoardTypes::Image, *img);
+            } break;
+        case CF_HDROP:
+            if (HAS_FIELD(type, ClipBoardTypes::File))
+            {
+                const auto data = GetClipboardData(format);
+                auto list = ProcessDropFile((HDROP)data);
+                handleData(ClipBoardTypes::File, std::move(list));
+            } break;
+        default:
+            if (HAS_FIELD(type, ClipBoardTypes::Raw))
+            {
+                const auto data = GetClipboardData(format);
+                handleData(ClipBoardTypes::Raw, std::pair<const void*, uint32_t>{data, format});
+            } break;
+        }
+    }
+    CloseClipboard();
+}
 
 
 static constexpr auto KeyCodeLookup = BuildStaticLookup(WPARAM, event::CombinedKey,
@@ -826,30 +987,19 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
 
             case WM_DROPFILES:
             {
-                HDROP hdrop = (HDROP)wParam;
                 event::Position pos = host->LastPos;
+                const auto hdrop = (HDROP)wParam;
                 POINT point{};
                 if (DragQueryPoint(hdrop, &point) == TRUE)
                 {
                     ScreenToClient(hwnd, &point);
                     pos = { point.x, point.y };
                 }
-                common::StringPool<char16_t> fileNamePool;
-                std::vector<common::StringPiece<char16_t>> fileNamePieces;
-                const auto count = DragQueryFileW(hdrop, 0xFFFFFFFF, nullptr, 0);
-                fileNamePieces.reserve(count);
-                std::u16string tmp;
-                for (uint32_t i = 0; i < count; ++i)
-                {
-                    const auto len = DragQueryFileW(hdrop, i, nullptr, 0);
-                    tmp.resize(len + 1); // reserve for null-end
-                    DragQueryFileW(hdrop, i, reinterpret_cast<wchar_t*>(tmp.data()), static_cast<uint32_t>(tmp.size()));
-                    tmp.resize(len);
-                    fileNamePieces.emplace_back(fileNamePool.AllocateString(tmp));
-                }
+                auto filelist = ProcessDropFile(hdrop);
                 DragFinish(hdrop);
-                host->OnDropFile(pos, std::move(fileNamePool), std::move(fileNamePieces));
-            } return 0;
+                host->OnDropFile(pos, std::move(filelist));
+            }
+            return 0;
 
             case WM_GETICON:
             case WM_SETICON:
@@ -898,8 +1048,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
 }
 
 
-using PickerRet = std::vector<std::u16string>;
-common::PromiseResult<std::vector<std::u16string>> Win32Backend::OpenFilePicker(const FilePickerInfo& info) noexcept
+common::PromiseResult<FileList> Win32Backend::OpenFilePicker(const FilePickerInfo& info) noexcept
 {
     common::StringPool<char16_t> pool;
     std::vector<std::pair<common::StringPiece<char16_t>, common::StringPiece<char16_t>>> extFilters;
@@ -908,18 +1057,19 @@ common::PromiseResult<std::vector<std::u16string>> Win32Backend::OpenFilePicker(
         for (const auto& p : info.ExtensionFilters)
         {
             if (p.second.empty()) continue;
-            const auto desc = pool.AllocateConcatString(p.first, u"\0"sv);
+            constexpr std::u16string_view Null{ u"\0", 1 };
+            const auto desc = pool.AllocateConcatString(p.first, Null);
             auto ext = pool.Allocate();
             uint32_t i = 0;
             for (const auto name : p.second)
                 ext.Add(i++ ? u";"sv : u""sv, u"*."sv, name);
-            ext.Add(u"\0"sv);
-            //const auto ext = pool.AllocateConcatString(u"*."sv, p.second, u"\0"sv);
+            ext.Add(Null);
+            //const auto ext = pool.AllocateConcatString(u"*."sv, p.second, Null);
             extFilters.emplace_back(desc, ext);
         }
     }
-    std::promise<PickerRet> pms_;
-    auto res = common::PromiseResultSTD<PickerRet>::Get(pms_.get_future());
+    std::promise<FileList> pms_;
+    auto res = common::PromiseResultSTD<FileList>::Get(pms_.get_future());
 
     std::thread thr([=, title = info.Title, pool = std::move(pool), exts = std::move(extFilters), pms = std::move(pms_)](bool isOpen, bool isFolder, bool isMultiSelect) mutable
     {
@@ -960,7 +1110,7 @@ common::PromiseResult<std::vector<std::u16string>> Win32Backend::OpenFilePicker(
             return;
         }
 
-        std::vector<std::u16string> fpaths;
+        FileList filelist;
         const auto addPath = [&](const auto& item)
         {
             if (item)
@@ -968,7 +1118,7 @@ common::PromiseResult<std::vector<std::u16string>> Win32Backend::OpenFilePicker(
                 PWSTR fpath = nullptr;
                 item->GetDisplayName(SIGDN_FILESYSPATH, &fpath);
                 if (fpath)
-                    fpaths.emplace_back(reinterpret_cast<const char16_t*>(fpath));
+                    filelist.AppendFile(reinterpret_cast<const char16_t*>(fpath));
                 CoTaskMemFree(fpath);
             }
         };
@@ -1008,7 +1158,7 @@ common::PromiseResult<std::vector<std::u16string>> Win32Backend::OpenFilePicker(
             addPath(item);
         }
 
-        pms.set_value(std::move(fpaths));
+        pms.set_value(std::move(filelist));
     }, info.IsOpen, info.IsFolder, info.AllowMultiSelect);
     thr.detach();
     return res;

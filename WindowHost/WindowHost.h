@@ -37,6 +37,12 @@ struct CreateInfo
     uint16_t TargetFPS = 0;
 };
 
+enum class ClipBoardTypes : uint8_t
+{
+    Empty = 0, Text = 0x1, Image = 0x2, File = 0x4, Raw = 0x80
+};
+MAKE_ENUM_BITFIELD(ClipBoardTypes)
+
 struct FilePickerInfo
 {
     std::u16string Title;
@@ -48,7 +54,7 @@ struct FilePickerInfo
 struct IFilePicker
 {
     virtual ~IFilePicker() = 0;
-    virtual common::PromiseResult<std::vector<std::u16string>> OpenFilePicker(const FilePickerInfo& info) noexcept = 0;
+    virtual common::PromiseResult<FileList> OpenFilePicker(const FilePickerInfo& info) noexcept = 0;
 };
 
 class WindowBackend : public IFilePicker
@@ -117,7 +123,7 @@ public:
         return nullptr;
     }
     virtual WindowHost Create(const CreateInfo& info = {}) = 0;
-    common::PromiseResult<std::vector<std::u16string>> OpenFilePicker(const FilePickerInfo& info) noexcept override;
+    common::PromiseResult<FileList> OpenFilePicker(const FilePickerInfo& info) noexcept override;
 };
 
 
@@ -211,8 +217,7 @@ protected:
     virtual void OnMouseScroll(event::Position pos, float dh, float dv) noexcept;
     virtual void OnKeyDown(event::CombinedKey key) noexcept;
     virtual void OnKeyUp(event::CombinedKey key) noexcept;
-    virtual void OnDropFile(event::Position pos, common::StringPool<char16_t>&& namepool, 
-        std::vector<common::StringPiece<char16_t>>&& names) noexcept;
+    virtual void OnDropFile(event::Position pos, FileList&& list) noexcept;
 public:
     ~WindowHost_() override;
 
@@ -256,6 +261,7 @@ public:
     void Show(const std::function<std::any(std::string_view)>& provider = {});
     void Close();
     WindowHost GetSelf();
+    virtual void GetClipboard(const std::function<bool(ClipBoardTypes, std::any)>& handler, ClipBoardTypes type);
     void SetTitle(const std::u16string_view title);
     void SetIcon(xziar::img::ImageView img);
     void SetBackground(std::optional<xziar::img::ImageView> img);
@@ -285,7 +291,7 @@ public:
     };
     using WindowBackend::Create;
     [[nodiscard]] virtual std::shared_ptr<Win32WdHost> Create(const Win32CreateInfo& info = {}) = 0;
-    common::PromiseResult<std::vector<std::u16string>> OpenFilePicker(const FilePickerInfo& info) noexcept final;
+    common::PromiseResult<FileList> OpenFilePicker(const FilePickerInfo& info) noexcept final;
 };
 using Win32WdHost = std::shared_ptr<Win32Backend::Win32WdHost>;
 

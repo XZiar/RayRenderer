@@ -34,17 +34,14 @@ constexpr auto BtnToStr = [](xziar::gui::event::MouseButton btn)
     }
 };
 
-template<typename T>
-static void SetBgImg(xziar::gui::WindowHost_& wd, const T& files) noexcept
+static void SetBgImg(xziar::gui::WindowHost_& wd, const FileList& files) noexcept
 {
-    const auto cnt = std::size(files);
-    for (size_t i = 0; i < cnt; ++i)
+    for (std::u16string_view fpath : files)
     {
-        log().Verbose(u"--{}\n", files[i]);
+        log().Verbose(u"--{}\n", fpath);
     }
-    for (size_t i = 0; i < cnt; ++i)
+    for (std::u16string_view fpath : files)
     {
-        const auto fpath = files[i];
         try
         {
             const auto img = xziar::img::ReadImage(fpath, xziar::img::ImageDataType::BGRA);
@@ -111,7 +108,7 @@ static void OpenTestWindow(WindowBackend& backend)
     };
     window->DropFile() += [](auto& wd, const auto& evt)
     {
-        log().Info(u"drop {} files at [{:4},{:4}]:\n", evt.Size(), evt.Pos.X, evt.Pos.Y);
+        log().Info(u"drop {} files at [{:4},{:4}]:\n", evt.size(), evt.Pos.X, evt.Pos.Y);
         SetBgImg(wd, evt);
     };
     window->MouseEnter() += [](auto& wd, const auto& evt)
@@ -160,7 +157,7 @@ static void OpenTestWindow(WindowBackend& backend)
     };
     window->KeyDown() += keyHandler;
     window->KeyUp() += keyHandler;
-    window->KeyDown() += [&](auto& wd, const auto& evt)
+    window->KeyDown() += [&](WindowHost_& wd, const auto& evt)
     {
         using namespace std::string_view_literals;
         const auto printKey = evt.ChangedKey.TryGetPrintable();
@@ -191,6 +188,38 @@ static void OpenTestWindow(WindowBackend& backend)
                     catch (...) {}
                 });
             }
+        }
+        else if (evt.HasCtrl() && printKey == 'V')
+        {
+            wd.GetClipboard([host = wd.GetSelf()](ClipBoardTypes type, std::any data)
+            {
+                switch (type)
+                {
+                case ClipBoardTypes::Image:
+                    if (const auto img = std::any_cast<ImageView>(&data); img && img->GetSize())
+                    {
+                        log().Info(u"Recieved clipboard of image: [{}x{}] [{}].\n", img->GetWidth(), img->GetHeight(), img->GetDataType().ToString());
+                        host->SetBackground(*img);
+                    }
+                    break;
+                case ClipBoardTypes::Text:
+                    if (const auto txt = std::any_cast<std::u16string_view>(&data); txt)
+                        log().Info(u"Recieved clipboard of text: [{}].\n", *txt);
+                    else if (const auto txt = std::any_cast<std::string_view>(&data); txt)
+                        log().Info(u"Recieved clipboard of text: [{}].\n", *txt);
+                    break;
+                case ClipBoardTypes::File:
+                    if (const auto list = std::any_cast<FileList>(&data); list)
+                    {
+                        log().Info(u"Recieved clipboard of files: [{}].\n", list->size());
+                        SetBgImg(*host, *list);
+                    }
+                    break;
+                default:
+                    break;
+                }
+                return false;
+            }, ClipBoardTypes::File | ClipBoardTypes::Image | ClipBoardTypes::Text);
         }
     };
     window->Show([&](std::string_view name) -> std::any 

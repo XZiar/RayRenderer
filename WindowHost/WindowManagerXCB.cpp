@@ -1113,9 +1113,7 @@ public:
                         if (ret)
                         {
                             const auto cookie = xcb_translate_coordinates(Connection, Screen->root, host->Handle, dragInfo.PosX, dragInfo.PosY);
-                            
-                            common::StringPool<char16_t> fileNamePool;
-                            std::vector<common::StringPiece<char16_t>> fileNamePieces;
+                            FileList files;
                             const auto ptr = reinterpret_cast<const char*>(ret->data());
                             for (auto line : common::str::SplitStream(std::string_view(ptr, ret->size()), 
                                 [](auto ch){ return ch == '\r' || ch == '\n'; }, false))
@@ -1123,14 +1121,13 @@ public:
                                 if (common::str::IsBeginWith(line, "file://")) // only accept local file
                                 {
                                     line.remove_prefix(7);
-                                    fileNamePieces.emplace_back(fileNamePool.AllocateString(
-                                        common::str::to_u16string(line, common::str::Encoding::URI))); 
+                                    files.AppendFile(common::str::to_u16string(line, common::str::Encoding::URI)); 
                                 }
                             }
                             const auto reply = xcb_translate_coordinates_reply(Connection, cookie, nullptr);
                             event::Position pos(reply->dst_x, reply->dst_y);
                             free(reply);
-                            host->OnDropFile(pos, std::move(fileNamePool), std::move(fileNamePieces));
+                            host->OnDropFile(pos, std::move(files));
                         }
                         dragInfo.Clear();
                     }

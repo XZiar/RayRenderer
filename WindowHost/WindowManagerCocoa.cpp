@@ -690,15 +690,14 @@ BOOL WindowManagerCocoa::CocoaView::PerformDragOperation(id self, SEL _sel, id s
     const Instance board = dragInfo.Call<id>(SelPasteboard);
     const NSArray<NSString> urls = board.Call<id, id, id>(SelReadObjs, AllowClasses, AllowTypeOption);
 
+    FileList files;
     const auto count = urls.Count();
-    common::StringPool<char16_t> fileNamePool;
-    std::vector<common::StringPiece<char16_t>> fileNamePieces;
     for (size_t i = 0; i < count; ++i)
     {
         const auto fname = urls[i].Call<const char*>(SelFileName);
-        fileNamePieces.emplace_back(fileNamePool.AllocateString(common::str::to_u16string(fname, common::str::Encoding::UTF8)));
+        files.AppendFile(common::str::to_u16string(fname, common::str::Encoding::UTF8));
     }
-    host->OnDropFile(pos, std::move(fileNamePool), std::move(fileNamePieces));
+    host->OnDropFile(pos, std::move(files));
 
     return YES;
 }

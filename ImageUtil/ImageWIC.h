@@ -45,6 +45,7 @@ class WicSupport final : public ImgSupport, public std::enable_shared_from_this<
     friend WicWriter;
     common::com::PtrProxy<WICFactory> Factory;
 public:
+    [[nodiscard]] common::com::PtrProxy<WICFactory> GetFactory() const;
     WicSupport();
     ~WicSupport() final;
     [[nodiscard]] std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, std::u16string_view) const final;

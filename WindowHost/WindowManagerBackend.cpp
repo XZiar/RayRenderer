@@ -728,12 +728,11 @@ public:
 
 class XDGInteraction final : public IFilePicker, public common::loop::LoopBase
 {
-    using PickerRet = std::vector<std::u16string>;
     struct MessageNode : public common::NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<MessageNode>
     {
         XDGInteraction* Host;
         std::string ObjPath;
-        std::promise<PickerRet> Pms;
+        std::promise<FileList> Pms;
         DBusMessage* Message;
         DBusPendingCall* Pending;
         common::SimpleTimer Timer;
@@ -790,7 +789,7 @@ class XDGInteraction final : public IFilePicker, public common::loop::LoopBase
                 return false;
             }
 
-            PickerRet ret;
+            FileList ret;
             reader.ReadVarDict([&](std::string_view key, MsgReader& val)
             {
                 if (key != "uris"sv)
@@ -805,7 +804,7 @@ class XDGInteraction final : public IFilePicker, public common::loop::LoopBase
                     if (common::str::IsBeginWith(url, "file://")) // only accept local file
                     {
                         url.remove_prefix(7);
-                        ret.emplace_back(common::str::to_u16string(url, common::str::Encoding::URI));
+                        ret.AppendFile(common::str::to_u16string(url, common::str::Encoding::URI));
                     }
                 }
             });
@@ -1001,7 +1000,7 @@ public:
         return LoopAction::SleepFor(MessageList.Begin() ? 3000 : 5000); // when empty, increase sleep time
     }
 
-    common::PromiseResult<PickerRet> OpenFilePicker(const FilePickerInfo& info) noexcept final
+    common::PromiseResult<FileList> OpenFilePicker(const FilePickerInfo& info) noexcept final
     {
         const auto msg = dbus_message_new_method_call(
             "org.freedesktop.portal.Desktop",
@@ -1026,13 +1025,13 @@ public:
                     using TV = DBMsgArray<DBMsgStruct<std::string, DBMsgArray<DBMsgStruct<uint32_t, std::string>>>>;
                     dict.template PutComplex<TV>("filters", [&](auto& arr)
                     {
-                        for (const auto& [k, v] : info.ExtensionFilters)
+                        for (const auto& filter : info.ExtensionFilters)
                         {
                             arr.Put([&](auto& item)
                             {
-                                item.Put(common::str::to_string(k, common::str::Encoding::UTF8), [&](auto& exts)
+                                item.Put(common::str::to_string(filter.first, common::str::Encoding::UTF8), [&](auto& exts)
                                     {
-                                        for (const auto& ext : v)
+                                        for (const auto& ext : filter.second)
                                         {
                                             exts.Put([&](auto& stru)
                                             {
@@ -1057,7 +1056,7 @@ public:
             });
 
         const auto node = new MessageNode(this, msg);
-        const auto ret = common::PromiseResultSTD<PickerRet>::Get(node->Pms.get_future());
+        const auto ret = common::PromiseResultSTD<FileList>::Get(node->Pms.get_future());
         MessageList.AppendNode(node);
         Wakeup();
         return ret;

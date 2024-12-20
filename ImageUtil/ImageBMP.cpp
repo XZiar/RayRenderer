@@ -178,6 +178,8 @@ BmpReader::BmpReader(RandomInputStream& stream) : Stream(stream), Header{}, Info
 }
 
 constexpr size_t BMP_INFO_SIZE = sizeof(detail::BmpInfo);
+constexpr size_t BMP_INFO_V2_SIZE = sizeof(detail::BmpInfoV2);
+constexpr size_t BMP_INFO_V3_SIZE = sizeof(detail::BmpInfoV3);
 constexpr size_t BMP_INFO_V4_SIZE = sizeof(detail::BmpInfoV4);
 constexpr size_t BMP_INFO_V5_SIZE = sizeof(detail::BmpInfoV5);
 
@@ -224,6 +226,7 @@ static forceinline constexpr bool CheckOverlap(const T& items) noexcept
 static_assert(!CheckOverlap(Bit32MaskLUT.Items));
 static_assert(!CheckOverlap(Bit16MaskLUT.Items));
 
+
 bool BmpReader::Validate()
 {
     Stream.SetPos(0);
@@ -238,6 +241,13 @@ bool BmpReader::Validate()
         return false;
     if (util::ParseDWordLE(Header.Offset) >= fsize)
         return false;
+
+    return ValidateNoHeader(util::ParseDWordLE(Header.Offset));
+}
+
+bool BmpReader::ValidateNoHeader(uint32_t pixOffset)
+{
+    InfoOffset = Stream.CurrentPos();
 
     if (!Stream.Read(static_cast<detail::BmpInfo&>(Info)))
         return false;
@@ -258,8 +268,21 @@ bool BmpReader::Validate()
         if (!Stream.Read(BMP_INFO_V4_SIZE - BMP_INFO_SIZE, reinterpret_cast<std::byte*>(&Info) + BMP_INFO_SIZE))
             return false;
         break;
+    case BMP_INFO_V3_SIZE:
+        if (!Stream.Read(BMP_INFO_V3_SIZE - BMP_INFO_SIZE, reinterpret_cast<std::byte*>(&Info) + BMP_INFO_SIZE))
+            return false;
+        break;
+    case BMP_INFO_V2_SIZE:
+        if (!Stream.Read(BMP_INFO_V2_SIZE - BMP_INFO_SIZE, reinterpret_cast<std::byte*>(&Info) + BMP_INFO_SIZE))
+            return false;
+        break;
     case BMP_INFO_SIZE: // need compatible changes
-        if (Info.Compression != 0) // allow BI_RGB only
+        if (Info.Compression == 3) // BI_BITFIELDS, assume it's V2 header
+        {
+            if (!Stream.Read(BMP_INFO_V2_SIZE - BMP_INFO_SIZE, reinterpret_cast<std::byte*>(&Info) + BMP_INFO_SIZE))
+                return false;
+        }
+        else if (Info.Compression != 0) // allow BI_RGB only
             return false;
         if (Info.BitCount == 16)
             Info.MaskAlpha = 0x8000u;
@@ -270,7 +293,11 @@ bool BmpReader::Validate()
         // allow Windows Base/V4/V5 only
         return false;
     }
-    
+
+    if (pixOffset < Stream.CurrentPos()) // should not overlap
+        return false;
+    PixelOffset = pixOffset;
+
     switch (Info.Compression)
     {
     case 0: // BI_RGB
@@ -330,9 +357,9 @@ Image BmpReader::Read(ImgDType dataType)
         const uint32_t paletteCount = Info.PaletteUsed ? Info.PaletteUsed : (1u << Info.BitCount);
         AlignedBuffer palette(paletteCount * 4);
         const auto pltptr = palette.GetRawPtr<uint32_t>();
-        Stream.SetPos(detail::BMP_HEADER_SIZE + Info.Size);
+        Stream.SetPos(InfoOffset + Info.Size);
         Stream.Read(paletteCount * 4, palette.GetRawPtr());
-        Stream.SetPos(util::ParseDWordLE(Header.Offset));
+        Stream.SetPos(PixelOffset);
 
         const auto needAlpha = dataType.HasAlpha();
         const auto needSwizzle = !dataType.IsBGROrder();
@@ -373,7 +400,7 @@ Image BmpReader::Read(ImgDType dataType)
     }
     else
     {
-        Stream.SetPos(util::ParseDWordLE(Header.Offset));
+        Stream.SetPos(PixelOffset);
         ReadUncompressed(image, Stream, buffer, needFlip, format);
     }
     return image;

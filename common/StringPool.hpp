@@ -105,6 +105,7 @@ public:
     forceinline bool IsEmpty() const noexcept { return Pool.empty(); }
     forceinline void Reserve(size_t size) noexcept { return Pool.reserve(size); }
     forceinline std::basic_string_view<T> GetAllStr() const noexcept { return { Pool.data(), Pool.size() }; }
+    forceinline span<T> ExposeData() noexcept { return { Pool.data(), Pool.size() }; }
 };
 
 template<typename T>

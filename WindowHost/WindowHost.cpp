@@ -366,10 +366,9 @@ void WindowHost_::OnKeyUp(event::CombinedKey key) noexcept
     Impl->KeyUp(*this, evt);
 }
 
-void WindowHost_::OnDropFile(event::Position pos, common::StringPool<char16_t>&& namepool, 
-        std::vector<common::StringPiece<char16_t>>&& names) noexcept
+void WindowHost_::OnDropFile(event::Position pos, FileList&& list) noexcept
 {
-    event::DropFileEvent evt(pos, std::move(namepool), std::move(names));
+    event::DropFileEvent evt(pos, std::move(list));
     Impl->DropFile(*this, evt);
 }
 
@@ -386,6 +385,11 @@ WindowHost WindowHost_::GetSelf()
 {
     return shared_from_this();
 }
+void WindowHost_::GetClipboard(const std::function<bool(ClipBoardTypes, std::any)>&, ClipBoardTypes)
+{
+    return;
+}
+
 
 template<uint8_t Index>
 struct ProducerLock

@@ -90,6 +90,7 @@
   - [x] Add multi-backend support
   - [x] Add Icon support
   - [ ] Add timer support
+  - [ ] Add clipboard read/write
   - [ ] Add invoke basic WM widges for operation like message/filepicker
   - [x] Revert to use std::any for data storage to ensure lifetime management
 
