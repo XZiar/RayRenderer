@@ -183,7 +183,7 @@ static void OpenTestWindow(WindowBackend& backend)
                     }
                     catch (common::BaseException& be)
                     {
-                        log().Warning(u"Failed to pick image: {}, {}.\n", be.Message(), be.GetDetailMessage());
+                        log().Warning(u"Failed to pick image: {}.\n", be);
                     }
                     catch (...) {}
                 });
@@ -227,7 +227,7 @@ static void OpenTestWindow(WindowBackend& backend)
         if (name == "pixmap-shm")
         {
             const auto args = GetCmdArgs();
-            return std::find(args.begin(), args.end(), std::string_view("noshm")) == args.end();
+            return std::find(args.begin(), args.end(), std::string_view("useshm")) != args.end();
         }
         return {};
     });

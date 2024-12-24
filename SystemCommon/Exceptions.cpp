@@ -1,4 +1,5 @@
 #include "Exceptions.h"
+#include <variant>
 
 namespace common
 {
@@ -55,6 +56,38 @@ std::vector<StackTraceItem> BaseException::GetAllStacks() const noexcept
             return *std::any_cast<std::u16string_view>(ptr);
     }
     return {};
+}
+
+void BaseException::FormatWith(::common::str::FormatterExecutor& executor, ::common::str::FormatterExecutor::Context& context, const ::common::str::FormatSpec*) const noexcept
+{
+    executor.PutString(context, Message(), nullptr);
+    const auto ptr = Info->Resources.QueryItem("detail");
+    if (ptr)
+    {
+        std::variant<std::monostate, std::u16string_view, std::string_view, std::u32string_view, std::wstring_view> detail;
+        const auto& tid = ptr->type();
+#define STRMatch(ch)                                                    \
+        if (tid == typeid(common::SharedString<ch>))                    \
+            detail = *std::any_cast<common::SharedString<ch>>(ptr);     \
+        else if (tid == typeid(std::basic_string<ch>))                  \
+            detail = *std::any_cast<std::basic_string<ch>>(ptr);        \
+        else if (tid == typeid(std::basic_string_view<ch>))             \
+            detail = *std::any_cast<std::basic_string_view<ch>>(ptr)
+        STRMatch(char16_t);
+        else STRMatch(char);
+        else STRMatch(char32_t);
+        else STRMatch(wchar_t);
+#undef STRMatch
+        if (detail.index())
+        {
+            executor.PutString(context, ", ", nullptr);
+            std::visit([&](const auto& txt) 
+            {
+                if constexpr (!std::is_same_v<std::decay_t<decltype(txt)>, std::monostate>)
+                    executor.PutString(context, txt, nullptr);
+            }, detail);
+        }
+    }
 }
 
 std::shared_ptr<ExceptionBasicInfo> BaseException::GetCurrentException() noexcept

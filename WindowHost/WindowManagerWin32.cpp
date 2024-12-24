@@ -13,6 +13,7 @@
 #include "common/StringPool.hpp"
 #include "common/Linq2.hpp"
 
+#include <mutex>
 
 #define WIN32_LEAN_AND_MEAN 1
 #define NOMINMAX 1
@@ -151,7 +152,6 @@ private:
     class WdHost final : public Win32Backend::Win32WdHost
     {
     public:
-
         struct Backbuffer
         {
             HRGN Region = nullptr;
@@ -176,8 +176,8 @@ private:
         HDC MemDC = nullptr;
         HBRUSH BGBrush = nullptr;
         HRGN Region = nullptr;
+        std::mutex ClipboardLock;
         CacheRect<int32_t> BackBuf;
-        //Backbuffer BackBuf;
         bool NeedBackground = true;
         WdHost(WindowManagerWin32& manager, const Win32CreateInfo& info) noexcept :
             Win32WdHost(manager, info) { }
@@ -601,7 +601,7 @@ void WindowManagerWin32::WdHost::OnDisplay() noexcept
                 GdiFlush();
                 SelectObject(bmpDC, oldbmp);
                 timer.Stop();
-                Manager.Logger.Verbose(u"Window [{:x}] rebuild backbuffer in [{} ms].\n", reinterpret_cast<uintptr_t>(Handle), timer.ElapseMs());
+                Manager.Logger.Verbose(u"Window[{:x}] rebuild backbuffer in [{} ms].\n", reinterpret_cast<uintptr_t>(Handle), timer.ElapseMs());
             }
         }
         needDraw = NeedBackground || bgChanged || (sizeChanged && holder);
@@ -613,6 +613,7 @@ void WindowManagerWin32::WdHost::OnDisplay() noexcept
 
 void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoardTypes, std::any)>& handler, ClipBoardTypes type)
 {
+    std::unique_lock<std::mutex> cpLock(ClipboardLock);
     enum class States { Continue, Handled, Faulted };
     if (!OpenClipboard(Handle)) return;
     auto& logger = Manager.Logger;
@@ -625,7 +626,7 @@ void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoard
         }
         catch (BaseException& be)
         {
-            logger.Warning(u"Exception during {}: {}, {}\n", msg, be.Message(), be.GetDetailMessage());
+            logger.Warning(u"Exception during {}: {}\n", msg, be);
         }
         catch (...)
         {

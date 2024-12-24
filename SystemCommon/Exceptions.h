@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SystemCommonRely.h"
+#include "FormatInclude.h"
 #include "common/CommonRely.hpp"
 #include "common/SharedString.hpp"
 #include "common/ResourceDict.hpp"
@@ -142,6 +143,7 @@ public:
         return Info->Message;
     }
     [[nodiscard]] std::u16string_view GetDetailMessage() const noexcept;
+    void FormatWith(::common::str::FormatterExecutor&, ::common::str::FormatterExecutor::Context&, const ::common::str::FormatSpec*) const noexcept;
 
     template<typename T, typename... Args>
     [[nodiscard]] static T CreateWithStack(StackTraceItem&& sti, Args... args)

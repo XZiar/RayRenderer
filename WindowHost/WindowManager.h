@@ -7,6 +7,7 @@
 #include "SystemCommon/LoopBase.h"
 #include "SystemCommon/PromiseTask.h"
 #include "SystemCommon/SpinLock.h"
+#include "common/TrunckedContainer.hpp"
 #include <map>
 #include <thread>
 #include <future>
@@ -34,7 +35,7 @@ inline bool RegisterBackend() noexcept
     }
     catch (const common::BaseException& be)
     {
-        wdLog().Warning(u"Failed to create backend [{}]: {}\n{}\n", name, be.Message(), be.GetDetailMessage());
+        wdLog().Warning(u"Failed to create backend [{}]: {}\n", name, be);
     }
     catch (const std::exception& ex)
     {
@@ -207,6 +208,22 @@ struct LockField
         }
         constexpr operator bool() const noexcept { return Changed; }
     };
+    template<uint8_t Index>
+    struct ProducerLock
+    {
+        static_assert(Index < 16);
+        LockField& Target;
+        const bool AlreadyChanged = false;
+        ProducerLock(LockField& target) noexcept : Target(target), AlreadyChanged(LockChange(Target, Index))
+        { }
+        COMMON_NO_COPY(ProducerLock)
+        COMMON_NO_MOVE(ProducerLock)
+        ~ProducerLock()
+        {
+            DoUnlock(Target, Index);
+        }
+        constexpr operator bool() const noexcept { return AlreadyChanged; }
+    };
 };
 
 namespace WdAttrIndex
@@ -214,7 +231,44 @@ namespace WdAttrIndex
 inline constexpr uint8_t Title = 0;
 inline constexpr uint8_t Icon = 1;
 inline constexpr uint8_t Background = 2;
+inline constexpr uint8_t Custom = 8;
 }
+
+
+template<typename Ch>
+class StableStringPool
+{
+    common::spinlock::WRSpinLock Lock;
+    common::container::TrunckedContainer<Ch> Pool;
+public:
+    StableStringPool() noexcept : Pool(4096, 8) {}
+    COMMON_NO_COPY(StableStringPool)
+    COMMON_NO_MOVE(StableStringPool)
+    template<typename F>
+    std::basic_string_view<Ch> Put(const std::basic_string_view<Ch>& str, F&& func) noexcept
+    {
+        auto lock = Lock.WriteScope();
+        const auto space = Pool.Alloc(str.size());
+        memcpy_s(space.data(), space.size_bytes(), str.data(), str.size() * sizeof(Ch));
+        std::basic_string_view<Ch> ret{ space.data(), str.size() };
+        func(ret);
+        return ret;
+    }
+    std::basic_string_view<Ch> Put(const std::basic_string_view<Ch>& str) noexcept
+    {
+        common::span<Ch> space;
+        {
+            auto lock = Lock.WriteScope();
+            space = Pool.Alloc(str.size());
+        }
+        memcpy_s(space.data(), space.size_bytes(), str.data(), str.size() * sizeof(Ch));
+        return { space.data(), str.size() };
+    }
+    auto LockRead() noexcept
+    {
+        return Lock.ReadScope();
+    }
+};
 
 
 class WindowManager
@@ -230,6 +284,13 @@ private:
     std::vector<std::pair<uintptr_t, WindowHost>> WindowList;
     common::container::IntrusiveDoubleLinkList<InvokeNode, common::spinlock::WRSpinLock> InvokeList;
     static LockField& GetResourceLock(WindowHost_* host) noexcept;
+    template<uint8_t Index>
+    class ResSetLock : private LockField::ProducerLock<Index>
+    {
+    public:
+        ResSetLock(WindowHost_* host) noexcept : LockField::ProducerLock<Index>(GetResourceLock(host)) {}
+        using LockField::ProducerLock<Index>::operator bool;
+    };
 protected:
     static OpaqueResource* GetWindowResource(WindowHost_* host, uint8_t resIdx) noexcept; // only get ptr, should lock before access content when needed
     template<uint8_t Index>
@@ -242,6 +303,10 @@ protected:
     using TitleLock = ResApplyLock<WdAttrIndex::Title>;
     using IconLock = ResApplyLock<WdAttrIndex::Icon>;
     using BgLock = ResApplyLock<WdAttrIndex::Background>;
+    template<uint8_t Idx>
+    using CustomLock = ResApplyLock<WdAttrIndex::Custom + Idx>;
+    template<uint8_t Idx>
+    using CustomSetLock = ResSetLock<WdAttrIndex::Custom + Idx>;
     template<typename T>
     struct CacheRect
     {

@@ -189,8 +189,9 @@ private:
     [[nodiscard]] const std::any* GetWindowData_(std::string_view name) const noexcept;
     void SetWindowData_(std::string_view name, std::any&& data) const noexcept;
     bool OnStart(const common::ThreadObject&, std::any& cookie) noexcept final;
-    LoopAction OnLoop() override final;
-    void OnStop() noexcept override final;
+    LoopAction OnLoop() final;
+    void OnStop() noexcept final;
+    bool OnError(std::exception_ptr) noexcept final;
     void Initialize();
     void RefreshMouseButton(event::MouseButton pressed) noexcept;
 protected:

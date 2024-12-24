@@ -997,7 +997,7 @@ public:
             }
         } while (hasUpdated);
         Timer.Start();
-        return LoopAction::SleepFor(MessageList.Begin() ? 3000 : 5000); // when empty, increase sleep time
+        return LoopAction::SleepFor(MessageList.Begin() ? 200 : 5000); // when empty, increase sleep time
     }
 
     common::PromiseResult<FileList> OpenFilePicker(const FilePickerInfo& info) noexcept final

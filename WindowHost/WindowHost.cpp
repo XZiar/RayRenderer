@@ -3,7 +3,7 @@
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/Delegate.h"
 #include "SystemCommon/SpinLock.h"
-#include "common/TrunckedContainer.hpp"
+#include "SystemCommon/Exceptions.h"
 
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/tuple/elem.hpp>
@@ -18,6 +18,7 @@ namespace xziar::gui
 {
 using namespace std::string_view_literals;
 using common::loop::LoopBase;
+using common::BaseException;
 //MAKE_ENABLER_IMPL(WindowHostPassive)
 //MAKE_ENABLER_IMPL(WindowHostActive)
 
@@ -147,6 +148,27 @@ void WindowHost_::OnStop() noexcept
 {
     Impl->Closed(*this);
     Manager.ReleaseWindow(this);
+}
+
+bool WindowHost_::OnError(std::exception_ptr ex) noexcept
+{
+    try
+    {
+        std::rethrow_exception(ex);
+    }
+    catch (BaseException& be)
+    {
+        Manager.Logger.Error(u"Window[{}] recieves error: {}\n", this, be);
+    }
+    catch (std::exception& stdex)
+    {
+        Manager.Logger.Error(u"Window[{}] recieves error: {}\n", this, stdex.what());
+    }
+    catch (...)
+    {
+        Manager.Logger.Error(u"Window[{}] recieves unknown error\n", this);
+    }
+    return false;
 }
 
 void WindowHost_::Initialize()
@@ -391,25 +413,25 @@ void WindowHost_::GetClipboard(const std::function<bool(ClipBoardTypes, std::any
 }
 
 
-template<uint8_t Index>
-struct ProducerLock
-{
-    static_assert(Index < 16);
-    detail::LockField& Target;
-    const bool AlreadyChanged = false;
-    ProducerLock(detail::LockField& target) noexcept : Target(target), AlreadyChanged(detail::LockField::LockChange(Target, Index))
-    { }
-    COMMON_NO_COPY(ProducerLock)
-    COMMON_NO_MOVE(ProducerLock)
-    ~ProducerLock()
-    {
-        detail::LockField::DoUnlock(Target, Index);
-    }
-    constexpr operator bool() const noexcept { return AlreadyChanged; }
-};
-using TitleLock = ProducerLock<detail::WdAttrIndex::Title>;
-using IconLock  = ProducerLock<detail::WdAttrIndex::Icon>;
-using BgLock    = ProducerLock<detail::WdAttrIndex::Background>;
+//template<uint8_t Index>
+//struct ProducerLock
+//{
+//    static_assert(Index < 16);
+//    detail::LockField& Target;
+//    const bool AlreadyChanged = false;
+//    ProducerLock(detail::LockField& target) noexcept : Target(target), AlreadyChanged(detail::LockField::LockChange(Target, Index))
+//    { }
+//    COMMON_NO_COPY(ProducerLock)
+//    COMMON_NO_MOVE(ProducerLock)
+//    ~ProducerLock()
+//    {
+//        detail::LockField::DoUnlock(Target, Index);
+//    }
+//    constexpr operator bool() const noexcept { return AlreadyChanged; }
+//};
+using TitleLock = detail::LockField::ProducerLock<detail::WdAttrIndex::Title>;
+using IconLock  = detail::LockField::ProducerLock<detail::WdAttrIndex::Icon>;
+using BgLock    = detail::LockField::ProducerLock<detail::WdAttrIndex::Background>;
 
 void WindowHost_::SetTitle(const std::u16string_view title)
 {

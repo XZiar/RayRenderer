@@ -276,7 +276,8 @@ void RunDizzCore(WindowBackend& backend)
     };
     window->DropFile() += [&](auto&, const auto& files)
     {
-        auto fname = std::u16string(files[0]);
+        if (!files.size()) return;
+        auto fname = std::u16string(*files.begin());
         const auto extName = fs::path(fname).extension().u16string();
         if (extName == u".obj")
         {

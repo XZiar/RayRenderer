@@ -1,5 +1,6 @@
 #include "WindowManager.h"
 #include "WindowHost.h"
+#include "ImageUtil/ImageUtil.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/SharedMemory.h"
 #include "SystemCommon/Exceptions.h"
@@ -13,6 +14,7 @@
 #include "common/Linq2.hpp"
 
 #include <boost/container/small_vector.hpp>
+#include <boost/container/flat_map.hpp>
 
 #include <X11/Xlib.h>
 #include <X11/Xlib-xcb.h>
@@ -45,7 +47,19 @@ using xziar::gui::event::CommonKeys;
 using xziar::img::Image;
 using xziar::img::ImageView;
 using xziar::img::ImgDType;
+using common::BaseException;
 
+
+struct PropertyResult
+{
+    boost::container::small_vector<std::byte, 32> Data;
+    uint32_t Type = XCB_NONE;
+    explicit constexpr operator bool() const noexcept { return Type != XCB_NONE; }
+    template<typename T = std::byte>
+    common::span<T> AsSpan() noexcept { return { reinterpret_cast<T*>(Data.data()), Data.size() / sizeof(T) }; }
+    template<typename T = std::byte>
+    common::span<const T> AsSpan() const noexcept { return { reinterpret_cast<const T*>(Data.data()), Data.size() / sizeof(T) }; }
+};
 
 struct DragInfos
 {
@@ -62,6 +76,17 @@ struct DragInfos
         TargetType = 0;
         PosX = PosY = 0;
     }
+};
+
+struct ClipboardInfo : public common::container::IntrusiveDoubleLinkListNodeBase<ClipboardInfo>
+{
+    std::vector<xcb_atom_t> Types;
+    std::function<bool(ClipBoardTypes, std::any)> Handler;
+    uint32_t TypeIndex = 0;
+    xcb_window_t SourceWindow = 0;
+    ClipBoardTypes SupportTypes;
+    ClipboardInfo(const std::function<bool(ClipBoardTypes, std::any)>& handler, ClipBoardTypes types) noexcept :
+        Handler(handler),  SupportTypes(types) {}
 };
 
 struct IconHolder : public OpaqueResource
@@ -98,6 +123,15 @@ class WindowManagerXCB final : public XCBBackend, public WindowManager
 public:
     static constexpr std::string_view BackendName = "XCB"sv;
 private:
+    class WdHost;
+    struct PropertyTask
+    {
+        using CB = std::function<void(WdHost&, common::span<const std::byte>)>;
+        std::vector<std::byte> Data;
+        CB Callback;
+        xcb_atom_t Type;
+        PropertyTask(CB&& cb, xcb_atom_t type) noexcept : Callback(std::move(cb)), Type(type) {}
+    };
     class WdHost final : public XCBBackend::XCBWdHost
     {
     public:
@@ -154,6 +188,8 @@ private:
         xcb_gcontext_t GContext = 0;
         BackImageHolder BackImage;
         DragInfos DragInfo;
+        std::list<ClipboardInfo> ClipboardAsks;
+        std::map<xcb_atom_t, std::unique_ptr<PropertyTask>> PropertyTasks;
         bool NeedBackground = true;
         WdHost(WindowManagerXCB& manager, const XCBCreateInfo& info) noexcept :
             XCBWdHost(manager, info) { }
@@ -188,7 +224,7 @@ private:
                             manager.PutImageInPixmap(*this, BackImage.Pixmap, newimg, BackImage.Width, BackImage.Height);
                         }
                         timer.Stop();
-                        Manager.Logger.Verbose(u"Window [{:x}] rebuild backbuffer in [{} ms].\n", Handle, timer.ElapseMs());
+                        Manager.Logger.Verbose(u"Window[{:x}] rebuild backbuffer in [{} ms].\n", Handle, timer.ElapseMs());
                     }
                 }
                 needDraw = NeedBackground || bgChanged || (sizeChanged && holder);
@@ -200,26 +236,39 @@ private:
             }
             WindowHost_::OnDisplay();
         }
+        void GetClipboard(const std::function<bool(ClipBoardTypes, std::any)>& handler, ClipBoardTypes type) final
+        {
+            CustomSetLock<0> cbLock(this);
+            ClipboardAsks.emplace_back(handler, type);
+            if (ClipboardAsks.size() == 1)
+                GetManager().IssueClipboard(*this);
+        }
     };
 
     xcb_connection_t* Connection = nullptr;
     Display* TheDisplay = nullptr;
     int32_t DefScreen = 0;
-    ImgDType PixmapDType;
     size_t ReqMaxSize = 0;
     xkb_context* XKBContext = nullptr;
     xkb_keymap* XKBKeymap = nullptr;
     xkb_state* XKBState = nullptr;
     xcb_screen_t* Screen = nullptr;
+    StableStringPool<char> StringPool;
     common::container::FrozenDenseSet<std::string_view> Extensions;
     std::map<std::string, std::variant<uint32_t, std::string, std::array<uint16_t, 4>>, std::less<>> XSettings;
+    common::container::FrozenDenseSet<uint32_t> ImageTypeAtoms, SkippedPropAtoms;
+    boost::container::flat_map<uint32_t, std::string_view> AtomNameCache;
+    ImgDType PixmapDType;
     uint32_t BGColor = 0;
     xcb_window_t ControlWindow = 0;
     xcb_atom_t MsgAtom = 0;
+    xcb_atom_t ClipboardDataAtom = 0;
     xcb_atom_t WMProtocolAtom = 0;
+    xcb_atom_t WMNameAtom = 0;
     xcb_atom_t WMStateAtom = 0;
     xcb_atom_t WMStateHiddenAtom = 0;
     xcb_atom_t WMIconAtom = 0;
+    xcb_atom_t WMIconGeoAtom = 0;
     xcb_atom_t CloseAtom = 0;
     xcb_atom_t XSServerAtom = 0;
     xcb_atom_t XSSettingAtom = 0;
@@ -236,8 +285,22 @@ private:
     xcb_atom_t XdndActionCopyAtom = 0;
     xcb_atom_t XdndActionMoveAtom = 0;
     xcb_atom_t XdndActionLinkAtom = 0;
-    xcb_atom_t UrlListAtom = 0;
+    xcb_atom_t INCRAtom = 0;
+    xcb_atom_t TargetsAtom = 0;
     xcb_atom_t PrimaryAtom = 0;
+    xcb_atom_t ClipboardAtom = 0;
+    xcb_atom_t UriListAtom = 0;
+    xcb_atom_t TextAtom = 0;
+    xcb_atom_t Utf8StrAtom = 0;
+    xcb_atom_t ImgPngAtom = 0;
+    xcb_atom_t ImgBmpAtom = 0;
+    xcb_atom_t ImgJpgAtom = 0;
+    xcb_atom_t ImgJpegAtom = 0;
+    xcb_atom_t ImgTgaAtom = 0;
+    xcb_atom_t ImgWebpAtom = 0;
+    xcb_atom_t ImgHeicAtom = 0;
+    xcb_atom_t ImgHeifAtom = 0;
+    xcb_atom_t ImgAvifAtom = 0;
     xkb_mod_index_t CapsLockIndex = 0;
     uint8_t XKBEventID = 0;
     uint8_t XKBErrorID = 0;
@@ -278,53 +341,134 @@ private:
     {
         return GeneralHandleError(xcb_request_check(Connection, cookie));
     }
-    std::string QueryAtomName(xcb_atom_t atom) noexcept
+    std::vector<std::string_view> QueryAtomNames(common::span<const xcb_atom_t> atoms) noexcept
     {
+        std::vector<std::string_view> ret(atoms.size());
+        std::vector<std::pair<uint32_t, xcb_get_atom_name_cookie_t>> cookies;
+        {
+            const auto lock = StringPool.LockRead();
+            for (uint32_t i = 0; i < atoms.size(); ++i)
+            {
+                if (atoms[i])
+                {
+                    if (const auto it = AtomNameCache.find(atoms[i]); it != AtomNameCache.end())
+                        ret[i] = it->second;
+                    else
+                        cookies.emplace_back(i, xcb_get_atom_name(Connection, atoms[i]));
+                }
+            }
+        }
+        xcb_generic_error_t *err = nullptr;
+        for (const auto& [idx, cookie] : cookies)
+        {
+            xcb_get_atom_name_reply_t* reply = xcb_get_atom_name_reply(Connection, cookie, &err);
+            GeneralHandleError(err);
+            if (reply)
+            {
+                const auto ptr = xcb_get_atom_name_name(reply);
+                const size_t len = xcb_get_atom_name_name_length(reply);
+                ret[idx] = StringPool.Put({ ptr, len }, [&](const auto& str)
+                {
+                    AtomNameCache.insert_or_assign(atoms[idx], str);
+                });
+                free(reply);
+            }
+        }
+        return ret;
+    }
+    std::string_view QueryAtomName(xcb_atom_t atom) noexcept
+    {
+        {
+            const auto lock = StringPool.LockRead();
+            const auto it = AtomNameCache.find(atom);
+            if (it != AtomNameCache.end())
+                return it->second;
+        }
         xcb_get_atom_name_cookie_t cookie = xcb_get_atom_name(Connection, atom);
         xcb_generic_error_t *err = nullptr;
         xcb_get_atom_name_reply_t* reply = xcb_get_atom_name_reply(Connection, cookie, &err);
         GeneralHandleError(err);
+        std::string_view ret;
         if (reply)
         {
-            std::string ret(xcb_get_atom_name_name(reply), xcb_get_atom_name_name_length(reply));
+            const auto ptr = xcb_get_atom_name_name(reply);
+            const size_t len = xcb_get_atom_name_name_length(reply);
+            ret = StringPool.Put({ ptr, len }, [&](const auto& str)
+            {
+                AtomNameCache.insert_or_assign(atom, str);
+            });
             free(reply);
-            return ret;
         }
-        return {};
+        return ret;
     }
-    std::optional<boost::container::small_vector<std::byte, 48>> QueryProperty(xcb_window_t window, xcb_atom_t prop, xcb_atom_t type)
+    template<typename T>
+    std::tuple<uint32_t, uint32_t, uint32_t> ReadProperty(T& data, xcb_window_t window, xcb_atom_t prop, xcb_atom_t type, bool shoudlDel = false, bool alignOffset = true)
     {
-        uint32_t offset = 0, want = 1024;
-        boost::container::small_vector<std::byte, 48> data;
+        uint32_t readOffset = 0;
+        if (alignOffset)
+        {
+            Ensures(data.size() % 4 == 0);
+            readOffset = data.size() / 4;
+        }
+        xcb_get_property_cookie_t cookie = xcb_get_property(Connection, shoudlDel ? 1 : 0, window, prop, type, readOffset, ReqMaxSize / 4);
+        xcb_generic_error_t *err = nullptr;
+        xcb_get_property_reply_t* reply = xcb_get_property_reply(Connection, cookie, &err);
+        GeneralHandleError(err);
+        if (!reply)
+            return { XCB_NONE, 0u, 0u };
+        const auto rtype = reply->type;
+        const auto ptr = xcb_get_property_value(reply);
+        const auto readLen = xcb_get_property_value_length(reply);
+        const auto bytesLeft = reply->bytes_after;
+        uint32_t copyLen = 0;
+        if (rtype != XCB_NONE && readLen > 0)
+        {
+            copyLen = (bytesLeft > 0 && readLen % 4 != 0) ? readLen / 4 * 4 : readLen; // u32 unit
+            const auto oldSize = data.size();
+            data.resize(oldSize + copyLen);
+            memcpy(&data[oldSize], ptr, copyLen);
+        }
+        free(reply);
+        return { rtype, copyLen, bytesLeft };
+    }
+    PropertyResult QueryProperty(xcb_window_t window, xcb_atom_t prop, xcb_atom_t type)
+    {
+        PropertyResult result;
+        uint32_t bytesRead = 0, bytesLeft = 0;
         do
         {
-            Ensures(offset % 4 == 0);
-            xcb_get_property_cookie_t cookie = xcb_get_property(Connection, 0, window, prop, type, offset / 4, (want + 3) / 4);
-            xcb_generic_error_t *err = nullptr;
-            xcb_get_property_reply_t* reply = xcb_get_property_reply(Connection, cookie, &err);
-            GeneralHandleError(err);
-            if (!reply)
-                return {};
-            if (reply->type == XCB_NONE)
+            std::tie(result.Type, bytesRead, bytesLeft) = ReadProperty(result.Data, window, prop, type);
+            if (result.Type == INCRAtom)
             {
-                free(reply);
-                return {};
+                Logger.Warning(u"INCR property not handled");
+                result.Type = XCB_NONE;
             }
-            const auto ptr = xcb_get_property_value(reply);
-            const auto readLen = xcb_get_property_value_length(reply);
-            want = reply->bytes_after;
-            if (readLen)
-            {
-                const auto copyLen = (want > 0 && readLen % 4 != 0) ? readLen / 4 * 4 : readLen; // u32 unit
-                data.resize(offset + copyLen);
-                memcpy_s(&data[offset], copyLen, ptr, copyLen);
-                offset += copyLen;
-            }
-            free(reply);
-        } while (want);
-        data.resize(offset);
-        return data;
+        } while (result.Type != XCB_NONE && bytesLeft);
+        return result;
     }
+    void AttachPropertyTask(WdHost& host, xcb_atom_t prop, xcb_atom_t type, std::function<void(WdHost&, common::span<const std::byte>)>&& callback)
+    {
+        PropertyResult result;
+        uint32_t bytesRead = 0, bytesLeft = 0;
+        do
+        {
+            std::tie(result.Type, bytesRead, bytesLeft) = ReadProperty(result.Data, host.Handle, prop, type);
+        } while (result.Type != XCB_NONE && result.Type != INCRAtom && bytesLeft);
+        if (result.Type == INCRAtom)
+        {
+            const auto it = host.PropertyTasks.find(prop);
+            Ensures(it == host.PropertyTasks.end());
+            auto& task = host.PropertyTasks.insert_or_assign(prop, std::make_unique<PropertyTask>(std::move(callback), type)).first->second;
+            if (const auto space = result.AsSpan<uint32_t>(); space.size() == 1)
+                task->Data.reserve(space[0]);
+            xcb_get_property_unchecked(Connection, 1, host.Handle, prop, type, 0, ReqMaxSize / 4);
+        }
+        else
+        {
+            callback(host, result ? result.AsSpan() : common::span<const std::byte>{});
+        }
+    }
+
     void UpdateXKBState()
     {
         IsCapsLock = xkb_state_mod_index_is_active(XKBState, CapsLockIndex, XKB_STATE_MODS_EFFECTIVE) > 0;
@@ -388,8 +532,8 @@ private:
         free(ownerReply);
         if (!xsWindow) return;
         const auto settings = QueryProperty(xsWindow, XSSettingAtom, XCB_ATOM_ANY);
-        if (!settings.has_value()) return;
-        common::io::MemoryInputStream stream(common::span<const std::byte>{settings->data(), settings->size()});
+        if (!settings) return;
+        common::io::MemoryInputStream stream(settings.AsSpan());
         struct Header
         {
             uint8_t ByteOrder = XCB_IMAGE_ORDER_LSB_FIRST;
@@ -498,17 +642,13 @@ public:
             {
                 std::vector<std::string_view> exts;
                 for (auto extIter = xcb_list_extensions_names_iterator(reply); extIter.rem; xcb_str_next(&extIter))
-                {
-                    const auto str = xcb_str_name(extIter.data);
-                    const auto len = xcb_str_name_length(extIter.data);
-                    exts.emplace_back(str, len);
-                }
+                    exts.emplace_back(StringPool.Put({ xcb_str_name(extIter.data), (size_t)xcb_str_name_length(extIter.data) }));
+                free(reply);
                 Extensions = exts;
                 std::string exttxts("xcb Extensions:\n");
                 for (const auto& ext : Extensions)
                     exttxts.append(ext).push_back('\n');
                 Logger.Verbose(u"{}", exttxts);
-                free(reply);
             }
         }
         // no need to explicit enable big request
@@ -666,43 +806,61 @@ public:
 
         // prepare atoms
         {
-            const auto xsName = std::string("0_XSETTINGS_S") + std::to_string(DefScreen);
+            const auto xsName = std::string("1_XSETTINGS_S") + std::to_string(DefScreen);
             const std::pair<xcb_atom_t*, std::string_view> atomList[] = 
             {
-                { &MsgAtom,             "1XZIAR_GUI_MSG"sv       },
-                { &WMProtocolAtom,      "0WM_PROTOCOLS"sv        },
-                { &WMStateAtom,         "0_NET_WM_STATE"sv       },
-                { &WMStateHiddenAtom,   "0_NET_WM_STATE_HIDDEN"sv},
-                { &WMIconAtom,          "0_NET_WM_ICON"sv        },
-                { &CloseAtom,           "0WM_DELETE_WINDOW"sv    },
-                { &XSServerAtom,        xsName                   },
-                { &XSSettingAtom,       "0_XSETTINGS_SETTINGS"sv },
-                { &XdndProxyAtom,       "0XdndProxy"sv           },
-                { &XdndAwareAtom,       "0XdndAware"sv           },
-                { &XdndTypeListAtom,    "0XdndTypeList"sv        },
-                { &XdndEnterAtom,       "0XdndEnter"sv           },
-                { &XdndLeaveAtom,       "0XdndLeave"sv           },
-                { &XdndPositionAtom,    "0XdndPosition"sv        },
-                { &XdndDropAtom,        "0XdndDrop"sv            },
-                { &XdndStatusAtom,      "0XdndStatus"sv          },
-                { &XdndFinishedAtom,    "0XdndFinished"sv        },
-                { &XdndSelectionAtom,   "0XdndSelection"sv       },
-                { &XdndActionCopyAtom,  "0XdndActionCopy"sv      },
-                { &XdndActionMoveAtom,  "0XdndActionMove"sv      },
-                { &XdndActionLinkAtom,  "0XdndActionLink"sv      },
-                { &UrlListAtom,         "0text/uri-list"sv       },
-                { &PrimaryAtom,         "0PRIMARY"sv             },
+                { &MsgAtom,             "0XZIAR_GUI_MSG"sv          },
+                { &ClipboardDataAtom,   "0XZIAR_GUI_CBDATA"sv       },
+                { &WMProtocolAtom,      "1WM_PROTOCOLS"sv           },
+                { &WMNameAtom,          "1WM_NAME"sv                },
+                { &WMStateAtom,         "1_NET_WM_STATE"sv          },
+                { &WMStateHiddenAtom,   "1_NET_WM_STATE_HIDDEN"sv   },
+                { &WMIconAtom,          "1_NET_WM_ICON"sv           },
+                { &WMIconGeoAtom,       "1_NET_WM_ICON_GEOMETRY"sv  },
+                { &CloseAtom,           "1WM_DELETE_WINDOW"sv       },
+                { &XSServerAtom,        xsName                      },
+                { &XSSettingAtom,       "1_XSETTINGS_SETTINGS"sv    },
+                { &XdndProxyAtom,       "1XdndProxy"sv              },
+                { &XdndAwareAtom,       "1XdndAware"sv              },
+                { &XdndTypeListAtom,    "1XdndTypeList"sv           },
+                { &XdndEnterAtom,       "1XdndEnter"sv              },
+                { &XdndLeaveAtom,       "1XdndLeave"sv              },
+                { &XdndPositionAtom,    "1XdndPosition"sv           },
+                { &XdndDropAtom,        "1XdndDrop"sv               },
+                { &XdndStatusAtom,      "1XdndStatus"sv             },
+                { &XdndFinishedAtom,    "1XdndFinished"sv           },
+                { &XdndSelectionAtom,   "1XdndSelection"sv          },
+                { &XdndActionCopyAtom,  "1XdndActionCopy"sv         },
+                { &XdndActionMoveAtom,  "1XdndActionMove"sv         },
+                { &XdndActionLinkAtom,  "1XdndActionLink"sv         },
+                { &INCRAtom,            "1INCR"sv                   },
+                { &TargetsAtom,         "1TARGETS"sv                },
+                { &PrimaryAtom,         "1PRIMARY"sv                },
+                { &ClipboardAtom,       "1CLIPBOARD"sv              },
+                { &UriListAtom,         "1text/uri-list"sv          },
+                { &TextAtom,            "1text/plain"sv             },
+                { &Utf8StrAtom,         "2UTF8_STRING"sv            },
+                { &ImgPngAtom,          "2image/png"sv              },
+                { &ImgBmpAtom,          "2image/bmp"sv              },
+                { &ImgJpgAtom,          "2image/jpg"sv              },
+                { &ImgJpegAtom,         "2image/jpeg"sv             },
+                { &ImgTgaAtom,          "2image/tga"sv              },
+                { &ImgWebpAtom,         "2image/webp"sv             },
+                { &ImgHeicAtom,         "2image/heic"sv             },
+                { &ImgHeifAtom,         "2image/heif"sv             },
+                { &ImgAvifAtom,         "2image/avif"sv             },
             };
             std::vector<xcb_intern_atom_cookie_t> atomCookies;
             atomCookies.reserve(sizeof(atomList) / sizeof(atomList[0]));
             for (const auto& item : atomList)
             {
-                const uint8_t onlyIfExists = item.second[0] == '1' ? 0 : 1;
+                const uint8_t onlyIfExists = item.second[0] == '0' ? 0 : 1;
                 const auto nameSize = gsl::narrow_cast<uint16_t>(item.second.size() - 1);
                 const auto namePtr  = item.second.data() + 1;
                 atomCookies.emplace_back(xcb_intern_atom_unchecked(Connection, onlyIfExists, nameSize, namePtr));
             }
             std::string fails;
+            std::vector<uint32_t> imageAtoms;
             size_t atomIdx = 0;
             for (const auto& cookie : atomCookies)
             {
@@ -713,11 +871,20 @@ public:
                     *item.first = reply->atom;
                     free(reply);
                 }
-                if (!*item.first)
+                if (!*item.first && item.second[0] == '1')
                 {
                     if (!fails.empty()) fails.append(", ");
                     fails.append(item.second, 1);
                 }
+                if (*item.first && item.second.starts_with("2image/"))
+                {
+                    imageAtoms.push_back(*item.first);
+                }
+            }
+            ImageTypeAtoms = imageAtoms;
+            {
+                std::vector<uint32_t> skipProps { WMIconAtom, WMIconGeoAtom, WMStateAtom, WMNameAtom };
+                SkippedPropAtoms = skipProps;
             }
             if (!fails.empty())
                 Logger.Verbose(u"Following atoms not recognized: [{}].\n", fails);
@@ -874,23 +1041,22 @@ public:
             if (data.data32[1] & 1) // > 3 types
             {
                 const auto types = QueryProperty(dragInfo.SourceWindow, XdndTypeListAtom, XCB_ATOM_ATOM);
-                if (types.has_value())
+                if (types)
                 {
-                    const auto count = types->size() / 4;
-                    const auto ptr = reinterpret_cast<const uint32_t*>(types->data());
-                    dragInfo.Types.assign(ptr, ptr + count);
+                    const auto tspan = types.AsSpan<uint32_t>();
+                    dragInfo.Types.assign(tspan.begin(), tspan.end());
                 }
             }
             else
                 dragInfo.Types.assign(&data.data32[2], &data.data32[5]);
             Logger.Info(u"DragEnter from [{}] with {} types:\n", uint32_t(dragInfo.SourceWindow), dragInfo.Types.size());
-            for (const auto& type : dragInfo.Types)
+            const auto typeNames = QueryAtomNames(dragInfo.Types);
+            for (const auto [type, name] : common::linq::FromIterable(dragInfo.Types).Pair(common::linq::FromIterable(typeNames)))
             {
                 if (type)
                 {
-                    const auto name = QueryAtomName(type);
                     Logger.Verbose(u"--[{:6}]: [{}]\n", type, name);
-                    if (type == UrlListAtom || name == "text/uri-list")
+                    if (type == UriListAtom || name == "text/uri-list")
                         dragInfo.TargetType = type;
                 }
             }
@@ -958,6 +1124,160 @@ public:
         default:
             Logger.Verbose(u"Recieve xkb message [{}]\n", (uint32_t)xkbType);
         }
+    }
+    template<typename F>
+    forceinline bool WrapException(F&& func, std::u16string_view msg) noexcept
+    {
+        try
+        {
+            func();
+            return true;
+        }
+        catch (BaseException& be)
+        {
+            Logger.Warning(u"Exception during {}: {}\n", msg, be);
+        }
+        catch (...)
+        {
+            Logger.Warning(u"Exception during {}\n", msg);
+        }
+        return false;
+    }
+    static FileList StringToFiles(std::string_view str)
+    {
+        FileList files;
+        for (auto line : common::str::SplitStream(str, [](auto ch){ return ch == '\r' || ch == '\n'; }, false))
+        {
+            if (common::str::IsBeginWith(line, "file://")) // only accept local file
+            {
+                line.remove_prefix(7);
+                files.AppendFile(common::str::to_u16string(line, common::str::Encoding::URI)); 
+            }
+        }
+        return files;
+    }
+    void HandleDropEvent(WdHost& host)
+    {
+        const auto ret = QueryProperty(host.Handle, PrimaryAtom, XCB_ATOM_ANY);
+        auto& dragInfo = host.DragInfo;
+        Expects(dragInfo.SourceWindow);
+        uint32_t sendData[3] = { host.Handle, 1, XdndActionCopyAtom };
+        SendClientMessage(dragInfo.SourceWindow, XdndFinishedAtom, sendData);
+        xcb_flush(Connection);
+        if (ret)
+        {
+            const auto cookie = xcb_translate_coordinates(Connection, Screen->root, host.Handle, dragInfo.PosX, dragInfo.PosY);
+            auto files = StringToFiles({ reinterpret_cast<const char*>(ret.Data.data()), ret.Data.size() });
+            const auto reply = xcb_translate_coordinates_reply(Connection, cookie, nullptr);
+            event::Position pos(reply->dst_x, reply->dst_y);
+            free(reply);
+            host.OnDropFile(pos, std::move(files));
+        }
+        dragInfo.Clear();
+    }
+    enum class PasteStates { Continue, Handled, Faulted };
+    template<typename T>
+    forceinline PasteStates InvokeClipboardHandler(ClipboardInfo& clip, ClipBoardTypes type, T&& dat) noexcept
+    {
+        PasteStates ret = PasteStates::Continue;
+        if (!WrapException([&]() { ret = clip.Handler(type, std::forward<T>(dat)) ? PasteStates::Handled : PasteStates::Continue; }, u"handle clipboard"))
+            ret = PasteStates::Faulted;
+        return ret;
+    }
+    void IssueClipboard(WdHost& host)
+    {
+        xcb_convert_selection(Connection, host.Handle, ClipboardAtom, TargetsAtom, TargetsAtom, XCB_CURRENT_TIME);
+        xcb_flush(Connection);
+    }
+    void ContinueClipboard(WdHost& host, ClipboardInfo& clipInfo, bool shouldContinue)
+    {
+        if (shouldContinue && clipInfo.TypeIndex < clipInfo.Types.size())
+        {
+            xcb_convert_selection(Connection, host.Handle, ClipboardAtom, clipInfo.Types[clipInfo.TypeIndex++], ClipboardDataAtom, XCB_CURRENT_TIME);
+            xcb_flush(Connection);
+        }
+        else
+        {
+            CustomLock<0> clipLock(&host);
+            host.ClipboardAsks.pop_front();
+            if (!host.ClipboardAsks.empty())
+                IssueClipboard(host); // issue for next
+        }
+    }
+    void HandlePasteEvent(WdHost& host, xcb_atom_t type)
+    {
+        auto& clipInfo = host.ClipboardAsks.front();
+        if (type == TargetsAtom)
+        {
+            if (const auto ret = QueryProperty(host.Handle, TargetsAtom, XCB_ATOM_ATOM); ret)
+            {
+                const auto targets = ret.AsSpan<xcb_atom_t>();
+                clipInfo.Types.clear();
+                const auto typeNames = QueryAtomNames(targets);
+                for (const auto [type, name] : common::linq::FromIterable(targets).Pair(common::linq::FromIterable(typeNames)))
+                {
+                    if (type)
+                    {
+                        bool addInPending = false;
+                        if (type == TextAtom || type == Utf8StrAtom)
+                            addInPending = HAS_FIELD(clipInfo.SupportTypes, ClipBoardTypes::Text);
+                        else if (type == UriListAtom)
+                            addInPending = HAS_FIELD(clipInfo.SupportTypes, ClipBoardTypes::File);
+                        else if (ImageTypeAtoms.Has(type))
+                            addInPending = HAS_FIELD(clipInfo.SupportTypes, ClipBoardTypes::Image);
+                        if (addInPending)
+                            clipInfo.Types.push_back(type);
+                        Logger.Verbose(u"--[{}][{:6}]: [{}]\n", addInPending ? 'Y' : 'N', type, name);
+                    }
+                }
+                clipInfo.TypeIndex = 0;
+            }
+            ContinueClipboard(host, clipInfo, true);
+            return;
+        }
+
+        PasteStates state = PasteStates::Continue;
+        if (type == UriListAtom)
+        {
+            if (const auto ret = QueryProperty(host.Handle, ClipboardDataAtom, XCB_ATOM_ANY); ret)
+            {
+                auto files = StringToFiles({ reinterpret_cast<const char*>(ret.Data.data()), ret.Data.size() });
+                state = InvokeClipboardHandler(clipInfo, ClipBoardTypes::File, std::move(files));
+            }
+        }
+        else if (type == TextAtom || type == Utf8StrAtom)
+        {
+            if (const auto ret = QueryProperty(host.Handle, ClipboardDataAtom, XCB_ATOM_ANY); ret)
+            {
+                std::string_view txt(reinterpret_cast<const char*>(ret.Data.data()), ret.Data.size());
+                state = InvokeClipboardHandler(clipInfo, ClipBoardTypes::Text, txt);
+            }
+        }
+        else if (ImageTypeAtoms.Has(type))
+        {
+            std::u16string ext;
+            if (const auto name = QueryAtomName(type); name.starts_with("image/"))
+                ext = common::str::to_u16string(std::string_view(name).substr(6));
+            AttachPropertyTask(host, ClipboardDataAtom, XCB_ATOM_ANY, [this, ext, &clipInfo](auto& host, common::span<const std::byte> data)
+            {
+                PasteStates state = PasteStates::Continue;
+                if (!data.empty())
+                {
+                    common::io::MemoryInputStream stream(data);
+                    std::optional<ImageView> img;
+                    WrapException([&]()
+                    {
+                        if (const auto img_ = xziar::img::ReadImage(stream, ext, xziar::img::ImageDataType::RGBA); img_.GetSize())
+                            img = img_;
+                    }, u"parse image");
+                    if (img)
+                        state = InvokeClipboardHandler(clipInfo, ClipBoardTypes::Image, *img);
+                }
+                ContinueClipboard(host, clipInfo, state == PasteStates::Continue);
+            });
+            return;
+        }
+        ContinueClipboard(host, clipInfo, state == PasteStates::Continue);
     }
 
     event::CombinedKey ProcessKey(xcb_keycode_t keycode) noexcept;
@@ -1101,37 +1421,54 @@ public:
                 if (const auto host_ = GetWindow(msg.requestor); host_)
                 {
                     const auto host = static_cast<WdHost*>(host_);
-                    auto& dragInfo = host->DragInfo;
-                    if (msg.selection == XdndSelectionAtom && msg.target == dragInfo.TargetType)
+                    if (msg.selection == XdndSelectionAtom)
                     {
-                        const auto ret = QueryProperty(msg.requestor, PrimaryAtom, XCB_ATOM_ANY);
-
-                        Expects(dragInfo.SourceWindow);
-                        uint32_t sendData[3] = { host->Handle, 1, XdndActionCopyAtom };
-                        SendClientMessage(dragInfo.SourceWindow, XdndFinishedAtom, sendData);
-                        xcb_flush(Connection);
-                        if (ret)
-                        {
-                            const auto cookie = xcb_translate_coordinates(Connection, Screen->root, host->Handle, dragInfo.PosX, dragInfo.PosY);
-                            FileList files;
-                            const auto ptr = reinterpret_cast<const char*>(ret->data());
-                            for (auto line : common::str::SplitStream(std::string_view(ptr, ret->size()), 
-                                [](auto ch){ return ch == '\r' || ch == '\n'; }, false))
-                            {
-                                if (common::str::IsBeginWith(line, "file://")) // only accept local file
-                                {
-                                    line.remove_prefix(7);
-                                    files.AppendFile(common::str::to_u16string(line, common::str::Encoding::URI)); 
-                                }
-                            }
-                            const auto reply = xcb_translate_coordinates_reply(Connection, cookie, nullptr);
-                            event::Position pos(reply->dst_x, reply->dst_y);
-                            free(reply);
-                            host->OnDropFile(pos, std::move(files));
-                        }
-                        dragInfo.Clear();
+                        auto& dragInfo = host->DragInfo;
+                        if (msg.target != dragInfo.TargetType || msg.property != PrimaryAtom)
+                            Logger.Warning(u"Expects target[{}]({}) property[{}]({}) for Xdnd.\n",
+                                QueryAtomName(dragInfo.TargetType), uint32_t(dragInfo.TargetType),
+                                QueryAtomName(PrimaryAtom), uint32_t(PrimaryAtom));
+                        HandleDropEvent(*host);
+                    }
+                    else if (msg.selection == ClipboardAtom)
+                    {
+                        HandlePasteEvent(*host, msg.target);
                     }
                 }
+            } break;
+            case XCB_PROPERTY_NOTIFY:
+            {
+                const auto& msg = *reinterpret_cast<xcb_property_notify_event_t*>(evt);
+                if (SkippedPropAtoms.Has(msg.atom)) // quick ignore
+                    break;
+                const auto host_ = GetWindow(msg.window);
+                if (msg.atom == ClipboardDataAtom && host_)
+                {
+                    auto& host = *static_cast<WdHost*>(host_);
+                    if (const auto it = host.PropertyTasks.find(msg.atom); it != host.PropertyTasks.end() && msg.state == XCB_PROPERTY_NEW_VALUE)
+                    {
+                        auto [readType, bytesRead, bytesLeft] = ReadProperty(it->second->Data, msg.window, msg.atom, it->second->Type, true, false);
+                        if (readType == INCRAtom)
+                        {
+                            Logger.Warning(u"should not recieve INCR for property value");
+                            readType = XCB_NONE;
+                        }
+                        if (bytesRead == 0 || readType == XCB_NONE) // assuem finished
+                        {
+                            const auto task = std::move(it->second);
+                            host.PropertyTasks.erase(it);
+                            Logger.Verbose(u"property INCR finished with [{} bytes].\n", task->Data.size());
+                            task->Callback(host, task->Data);
+                        }
+                        else
+                            Logger.Verbose(u"property INCR reads [{} bytes], now [{} bytes].\n", bytesRead, it->second->Data.size());
+                    }
+                    //else
+                    //    Logger.Verbose(u"No callback registered for this property.\n");
+                }
+                else
+                    Logger.Verbose(u"Recieve property change window[{:x}] property[{}]({}) state[{}]\n",
+                        msg.window, QueryAtomName(msg.atom), uint32_t(msg.atom), msg.state);
             } break;
             case XCB_CLIENT_MESSAGE:
             {
@@ -1177,7 +1514,7 @@ public:
     {
         const auto host = static_cast<WdHost*>(payload.Host);
         int visualId = Screen->root_visual;
-        bool tryShm = CanPixmapShm && PixmapDType;
+        bool tryShm = false;
 
         if (payload.ExtraData)
         {
@@ -1188,8 +1525,8 @@ public:
             if (const auto bg = TryGetFinally<bool>(bg_); bg)
                 host->NeedBackground = *bg;
             const auto shm_ = (*payload.ExtraData)("pixmap-shm");
-            if (const auto shm = TryGetFinally<bool>(shm_); shm)
-                tryShm = tryShm && *shm;
+            if (const auto shm = TryGetFinally<bool>(shm_); shm && *shm)
+                tryShm = CanPixmapShm && PixmapDType;
         }
 
         host->GContext = xcb_generate_id(Connection);
@@ -1205,7 +1542,8 @@ public:
             XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
             XCB_EVENT_MASK_POINTER_MOTION |
             XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW |
-            XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT;
+            XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT |
+            XCB_EVENT_MASK_PROPERTY_CHANGE;
         uint32_t valuemask = XCB_CW_EVENT_MASK;
         std::array<uint32_t, 2> valuelist = {0};
         size_t valueIdx = 0;
