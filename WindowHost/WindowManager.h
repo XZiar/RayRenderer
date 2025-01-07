@@ -3,7 +3,9 @@
 #include "WindowHostRely.h"
 #include "WindowHost.h"
 
+#include "ImageUtil/ImageCore.h"
 #include "SystemCommon/MiniLogger.h"
+#include "SystemCommon/Exceptions.h"
 #include "SystemCommon/LoopBase.h"
 #include "SystemCommon/PromiseTask.h"
 #include "SystemCommon/SpinLock.h"
@@ -271,8 +273,28 @@ public:
 };
 
 
+template<typename F>
+forceinline bool WrapException(F&& func, common::mlog::MiniLogger<false>& logger, std::u16string_view msg) noexcept
+{
+    try
+    {
+        func();
+        return true;
+    }
+    catch (::common::BaseException& be)
+    {
+        logger.Warning(u"Exception during {}: {}\n", msg, be);
+    }
+    catch (...)
+    {
+        logger.Warning(u"Exception during {}\n", msg);
+    }
+    return false;
+}
+
 class WindowManager
 {
+    friend WindowHost_;
     friend WindowRunner;
 private:
     struct InvokeNode : public common::NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<InvokeNode>
@@ -292,7 +314,26 @@ private:
         using LockField::ProducerLock<Index>::operator bool;
     };
 protected:
-    static OpaqueResource* GetWindowResource(WindowHost_* host, uint8_t resIdx) noexcept; // only get ptr, should lock before access content when needed
+    struct ReSizingLock
+    {
+        const WindowHost_& Host;
+        ReSizingLock(const WindowHost_& host);
+        ~ReSizingLock();
+    };
+    [[nodiscard]] static bool TryLockWindow(WindowHost_& host, uint8_t idx) noexcept;
+    static void LockWindow(WindowHost_& host, uint8_t idx) noexcept;
+    static bool UnlockWindow(WindowHost_& host, uint8_t idx) noexcept;
+    template<uint8_t Idx, typename F>
+    static decltype(auto) LockWindowFor(WindowHost_& host, F&& task) noexcept
+    {
+        static_assert(Idx < 16);
+        LockWindow(host, Idx);
+        decltype(auto) ret = task();
+        const auto suc = UnlockWindow(host, Idx);
+        Ensures(suc);
+        return ret;
+    }
+    [[nodiscard]] static OpaqueResource* GetWindowResource(WindowHost_* host, uint8_t resIdx) noexcept; // only get ptr, should lock before access content when needed
     template<uint8_t Index>
     class ResApplyLock : private LockField::ConsumerLock<Index>
     {
@@ -308,23 +349,41 @@ protected:
     template<uint8_t Idx>
     using CustomSetLock = ResSetLock<WdAttrIndex::Custom + Idx>;
     template<typename T>
-    struct CacheRect
+    struct RectBase
     {
-        T Width = 0, Height = 0;
-        // return { sizeChanged, needInitialize }
-        constexpr std::pair<bool, bool> Update(const WindowHost_& wd) noexcept
+        T Width, Height;
+        constexpr RectBase() noexcept : Width(0), Height(0) {}
+        constexpr RectBase(T w, T h) noexcept : Width(w), Height(h) {}
+        constexpr RectBase(const WindowHost_& wd) noexcept : Width(static_cast<T>(wd.Width)), Height(static_cast<T>(wd.Height)) {}
+        void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec* spec) const
         {
-            if (Width != wd.Width || Height != wd.Height)
+            using U = std::make_unsigned_t<T>;
+            executor.PutInteger(context, static_cast<U>(Width), std::is_signed_v<T>, spec);
+            executor.PutString(context, "x", nullptr);
+            executor.PutInteger(context, static_cast<U>(Height), std::is_signed_v<T>, spec);
+        }
+        constexpr bool operator==(const RectBase<T>& rhs) const noexcept { return Width == rhs.Width && Height == rhs.Height; }
+        constexpr bool operator!=(const RectBase<T>& rhs) const noexcept { return Width != rhs.Width || Height != rhs.Height; }
+    };
+    template<typename T>
+    struct CacheRect : public RectBase<T>
+    {
+        // return { sizeChanged, needInitialize }
+        std::pair<bool, bool> Update(const WindowHost_& wd) noexcept
+        {
+            ReSizingLock lock(wd);
+            RectBase<T> newSize(wd);
+            if (*this != newSize)
             {
-                const bool initilized = Width > 0 && Height > 0;
-                Width = static_cast<T>(wd.Width), Height = static_cast<T>(wd.Height);
+                const bool initilized = this->Width > 0 && this->Height > 0;
+                static_cast<RectBase<T>&>(*this) = newSize;
                 return { true, !initilized };
             }
             return { false, false };
         }
         constexpr std::pair<T, T> ResizeWithin(uint32_t w, uint32_t h) const noexcept
         {
-            const auto dw = Width, dh = Height;
+            const auto dw = this->Width, dh = this->Height;
             const auto wAlignH = uint64_t(dw) * h / w, hAlignW = uint64_t(dh) * w / h;
             Ensures((wAlignH <= (uint32_t)dh) || (hAlignW <= (uint32_t)dw));
             T tw = 0, th = 0;
@@ -338,13 +397,18 @@ protected:
 
     WindowManager();
 
+    template<typename F>
+    forceinline bool WrapException(F&& func, std::u16string_view msg) const noexcept
+    {
+        return ::xziar::gui::detail::WrapException(std::forward<F>(func), Logger, msg);
+    }
     template<typename T>
     void RegisterHost(T handle, WindowHost_* host)
     {
         WindowList.emplace_back((uintptr_t)handle, host->shared_from_this());
     }
     template<typename T>
-    WindowHost_* GetWindow(T handle) const noexcept
+    [[nodiscard]] WindowHost_* GetWindow(T handle) const noexcept
     {
         const auto window = (uintptr_t)handle;
         for (const auto& pair : WindowList)
@@ -355,6 +419,12 @@ protected:
             }
         }
         return nullptr;
+    }
+    [[nodiscard]] xziar::img::Image TryReadImage(common::span<const std::byte> data, std::u16string_view ext, xziar::img::ImgDType dtype, std::u16string_view msg = u"parse image") const noexcept;
+    [[nodiscard]] std::optional<bool> InvokeClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type, const std::any& dat) const noexcept;
+    [[nodiscard]] forceinline bool InvokeClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type, const std::any& dat, bool stopAtFault) const noexcept
+    {
+        return InvokeClipboard(handler, type, dat).value_or(stopAtFault);
     }
     bool UnregisterHost(WindowHost_* host);
     void HandleTask();
@@ -381,6 +451,12 @@ public:
 
     // void Invoke(std::function<void(WindowHost_&)> task);
 };
+
+
+#if COMMON_OS_UNIX
+xziar::gui::event::CombinedKey ProcessXKBKey(void* state, uint8_t keycode) noexcept;
+FileList UriStringToFiles(std::string_view str) noexcept;
+#endif
 
 
 }

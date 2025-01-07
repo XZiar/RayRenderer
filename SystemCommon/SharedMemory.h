@@ -23,6 +23,9 @@ public:
     SYSCOMMONAPI [[nodiscard]] AlignedBuffer AsBuffer() const noexcept;
 
     SYSCOMMONAPI [[nodiscard]] static std::shared_ptr<SharedMemory> CreateAnonymous(size_t size);
+#if COMMON_OS_UNIX
+    SYSCOMMONAPI [[nodiscard]] static int CreateMemFd(const char* name, uint32_t flags);
+#endif
 };
 
 }

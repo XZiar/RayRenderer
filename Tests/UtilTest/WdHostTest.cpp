@@ -3,6 +3,7 @@
 #include "ImageUtil/ImageUtil.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "common/ResourceHelper.h"
+#include "common/Linq2.hpp"
 #include "resource.h"
 #include <thread>
 
@@ -19,19 +20,44 @@ static MiniLogger<false>& log()
     return logger;
 }
 
+static bool ChooseYN(std::u16string str, bool autoVal)
+{
+    if (IsAutoMode()) return autoVal;
+    str += u" [y/n]\n";
+    GetConsole().Print(common::CommonColor::BrightWhite, str);
+    while (true)
+    {
+        const auto ch = common::console::ConsoleEx::ReadCharImmediate(false);
+             if (ch == 'y' || ch == 'Y') { return false; break; }
+        else if (ch == 'n' || ch == 'N') { return true;  break; }
+    }
+}
+
 
 constexpr auto BtnToStr = [](xziar::gui::event::MouseButton btn)
 {
     using namespace std::string_view_literals;
     using xziar::gui::event::MouseButton;
+#if COMMON_COMPILER_GCC
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wswitch"
+#elif COMMON_COMPILER_CLANG
+#   pragma clang diagnostic push
+#   pragma clang diagnostic ignored "-Wswitch"
+#endif
     switch (btn)
     {
-    case MouseButton::Left: return "L"sv;
+    case MouseButton::Left:   return "L"sv;
     case MouseButton::Middle: return "M"sv;
-    case MouseButton::Right: return "R"sv;
+    case MouseButton::Right:  return "R"sv;
     case MouseButton::Left | MouseButton::Right: return "LR"sv;
     default: return "X"sv;
     }
+#if COMMON_COMPILER_GCC
+#   pragma GCC diagnostic pop
+#elif COMMON_COMPILER_CLANG
+#   pragma clang diagnostic pop
+#endif
 };
 
 static void SetBgImg(xziar::gui::WindowHost_& wd, const FileList& files) noexcept
@@ -58,7 +84,8 @@ static void SetBgImg(xziar::gui::WindowHost_& wd, const FileList& files) noexcep
         catch (...) {}
     }
 };
-static void OpenTestWindow(WindowBackend& backend)
+using Creator = std::function<WindowHost(WindowBackend&, const CreateInfo&)>;
+static void OpenTestWindow(WindowBackend& backend, const Creator& creator)
 {
     Image iconimg;
     {
@@ -69,7 +96,7 @@ static void OpenTestWindow(WindowBackend& backend)
 
     xziar::gui::CreateInfo wdInfo;
     wdInfo.Width = 1280, wdInfo.Height = 720, wdInfo.TargetFPS = 60, wdInfo.Title = u"WdHostTest";
-    const auto window = backend.Create(wdInfo);
+    const auto window = creator(backend, wdInfo);
     window->Openning() += [&](const auto&) 
     { 
         log().Info(u"opened.\n");
@@ -187,11 +214,12 @@ static void OpenTestWindow(WindowBackend& backend)
                     }
                     catch (...) {}
                 });
+                log().Verbose(u"Returned from pick image.\n");
             }
         }
         else if (evt.HasCtrl() && printKey == 'V')
         {
-            wd.GetClipboard([host = wd.GetSelf()](ClipBoardTypes type, std::any data)
+            wd.GetClipboard([host = wd.GetSelf()](ClipBoardTypes type, const std::any& data)
             {
                 switch (type)
                 {
@@ -231,7 +259,7 @@ static void OpenTestWindow(WindowBackend& backend)
         }
         return {};
     });
-    getchar();
+    while (getchar() != 'q') {}
     window->Close();
 }
 
@@ -243,7 +271,28 @@ static void WDHost()
         log().Error(u"No WindowHost backend found!\n");
         return;
     }
-    const auto whbidx = SelectIdx(backends, u"backend", [&](const auto& backend)
+    std::string_view bepref, decorpref;
+    for (const auto& cmd : GetCmdArgs())
+    {
+        if (cmd.starts_with("wdbe="))
+            bepref = cmd.substr(5);
+        else if (cmd.starts_with("wldecor="))
+            decorpref = cmd.substr(8);
+    }
+    std::optional<uint32_t> whbidx;
+    for (uint32_t i = 0; i < backends.size(); ++i)
+    {
+        if (backends[i]->Name() == bepref)
+        {
+            whbidx = i;
+            auto& fmter = GetLogFmt();
+            fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}Use {@<w}{}:\n"), backends[i]->Name());
+            PrintToConsole(fmter);
+            break;
+        }
+    }
+    if (!whbidx)
+        whbidx = SelectIdx(backends, u"backend", [&](const auto& backend)
         {
             return FMTSTR2(u"[{}] {:2}|{:4}|{:2}|{:2}|{:2}", backend->Name(),
                 backend->CheckFeature("OpenGL")     ? u"GL"   : u"",
@@ -253,19 +302,41 @@ static void WDHost()
                 backend->CheckFeature("NewThread")  ? u"NT"   : u"");
         });
 
-    auto& backend = *backends[whbidx];
+    auto& backend = *backends[*whbidx];
     backend.Init();
 
     bool runInplace = true;
     if (backend.CheckFeature("NewThread"))
     {
-        GetConsole().Print(common::CommonColor::BrightWhite, u"Run WdHost on new thread? [y/n]\n");
-        while (!IsAutoMode())
+        runInplace = ChooseYN(u"Run WdHost on new thread?", true);
+    }
+
+    Creator creator;
+    if (backend.Name() == "Wayland")
+    {
+        auto& wbe = static_cast<WaylandBackend&>(backend);
+        bool preferClientDecor = false;
+        if (wbe.CanServerDecorate() && wbe.CanClientDecorate())
         {
-            const auto ch = common::console::ConsoleEx::ReadCharImmediate(false);
-                 if (ch == 'y' || ch == 'Y') { runInplace = false; break; }
-            else if (ch == 'n' || ch == 'N') { runInplace = true;  break; }
+            if (decorpref == "server")
+                preferClientDecor = false;
+            else if (decorpref == "client")
+                preferClientDecor = true;
+            else if (!IsAutoMode())
+                preferClientDecor = ChooseYN(u"Use LibDecor?", false);
         }
+        creator = [preferClientDecor](WindowBackend& backend, const CreateInfo& info)
+        {
+            auto& wbe = static_cast<WaylandBackend&>(backend);
+            WaylandBackend::WaylandCreateInfo wdInfo;
+            static_cast<CreateInfo&>(wdInfo) = info;
+            wdInfo.PreferLibDecor = preferClientDecor;
+            return wbe.Create(wdInfo); 
+        };
+    }
+    else
+    {
+        creator = [](WindowBackend& backend, const CreateInfo& info){ return backend.Create(info); };
     }
 
     if (runInplace)
@@ -274,7 +345,7 @@ static void WDHost()
         std::thread Thread([&]() 
             {
                 pms.GetPromiseResult()->Get();
-                OpenTestWindow(backend);
+                OpenTestWindow(backend, creator);
             });
         backend.Run(false, &pms);
         if (Thread.joinable())
@@ -283,7 +354,7 @@ static void WDHost()
     else
     {
         backend.Run(true);
-        OpenTestWindow(backend);
+        OpenTestWindow(backend, creator);
     }
 }
 

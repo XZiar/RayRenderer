@@ -25,6 +25,7 @@ namespace detail
 class WindowManager;
 class WindowManagerWin32;
 class WindowManagerXCB;
+class WindowManagerWayland;
 class WindowManagerCocoa;
 
 }
@@ -68,14 +69,15 @@ private:
     virtual bool RequestStop() noexcept = 0;
 protected:
     WindowBackend(bool supportNewThread) noexcept;
-    WDHOSTAPI void CheckIfInited();
+    WDHOSTAPI void EnsureInitState(const bool ask) const;
     virtual void OnInitialize(const void* info);
     virtual void OnDeInitialize() noexcept;
 public:
     virtual ~WindowBackend();
+    WDHOSTAPI bool IsInited() const noexcept;
     void Init()
     {
-        CheckIfInited();
+        EnsureInitState(false);
         OnInitialize(nullptr);
     }
     WDHOSTAPI bool Run(bool isNewThread, common::BasicPromise<void>* pms = nullptr);
@@ -174,6 +176,7 @@ class WDHOSTAPI WindowHost_ :
     friend detail::WindowManager;
     friend detail::WindowManagerWin32;
     friend detail::WindowManagerXCB;
+    friend detail::WindowManagerWayland;
     friend detail::WindowManagerCocoa;
 private:
     struct Pimpl;
@@ -203,7 +206,7 @@ protected:
     // below callbacks are called inside UI thread (Window Loop)
     virtual void OnOpen() noexcept;
     virtual LoopAction OnLoopPass();
-    virtual void OnDisplay() noexcept;
+    virtual void OnDisplay(bool forceRedraw) noexcept;
 
     // below callbacks are called inside Manager thread (Main Loop)
     [[nodiscard]] virtual bool OnClose() noexcept;
@@ -262,13 +265,13 @@ public:
     void Show(const std::function<std::any(std::string_view)>& provider = {});
     void Close();
     WindowHost GetSelf();
-    virtual void GetClipboard(const std::function<bool(ClipBoardTypes, std::any)>& handler, ClipBoardTypes type);
+    virtual void GetClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type);
     void SetTitle(const std::u16string_view title);
     void SetIcon(xziar::img::ImageView img);
     void SetBackground(std::optional<xziar::img::ImageView> img);
     void Invoke(std::function<void(void)> task);
     void InvokeUI(std::function<void(WindowHost_&)> task);
-    virtual void Invalidate();
+    virtual void Invalidate(bool forceRedraw = false);
     void SetTargetFPS(uint16_t fps) noexcept;
 };
 
@@ -318,7 +321,7 @@ public:
     };
     void Init(const XCBInitInfo& info)
     {
-        CheckIfInited();
+        EnsureInitState(false);
         OnInitialize(&info);
     }
     using WindowBackend::Create;
@@ -328,6 +331,39 @@ public:
     [[nodiscard]] virtual int32_t GetDefaultScreen() const noexcept = 0;
 };
 using XCBWdHost = std::shared_ptr<XCBBackend::XCBWdHost>;
+
+class WaylandBackend : public WindowBackend
+{
+protected:
+    using WindowBackend::WindowBackend;
+public:
+    struct WaylandCreateInfo : public CreateInfo
+    {
+        bool PreferLibDecor = false;
+    };
+    struct WaylandInitInfo
+    {
+        std::string DisplayName;
+    };
+    class WaylandWdHost : public WindowHost_
+    {
+    protected:
+        using WindowHost_::WindowHost_;
+    public:
+        [[nodiscard]] virtual void* GetSurface() const noexcept = 0;
+    };
+    void Init(const WaylandInitInfo& info)
+    {
+        EnsureInitState(false);
+        OnInitialize(&info);
+    }
+    using WindowBackend::Create;
+    [[nodiscard]] virtual std::shared_ptr<WaylandWdHost> Create(const WaylandCreateInfo& info) = 0;
+    [[nodiscard]] virtual void* GetDisplay() const noexcept = 0;
+    [[nodiscard]] virtual bool CanServerDecorate() const noexcept = 0;
+    [[nodiscard]] virtual bool CanClientDecorate() const noexcept = 0;
+};
+using WaylandWdHost = std::shared_ptr<WaylandBackend::WaylandWdHost>;
 
 class CocoaBackend : public WindowBackend
 {

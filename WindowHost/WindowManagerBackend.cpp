@@ -5,19 +5,119 @@
 #include "SystemCommon/ThreadEx.h"
 #include "SystemCommon/PromiseTaskSTD.h"
 #include "common/StringEx.hpp"
+#include "common/StringLinq.hpp"
+#include "common/Linq2.hpp"
 
-#if defined(__has_include) && __has_include(<dbus/dbus.h>)
-#   include <dbus/dbus.h>
-#   define WDHOST_DBUS 1
-#   pragma message("Compiling WindowHost with dbus[" DBUS_VERSION_STRING "]" )
-#endif
 
 namespace xziar::gui
 {
 using common::BaseException;
 using namespace std::string_view_literals;
+}
 
-#ifdef WDHOST_DBUS
+
+#if COMMON_OS_UNIX
+#  include "common/StaticLookup.hpp"
+#  include <xkbcommon/xkbcommon.h>
+namespace xziar::gui::detail
+{
+using xziar::gui::event::CombinedKey;
+using xziar::gui::event::CommonKeys;
+static constexpr auto KeyCodeLookup = BuildStaticLookup(xkb_keysym_t, CombinedKey,
+    { XKB_KEY_F1,           CommonKeys::F1 },
+    { XKB_KEY_F2,           CommonKeys::F2 },
+    { XKB_KEY_F3,           CommonKeys::F3 },
+    { XKB_KEY_F4,           CommonKeys::F4 },
+    { XKB_KEY_F5,           CommonKeys::F5 },
+    { XKB_KEY_F6,           CommonKeys::F6 },
+    { XKB_KEY_F7,           CommonKeys::F7 },
+    { XKB_KEY_F8,           CommonKeys::F8 },
+    { XKB_KEY_F9,           CommonKeys::F9 },
+    { XKB_KEY_F10,          CommonKeys::F10 },
+    { XKB_KEY_F11,          CommonKeys::F11 },
+    { XKB_KEY_F12,          CommonKeys::F12 },
+    { XKB_KEY_KP_Left,      CommonKeys::Left },
+    { XKB_KEY_Left,         CommonKeys::Left },
+    { XKB_KEY_KP_Up,        CommonKeys::Up },
+    { XKB_KEY_Up,           CommonKeys::Up },
+    { XKB_KEY_KP_Right,     CommonKeys::Right },
+    { XKB_KEY_Right,        CommonKeys::Right },
+    { XKB_KEY_KP_Down,      CommonKeys::Down },
+    { XKB_KEY_Down,         CommonKeys::Down },
+    { XKB_KEY_Home,         CommonKeys::Home },
+    { XKB_KEY_End,          CommonKeys::End },
+    { XKB_KEY_Page_Up,      CommonKeys::PageUp },
+    { XKB_KEY_Page_Down,    CommonKeys::PageDown },
+    { XKB_KEY_Insert,       CommonKeys::Insert },
+    { XKB_KEY_Control_L,    CommonKeys::Ctrl },
+    { XKB_KEY_Control_R,    CommonKeys::Ctrl },
+    { XKB_KEY_Shift_L,      CommonKeys::Shift },
+    { XKB_KEY_Shift_R,      CommonKeys::Shift },
+    { XKB_KEY_Alt_L,        CommonKeys::Alt },
+    { XKB_KEY_Alt_R,        CommonKeys::Alt },
+    { XKB_KEY_Escape,       CommonKeys::Esc },
+    { XKB_KEY_BackSpace,    CommonKeys::Backspace },
+    { XKB_KEY_Delete,       CommonKeys::Delete },
+    { XKB_KEY_space,        CommonKeys::Space },
+    { XKB_KEY_Tab,          CommonKeys::Tab },
+    { XKB_KEY_KP_Tab,       CommonKeys::Tab },
+    { XKB_KEY_Return,       CommonKeys::Enter },
+    { XKB_KEY_KP_Enter,     CommonKeys::Enter },
+    { XKB_KEY_Caps_Lock,    CommonKeys::CapsLock },
+    { XKB_KEY_KP_Add,       '+' },
+    { XKB_KEY_KP_Subtract,  '-' },
+    { XKB_KEY_KP_Multiply,  '*' },
+    { XKB_KEY_KP_Divide,    '/' },
+    { XKB_KEY_comma,        ',' },
+    { XKB_KEY_KP_Separator, ',' },
+    { XKB_KEY_period,       '.' },
+    { XKB_KEY_bracketleft,  '[' },
+    { XKB_KEY_bracketright, ']' },
+    { XKB_KEY_backslash,    '\\' },
+    { XKB_KEY_slash,        '/' },
+    { XKB_KEY_grave,        '`' },
+    { XKB_KEY_semicolon,    ';' },
+    { XKB_KEY_apostrophe,   '\'' }
+);
+CombinedKey ProcessXKBKey(void* state, uint8_t keycode) noexcept
+{
+    const auto keysym = xkb_state_key_get_one_sym(reinterpret_cast<xkb_state*>(state), keycode);
+    if (keysym >= XKB_KEY_A && keysym <= XKB_KEY_Z)
+        return static_cast<uint8_t>(keysym - XKB_KEY_A + 'A');
+    if (keysym >= XKB_KEY_a && keysym <= XKB_KEY_z)
+        return static_cast<uint8_t>(keysym - XKB_KEY_a + 'A');
+    if (keysym >= XKB_KEY_0 && keysym <= XKB_KEY_9)
+        return static_cast<uint8_t>(keysym - XKB_KEY_0 + '0');
+    if (keysym >= XKB_KEY_KP_0 && keysym <= XKB_KEY_KP_9)
+        return static_cast<uint8_t>(keysym - XKB_KEY_KP_0 + '0');
+    //printf("check key %d.\n", keysym);
+    return KeyCodeLookup(keysym).value_or(CommonKeys::UNDEFINE);
+}
+
+FileList UriStringToFiles(std::string_view str) noexcept
+{
+    FileList files;
+    for (auto line : common::str::SplitStream(str, [](auto ch){ return ch == '\r' || ch == '\n'; }, false))
+    {
+        if (common::str::IsBeginWith(line, "file://")) // only accept local file
+        {
+            line.remove_prefix(7);
+            files.AppendFile(common::str::to_u16string(line, common::str::Encoding::URI)); 
+        }
+    }
+    return files;
+}
+}
+#endif
+
+
+#if defined(__has_include) && __has_include(<dbus/dbus.h>)
+#   include <dbus/dbus.h>
+#   define WDHOST_DBUS 1
+#   pragma message("Compiling WindowHost with dbus[" DBUS_VERSION_STRING "]" )
+
+namespace xziar::gui
+{
 
 struct DBErr
 {
@@ -1078,7 +1178,8 @@ public:
     }();
 };
 
-#endif
 
 }
+
+#endif
 

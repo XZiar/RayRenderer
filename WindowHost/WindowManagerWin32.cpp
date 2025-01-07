@@ -152,6 +152,8 @@ private:
     class WdHost final : public Win32Backend::Win32WdHost
     {
     public:
+        WindowManagerWin32& GetManager() noexcept { return static_cast<WindowManagerWin32&>(WindowHost_::GetManager()); }
+        
         struct Backbuffer
         {
             HRGN Region = nullptr;
@@ -187,8 +189,8 @@ private:
         }
         void* GetHDC() const noexcept final { return DCHandle; }
         void* GetHWND() const noexcept final { return Handle; }
-        void OnDisplay() noexcept final;
-        void GetClipboard(const std::function<bool(ClipBoardTypes, std::any)>& handler, ClipBoardTypes type) final;
+        void OnDisplay(bool forceRedraw) noexcept final;
+        void GetClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type) final;
     };
 
     //static intptr_t __stdcall WindowProc(uintptr_t, uint32_t, uintptr_t, intptr_t);
@@ -569,7 +571,7 @@ public:
 };
 
 
-void WindowManagerWin32::WdHost::OnDisplay() noexcept
+void WindowManagerWin32::WdHost::OnDisplay(bool forceRedraw) noexcept
 {
     const auto [ sizeChanged, needInit ] = BackBuf.Update(*this);
     if (sizeChanged)
@@ -604,44 +606,24 @@ void WindowManagerWin32::WdHost::OnDisplay() noexcept
                 Manager.Logger.Verbose(u"Window[{:x}] rebuild backbuffer in [{} ms].\n", reinterpret_cast<uintptr_t>(Handle), timer.ElapseMs());
             }
         }
-        needDraw = NeedBackground || bgChanged || (sizeChanged && holder);
+        needDraw = forceRedraw || bgChanged || (sizeChanged && (NeedBackground || holder));
+        // needDraw = NeedBackground || bgChanged || (sizeChanged && holder);
     }
     if (needDraw)
         BitBlt(DCHandle, 0, 0, BackBuf.Width, BackBuf.Height, MemDC, 0, 0, SRCCOPY);
-    WindowHost_::OnDisplay();
+    WindowHost_::OnDisplay(forceRedraw);
 }
 
-void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoardTypes, std::any)>& handler, ClipBoardTypes type)
+void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type)
 {
     std::unique_lock<std::mutex> cpLock(ClipboardLock);
-    enum class States { Continue, Handled, Faulted };
     if (!OpenClipboard(Handle)) return;
+    auto& manager = GetManager();
     auto& logger = Manager.Logger;
-    const auto wrapException = [&](auto&& func, std::u16string_view msg) noexcept
-    {
-        try
-        {
-            func();
-            return true;
-        }
-        catch (BaseException& be)
-        {
-            logger.Warning(u"Exception during {}: {}\n", msg, be);
-        }
-        catch (...)
-        {
-            logger.Warning(u"Exception during {}\n", msg);
-        }
-        return false;
-    };
-    auto state = States::Continue;
-    const auto handleData = [&](ClipBoardTypes type, std::any dat) noexcept
-    {
-        if (!wrapException([&](){ state = handler(type, dat) ? States::Handled : States::Continue; }, u"handle clipboard"))
-            state = States::Faulted;
-    };
+    bool finished = false;
+    constexpr bool StopAtFault = true;
     wchar_t tmp[256] = { L'\0' };
-    for (uint32_t format = EnumClipboardFormats(0); format && state == States::Continue; format = EnumClipboardFormats(format))
+    for (uint32_t format = EnumClipboardFormats(0); format && !finished; format = EnumClipboardFormats(format))
     {
         const size_t strlen = GetClipboardFormatNameW(format, tmp, 255);
         logger.Verbose(u"At clipboard format[{}]({}).\n", format, std::wstring_view{ tmp, strlen });
@@ -657,9 +639,9 @@ void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoard
                 if (ptr && size)
                 {
                     if (format == CF_UNICODETEXT)
-                        handleData(ClipBoardTypes::Text, std::u16string_view{ reinterpret_cast<const char16_t*>(ptr), size });
+                        finished = manager.InvokeClipboard(handler, ClipBoardTypes::Text, std::u16string_view{ reinterpret_cast<const char16_t*>(ptr), size / sizeof(char16_t) }, StopAtFault);
                     else
-                        handleData(ClipBoardTypes::Text, std::   string_view{ reinterpret_cast<const char    *>(ptr), size });
+                        finished = manager.InvokeClipboard(handler, ClipBoardTypes::Text, std::   string_view{ reinterpret_cast<const char    *>(ptr), size / sizeof(char    ) }, StopAtFault);
                 }
                 GlobalUnlock(data);
             } break;
@@ -669,7 +651,7 @@ void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoard
             {
                 const auto hbitmap = GetClipboardData(format);
                 if (const auto img = xziar::img::ConvertFromHBITMAP(hbitmap); img.GetSize())
-                    handleData(ClipBoardTypes::Image, ImageView(img));
+                    finished = manager.InvokeClipboard(handler, ClipBoardTypes::Image, ImageView(img), StopAtFault);
             } break;
         case CF_DIB:
         case CF_DIBV5:
@@ -693,7 +675,7 @@ void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoard
                     .TryGetFirst();
                 if (zexbmp)
                 {
-                    wrapException([&]()
+                    manager.WrapException([&]()
                     {
                         common::io::MemoryInputStream stream(common::span<const std::byte>{ptr, size});
                         const auto reader_ = (*zexbmp)->GetReader(stream, u"BMP");
@@ -719,28 +701,24 @@ void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoard
                     };
                     memcpy(buffer.GetRawPtr(), &header, sizeof(header));
                     memcpy(buffer.GetRawPtr() + sizeof(header), ptr, size);
-                    common::io::MemoryInputStream stream(buffer.AsSpan());
-                    wrapException([&]()
-                    {
-                        if (const auto img_ = xziar::img::ReadImage(stream, u"BMP", xziar::img::ImageDataType::RGBA); img_.GetSize())
-                            img = img_;
-                    }, u"read DIB with header");
+                    if (ImageView img_ = manager.TryReadImage(buffer.AsSpan(), u"BMP", xziar::img::ImageDataType::RGBA, u"read DIB with header"); img_.GetSize() > 0)
+                        img = img_;
                 }
                 if (img)
-                    handleData(ClipBoardTypes::Image, *img);
+                    finished = manager.InvokeClipboard(handler, ClipBoardTypes::Image, *img, StopAtFault);
             } break;
         case CF_HDROP:
             if (HAS_FIELD(type, ClipBoardTypes::File))
             {
                 const auto data = GetClipboardData(format);
                 auto list = ProcessDropFile((HDROP)data);
-                handleData(ClipBoardTypes::File, std::move(list));
+                finished = manager.InvokeClipboard(handler, ClipBoardTypes::File, std::move(list), StopAtFault);
             } break;
         default:
             if (HAS_FIELD(type, ClipBoardTypes::Raw))
             {
                 const auto data = GetClipboardData(format);
-                handleData(ClipBoardTypes::Raw, std::pair<const void*, uint32_t>{data, format});
+                finished = manager.InvokeClipboard(handler, ClipBoardTypes::Raw, std::pair<const void*, uint32_t>{data, format}, StopAtFault);
             } break;
         }
     }

@@ -40,7 +40,7 @@ struct CastEventType<WindowEventDelegate<Args...>>
 
 enum class WindowFlag : uint32_t
 {
-    None = 0x0, Running = 0x1, ContentDirty = 0x2
+    None = 0x0, Running = 0x1, ContentDirty = 0x2, ForceRedraw = 0x04, ReSizing = 0x08, Custom = 0x10000
 };
 MAKE_ENUM_BITFIELD(WindowFlag)
 
@@ -70,6 +70,35 @@ struct alignas(uint64_t) WindowHost_::Pimpl
 };
 
 
+
+detail::WindowManager::ReSizingLock::ReSizingLock(const WindowHost_& host) : Host(host)
+{
+    while (Host.Impl->Flags.Add(WindowFlag::ReSizing))
+        common::MiscIntrin.Pause(128);
+}
+detail::WindowManager::ReSizingLock::~ReSizingLock()
+{
+    Host.Impl->Flags.Extract(WindowFlag::ReSizing);
+}
+bool detail::WindowManager::TryLockWindow(WindowHost_& host, uint8_t idx) noexcept
+{
+    Expects(idx < 16);
+    const auto flag = static_cast<WindowFlag>(common::enum_cast(WindowFlag::Custom) << idx);
+    return !host.Impl->Flags.Add(flag);
+}
+void detail::WindowManager::LockWindow(WindowHost_& host, uint8_t idx) noexcept
+{
+    Expects(idx < 16);
+    const auto flag = static_cast<WindowFlag>(common::enum_cast(WindowFlag::Custom) << idx);
+    while (host.Impl->Flags.Add(flag))
+        common::MiscIntrin.Pause(128);
+}
+bool detail::WindowManager::UnlockWindow(WindowHost_& host, uint8_t idx) noexcept
+{
+    Expects(idx < 16);
+    const auto flag = static_cast<WindowFlag>(common::enum_cast(WindowFlag::Custom) << idx);
+    return host.Impl->Flags.Extract(flag);
+}
 detail::LockField& detail::WindowManager::GetResourceLock(WindowHost_* host) noexcept 
 {
     return host->Impl->AttributeLock;
@@ -201,8 +230,8 @@ LoopBase::LoopAction WindowHost_::OnLoopPass()
     {
         if (!HandleInvoke())
         {
-            if (Impl->Flags.Extract(WindowFlag::ContentDirty))
-                OnDisplay();
+            if (const auto [dirty, force] = Impl->Flags.Extract(WindowFlag::ContentDirty, WindowFlag::ForceRedraw); dirty || force)
+                OnDisplay(force);
             else
                 return ::common::loop::LoopBase::LoopAction::Sleep();
         }
@@ -229,12 +258,12 @@ LoopBase::LoopAction WindowHost_::OnLoopPass()
             }
         }
         Impl->DrawTimer.Start(); // Reset timer before draw, so that elapse time will include drawing itself
-        OnDisplay();
+        OnDisplay(Impl->Flags.Extract(WindowFlag::ForceRedraw));
     }
     return ::common::loop::LoopBase::LoopAction::Continue();
 }
 
-void WindowHost_::OnDisplay() noexcept
+void WindowHost_::OnDisplay(bool) noexcept
 {
     Impl->Displaying(*this);
 }
@@ -252,6 +281,7 @@ void WindowHost_::OnResize(int32_t width, int32_t height) noexcept
         Impl->Minimizing(*this);
     else
     {
+        detail::WindowManager::ReSizingLock lock(*this);
         Impl->Resizing(*this, width, height);
         Width = width; Height = height;
     }
@@ -407,7 +437,7 @@ WindowHost WindowHost_::GetSelf()
 {
     return shared_from_this();
 }
-void WindowHost_::GetClipboard(const std::function<bool(ClipBoardTypes, std::any)>&, ClipBoardTypes)
+void WindowHost_::GetClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>&, ClipBoardTypes)
 {
     return;
 }
@@ -476,9 +506,9 @@ void WindowHost_::InvokeUI(std::function<void(WindowHost_&)> task)
     Wakeup();
 }
 
-void WindowHost_::Invalidate()
+void WindowHost_::Invalidate(bool forceRedraw)
 {
-    if(!Impl->Flags.Add(WindowFlag::ContentDirty))
+    if(!Impl->Flags.Add(WindowFlag::ContentDirty, forceRedraw ? WindowFlag::ForceRedraw : WindowFlag::None).first)
         Wakeup();
 }
 

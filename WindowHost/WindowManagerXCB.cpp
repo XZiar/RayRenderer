@@ -6,10 +6,8 @@
 #include "SystemCommon/Exceptions.h"
 #include "common/ContainerEx.hpp"
 #include "common/FrozenDenseSet.hpp"
-#include "common/StaticLookup.hpp"
 #include "common/StringEx.hpp"
 #include "common/StringPool.hpp"
-#include "common/StringLinq.hpp"
 #include "common/MemoryStream.hpp"
 #include "common/Linq2.hpp"
 
@@ -78,14 +76,14 @@ struct DragInfos
     }
 };
 
-struct ClipboardInfo : public common::container::IntrusiveDoubleLinkListNodeBase<ClipboardInfo>
+struct ClipboardInfo
 {
     std::vector<xcb_atom_t> Types;
-    std::function<bool(ClipBoardTypes, std::any)> Handler;
+    std::function<bool(ClipBoardTypes, const std::any&)> Handler;
     uint32_t TypeIndex = 0;
     xcb_window_t SourceWindow = 0;
     ClipBoardTypes SupportTypes;
-    ClipboardInfo(const std::function<bool(ClipBoardTypes, std::any)>& handler, ClipBoardTypes types) noexcept :
+    ClipboardInfo(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes types) noexcept :
         Handler(handler),  SupportTypes(types) {}
 };
 
@@ -195,7 +193,7 @@ private:
             XCBWdHost(manager, info) { }
         ~WdHost() final {}
         uint32_t GetWindow() const noexcept final { return Handle; }
-        void OnDisplay() noexcept final
+        void OnDisplay(bool forceRedraw) noexcept final
         {
             auto& manager = GetManager();
             const auto sizeChanged = BackImage.Update(*this, manager);
@@ -227,20 +225,19 @@ private:
                         Manager.Logger.Verbose(u"Window[{:x}] rebuild backbuffer in [{} ms].\n", Handle, timer.ElapseMs());
                     }
                 }
-                needDraw = NeedBackground || bgChanged || (sizeChanged && holder);
+                needDraw = forceRedraw || bgChanged || (sizeChanged && (NeedBackground || holder));
+                // needDraw = NeedBackground || bgChanged || (sizeChanged && holder);
             }
             if (needDraw)
             {
                 xcb_copy_area(manager.Connection, BackImage.Pixmap, Handle, GContext, 0, 0, 0, 0, BackImage.Width, BackImage.Height);
                 xcb_flush(manager.Connection);
             }
-            WindowHost_::OnDisplay();
+            WindowHost_::OnDisplay(forceRedraw);
         }
-        void GetClipboard(const std::function<bool(ClipBoardTypes, std::any)>& handler, ClipBoardTypes type) final
+        void GetClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type) final
         {
-            CustomSetLock<0> cbLock(this);
-            ClipboardAsks.emplace_back(handler, type);
-            if (ClipboardAsks.size() == 1)
+            if (LockWindowFor<0>(*this, [&](){ ClipboardAsks.emplace_back(handler, type); return ClipboardAsks.size() == 1; }))
                 GetManager().IssueClipboard(*this);
         }
     };
@@ -367,7 +364,7 @@ private:
             {
                 const auto ptr = xcb_get_atom_name_name(reply);
                 const size_t len = xcb_get_atom_name_name_length(reply);
-                ret[idx] = StringPool.Put({ ptr, len }, [&](const auto& str)
+                ret[idx] = StringPool.Put({ ptr, len }, [&, idx](const auto& str)
                 {
                     AtomNameCache.insert_or_assign(atoms[idx], str);
                 });
@@ -1125,37 +1122,6 @@ public:
             Logger.Verbose(u"Recieve xkb message [{}]\n", (uint32_t)xkbType);
         }
     }
-    template<typename F>
-    forceinline bool WrapException(F&& func, std::u16string_view msg) noexcept
-    {
-        try
-        {
-            func();
-            return true;
-        }
-        catch (BaseException& be)
-        {
-            Logger.Warning(u"Exception during {}: {}\n", msg, be);
-        }
-        catch (...)
-        {
-            Logger.Warning(u"Exception during {}\n", msg);
-        }
-        return false;
-    }
-    static FileList StringToFiles(std::string_view str)
-    {
-        FileList files;
-        for (auto line : common::str::SplitStream(str, [](auto ch){ return ch == '\r' || ch == '\n'; }, false))
-        {
-            if (common::str::IsBeginWith(line, "file://")) // only accept local file
-            {
-                line.remove_prefix(7);
-                files.AppendFile(common::str::to_u16string(line, common::str::Encoding::URI)); 
-            }
-        }
-        return files;
-    }
     void HandleDropEvent(WdHost& host)
     {
         const auto ret = QueryProperty(host.Handle, PrimaryAtom, XCB_ATOM_ANY);
@@ -1167,22 +1133,13 @@ public:
         if (ret)
         {
             const auto cookie = xcb_translate_coordinates(Connection, Screen->root, host.Handle, dragInfo.PosX, dragInfo.PosY);
-            auto files = StringToFiles({ reinterpret_cast<const char*>(ret.Data.data()), ret.Data.size() });
+            auto files = UriStringToFiles({ reinterpret_cast<const char*>(ret.Data.data()), ret.Data.size() });
             const auto reply = xcb_translate_coordinates_reply(Connection, cookie, nullptr);
             event::Position pos(reply->dst_x, reply->dst_y);
             free(reply);
             host.OnDropFile(pos, std::move(files));
         }
         dragInfo.Clear();
-    }
-    enum class PasteStates { Continue, Handled, Faulted };
-    template<typename T>
-    forceinline PasteStates InvokeClipboardHandler(ClipboardInfo& clip, ClipBoardTypes type, T&& dat) noexcept
-    {
-        PasteStates ret = PasteStates::Continue;
-        if (!WrapException([&]() { ret = clip.Handler(type, std::forward<T>(dat)) ? PasteStates::Handled : PasteStates::Continue; }, u"handle clipboard"))
-            ret = PasteStates::Faulted;
-        return ret;
     }
     void IssueClipboard(WdHost& host)
     {
@@ -1198,15 +1155,13 @@ public:
         }
         else
         {
-            CustomLock<0> clipLock(&host);
-            host.ClipboardAsks.pop_front();
-            if (!host.ClipboardAsks.empty())
+            if (LockWindowFor<0>(host, [&](){ host.ClipboardAsks.pop_front(); return !host.ClipboardAsks.empty(); }))
                 IssueClipboard(host); // issue for next
         }
     }
     void HandlePasteEvent(WdHost& host, xcb_atom_t type)
     {
-        auto& clipInfo = host.ClipboardAsks.front();
+        auto& clipInfo = LockWindowFor<0>(host, [&]() -> ClipboardInfo& { return host.ClipboardAsks.front(); });
         if (type == TargetsAtom)
         {
             if (const auto ret = QueryProperty(host.Handle, TargetsAtom, XCB_ATOM_ATOM); ret)
@@ -1236,13 +1191,14 @@ public:
             return;
         }
 
-        PasteStates state = PasteStates::Continue;
+        bool isHandled = false;
+        constexpr bool StopAtFault = true;
         if (type == UriListAtom)
         {
             if (const auto ret = QueryProperty(host.Handle, ClipboardDataAtom, XCB_ATOM_ANY); ret)
             {
-                auto files = StringToFiles({ reinterpret_cast<const char*>(ret.Data.data()), ret.Data.size() });
-                state = InvokeClipboardHandler(clipInfo, ClipBoardTypes::File, std::move(files));
+                auto files = UriStringToFiles({ reinterpret_cast<const char*>(ret.Data.data()), ret.Data.size() });
+                isHandled = InvokeClipboard(clipInfo.Handler, ClipBoardTypes::File, std::move(files), StopAtFault);
             }
         }
         else if (type == TextAtom || type == Utf8StrAtom)
@@ -1250,7 +1206,7 @@ public:
             if (const auto ret = QueryProperty(host.Handle, ClipboardDataAtom, XCB_ATOM_ANY); ret)
             {
                 std::string_view txt(reinterpret_cast<const char*>(ret.Data.data()), ret.Data.size());
-                state = InvokeClipboardHandler(clipInfo, ClipBoardTypes::Text, txt);
+                isHandled = InvokeClipboard(clipInfo.Handler, ClipBoardTypes::Text, txt, StopAtFault);
             }
         }
         else if (ImageTypeAtoms.Has(type))
@@ -1260,27 +1216,15 @@ public:
                 ext = common::str::to_u16string(std::string_view(name).substr(6));
             AttachPropertyTask(host, ClipboardDataAtom, XCB_ATOM_ANY, [this, ext, &clipInfo](auto& host, common::span<const std::byte> data)
             {
-                PasteStates state = PasteStates::Continue;
-                if (!data.empty())
-                {
-                    common::io::MemoryInputStream stream(data);
-                    std::optional<ImageView> img;
-                    WrapException([&]()
-                    {
-                        if (const auto img_ = xziar::img::ReadImage(stream, ext, xziar::img::ImageDataType::RGBA); img_.GetSize())
-                            img = img_;
-                    }, u"parse image");
-                    if (img)
-                        state = InvokeClipboardHandler(clipInfo, ClipBoardTypes::Image, *img);
-                }
-                ContinueClipboard(host, clipInfo, state == PasteStates::Continue);
+                bool isHandled = false;
+                if (ImageView img = TryReadImage(data, ext, xziar::img::ImageDataType::RGBA); img.GetSize() > 0)
+                    isHandled = InvokeClipboard(clipInfo.Handler, ClipBoardTypes::Image, img, StopAtFault);
+                ContinueClipboard(host, clipInfo, !isHandled);
             });
             return;
         }
-        ContinueClipboard(host, clipInfo, state == PasteStates::Continue);
+        ContinueClipboard(host, clipInfo, !isHandled);
     }
-
-    event::CombinedKey ProcessKey(xcb_keycode_t keycode) noexcept;
 
     void InitializeWindow(xcb_window_t window)
     {
@@ -1374,7 +1318,7 @@ public:
                 const auto& msg = *reinterpret_cast<xcb_key_press_event_t*>(evt);
                 if (const auto host = GetWindow(msg.event); host)
                 {
-                    const auto key = ProcessKey(msg.detail);
+                    const auto key = ProcessXKBKey(XKBState, msg.detail);
                     // Logger.Verbose(u"key: [{}] => [{}]\n", (uint32_t)msg.detail, common::enum_cast(key.Key));
                     if (evtType == XCB_KEY_PRESS) 
                     {
@@ -1739,79 +1683,6 @@ public:
 
     static inline const auto Dummy = RegisterBackend<WindowManagerXCB>();
 };
-
-
-static constexpr auto KeyCodeLookup = BuildStaticLookup(xkb_keysym_t, event::CombinedKey,
-    { XKB_KEY_F1,           CommonKeys::F1 },
-    { XKB_KEY_F2,           CommonKeys::F2 },
-    { XKB_KEY_F3,           CommonKeys::F3 },
-    { XKB_KEY_F4,           CommonKeys::F4 },
-    { XKB_KEY_F5,           CommonKeys::F5 },
-    { XKB_KEY_F6,           CommonKeys::F6 },
-    { XKB_KEY_F7,           CommonKeys::F7 },
-    { XKB_KEY_F8,           CommonKeys::F8 },
-    { XKB_KEY_F9,           CommonKeys::F9 },
-    { XKB_KEY_F10,          CommonKeys::F10 },
-    { XKB_KEY_F11,          CommonKeys::F11 },
-    { XKB_KEY_F12,          CommonKeys::F12 },
-    { XKB_KEY_KP_Left,      CommonKeys::Left },
-    { XKB_KEY_Left,         CommonKeys::Left },
-    { XKB_KEY_KP_Up,        CommonKeys::Up },
-    { XKB_KEY_Up,           CommonKeys::Up },
-    { XKB_KEY_KP_Right,     CommonKeys::Right },
-    { XKB_KEY_Right,        CommonKeys::Right },
-    { XKB_KEY_KP_Down,      CommonKeys::Down },
-    { XKB_KEY_Down,         CommonKeys::Down },
-    { XKB_KEY_Home,         CommonKeys::Home },
-    { XKB_KEY_End,          CommonKeys::End },
-    { XKB_KEY_Page_Up,      CommonKeys::PageUp },
-    { XKB_KEY_Page_Down,    CommonKeys::PageDown },
-    { XKB_KEY_Insert,       CommonKeys::Insert },
-    { XKB_KEY_Control_L,    CommonKeys::Ctrl },
-    { XKB_KEY_Control_R,    CommonKeys::Ctrl },
-    { XKB_KEY_Shift_L,      CommonKeys::Shift },
-    { XKB_KEY_Shift_R,      CommonKeys::Shift },
-    { XKB_KEY_Alt_L,        CommonKeys::Alt },
-    { XKB_KEY_Alt_R,        CommonKeys::Alt },
-    { XKB_KEY_Escape,       CommonKeys::Esc },
-    { XKB_KEY_BackSpace,    CommonKeys::Backspace },
-    { XKB_KEY_Delete,       CommonKeys::Delete },
-    { XKB_KEY_space,        CommonKeys::Space },
-    { XKB_KEY_Tab,          CommonKeys::Tab },
-    { XKB_KEY_KP_Tab,       CommonKeys::Tab },
-    { XKB_KEY_Return,       CommonKeys::Enter },
-    { XKB_KEY_KP_Enter,     CommonKeys::Enter },
-    { XKB_KEY_Caps_Lock,    CommonKeys::CapsLock },
-    { XKB_KEY_KP_Add,       '+' },
-    { XKB_KEY_KP_Subtract,  '-' },
-    { XKB_KEY_KP_Multiply,  '*' },
-    { XKB_KEY_KP_Divide,    '/' },
-    { XKB_KEY_comma,        ',' },
-    { XKB_KEY_KP_Separator, ',' },
-    { XKB_KEY_period,       '.' },
-    { XKB_KEY_bracketleft,  '[' },
-    { XKB_KEY_bracketright, ']' },
-    { XKB_KEY_backslash,    '\\' },
-    { XKB_KEY_slash,        '/' },
-    { XKB_KEY_grave,        '`' },
-    { XKB_KEY_semicolon,    ';' },
-    { XKB_KEY_apostrophe,   '\'' }
-);
-event::CombinedKey WindowManagerXCB::ProcessKey(xcb_keycode_t keycode) noexcept
-{
-    const auto keysym = xkb_state_key_get_one_sym(XKBState, keycode);
-    if (keysym >= XKB_KEY_A && keysym <= XKB_KEY_Z)
-        return static_cast<uint8_t>(keysym - XKB_KEY_A + 'A');
-    if (keysym >= XKB_KEY_a && keysym <= XKB_KEY_z)
-        return static_cast<uint8_t>(keysym - XKB_KEY_a + 'A');
-    if (keysym >= XKB_KEY_0 && keysym <= XKB_KEY_9)
-        return static_cast<uint8_t>(keysym - XKB_KEY_0 + '0');
-    if (keysym >= XKB_KEY_KP_0 && keysym <= XKB_KEY_KP_9)
-        return static_cast<uint8_t>(keysym - XKB_KEY_KP_0 + '0');
-    //printf("check key %d.\n", keysym);
-    return KeyCodeLookup(keysym).value_or(CommonKeys::UNDEFINE);
-}
-
 
 
 }

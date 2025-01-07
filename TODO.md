@@ -81,17 +81,19 @@
 * WindowHost
   - [x] Add support for direct image blit (for offscreen rendering)
   - [ ] Add support for D2d rendering
-  - [ ] Add support for wayland
+  - [x] Add support for wayland
   - [ ] Add support for iOS (Cocoa Touch)
   - [ ] Add support for gesture
   - [ ] Add support for touch screen logic
   - [ ] Add support for remote redering via IPC or network
-  - [ ] Add backend for termux
+  - [ ] Add backend for termux-gui
   - [x] Add multi-backend support
   - [x] Add Icon support
   - [ ] Add timer support
-  - [ ] Add clipboard read/write
-  - [ ] Add invoke basic WM widges for operation like message/filepicker
+  - [x] Add clipboard read
+  - [ ] Add clipboard write
+  - [x] Add filepicker
+  - [ ] Add messagebox/notification
   - [x] Revert to use std::any for data storage to ensure lifetime management
 
 * Nailang

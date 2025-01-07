@@ -1,6 +1,9 @@
 #include "SystemCommonPch.h"
 #include "FileMapperEx.h"
 #include "SharedMemory.h"
+#include "DynamicLibrary.h"
+#include "Format.h"
+#include "ErrorCodeHelper.h"
 
 #include <cstddef>
 #include <cstdio>
@@ -403,11 +406,44 @@ SharedMemory::~SharedMemory()
     UnmapViewOfFile(Space.data());
     CloseHandle(reinterpret_cast<HANDLE>(Handle));
 #else
+    //munmap(Space.data(), Space.size());
+    //close(static_cast<int>(Handle));
     shmctl(static_cast<int>(Handle), IPC_RMID, nullptr);
     shmdt(Space.data());
 #endif
 }
 
+
+#if COMMON_OS_UNIX
+int SharedMemory::CreateMemFd(const char* name, uint32_t flags)
+{
+# if COMMON_OS_ANDROID && __ANDROID_API__ < 30
+    using T = int(*)(const char*, uint32_t);
+    static const auto func = []() -> T
+    {
+        const auto ver = GetAndroidAPIVersion();
+        if (ver >= 30)
+        {
+            if (const auto lib = DynLib::TryCreate("libc.so"); lib)
+            {
+                if (const auto ret = lib.TryGetFunction<T>("memfd_create"); ret)
+                {
+                    detail::InitMessage::Enqueue(mlog::LogLevel::Debug, "SharedMemory", "Loaded memfd_create\n");
+                    return ret;
+                }
+            }
+        }
+        return nullptr;
+    }();
+    if (func)
+        return func(name, flags);
+    else
+        return syscall(SYS_memfd_create, name, flags);
+# else
+    return memfd_create(name, flags);
+# endif
+}
+#endif
 
 std::shared_ptr<SharedMemory> SharedMemory::CreateAnonymous(size_t size_)
 {
@@ -428,6 +464,22 @@ std::shared_ptr<SharedMemory> SharedMemory::CreateAnonymous(size_t size_)
         CloseHandle(mapHandle);
     }
 #else
+    //auto handle = memfd_create("shm-anon", MFD_CLOEXEC | MFD_HUGETLB);
+    //if (handle == -1)
+    //{
+    //    detail::InitMessage::Enqueue(mlog::LogLevel::Verbose, "SharedMemory",
+    //        str::Formatter<char>{}.FormatStatic(FmtString("memfd_create with hugetlb failed: {}"), common::ErrnoHolder::GetCurError()));
+    //    handle = memfd_create("wayland_buf", MFD_CLOEXEC);
+    //}
+    //if (handle != -1)
+    //{
+    //    ftruncate(handle, sizeAligned);
+    //    const auto ptr = mmap(nullptr, sizeAligned, PROT_READ | PROT_WRITE, MAP_SHARED, handle, 0);
+    //    if (ptr)
+    //    {
+    //        return MAKE_ENABLER_SHARED(SharedMemory, (static_cast<uintptr_t>(handle), span<byte>{ reinterpret_cast<byte*>(ptr), sizeAligned }));
+    //    }
+    //}
     const auto handle = shmget(IPC_PRIVATE, sizeAligned, IPC_CREAT | S_IRUSR | S_IWUSR);
     if (handle != -1)
     {

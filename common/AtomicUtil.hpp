@@ -52,8 +52,15 @@ public:
     constexpr AtomicBitfield(const T field) : std::atomic<std::underlying_type_t<T>>((DT)field) {}
     bool Add(const T field) noexcept
     { 
-        const auto oldVal = this->fetch_or(static_cast<DT>(field));
-        return HAS_FIELD(static_cast<T>(oldVal), field);
+        const auto val = static_cast<DT>(field);
+        const auto prev = this->fetch_or(val);
+        return (prev & val) != 0;
+    }
+    [[nodiscard]] std::pair<bool, bool> Add(const T field, const T extra) noexcept
+    { 
+        const auto val0 = static_cast<DT>(field), val1 = static_cast<DT>(extra);
+        const auto prev = this->fetch_or(val0 | val1);
+        return { (prev & val0) != 0, (prev & val1) != 0 };
     }
     [[nodiscard]] bool Check(const T field) const noexcept
     {
@@ -64,6 +71,12 @@ public:
         const auto val = (DT)field;
         const auto prev = this->fetch_and(~val);
         return (prev & val) != 0;
+    }
+    [[nodiscard]] std::pair<bool, bool> Extract(const T field, const T extra) noexcept
+    { 
+        const auto val0 = static_cast<DT>(field), val1 = static_cast<DT>(extra);
+        const auto prev = this->fetch_or(val0 | val1);
+        return { (prev & val0) != 0, (prev & val1) != 0 };
     }
 };
 

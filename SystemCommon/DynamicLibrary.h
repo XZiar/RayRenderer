@@ -22,8 +22,8 @@ private:
     {
         return TryOpen(path.c_str());
     }
-    SYSCOMMONAPI void Validate() const;
 public:
+    SYSCOMMONAPI void Validate() const;
     template<typename T>
     DynLib(const T& path) : Handle(TryOpen(path))
     {
@@ -56,9 +56,15 @@ public:
 	{
 		return reinterpret_cast<T>(TryGetFunction(name));
 	}
-	static DynLib TryCreate(const fs::path& path) noexcept
+    template<typename... Args>
+	[[nodiscard]] static forceinline DynLib TryCreate(const fs::path& path, const Args&... args) noexcept
 	{
-        return DynLib{ TryOpen(path), path.u16string() };
+        if (const auto ptr = TryOpen(path); ptr)
+            return DynLib{ ptr, path.u16string() };
+        if constexpr (sizeof...(Args) > 0)
+            return TryCreate(args...);
+        else
+            return DynLib{ nullptr, path.u16string() };
 	}
     SYSCOMMONAPI static void* FindLoaded(const fs::path& path) noexcept;
 };

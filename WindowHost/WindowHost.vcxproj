@@ -206,6 +206,9 @@
     <ClCompile Include="WindowManagerCocoa.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="WindowManagerWayland.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="WindowManagerWin32.cpp" />
     <ClCompile Include="WindowManagerXCB.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>

@@ -1,6 +1,7 @@
 #include "WindowManager.h"
 #include "WindowHost.h"
 
+#include "ImageUtil/ImageUtil.h"
 #include "SystemCommon/ThreadEx.h"
 #include "SystemCommon/Exceptions.h"
 #include "SystemCommon/PromiseTask.h"
@@ -11,6 +12,7 @@
 
 namespace xziar::gui
 {
+using xziar::img::Image;
 
 namespace detail
 {
@@ -83,10 +85,15 @@ void WindowBackend::OnDeInitialize() noexcept
 void WindowBackend::OnPrepare() noexcept { }
 void WindowBackend::OnTerminate() noexcept { }
 
-void WindowBackend::CheckIfInited()
+bool WindowBackend::IsInited() const noexcept
 {
-    if (Impl->Status >= common::enum_cast(BackendStatus::Inited))
-        COMMON_THROW(common::BaseException, u"WindowHostBackend already initialized!").Attach("status", Impl->Status.load());
+    return Impl->Status >= common::enum_cast(BackendStatus::Inited);
+}
+void WindowBackend::EnsureInitState(const bool ask) const
+{
+    if (IsInited() != ask)
+        COMMON_THROW(common::BaseException, ask ? u"WindowHostBackend not initialized!" : u"WindowHostBackend already initialized!")
+            .Attach("status", Impl->Status.load());
 }
 bool WindowBackend::Run(bool isNewThread, common::BasicPromise<void>* pms)
 {
@@ -199,6 +206,28 @@ void WindowManager::AddInvoke(std::function<void(void)>&& task)
 {
     InvokeList.AppendNode(new InvokeNode(std::move(task)));
     NotifyTask();
+}
+
+Image WindowManager::TryReadImage(common::span<const std::byte> data, std::u16string_view ext, xziar::img::ImgDType dtype, std::u16string_view msg) const noexcept
+{
+    Image img;
+    if (!data.empty())
+    {
+        common::io::MemoryInputStream stream(data);
+        WrapException([&]()
+        {
+            if (auto img_ = xziar::img::ReadImage(stream, ext, dtype, !ext.empty()); img_.GetSize())
+                img = std::move(img_);
+        }, msg);
+    }
+    return img;
+}
+
+std::optional<bool> WindowManager::InvokeClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type, const std::any& dat) const noexcept
+{
+    std::optional<bool> ret;
+    WrapException([&]() { ret = handler(type, dat); }, u"handle clipboard");
+    return ret;
 }
 
 

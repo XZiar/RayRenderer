@@ -83,13 +83,13 @@ Image ReadImage(const common::fs::path& path, const ImgDType dataType)
     common::file::FileInputStream stream(common::file::FileObject::OpenThrow(path, OpenFlag::ReadBinary));
 #endif
     ImgLog().Debug(u"Read Image {}\n", path.u16string());
-    return ReadImage(stream, GetExtName(path), dataType);
+    return ReadImage(stream, GetExtName(path), dataType, false);
 }
 
-Image ReadImage(RandomInputStream& stream, const std::u16string& ext, const ImgDType dataType)
+Image ReadImage(RandomInputStream& stream, const std::u16string_view ext, const ImgDType dataType, const bool strictFormat)
 {
     const auto extName = common::str::ToUpperEng(ext, common::str::Encoding::UTF16LE);
-    auto testList = GenerateSupportList(extName, dataType, true, true);
+    auto testList = GenerateSupportList(extName, dataType, true, !strictFormat);
     for (const auto& support : testList)
     {
         try

@@ -97,6 +97,7 @@ public:
     {
         return { *this };
     }
+    void Clear() noexcept { Pool.clear(); }
     forceinline std::basic_string_view<T> GetStringView(const StringPiece<T>& piece) const noexcept
     {
         if (piece.Length == 0) return {};

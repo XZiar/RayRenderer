@@ -501,7 +501,7 @@ bool ThreadObject::SetName(const std::u16string_view name) const
     }
     return static_cast<bool>(ret);
 #else
-    auto name_ = str::to_u8string(name, str::Encoding::UTF8);
+    auto name_ = str::to_u8string(name);
     if (name_.size() > 15) // TODO: need safe trunc
         name_.resize(15);
     const auto buf = reinterpret_cast<const char*>(name_.c_str());
