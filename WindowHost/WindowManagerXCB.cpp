@@ -364,9 +364,10 @@ private:
             {
                 const auto ptr = xcb_get_atom_name_name(reply);
                 const size_t len = xcb_get_atom_name_name_length(reply);
-                ret[idx] = StringPool.Put({ ptr, len }, [&, idx](const auto& str)
+                const auto atom = atoms[idx];
+                ret[idx] = StringPool.Put({ ptr, len }, [&](const auto& str)
                 {
-                    AtomNameCache.insert_or_assign(atoms[idx], str);
+                    AtomNameCache.insert_or_assign(atom, str);
                 });
                 free(reply);
             }

@@ -76,38 +76,63 @@ static std::shared_ptr<GLHost> CreateHostAndinit(WindowBackend& backend, xziar::
     const auto name = loader->Name();
     if (name == "WGL")
     {
+        Ensures(backend.Name() == "Win32");
         return static_cast<WGLLoader*>(loader)->CreateHost(static_cast<Win32Backend::Win32WdHost&>(window).GetHDC());
     }
     else if (name == "GLX")
     {
-        const auto& xcbBackend = static_cast<XCBBackend&>(backend);
-        auto host = static_cast<GLXLoader*>(loader)->CreateHost(xcbBackend.GetDisplay(), xcbBackend.GetDefaultScreen());
-        host->InitDrawable(static_cast<XCBBackend::XCBWdHost&>(window).GetWindow());
-        return host;
+        if (backend.Name() == "XCB")
+        {
+            const auto& xcbBackend = static_cast<XCBBackend&>(backend);
+            auto host = static_cast<GLXLoader*>(loader)->CreateHost(xcbBackend.GetDisplay(), xcbBackend.GetDefaultScreen());
+            host->InitDrawable(static_cast<XCBBackend::XCBWdHost&>(window).GetWindow());
+            return host;
+        }
     }
     else if (name == "EGL")
     {
-        const auto& xcbBackend = static_cast<XCBBackend&>(backend);
         auto& ld = *static_cast<EGLLoader*>(loader);
-        const auto wd = static_cast<XCBBackend::XCBWdHost&>(window).GetWindow();
-        if (auto host = ld.CreateHostFromXcb(xcbBackend.GetConnection(), xcbBackend.GetDefaultScreen(), false); host)
+        if (backend.Name() == "XCB")
         {
-            host->InitSurface(wd);
-            return host;
-        }
+            const auto& xcbBackend = static_cast<XCBBackend&>(backend);
+            const auto wd = static_cast<XCBBackend::XCBWdHost&>(window).GetWindow();
+            if (auto host = ld.CreateHostFromXcb(xcbBackend.GetConnection(), xcbBackend.GetDefaultScreen(), false); host)
+            {
+                host->InitSurface(wd);
+                return host;
+            }
 #if COMMON_OS_ANDROID
-        if (auto host = ld.CreateHostFromAndroid(true); host)
-        {
-            host->InitSurface(wd);
-            return host;
-        }
+            if (auto host = ld.CreateHostFromAndroid(true); host)
+            {
+                host->InitSurface(wd);
+                return host;
+            }
 #endif
-        if (auto host = ld.CreateHost(xcbBackend.GetDisplay(), false); host)
-        {
-            host->InitSurface(wd);
-            return host;
+            if (auto host = ld.CreateHost(xcbBackend.GetDisplay(), false); host)
+            {
+                host->InitSurface(wd);
+                return host;
+            }
         }
-        return {};
+        else if (backend.Name() == "Win32")
+        {
+            auto& wd = static_cast<Win32Backend::Win32WdHost&>(window);
+            if (auto host = ld.CreateHost(wd.GetHDC(), false); host)
+            {
+                host->InitSurface(reinterpret_cast<uintptr_t>(wd.GetHWND()));
+                return host;
+            }
+        }
+        else if (backend.Name() == "Wayland")
+        {
+            const auto& wlBackend = static_cast<WaylandBackend&>(backend);
+            const auto wd = static_cast<WaylandBackend::WaylandWdHost&>(window).GetEGLWindow();
+            if (auto host = ld.CreateHostFromWayland(wlBackend.GetDisplay(), false); host)
+            {
+                host->InitSurface(reinterpret_cast<uintptr_t>(wd));
+                return host;
+            }
+        }
     }
     return {};
 }
@@ -331,8 +356,50 @@ static void RunTest(WindowBackend& backend)
 
 static void WdGLTest()
 {
-    const auto backend = WindowBackend::GetBackends()[0];
-    backend->Init();
+    std::string_view wdpref;
+    for (const auto& cmd : GetCmdArgs())
+    {
+        if (cmd.starts_with("wdbe="))
+            wdpref = cmd.substr(5);
+    }
+    std::vector<WindowBackend*> backends;
+    std::optional<uint32_t> whbidx;
+    for (const auto backend : WindowBackend::GetBackends())
+    {
+        if (!backend->CheckFeature("OpenGL") && !backend->CheckFeature("OpenGLES"))
+            continue;
+        auto& fmter = GetLogFmt();
+        try
+        {
+            backend->Init();
+            if (backend->Name() == wdpref)
+                whbidx = static_cast<uint32_t>(backends.size());
+            backends.emplace_back(backend);
+            continue;
+        }
+        catch (common::BaseException& be)
+        {
+            fmter.FormatToStatic(fmter.Str, FmtString(u"{@<Y}Failed to init [{}]: {}{@<w}\n"), backend->Name(), be);
+        }
+        catch(...)
+        {
+            fmter.FormatToStatic(fmter.Str, FmtString(u"{@<Y}Failed to init [{}]{@<w}\n"), backend->Name());
+        }
+        common::mlog::SyncConsoleBackend();
+        PrintToConsole(fmter);
+    }
+    if (!whbidx && IsAutoMode())
+        whbidx = 0;
+    whbidx = SelectIdx(backends, u"backend", [&](const auto& backend)
+    {
+        return FMTSTR2(u"[{}] {:2}|{:4}|{:2}|{:2}|{:2}", backend->Name(),
+            backend->CheckFeature("OpenGL")     ? u"GL"   : u"",
+            backend->CheckFeature("OpenGLES")   ? u"GLES" : u"",
+            backend->CheckFeature("DirectX")    ? u"DX"   : u"",
+            backend->CheckFeature("Vulkan")     ? u"VK"   : u"",
+            backend->CheckFeature("NewThread")  ? u"NT"   : u"");
+    }, whbidx);
+    const auto backend = backends[*whbidx];
     common::BasicPromise<void> pms;
     std::thread Thread([&]() 
         {

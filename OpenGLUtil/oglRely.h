@@ -17,7 +17,6 @@
 #include "SystemCommon/Exceptions.h"
 #include "SystemCommon/SpinLock.h"
 #include "common/EnumEx.hpp"
-#include "common/AtomicUtil.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/FrozenDenseSet.hpp"
 #include "common/FileBase.hpp"

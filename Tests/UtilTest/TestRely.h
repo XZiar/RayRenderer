@@ -12,6 +12,7 @@
 #include <cstring>
 #include <string>
 #include <string_view>
+#include <optional>
 #include <cinttypes>
 #include "resource.h"
 
@@ -47,7 +48,7 @@ char EnterOneOf(std::u16string_view prompt, std::string_view str);
 char16_t GetIdx36(const size_t idx);
 uint32_t Select36(const size_t size);
 template<typename T, typename F>
-forceinline uint32_t SelectIdx(const T& container, std::u16string_view name, F&& printer)
+forceinline uint32_t SelectIdx(const T& container, std::u16string_view name, F&& printer, std::optional<uint32_t> choice = {})
 {
     common::mlog::SyncConsoleBackend();
     auto& fmter = GetLogFmt();
@@ -59,15 +60,24 @@ forceinline uint32_t SelectIdx(const T& container, std::u16string_view name, F&&
             fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}{}[{}] {@<w}{}\n"), name, GetIdx36(idx++), printer(item));
         }
     }
-    if (container.size() <= 1)
+    if (choice)
     {
-        fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}Default select {@<y}{}[0]\n"), name);
+        fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}Selected {@<w}{}[{}]\n"), name, *choice);
         PrintToConsole(fmter);
-        if (!IsAutoMode())
-            common::console::ConsoleEx::ReadCharImmediate(false);
-        return 0;
+        return *choice;
     }
-    fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}Select {@<w}{}:\n"), name);
-    PrintToConsole(fmter);
-    return Select36(container.size());
+    else
+    {
+        if (container.size() <= 1)
+        {
+            fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}Default select {@<y}{}[0]\n"), name);
+            PrintToConsole(fmter);
+            if (!IsAutoMode())
+                common::console::ConsoleEx::ReadCharImmediate(false);
+            return 0;
+        }
+        fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}Select {@<w}{}:\n"), name);
+        PrintToConsole(fmter);
+        return Select36(container.size());
+    }
 }

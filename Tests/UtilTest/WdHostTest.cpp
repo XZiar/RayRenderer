@@ -285,22 +285,18 @@ static void WDHost()
         if (backends[i]->Name() == bepref)
         {
             whbidx = i;
-            auto& fmter = GetLogFmt();
-            fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}Use {@<w}{}:\n"), backends[i]->Name());
-            PrintToConsole(fmter);
             break;
         }
     }
-    if (!whbidx)
-        whbidx = SelectIdx(backends, u"backend", [&](const auto& backend)
-        {
-            return FMTSTR2(u"[{}] {:2}|{:4}|{:2}|{:2}|{:2}", backend->Name(),
-                backend->CheckFeature("OpenGL")     ? u"GL"   : u"",
-                backend->CheckFeature("OpenGLES")   ? u"GLES" : u"",
-                backend->CheckFeature("DirectX")    ? u"DX"   : u"",
-                backend->CheckFeature("Vulkan")     ? u"VK"   : u"",
-                backend->CheckFeature("NewThread")  ? u"NT"   : u"");
-        });
+    whbidx = SelectIdx(backends, u"backend", [&](const auto& backend)
+    {
+        return FMTSTR2(u"[{}] {:2}|{:4}|{:2}|{:2}|{:2}", backend->Name(),
+            backend->CheckFeature("OpenGL")     ? u"GL"   : u"",
+            backend->CheckFeature("OpenGLES")   ? u"GLES" : u"",
+            backend->CheckFeature("DirectX")    ? u"DX"   : u"",
+            backend->CheckFeature("Vulkan")     ? u"VK"   : u"",
+            backend->CheckFeature("NewThread")  ? u"NT"   : u"");
+    }, whbidx);
 
     auto& backend = *backends[*whbidx];
     backend.Init();

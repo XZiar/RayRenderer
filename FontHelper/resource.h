@@ -1,10 +1,10 @@
-//{{NO_DEPENDENCIES}}
+ï»¿//{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by Resource.rc
 #define IDR_SHADER_PRINTFONT                    108
 #define IDR_SHADER_SDFTEST                      109
 #define IDR_SHADER_DWNSAMP                      110
-// ÐÂ¶ÔÏóµÄÏÂÒ»×éÄ¬ÈÏÖµ
+// æ–°å¯¹è±¡çš„ä¸‹ä¸€ç»„é»˜è®¤å€¼
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS

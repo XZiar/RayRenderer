@@ -118,8 +118,9 @@ struct DrmAmd final : public DrmHelper
     DEF_FUNC(amdgpu_, query_gpu_info);
     DEF_FUNC(amdgpu_, query_info);
     DEF_FUNC(amdgpu_, get_marketing_name);
-    DrmAmd(std::string_view name_) : DrmHelper(name_), Lib("libdrm_amdgpu.so")
+    DrmAmd(std::string_view name_) : DrmHelper(name_), Lib(common::DynLib::TryCreate("libdrm_amdgpu.so", "libdrm_amdgpu.so.1"))
     {
+        Lib.Validate();
         GET_FUNC(amdgpu_, device_initialize);
         GET_FUNC(amdgpu_, device_deinitialize);
         GET_FUNC(amdgpu_, query_gpu_info);
@@ -250,26 +251,15 @@ struct DRMDeviceInfoContainer final : public CommonDeviceContainer
     std::vector<DRMDeviceInfo> Infos;
     DRMDeviceInfoContainer() : Console(common::console::ConsoleEx::Get())
     {
-        std::unique_ptr<common::DynLib> libdrm;
-        constexpr std::string_view paths[] = { "libdrm.so"sv, "/vendor/lib64/libdrm.so", "/system/lib64/libdrm.so" };
-        for (const auto& path : paths)
-        {
-            try
-            {
-                libdrm = std::make_unique<common::DynLib>(path);
-                break;
-            }
-            catch (const common::BaseException& be)
-            {
-                Console.Print(common::CommonColor::BrightRed, 
-                    FMTSTR2(u"Failed when load libdrm[{}]: [{}]\n{}\n"sv, path, be.Message(), be.GetDetailMessage()));
-            }
-        }
+        const auto libdrm = common::DynLib::TryCreate("libdrm.so"sv, "libdrm.so.2"sv, "/vendor/lib64/libdrm.so"sv, "/system/lib64/libdrm.so"sv);
         if (!libdrm)
+        {
+            Console.Print(common::CommonColor::BrightRed, u"Failed to load libdrm\n"sv);
             return;
+        }
         try
         {
-#define GET_FUNC(name) const auto name = libdrm->GetFunction<decltype(&drm##name)>("drm" #name)
+#define GET_FUNC(name) const auto name = libdrm.GetFunction<decltype(&drm##name)>("drm" #name)
             GET_FUNC(GetDevices);
             GET_FUNC(GetVersion);
             GET_FUNC(GetLibVersion);

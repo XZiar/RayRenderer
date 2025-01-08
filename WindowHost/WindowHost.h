@@ -351,6 +351,7 @@ public:
         using WindowHost_::WindowHost_;
     public:
         [[nodiscard]] virtual void* GetSurface() const noexcept = 0;
+        [[nodiscard]] virtual void* GetEGLWindow() const noexcept = 0;
     };
     void Init(const WaylandInitInfo& info)
     {

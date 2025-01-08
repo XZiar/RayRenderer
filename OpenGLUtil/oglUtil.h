@@ -182,6 +182,7 @@ public:
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHost(NativeDisplay display, bool useOffscreen) = 0;
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromXcb(void* connection, std::optional<int32_t> screen, bool useOffscreen) = 0;
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromX11(void* display, std::optional<int32_t> screen, bool useOffscreen) = 0;
+    [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromWayland(void* display, bool useOffscreen) = 0;
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromAngle(void* display, AngleBackend backend, bool useOffscreen) = 0;
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromAndroid(bool useOffscreen) = 0;
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromDevice(const DeviceHolder& device) = 0;

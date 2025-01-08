@@ -3,6 +3,7 @@
 #include "oglContext.h"
 #include "oglProgram.h"
 #include "oglPromise.hpp"
+#include "common/AtomicUtil.hpp"
 #include <mutex>
 
 

@@ -119,6 +119,18 @@ constexpr inline auto BuildTableStoreFrom(const std::pair<K, V> (&arr)[N]) noexc
     SortAscending(table.Items.data(), N);
     return table;
 }
+template<typename NK, typename NV, size_t M, typename K, typename V, size_t N>
+constexpr inline auto BuildTableStoreFrom(const std::array<std::pair<K, V>, N>& arr) noexcept
+{
+    StaticLookupTable<NK, NV, M> table;
+    for (size_t i = 0; i < M; ++i)
+    {
+        table.Items[i].Key   = NK(arr[i].first);
+        table.Items[i].Value = NV(arr[i].second);
+    }
+    SortAscending(table.Items.data(), M);
+    return table;
+}
 
 
 }

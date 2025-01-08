@@ -75,7 +75,7 @@ public:
     [[nodiscard]] std::pair<bool, bool> Extract(const T field, const T extra) noexcept
     { 
         const auto val0 = static_cast<DT>(field), val1 = static_cast<DT>(extra);
-        const auto prev = this->fetch_or(val0 | val1);
+        const auto prev = this->fetch_and(~(val0 | val1));
         return { (prev & val0) != 0, (prev & val1) != 0 };
     }
 };

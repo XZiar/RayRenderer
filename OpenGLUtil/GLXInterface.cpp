@@ -276,8 +276,10 @@ private:
     DECLARE_FUNC(GetProcAddress);
 public:
     static constexpr std::string_view LoaderName = "GLX"sv;
-    GLXLoader_() : LibX11("libX11.so"), LibGLX("libGLX.so")
+    GLXLoader_() : LibX11(common::DynLib::TryCreate("libX11.so", "libX11.so.6")), LibGLX(common::DynLib::TryCreate("libGLX.so", "libGLX.so.0"))
     {
+        LibX11.Validate();
+        LibGLX.Validate();
         LOAD_FUNC(X11, FreeXObject);
         LOAD_FUNC(X11, SetErrorHandler);
         LOAD_FUNC(X11, GetErrorText);

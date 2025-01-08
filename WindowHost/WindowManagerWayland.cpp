@@ -1,5 +1,5 @@
 
-#if defined(__has_include) && __has_include(<wayland-client-protocol.h>)
+#if defined(__has_include) && __has_include(<wayland-client-protocol.h>) && __has_include(<libdecor-0/libdecor.h>)
 
 #include "WindowManager.h"
 #include "WindowHost.h"
@@ -18,13 +18,22 @@
 #include "common/Linq2.hpp"
 
 #include <boost/container/flat_map.hpp>
+#include <boost/container/small_vector.hpp>
 #include <boost/lockfree/queue.hpp>
+//#include <boost/preprocessor/seq/filter.hpp>
+//#include <boost/preprocessor/seq/fold_left.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
+//#include <boost/preprocessor/seq/transform.hpp>
+//#include <boost/preprocessor/selection/max.hpp>
 #include <boost/preprocessor/tuple/elem.hpp>
 #include <boost/preprocessor/variadic/to_seq.hpp>
+#include <boost/preprocessor/variadic/size.hpp>
+#include <boost/vmd/is_number.hpp>
+
 
 #include <wayland-client-protocol.h>
 #include <wayland-cursor.h>
+#include <wayland-egl.h>
 #include <wayland-util.h>
 #pragma message("Compiling WindowHost with wayland[" WAYLAND_VERSION "]")
 #include "wayland-ext/zxdg-decoration-client-protocol.h"
@@ -107,43 +116,54 @@ static constexpr auto ShmFormatLookup = BuildStaticLookup(uint32_t, ImgDType,
     { WL_SHM_FORMAT_XBGR16161616,   xziar::img::ImageDataType::RGBA16 }
 );
 
-XDG_TOPLEVEL_WM_CAPABILITIES_ENUM
-#define ItemPair(en, str) { xdg_toplevel_wm_capabilities::XDG_TOPLEVEL_WM_CAPABILITIES_##en, #str ""sv }
-static constexpr auto XdgWmCapNames = BuildStaticLookup(xdg_toplevel_wm_capabilities, std::string_view,
-    ItemPair(WINDOW_MENU,   WindowMenu),
-    ItemPair(MAXIMIZE,      Maximize),
-    ItemPair(FULLSCREEN,    FullScreen),
-    ItemPair(MINIMIZE,      Minimize)
-);
-#undef ItemPair
 
-#define ItemPair(en, str) { xdg_toplevel_state::XDG_TOPLEVEL_STATE_##en, #str ""sv }
-static constexpr auto XdgTopLvStateNames = BuildStaticLookup(xdg_toplevel_state, std::string_view,
-    ItemPair(MAXIMIZED,     Maximized),
-    ItemPair(FULLSCREEN,    FullScreen),
-    ItemPair(RESIZING,      Resizing),
-    ItemPair(ACTIVATED,     Activated),
-    ItemPair(TILED_LEFT,    TiledLeft),
-    ItemPair(TILED_RIGHT,   TiledRight),
-    ItemPair(TILED_TOP,     TiledTop),
-    ItemPair(TILED_BOTTOM,  TiledBottom),
-    ItemPair(SUSPENDED,     Suspended)
-);
-#undef ItemPair
+#define EnumStrEntry_(en, str) if constexpr ( requires { T::en; } ) { dst[idx++] = { T::en, STRINGIZE(str) }; }
+#define EnumStrEntry(r, prefix, tp) EnumStrEntry_(BOOST_PP_CAT(prefix, BOOST_PP_TUPLE_ELEM(2, 0, tp)), BOOST_PP_TUPLE_ELEM(2, 1, tp))
+#define EnumStrMap(type, prefix, ...)[]()                                                           \
+{                                                                                                   \
+    constexpr auto ret = []([[maybe_unused]]auto dummy)                                             \
+    {                                                                                               \
+        using T = decltype(dummy);                                                                  \
+        std::array<std::pair<type, std::string_view>, BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)> dst{};   \
+        uint32_t idx = 0;                                                                           \
+        BOOST_PP_SEQ_FOR_EACH(EnumStrEntry, prefix, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))          \
+    return std::pair{dst, idx};                                                                     \
+    }(type{});                                                                                      \
+    return common::detail::BuildTableStoreFrom<type, std::string_view, ret.second>(ret.first);      \
+}()
 
-#define ItemPair(en, str) { libdecor_window_state::LIBDECOR_WINDOW_STATE_##en, #str ""sv }
-static constexpr auto DecorWindowStateNames = BuildStaticLookup(libdecor_window_state, std::string_view,
-    ItemPair(NONE,          None),
-    ItemPair(ACTIVE,        Active),
-    ItemPair(MAXIMIZED,     Maximized),
-    ItemPair(FULLSCREEN,    FullScreen),
-    ItemPair(TILED_LEFT,    TiledLeft),
-    ItemPair(TILED_RIGHT,   TiledRight),
-    ItemPair(TILED_TOP,     TiledTop),
-    ItemPair(TILED_BOTTOM,  TiledBottom),
-    ItemPair(SUSPENDED,     Suspended)
+static constexpr auto XdgWmCapNames = EnumStrMap(xdg_toplevel_wm_capabilities, XDG_TOPLEVEL_WM_CAPABILITIES_,
+    (WINDOW_MENU,   WindowMenu),
+    (MAXIMIZE,      Maximize),
+    (FULLSCREEN,    FullScreen),
+    (MINIMIZE,      Minimize)
 );
-#undef ItemPair
+static constexpr auto XdgTopLvStateNames = EnumStrMap(xdg_toplevel_state, XDG_TOPLEVEL_STATE_,
+    (MAXIMIZED,     Maximized),
+    (FULLSCREEN,    FullScreen),
+    (RESIZING,      Resizing),
+    (ACTIVATED,     Activated),
+    (TILED_LEFT,    TiledLeft),
+    (TILED_RIGHT,   TiledRight),
+    (TILED_TOP,     TiledTop),
+    (TILED_BOTTOM,  TiledBottom),
+    (SUSPENDED,     Suspended)
+);
+static constexpr auto DecorWindowStateNames = EnumStrMap(libdecor_window_state, LIBDECOR_WINDOW_STATE_,
+    (NONE,          None),
+    (ACTIVE,        Active),
+    (MAXIMIZED,     Maximized),
+    (FULLSCREEN,    FullScreen),
+    (TILED_LEFT,    TiledLeft),
+    (TILED_RIGHT,   TiledRight),
+    (TILED_TOP,     TiledTop),
+    (TILED_BOTTOM,  TiledBottom),
+    (SUSPENDED,     Suspended)
+);
+
+#undef EnumStrMap
+#undef EnumStrEntry
+#undef EnumStrEntry_
 
 
 struct WaylandProxy
@@ -168,7 +188,7 @@ struct WaylandProxy
 
 class ReWriter
 {
-    std::vector<std::pair<const wl_interface*, const wl_interface**>> Mapper;
+    boost::container::small_vector<std::pair<const wl_interface*, const wl_interface**>, 8> Mapper;
     std::deque<std::pair<const wl_interface*, wl_interface>> Replaced;
     common::container::TrunckedContainer<const wl_interface*> TypePool;
     common::container::TrunckedContainer<wl_message> MsgPool;
@@ -191,10 +211,13 @@ class ReWriter
         return nullptr;
     }
 public:
-    ReWriter(std::vector<std::pair<const wl_interface*, const wl_interface**>> mapper) noexcept : 
-        Mapper(std::move(mapper)), TypePool(4096 / sizeof(const wl_interface*), alignof(const wl_interface*)),
+    ReWriter() noexcept : TypePool(4096 / sizeof(const wl_interface*), alignof(const wl_interface*)),
         MsgPool(4096 / sizeof(wl_message), alignof(wl_message))
     {}
+    void PlaceMapper(const wl_interface* src, const wl_interface** dst) noexcept
+    {
+        Mapper.emplace_back(src, dst);
+    }
     const wl_message* ReplaceMessage(const wl_message* src, uint32_t count)
     {
         if (!src || !count)
@@ -428,9 +451,40 @@ inline constexpr auto WrapWayland() noexcept
         (reinterpret_cast<T*>(data)->*Func)(args...);
     };
 }
-#define WaylandCB(r, clz, tp) .BOOST_PP_TUPLE_ELEM(2, 0, tp) = \
-    BOOST_PP_IIF(BOOST_PP_IS_EMPTY(BOOST_PP_TUPLE_ELEM(2, 1, tp)), [](auto...){}, (WrapWayland<clz, &clz::BOOST_PP_TUPLE_ELEM(2, 1, tp)>())),
-#define WaylandListener(type, bind, name, ...) static inline constexpr type##_listener Listener##name = { BOOST_PP_SEQ_FOR_EACH(WaylandCB, bind, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) }\
+#define WaylandCB__(clz, func) BOOST_PP_IIF(BOOST_PP_IS_EMPTY(func), [](auto...){}, (WrapWayland<clz, &clz::func>()))
+#define WaylandCB_(clz, name, func) if constexpr (requires { dst.name; }) { dst.name = WaylandCB__(clz, func); }
+#define WaylandCB(r, clz, tp) WaylandCB_(clz, BOOST_PP_TUPLE_ELEM(2, 0, tp), BOOST_PP_TUPLE_ELEM(2, 1, tp))
+#define WaylandListener(type, bind, name, ...) static inline constexpr type##_listener Listener##name = \
+    [](auto dst){ BOOST_PP_SEQ_FOR_EACH(WaylandCB, bind, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) return dst; }(type##_listener{})
+
+
+//#define ReduceToMax(seq) BOOST_PP_SEQ_FOLD_LEFT(BOOST_PP_MAX_D, BOOST_PP_SEQ_HEAD(seq), BOOST_PP_SEQ_TAIL(seq))
+//#define IsVerDefined(s, _, x) BOOST_VMD_IS_NUMBER(x)
+//#define VerName(r, prefix, x) BOOST_PP_CAT(prefix, BOOST_PP_CAT(x, _SINCE_VERSION))
+//#define DefineVersionMax(prefix, ...) ReduceToMax(BOOST_PP_SEQ_FILTER(IsVerDefined, _, BOOST_PP_SEQ_TRANSFORM(VerName, prefix, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))))
+//#define WLVER_Keybaord DefineVersionMax(WL_KEYBOARD_, KEYMAP, MODIFIERS, REPEAT_INFO, XD)
+//#pragma message("Header protocal version: wl_keyboard[" STRINGIZE(WLVER_Keybaord) "]")
+
+struct Version
+{
+#define UpdateMax(x) BOOST_PP_IIF(BOOST_VMD_IS_NUMBER(x), dst = std::max(dst, x);, )
+#define EachUpdate(r, prefix, x) UpdateMax(BOOST_PP_CAT(prefix, BOOST_PP_CAT(x, _SINCE_VERSION)))
+#define DefineVer(name, minver, prefix, ...) static inline constexpr int name##Min = minver;\
+static inline constexpr int name = [](){ int dst = 0; BOOST_PP_SEQ_FOR_EACH(EachUpdate, prefix, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) return dst; }();\
+static_assert(name >= name##Min)
+#define DefineVerSet(name, minver, cur) static inline constexpr int name##Min = minver; static inline constexpr int name = cur; static_assert(name >= name##Min)
+
+DefineVer(Surface, 4, WL_SURFACE_, ATTACH, SET_BUFFER_TRANSFORM, SET_BUFFER_SCALE, DAMAGE_BUFFER, OFFSET, PREFERRED_BUFFER_SCALE);
+DefineVerSet(DataDev, 3, 3);
+DefineVer(DataOffer, 3, WL_DATA_OFFER_, OFFER, FINISH);
+DefineVer(Pointer, 5, WL_POINTER_, ENTER, RELEASE, FRAME, AXIS_VALUE120, AXIS_RELATIVE_DIRECTION);
+DefineVer(Keyboard, 4, WL_KEYBOARD_, KEYMAP, RELEASE, REPEAT_INFO);
+
+#undef DefineVerSet
+#undef DefineVer
+#undef EachUpdate
+#undef UpdateMax
+};
 
 
 class WindowManagerWayland final : public WaylandBackend, public WindowManager
@@ -481,7 +535,7 @@ private:
             manager.Destroy(reinterpret_cast<wl_proxy*>(cb));
             manager.Logger.Verbose(u"frame done with [{}ms].\n", elapse);
         }
-        WaylandListener(wl_callback, WdHost, Frame, (done, FrameDone));
+        WaylandListener(wl_callback, WdHost, Frame, (done, FrameDone), (xdy, BackBufRelease));
 
         void SurfaceConfig(xdg_surface* surface, uint32_t serial)
         {
@@ -696,6 +750,7 @@ private:
         WaylandProxy XdgSurface;
         WaylandProxy Toplevel;
         WaylandProxy ToplvDecor;
+        wl_egl_window* EGLWindow = nullptr;
         libdecor_frame* DecorFrame = nullptr;
         std::unique_ptr<IconData> CurIcon;
         BackBuffer BackBuf[2];
@@ -717,6 +772,15 @@ private:
             return reinterpret_cast<uintptr_t>(Surface.Proxy);
         }
         void* GetSurface() const noexcept final { return Surface.Proxy; }
+        void* GetEGLWindow() const noexcept final { return EGLWindow; }
+        void OnResize(int32_t width, int32_t height) noexcept final
+        {
+            WindowHost_::OnResize(width, height);
+            if (EGLWindow && width && height)
+            {
+                GetManager().egl_window_resize(EGLWindow, width, height, 0, 0);
+            }
+        }
         void OnDisplay(bool forceRedraw) noexcept final;
         void GetClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type) final
         {
@@ -734,6 +798,7 @@ private:
 
     common::DynLib Wayland;
     common::DynLib WlCursor;
+    common::DynLib WlEGL;
     common::DynLib Decor;
 #define DECLARE_FUNC(func) decltype(&wl_##func) func = nullptr
     DECLARE_FUNC(proxy_marshal_flags);
@@ -754,6 +819,11 @@ private:
     DECLARE_FUNC(seat_get_keyboard);
     DECLARE_FUNC(seat_get_pointer);
     DECLARE_FUNC(data_device_manager_get_data_device);
+#undef DECLARE_FUNC
+#define DECLARE_FUNC(func) decltype(&wl_egl_##func) egl_##func = nullptr
+    DECLARE_FUNC(window_create);
+    DECLARE_FUNC(window_resize);
+    DECLARE_FUNC(window_destroy);
 #undef DECLARE_FUNC
 #define DECLARE_FUNC(func) decltype(&wl_cursor_##func) cursor_##func = nullptr
     DECLARE_FUNC(theme_load);
@@ -832,10 +902,12 @@ private:
     {
         constexpr std::string_view Features[] =
         {
-            "OpenGL"sv, "OpenGLES"sv, "Vulkan"sv, "NewThread"sv,
+            "Vulkan"sv, "NewThread"sv,
         };
         if (std::find(std::begin(Features), std::end(Features), feat) != std::end(Features))
             return true;
+        if (feat == "OpenGL"sv || feat == "OpenGLES"sv)
+            return static_cast<bool>(WlEGL);
         if (feat == "ClientDecor"sv)
             return LibDecor;
         if (feat == "ServerDecor"sv)
@@ -1000,13 +1072,37 @@ private:
             XdgDecor.Interface = InterfaceRewriter.Replace(&hack::zxdg_decoration_manager_v1_interface);
             proxy = &XdgDecor;
         }
+        common::mlog::LogLevel loglv = common::mlog::LogLevel::Verbose;
+        std::u16string extraMsg;
         if (proxy)
         {
-            auto ver = version;
-            if (proxy == &Compositor) ver = 4;
+            loglv = common::mlog::LogLevel::Info;
+            const uint32_t verClient = proxy->Interface->version;
+            auto ver = std::min(version, verClient);
+            common::str::Formatter<char16_t> fmter{};
+            fmter.FormatToStatic(extraMsg, FmtString(u" -binded cver[{}]"), verClient);
+
+            std::optional<std::pair<uint32_t, uint32_t>> verReq;
+#define IFACE_VER(target, name) if (proxy == &target) verReq.emplace(Version::name##Min, Version::name)
+            IFACE_VER(DataDeviceManager, DataDev);
+            else IFACE_VER(Keyboard, Keyboard);
+            else IFACE_VER(Pointer, Pointer);
+#undef IFACE_VER
+            if (verReq)
+            {
+                const auto [verMin, verHead] = *verReq;
+                fmter.FormatToStatic(extraMsg, FmtString(u" hver[>={}] minver[{}]"), verHead, verMin);
+                if (ver < verMin)
+                {
+                    extraMsg += u" TooLow!";
+                    loglv = common::mlog::LogLevel::Warning;
+                }
+                else
+                    ver = verMin;
+            }
             proxy->Proxy = MarshalFlags<wl_proxy, WL_REGISTRY_BIND>(registry, ver, proxy->Interface, name, proxy->Interface->name, ver, nullptr);
         }
-        Logger.Verbose(u"wayland global [{}] ver[{}] name[{}]{}\n", iname, version, name, proxy ? " binded" : "");
+        Logger.Log(loglv, u"wayland global [{}] name[{}] sver[{}]{}\n", iname, name, version, extraMsg);
     }
     WaylandListener(wl_registry, WindowManagerWayland, Reg, (global, AttachGlobal), (global_remove,));
 
@@ -1463,8 +1559,8 @@ public:
     WindowManagerWayland() : WaylandBackend(true), 
         Wayland(common::DynLib::TryCreate("libwayland-client.so", "libwayland-client.so.0")), 
         WlCursor(common::DynLib::TryCreate("libwayland-cursor.so", "libwayland-cursor.so.0")), 
-        Decor{common::DynLib::TryCreate("libdecor-0.so.0")},
-        InterfaceRewriter({{ &hack::wl_seat_interface, &Seat.Interface }, { &hack::wl_output_interface, &Output.Interface }, { &hack::wl_surface_interface, &ISurface }, { &hack::wl_buffer_interface, &IBuffer }})
+        WlEGL(common::DynLib::TryCreate("libwayland-egl.so", "libwayland-egl.so.1")), 
+        Decor{common::DynLib::TryCreate("libdecor-0.so", "libdecor-0.so.0")}
     {
         if (const auto tmp = common::SharedMemory::CreateMemFd("wayland_buf", MFD_CLOEXEC); tmp != -1)
             close(tmp);
@@ -1509,6 +1605,15 @@ public:
         LOAD_FUNC(theme_get_cursor);
         LOAD_FUNC(image_get_buffer);
 #undef LOAD_FUNC
+        
+        if (WlEGL)
+        {
+#define LOAD_FUNC(func) egl_##func = WlEGL.GetFunction<decltype(&wl_egl_##func)>("wl_egl_" #func ""sv)
+            LOAD_FUNC(window_create);
+            LOAD_FUNC(window_resize);
+            LOAD_FUNC(window_destroy);
+#undef LOAD_FUNC
+        }
 
         if (Decor)
         {
@@ -1535,6 +1640,11 @@ public:
             LOAD_FUNC(state_free);
 #undef LOAD_FUNC
         }
+
+        InterfaceRewriter.PlaceMapper(&hack::wl_seat_interface, &Seat.Interface);
+        InterfaceRewriter.PlaceMapper(&hack::wl_output_interface, &Output.Interface);
+        InterfaceRewriter.PlaceMapper(&hack::wl_surface_interface, &ISurface);
+        InterfaceRewriter.PlaceMapper(&hack::wl_buffer_interface, &IBuffer);
 
         EpollFd = epoll_create1(EPOLL_CLOEXEC);
         MsgQueueFd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
@@ -1843,6 +1953,10 @@ public:
             MarshalFlags<void, ZXDG_TOPLEVEL_DECORATION_V1_SET_MODE>(host.ToplvDecor, ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE); // zxdg_toplevel_decoration_v1_set_mode
             SetTitle(host, host.Title);
         }
+        if (WlEGL)
+        {
+            host.EGLWindow = egl_window_create(reinterpret_cast<wl_surface*>(host.Surface.Proxy), host.Width, host.Height);
+        }
         MarshalFlags<void, WL_SURFACE_COMMIT>(host.Surface); // wl_surface_commit
         display_roundtrip(Display);
     }
@@ -1870,6 +1984,8 @@ public:
     void ReleaseWindow(WindowHost_* host) final
     {
         auto& wd = *static_cast<WdHost*>(host);
+        if (wd.EGLWindow)
+            egl_window_destroy(wd.EGLWindow);
         for (auto& buf : wd.BackBuf)
             buf.ReleaseObjects(*this);
         if (wd.DecorFrame)
@@ -2006,16 +2122,18 @@ void WindowManagerWayland::WdHost::OnDisplay(bool forceRedraw) noexcept
                 Manager.Logger.Verbose(u"Window[{:x}] rebuild backbuffer in [{} ms].\n", *this, timer.ElapseMs());
             }
         }
-        BgChangedLasttime = bgChanged;
         needDraw = forceRedraw || bgChanged || BgChangedLasttime || (sizeChanged && (NeedBackground || holder));
+        if (needDraw)
+            manager.Logger.Verbose(u"draw reason force[{}] bg[{}] lastbg[{}] size[{}].\n", forceRedraw, bgChanged, BgChangedLasttime, sizeChanged);
+        BgChangedLasttime = bgChanged;
     }
-    if (needDraw)
+    if (!needDraw)
+        backBuf.UseMutex.unlock();
+    if (needDraw || rect != LastSize)
     {
         timer.Start();
         ReSizingLock sizeLock(*this);
         timer.Stop();
-        const auto lockSizeTime = timer.ElapseNs() / 1000.f;
-        manager.Logger.Verbose(u"draw [{}] with lock Buf[{}us] Size[{}us].\n", BackBufIdx, lockBufTime, lockSizeTime);
         if (rect != LastSize) // update size
         {
             LastSize = rect;
@@ -2027,17 +2145,18 @@ void WindowManagerWayland::WdHost::OnDisplay(bool forceRedraw) noexcept
                 manager.decor_state_free(state);
             }
         }
-        backBuf.Timer.Start();
-        manager.MarshalFlags<void, WL_SURFACE_ATTACH>(Surface, backBuf.Buf.Proxy, 0, 0); // wl_surface_attach
-        manager.MarshalFlags<void, WL_SURFACE_DAMAGE_BUFFER>(Surface, 0u, 0u, backBuf.Rect.Width, backBuf.Rect.Height); // wl_surface_damage_buffer
-        const auto cb = manager.GetFrom<WL_SURFACE_FRAME>(Surface, manager.ICallback); // wl_surface_frame
-        manager.AddListener(cb, ListenerFrame, this);
-        manager.MarshalFlags<void, WL_SURFACE_COMMIT>(Surface); // wl_surface_commit
-        BackBufIdx = BackBufIdx ^ 0b1u;
-    }
-    else
-    {
-        backBuf.UseMutex.unlock();
+        if (needDraw)
+        {
+            const auto lockSizeTime = timer.ElapseNs() / 1000.f;
+            manager.Logger.Verbose(u"draw [{}] with lock Buf[{}us] Size[{}us].\n", BackBufIdx, lockBufTime, lockSizeTime);
+            backBuf.Timer.Start();
+            manager.MarshalFlags<void, WL_SURFACE_ATTACH>(Surface, backBuf.Buf.Proxy, 0, 0); // wl_surface_attach
+            manager.MarshalFlags<void, WL_SURFACE_DAMAGE_BUFFER>(Surface, 0u, 0u, backBuf.Rect.Width, backBuf.Rect.Height); // wl_surface_damage_buffer
+            const auto cb = manager.GetFrom<WL_SURFACE_FRAME>(Surface, manager.ICallback); // wl_surface_frame
+            manager.AddListener(cb, ListenerFrame, this);
+            manager.MarshalFlags<void, WL_SURFACE_COMMIT>(Surface); // wl_surface_commit
+            BackBufIdx = BackBufIdx ^ 0b1u;
+        }
     }
     WindowHost_::OnDisplay(forceRedraw);
     manager.display_flush(manager.Display);

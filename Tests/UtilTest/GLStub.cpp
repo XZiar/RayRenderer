@@ -286,7 +286,6 @@ static void OGLStub()
                 if (const auto dev = eglHost->GetDeviceInfo(); dev)
                 {
                     const auto& xcdevs = xcomp::ProbeDevice();
-                    auto& fmter = GetLogFmt();
                     APPEND_FMT(devtxt, u"Host is on device:[@{:1}]{} ({})\n"sv,
                         GetIdx36(xcdevs.GetDeviceIndex(dev->XCompDevice)), dev->Name, 
                         dev->XCompDevice ? CommonDevInfoStr(*dev->XCompDevice) : u"");

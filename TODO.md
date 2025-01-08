@@ -294,4 +294,5 @@
   - [x] Add basic DX12 runtime wrapper
   - [ ] Adopt `std::launder` when necessary to reduce UB
   - [ ] Seperate sub projects into different repos
+  - [ ] Use C++20 concept to simplify code
 

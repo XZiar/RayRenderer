@@ -648,6 +648,19 @@ private:
         }
         return {};
     }
+    std::shared_ptr<EGLLoader::EGLHost> CreateHostFromWayland(void* disp, bool useOffscreen) final
+    {
+        if (CheckSupportPlatformDisplay())
+        {
+            if (Extensions.Has("EGL_EXT_platform_wayland"sv) || Extensions.Has("EGL_KHR_platform_wayland"sv))
+            {
+                EGLDisplay display = GetPlatformDisplayCombine(EGL_PLATFORM_WAYLAND_EXT, disp, [&](auto&){});
+                return CreateFromDisplay(display, useOffscreen);
+            }
+            oglLog().Warning(u"EGL Loader does not support create from wayland.\n");
+        }
+        return {};
+    }
     std::shared_ptr<EGLLoader::EGLHost> CreateHostFromAngle(void* disp, AngleBackend backend, bool useOffscreen) final
     {
         if (!BackendMask(backend))
@@ -743,6 +756,7 @@ private:
             dllpaths.emplace_back("libEGL.dylib");
 #else
             dllpaths.emplace_back("libEGL.so");
+            dllpaths.emplace_back("libEGL.so.1");
 #endif
 #if COMMON_OS_ANDROID
 #   if COMMON_OSBIT == 64

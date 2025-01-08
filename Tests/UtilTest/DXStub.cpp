@@ -352,13 +352,13 @@ static void DXStub()
             default:                        return u"Error"sv;
             }
         };
-        const auto devidx = isAuto ? 0u : SelectIdx(devs, u"device", [&](DxDevice dev)
-            {
-                return FMTSTR2(u"[{}][@{:1}]{} \t {:5}{{SM{}.{}}}[{:2}|{:3}|{:3}]", 
-                    dev->PCIEAddress, GetIdx36(xcdevs.GetDeviceIndex(dev->XCompDevice)), dev->AdapterName,
-                    GetFeatLvStr(dev->FeatureLevel), dev->SMVer / 10, dev->SMVer % 10, 
-                    dev->IsSoftware ? u"SW"sv : u"HW"sv, dev->IsTBR ? u"TBR"sv : u""sv, dev->IsUMA ? u"UMA"sv : u""sv);
-            });
+        const auto devidx = SelectIdx(devs, u"device", [&](DxDevice dev)
+        {
+            return FMTSTR2(u"[{}][@{:1}]{} \t {:5}{{SM{}.{}}}[{:2}|{:3}|{:3}]", 
+                dev->PCIEAddress, GetIdx36(xcdevs.GetDeviceIndex(dev->XCompDevice)), dev->AdapterName,
+                GetFeatLvStr(dev->FeatureLevel), dev->SMVer / 10, dev->SMVer % 10, 
+                dev->IsSoftware ? u"SW"sv : u"HW"sv, dev->IsTBR ? u"TBR"sv : u""sv, dev->IsUMA ? u"UMA"sv : u""sv);
+        }, isAuto ? 0u : std::optional<uint32_t>{});
         const auto& dev = devs[devidx];
         const auto cmdque = DxComputeCmdQue_::Create(dev);
         try
