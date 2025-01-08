@@ -50,6 +50,9 @@
     <ClCompile Include="$(RealSourceDir)\windows\stack_traits.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\fcontext.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

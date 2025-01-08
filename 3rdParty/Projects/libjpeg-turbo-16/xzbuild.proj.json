@@ -16,29 +16,29 @@
         "cxx":
         {
             "defines": ["_LARGEFILE64_SOURCE=1", "BITS_IN_JSAMPLE=16", "BMP_SUPPORTED", "PPM_SUPPORTED"],
-            "incpath": ["$(BuildDir)", "$(BuildDir)/../libjpeg-turbo", "."]
+            "incpath": ["$(BuildDir)", "$(BuildDir)/../libjpeg-turbo", ".", "./src"]
         },
         "c":
         {
             "sources": 
             [
-                "jcapistd.c",
-                "jccolor.c",
-                "jcdiffct.c",
-                "jclossls.c",
-                "jcmainct.c",
-                "jcprepct.c",
-                "jcsample.c",
-                "jdapistd.c",
-                "jdcolor.c",
-                "jddiffct.c",
-                "jdlossls.c",
-                "jdmainct.c",
-                "jdpostct.c",
-                "jdsample.c",
-                "jutils.c",
-                "rdppm.c",
-                "wrppm.c"
+                "src/jcapistd.c",
+                "src/jccolor.c",
+                "src/jcdiffct.c",
+                "src/jclossls.c",
+                "src/jcmainct.c",
+                "src/jcprepct.c",
+                "src/jcsample.c",
+                "src/jdapistd.c",
+                "src/jdcolor.c",
+                "src/jddiffct.c",
+                "src/jdlossls.c",
+                "src/jdmainct.c",
+                "src/jdpostct.c",
+                "src/jdsample.c",
+                "src/jutils.c",
+                "src/rdppm.c",
+                "src/wrppm.c"
             ],
             "version": ""
         }

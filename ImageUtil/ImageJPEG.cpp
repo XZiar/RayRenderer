@@ -1,7 +1,7 @@
 #include "ImageUtilPch.h"
 #include "ImageJPEG.h"
 
-#include "libjpeg-turbo/jpeglib.h"
+#include "libjpeg-turbo/src/jpeglib.h"
 
 
 #pragma message("Compiling ImageJPEG with libjpeg-turbo[" STRINGIZE(LIBJPEG_TURBO_VERSION) "]")

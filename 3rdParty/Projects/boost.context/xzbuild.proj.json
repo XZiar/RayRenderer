@@ -17,7 +17,7 @@
         },
         "cpp":
         {
-            "sources": ["posix/stack_traits.cpp"],
+            "sources": ["posix/stack_traits.cpp", "fcontext.cpp"],
             "incpath": ["../include"]
         },
         "asm":

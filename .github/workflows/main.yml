@@ -3,8 +3,8 @@
 name: CI
 
 env:
-  boost_ver1: "1_86_0"
-  boost_ver2: "1.86.0"
+  boost_ver1: "1_87_0"
+  boost_ver2: "1.87.0"
   ispc_ver: "1.25.3"
 
 # Controls when the action will run. 
@@ -188,7 +188,7 @@ jobs:
             env_clang_ver: 10
             pkg: "clang-10 lld-10 llvm-10"
           - cxx: clang11
-            os: ubuntu-22.04
+            os: ubuntu-20.04
             env_cc: "clang-11"
             env_asm: "clang++-11"
             env_cpp: "clang++-11"
@@ -200,7 +200,7 @@ jobs:
             env_clang_ver: 11
             pkg: "clang-11 lld-11 llvm-11"
           - cxx: clang12
-            os: ubuntu-22.04
+            os: ubuntu-20.04
             env_cc: "clang-12"
             env_asm: "clang++-12"
             env_cpp: "clang++-12"
@@ -337,8 +337,9 @@ jobs:
           sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt update -q
           [[ $(echo "$ubt_release >= 19.10" | bc -l) = 0 ]] && lrlver="7" || lrlver="8"
+          [[ $(echo "$ubt_release >= 22.04" | bc -l) = 0 ]] && ldecor="" || ldecor="libdecor-0-dev"
           sudo apt install util-linux nasm unzip pkgconf python3 python3-pip python3-chardet ${{matrix.pkg}}
-          sudo apt install libreadline$lrlver libreadline-dev libx11-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libgl1-mesa-dev libglu1-mesa-dev libxi-dev libxxf86vm-dev libdrm-dev libdbus-1-dev libxcb-shm0-dev libwayland-dev wayland-protocols libdecor-0-dev
+          sudo apt install libreadline$lrlver libreadline-dev libx11-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libgl1-mesa-dev libglu1-mesa-dev libxi-dev libxxf86vm-dev libdrm-dev libdbus-1-dev libxcb-shm0-dev libwayland-dev wayland-protocols $ldecor
               
       - name: Setup environment
         id: setup

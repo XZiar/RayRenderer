@@ -131,6 +131,9 @@
     <ClCompile Include="$(RealSourceDir)\arch\x86\adler32_ssse3.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\chunkset_avx512.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\arch\x86\chunkset_avx2.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -302,6 +305,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\arch\x86\x86_features.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\arch\generic\chunk_permute_table.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\arch\generic\compare256_p.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\arch\generic\generic_functions.h">

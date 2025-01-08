@@ -48,7 +48,7 @@
                 {
                     "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "avx32"}, 
                     "dir": "arch/x86",
-                    "-": ["adler32_avx512.c", "adler32_avx512_vnni.c", "crc32_vpclmulqdq.c"]
+                    "-": ["adler32_avx512.c", "adler32_avx512_vnni.c", "crc32_vpclmulqdq.c", "chunkset_avx512.c"]
                 },
                 {
                     "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "avx2"}, 

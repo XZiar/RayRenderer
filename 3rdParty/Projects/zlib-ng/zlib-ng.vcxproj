@@ -79,8 +79,8 @@
       <CompileAsManaged>false</CompileAsManaged>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <DisableSpecificWarnings>4206;4054</DisableSpecificWarnings>
-      <AdditionalOptions>/utf-8 /w34242 %(AdditionalOptions)</AdditionalOptions>
+      <DisableSpecificWarnings>4206;4054;4324</DisableSpecificWarnings>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <PreBuildEvent>
@@ -106,8 +106,8 @@
       <CompileAsManaged>false</CompileAsManaged>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalOptions>/utf-8 /w34242 %(AdditionalOptions)</AdditionalOptions>
-      <DisableSpecificWarnings>4206;4054</DisableSpecificWarnings>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <DisableSpecificWarnings>4206;4054;4324</DisableSpecificWarnings>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
@@ -135,8 +135,8 @@
       <CompileAsManaged>false</CompileAsManaged>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalOptions>/utf-8 /w34242 %(AdditionalOptions)</AdditionalOptions>
-      <DisableSpecificWarnings>4206;4054</DisableSpecificWarnings>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <DisableSpecificWarnings>4206;4054;4324</DisableSpecificWarnings>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <PreBuildEvent>
@@ -161,8 +161,8 @@
       <CompileAsManaged>false</CompileAsManaged>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalOptions>/utf-8 /w34242 %(AdditionalOptions)</AdditionalOptions>
-      <DisableSpecificWarnings>4206;4054</DisableSpecificWarnings>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <DisableSpecificWarnings>4206;4054;4324</DisableSpecificWarnings>
       <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
@@ -261,6 +261,10 @@
     <ClCompile Include="$(RealSourceDir)\arch\x86\adler32_ssse3.c">
       <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\chunkset_avx512.c">
+      <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions512</EnableEnhancedInstructionSet>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\arch\x86\chunkset_avx2.c">
       <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
@@ -350,6 +354,8 @@
     <ClInclude Include="$(RealSourceDir)\zendian.h" />
     <ClInclude Include="$(RealSourceDir)\zutil.h" />
     <ClInclude Include="$(RealSourceDir)\gzguts.h" />
+    <ClInclude Include="$(RealSourceDir)\arch\generic\chunk_permute_table.h" />
+    <ClInclude Include="$(RealSourceDir)\arch\generic\compare256_p.h" />
     <ClInclude Include="$(RealSourceDir)\arch\generic\generic_functions.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

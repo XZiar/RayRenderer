@@ -239,6 +239,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(RealSourceDir)\windows\stack_traits.cpp" />
+    <ClCompile Include="$(RealSourceDir)\fcontext.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />
