@@ -392,7 +392,7 @@ struct UTF16 : public ConvertCPBase
 {
     using ElementType = char16_t;
     static constexpr size_t MaxOutputUnit = 2;
-    [[nodiscard]] inline static constexpr std::pair<char32_t, uint32_t> From(const char16_t* __restrict const src, const size_t size) noexcept
+    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const char16_t* __restrict const src, const size_t size) noexcept
     {
         if (size == 0)
             return InvalidCharPair;
@@ -405,7 +405,7 @@ struct UTF16 : public ConvertCPBase
         }
         return InvalidCharPair;
     }
-    [[nodiscard]] inline static constexpr uint8_t To(const char32_t src, const size_t size, char16_t* __restrict const dest) noexcept
+    [[nodiscard]] forceinline static constexpr uint8_t To(const char32_t src, const size_t size, char16_t* __restrict const dest) noexcept
     {
         if (src < 0xd800)
         {
@@ -430,7 +430,7 @@ struct UTF16 : public ConvertCPBase
 };
 struct UTF16BE : public UTF16, public ConvertByteBase
 {
-    [[nodiscard]] inline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, const size_t size) noexcept
+    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, const size_t size) noexcept
     {
         if (size < 2)
             return InvalidCharPair;
@@ -443,7 +443,7 @@ struct UTF16BE : public UTF16, public ConvertByteBase
         }
         return InvalidCharPair;
     }
-    [[nodiscard]] inline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
+    [[nodiscard]] forceinline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
     {
         if (size < 2)
             return 0;
@@ -473,7 +473,7 @@ struct UTF16BE : public UTF16, public ConvertByteBase
 };
 struct UTF16LE : public UTF16, public ConvertByteBase
 {
-    [[nodiscard]] inline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, const size_t size) noexcept
+    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, const size_t size) noexcept
     {
         if (size < 2)
             return InvalidCharPair;
@@ -486,7 +486,7 @@ struct UTF16LE : public UTF16, public ConvertByteBase
         }
         return InvalidCharPair;
     }
-    [[nodiscard]] inline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
+    [[nodiscard]] forceinline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
     {
         if (size < 2)
             return 0;

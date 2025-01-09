@@ -32,7 +32,6 @@ namespace common::str
 {
 using namespace std::string_view_literals;
 
-static_assert(sizeof(fmt::detail::fill_t) == sizeof(OpaqueFormatSpecFill), "OpaqueFormatSpec size mismatch, incompatible");
 static_assert(sizeof(fmt::format_specs) == sizeof(OpaqueFormatSpecReal), "OpaqueFormatSpec size mismatch, incompatible");
 
 
@@ -192,32 +191,40 @@ void FormatterExecutor::OnColor(Context&, ScreenColor)
 
 struct FormatterHelper : public FormatterBase
 {
-    COMMON_CONSTINIT inline static const fmt::format_specs BaseFmtSpec = {};
+    static inline constexpr uint32_t FillSizeOffset = 15;
+    static inline constexpr uint32_t FillSizeMask = 0x38000u;
     template<typename T>
-    static forceinline fmt::format_specs ConvertSpecNoFill(const T* in) noexcept
+    static forceinline void SetFillSizeTo(T& spec, uint32_t size) noexcept
     {
-        static_assert(fmt::align::none   == enum_cast(FormatSpec::Align::None));
-        static_assert(fmt::align::left   == enum_cast(FormatSpec::Align::Left));
-        static_assert(fmt::align::center == enum_cast(FormatSpec::Align::Middle));
-        static_assert(fmt::align::right  == enum_cast(FormatSpec::Align::Right));
-        fmt::format_specs spec;
-        memcpy(&spec, &BaseFmtSpec, sizeof(fmt::format_specs));
-        if (in)
-        {
-            spec.width = in->Width;
-            spec.precision = static_cast<int32_t>(in->Precision);
-            spec.alt = in->AlterForm;
-            if (in->ZeroPad)
-                spec.align = fmt::align::numeric;
-            else
-            {
-                CM_ASSUME(static_cast<uint8_t>(in->Alignment) < 4);
-                spec.align = static_cast<fmt::align_t>(in->Alignment);
-            }
-        }
-        return spec;
+        auto& data = *std::launder(reinterpret_cast<uint32_t*>(&spec));
+        data = (data & ~FillSizeMask) | (size << FillSizeOffset);
+    }
+    template<typename T>
+    static forceinline uint32_t GetFillSizeFrom(const T& spec) noexcept
+    {
+        const auto data = *reinterpret_cast<const uint32_t*>(&spec);
+        return (data & FillSizeMask) >> FillSizeOffset;
     }
 
+    COMMON_CONSTINIT inline static const fmt::format_specs BaseFmtSpec = {};
+    template<typename T>
+    static forceinline void ConvertSpecNoFill(fmt::format_specs& spec, const T& in) noexcept
+    {
+        static_assert(enum_cast(fmt::align::none)   == enum_cast(FormatSpec::Align::None));
+        static_assert(enum_cast(fmt::align::left)   == enum_cast(FormatSpec::Align::Left));
+        static_assert(enum_cast(fmt::align::center) == enum_cast(FormatSpec::Align::Middle));
+        static_assert(enum_cast(fmt::align::right)  == enum_cast(FormatSpec::Align::Right));
+        spec.width = in.Width;
+        spec.precision = static_cast<int32_t>(in.Precision);
+        if (in.AlterForm) spec.set_alt();
+        if (in.ZeroPad)
+            spec.set_align(fmt::align::numeric);
+        else
+        {
+            CM_ASSUME(static_cast<uint8_t>(in.Alignment) < 4);
+            spec.set_align(static_cast<fmt::align>(in.Alignment));
+        }
+    }
     template<typename T>
     static forceinline constexpr auto ConvertFill(char32_t ch) noexcept
     {
@@ -225,116 +232,114 @@ struct FormatterHelper : public FormatterBase
         const auto count = T::To(ch, T::MaxOutputUnit, tmp.data());
         return std::pair{ tmp, count };
     }
-    template<typename Char>
-    static forceinline void ConvertSpecFill(fmt::format_specs& spec, const FormatSpec& in) noexcept
+    template<typename Char, typename T>
+    static forceinline void ConvertSpecFill(fmt::format_specs& spec, const T& in) noexcept
     {
         IF_UNLIKELY(!in.ZeroPad && in.Fill > 127)
         {
             if constexpr (sizeof(Char) == 4)
             {
-                spec.fill = fmt::basic_string_view<char32_t>(reinterpret_cast<const char32_t*>(&in.Fill), 1);
+                spec.set_fill(fmt::basic_string_view<detail::ForceFill4>(reinterpret_cast<const detail::ForceFill4*>(&in.Fill), 1));
+                //spec.set_fill(fmt::basic_string_view<char32_t>(reinterpret_cast<const char32_t*>(&in.Fill), 1));
             }
             else if constexpr (sizeof(Char) == 2)
             {
-                // const auto [tmp, count] = ConvertFill<charset::detail::UTF16>(static_cast<char32_t>(in.Fill));
-                // spec.fill = fmt::basic_string_view<char16_t>(tmp.data(), count);
-                // currently only 16bit, simply take length as 1
-                spec.fill = fmt::basic_string_view<char32_t>(reinterpret_cast<const char32_t*>(&in.Fill), 1);
+                const auto [tmp, count] = ConvertFill<charset::detail::UTF16>(static_cast<char32_t>(in.Fill));
+                spec.set_fill(fmt::basic_string_view<detail::ForceFill4>(reinterpret_cast<const detail::ForceFill4*>(tmp.data()), count));
+                //spec.set_fill(fmt::basic_string_view<char16_t>(tmp.data(), count));
             }
             else if constexpr (sizeof(Char) == 1)
             {
-                // const auto [tmp, count] = ConvertFill<charset::detail::UTF8>(static_cast<char32_t>(in.Fill));
-                // spec.fill = fmt::basic_string_view<u8ch_t>(tmp.data(), count);
-                // currently only 16bit, simply mapped to 2/3 bytes
-                uint8_t tmp[3] = { 0 };
-                if (in.Fill < 0x800u) // 2 byte
-                {
-                    tmp[0] = uint8_t(0b11000000u | (in.Fill >> 6));
-                    tmp[1] = uint8_t(0x80u | (in.Fill & 0x3f));
-                    spec.fill = fmt::basic_string_view<char>(reinterpret_cast<const char*>(tmp), 2);
-                }
-                else // 3 byte
-                {
-                    tmp[0] = uint8_t(0b11100000 | ((in.Fill >> 12) & 0x0fu));
-                    tmp[1] = uint8_t(0x80u | ((in.Fill >> 6) & 0x3f));
-                    tmp[2] = uint8_t(0x80u | (in.Fill & 0x3f));
-                    spec.fill = fmt::basic_string_view<char>(reinterpret_cast<const char*>(tmp), 3);
-                }
+                const auto [tmp, count] = ConvertFill<charset::detail::UTF8>(static_cast<char32_t>(in.Fill));
+                spec.set_fill(fmt::basic_string_view<detail::ForceFill4>(reinterpret_cast<const detail::ForceFill4*>(tmp.data()), count));
+                //spec.set_fill(fmt::basic_string_view<u8ch_t>(tmp.data(), count));
             }
             else
                 static_assert(!AlwaysTrue<Char>);
         }
         else
-            spec.fill = in.ZeroPad ? '0' : static_cast<char>(in.Fill);
+            spec.set_fill(in.ZeroPad ? '0' : static_cast<char>(in.Fill));
     }
-    struct FillCount
+    static forceinline void ConvertSpecFillExtra(OpaqueFormatSpec& spec, bool zeroPad, char32_t fill) noexcept
     {
-        uint8_t Count32 : 2 = 0;
-        uint8_t Count16 : 2 = 0;
-        uint8_t Count8  : 2 = 0;
-        uint8_t Dummy   : 2 = 3;
-    };
-    static_assert(sizeof(FillCount) == sizeof(uint8_t));
+        if (!zeroPad && static_cast<uint32_t>(fill) > 127)
+        {
+            const auto [tmp16, count16] = ConvertFill<charset::detail::UTF16>(fill);
+            CM_ASSUME(count16 > 0);
+            CM_ASSUME(count16 <= 2);
+            for (uint8_t i = 0; i < 2; ++i)
+                spec.Fill16[i] = tmp16[i];
+            spec.Fill32[0] = fill;
+        }
+    }
     static forceinline void ConvertSpecFill(OpaqueFormatSpec& spec, bool zeroPad, char32_t fill) noexcept
     {
         // UTF7 is compatible with UTF8/UTF16/UTF32 in LE 
         if (zeroPad)
         {
-            spec.Real.Fill.Fill[0] = '0';
-            spec.Real.Fill.Count = 1;
+            spec.Real.Fill[0] = '0';
+            SetFillSizeTo(spec.Real, 1);
         }
-        else IF_LIKELY(fill == ' ') // fast pass
+        else IF_LIKELY(fill <= 127)
         {
-            spec.Real.Fill.Fill[0] = ' ';
-            spec.Real.Fill.Count = 1;
+            spec.Real.Fill[0] = static_cast<uint8_t>(fill);
+            SetFillSizeTo(spec.Real, 1);
         }
         else
         {
-            IF_LIKELY(fill < 127)
-            {
-                spec.Real.Fill.Fill[0] = static_cast<uint8_t>(fill);
-                spec.Real.Fill.Count = 1;
-            }
-            else
-            {
-                FillCount fillCount;
-                fillCount.Count32 = 1;
-                spec.Fill32[0] = fill;
-                {
-                    const auto [tmp, count] = ConvertFill<charset::detail::UTF16>(fill);
-                    CM_ASSUME(count < 2);
-                    fillCount.Count16 = count;
-                    for (uint8_t i = 0; i < count; ++i)
-                        spec.Fill16[i] = tmp[i];
-                }
-                {
-                    const auto [tmp, count] = ConvertFill<charset::detail::UTF8>(fill);
-                    CM_ASSUME(count < 4);
-                    fillCount.Count8 = count;
-                    for (uint8_t i = 0; i < count; ++i)
-                        spec.Real.Fill.Fill[i] = tmp[i];
-                }
-                memcpy_s(&spec.Real.Fill.Count, sizeof(spec.Real.Fill.Count), &fillCount, sizeof(fillCount));
-                Ensures(spec.Real.Fill.Count > 1);
-            }
+            const auto [tmp8, count8] = ConvertFill<charset::detail::UTF8>(fill);
+            CM_ASSUME(count8 > 0);
+            CM_ASSUME(count8 <= 4);
+            for (uint8_t i = 0; i < count8; ++i)
+                spec.Real.Fill[i] = tmp8[i];
+            SetFillSizeTo(spec.Real, count8);
+            const auto [tmp16, count16] = ConvertFill<charset::detail::UTF16>(fill);
+            CM_ASSUME(count16 > 0);
+            CM_ASSUME(count16 <= 2);
+            // UTF16 surrogates is U+010000 ~ U+10FFFF, which is 4B in UTF8 (11110uvv 10vvwwww 10xxxxyy 10yyzzzz)
+            Ensures(count16 == (count8 == 4 ? 2u : 1u));
+            for (uint8_t i = 0; i < 2; ++i)
+                spec.Fill16[i] = tmp16[i];
+            spec.Fill32[0] = fill;
         }
     }
-    template<typename Char>
-    static forceinline fmt::format_specs ConvertSpecBasic(const FormatSpec* in) noexcept
+#if COMMON_COMPILER_GCC
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
+    //template<typename Char, typename T>
+    //static forceinline fmt::format_specs ConvertSpecBasic(const T* in) noexcept
+    //{
+    //    fmt::format_specs spec;
+    //    if (in)
+    //    {
+    //        memcpy(&spec, &BaseFmtSpec, sizeof(fmt::basic_specs));
+    //        ConvertSpecNoFill(spec, *in);
+    //        ConvertSpecFill<Char>(spec, *in);
+    //    }
+    //    else
+    //        memcpy(&spec, &BaseFmtSpec, sizeof(fmt::format_specs));
+    //    return spec;
+    //}
+    template<typename Char, typename T>
+    static forceinline void ConstructBasicAt(fmt::format_specs& spec, const T& in) noexcept
     {
-        fmt::format_specs spec = ConvertSpecNoFill(in);
-        if (in)
-            ConvertSpecFill<Char>(spec, *in);
-        return spec;
+        memcpy(&static_cast<fmt::basic_specs&>(spec), &BaseFmtSpec, sizeof(fmt::basic_specs));
+        // static_cast<fmt::basic_specs&>(spec) = BaseFmtSpec;
+        ConvertSpecNoFill(spec, in);
+        ConvertSpecFill<Char>(spec, in);
     }
-    static_assert(fmt::sign::none  == enum_cast(FormatSpec::Sign::None));
-    static_assert(fmt::sign::minus == enum_cast(FormatSpec::Sign::Neg));
-    static_assert(fmt::sign::plus  == enum_cast(FormatSpec::Sign::Pos));
-    static_assert(fmt::sign::space == enum_cast(FormatSpec::Sign::Space));
-    static forceinline constexpr fmt::sign_t ConvertSpecSign(const FormatSpec::Sign sign) noexcept
+#if COMMON_COMPILER_GCC
+#pragma GCC diagnostic pop
+#endif
+    static_assert(enum_cast(fmt::sign::none)  == enum_cast(FormatSpec::Sign::None));
+    static_assert(enum_cast(fmt::sign::minus) == enum_cast(FormatSpec::Sign::Neg));
+    static_assert(enum_cast(fmt::sign::plus)  == enum_cast(FormatSpec::Sign::Pos));
+    static_assert(enum_cast(fmt::sign::space) == enum_cast(FormatSpec::Sign::Space));
+    static forceinline constexpr fmt::sign ConvertSpecSign(const FormatSpec::Sign sign) noexcept
     {
         CM_ASSUME(static_cast<uint8_t>(sign) < 4);
-        return static_cast<fmt::sign_t>(sign);
+        return static_cast<fmt::sign>(sign);
     }
     static constexpr uint32_t IntPrefixes[4] = { 0, 0, 0x1000000u | '+', 0x1000000u | ' ' };
     static forceinline constexpr uint32_t ConvertSpecIntSign(FormatSpec::Sign sign) noexcept
@@ -342,10 +347,10 @@ struct FormatterHelper : public FormatterBase
         CM_ASSUME(static_cast<uint8_t>(sign) < 4);
         return IntPrefixes[enum_cast(sign)];
     }
-    static forceinline constexpr uint32_t ConvertSpecIntSign(fmt::sign_t sign) noexcept
+    static forceinline constexpr uint32_t ConvertSpecIntSign(fmt::sign sign) noexcept
     {
         CM_ASSUME(static_cast<uint8_t>(sign) < 4);
-        return IntPrefixes[sign];
+        return IntPrefixes[enum_cast(sign)];
     }
     
     static constexpr auto IntPresentPack = BitsPackFrom<4>(
@@ -372,8 +377,8 @@ struct FormatterHelper : public FormatterBase
         {
             static_assert(!AlwaysTrue<T>);
         }
-        out.type = IntPresentPack.Get<fmt::presentation_type>(typeIdx);
-        out.upper = (typeIdx == 2 || typeIdx == 5); // B, X
+        out.set_type(IntPresentPack.Get<fmt::presentation_type>(typeIdx));
+        if (typeIdx == 2 || typeIdx == 5) out.set_upper(); // B, X
         return;
     }
 
@@ -399,8 +404,8 @@ struct FormatterHelper : public FormatterBase
         {
             static_assert(!AlwaysTrue<T>);
         }
-        out.type = FloatPresentPack.Get<fmt::presentation_type>(typeIdx >> 1);
-        out.upper = (typeIdx & 0x1u) ? true : false;
+        out.set_type(FloatPresentPack.Get<fmt::presentation_type>(typeIdx >> 1));
+        if (typeIdx & 0x1u) out.set_upper();
         return;
     }
 
@@ -424,11 +429,7 @@ struct FormatterHelper : public FormatterBase
         if constexpr (std::is_same_v<Dst, Src>)
         {
             if (spec)
-            {
-                /*auto fmtSpec = ConvertSpecBasic<Dst>(*spec);
-                fmtSpec.type = fmt::presentation_type::string;*/
                 fmt::detail::write<Dst>(std::back_inserter(ret), fmt::basic_string_view<Dst>(str, len), *spec);
-            }
             else
                 ret.append(str, len);
         }
@@ -483,20 +484,24 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
 {
     IF_UNLIKELY(!ArgChecker::CheckCompatible(disp, real))
         return false;
-    if (src)
-        FormatterHelper::ConvertSpecFill(dst, src->ZeroPad, static_cast<char32_t>(src->Fill));
-    else
-        FormatterHelper::ConvertSpecFill(dst, false, U' ');
 
-    fmt::format_specs spec = FormatterHelper::ConvertSpecNoFill(src);
+    auto& spec = *std::launder(reinterpret_cast<fmt::format_specs*>(&dst.Real));
+    if (src)
+    {
+        FormatterHelper::ConvertSpecFillExtra(dst, src->ZeroPad, static_cast<char32_t>(src->Fill));
+        FormatterHelper::ConstructBasicAt<char>(spec, *src);
+    }
+    else
+        memcpy(&spec, &FormatterHelper::BaseFmtSpec, sizeof(fmt::format_specs));
+    //fmt::format_specs spec = FormatterHelper::ConvertSpecBasic<char>(src);
         
     switch (const auto realType = real & ArgRealType::BaseTypeMask; realType)
     {
     case ArgRealType::String:
         if (disp == ArgDispType::Pointer)
-            spec.type = fmt::presentation_type::pointer;
+            spec.set_type(fmt::presentation_type::pointer);
         else
-            spec.type = fmt::presentation_type::string;
+            spec.set_type(fmt::presentation_type::string);
         break;
     case ArgRealType::Bool:
         IF_UNLIKELY(disp == ArgDispType::Integer || disp == ArgDispType::Numeric)
@@ -505,22 +510,22 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
                 FormatterHelper::FillSpecIntPresent(spec, *src);
         }
         else
-            spec.type = fmt::presentation_type::string;
+            spec.set_type(fmt::presentation_type::string);
         break;
     case ArgRealType::Ptr:
-        spec.type = fmt::presentation_type::pointer;
+        spec.set_type(fmt::presentation_type::pointer);
         break;
     case ArgRealType::Float:
         if (src)
         {
             FormatterHelper::FillSpecFloatPresent(spec, *src);
-            spec.sign = FormatterHelper::ConvertSpecSign(src->SignFlag);
+            spec.set_sign(FormatterHelper::ConvertSpecSign(src->SignFlag));
         }
         break;
     case ArgRealType::Char:
         IF_LIKELY(disp == ArgDispType::Char || disp == ArgDispType::Any)
         {
-            spec.type = fmt::presentation_type::string;
+            spec.set_type(fmt::presentation_type::string);
             break;
         }
         [[fallthrough]];
@@ -533,7 +538,6 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src
     default:
         return false;
     }
-    memcpy_s(&dst.Real.Base, sizeof(OpaqueFormatSpecBase), &spec, sizeof(OpaqueFormatSpecBase));
     return true;
 }
 
@@ -551,35 +555,36 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view s
     IF_UNLIKELY(!ArgChecker::CheckCompatible(disp, real))
         return false;
 
-    FormatterHelper::ConvertSpecFill(dst, spec_.ZeroPad, static_cast<char32_t>(spec_.Fill));
-
-    fmt::format_specs spec = FormatterHelper::ConvertSpecNoFill(&spec_);
+    auto& spec = *std::launder(reinterpret_cast<fmt::format_specs*>(&dst.Real));
+    FormatterHelper::ConvertSpecFillExtra(dst, spec_.ZeroPad, static_cast<char32_t>(spec_.Fill));
+    FormatterHelper::ConstructBasicAt<char>(spec, spec_);
+    //fmt::format_specs spec = FormatterHelper::ConvertSpecBasic<char>(&spec_);
 
     switch (const auto realType = real & ArgRealType::BaseTypeMask; realType)
     {
     case ArgRealType::String:
         if (disp == ArgDispType::Pointer)
-            spec.type = fmt::presentation_type::pointer;
+            spec.set_type(fmt::presentation_type::pointer);
         else
-            spec.type = fmt::presentation_type::string;
+            spec.set_type(fmt::presentation_type::string);
         break;
     case ArgRealType::Bool:
         IF_UNLIKELY(disp == ArgDispType::Integer || disp == ArgDispType::Numeric)
             FormatterHelper::FillSpecIntPresent(spec, spec_);
         else
-            spec.type = fmt::presentation_type::string;
+            spec.set_type(fmt::presentation_type::string);
         break;
     case ArgRealType::Ptr:
-        spec.type = fmt::presentation_type::pointer;
+        spec.set_type(fmt::presentation_type::pointer);
         break;
     case ArgRealType::Float:
         FormatterHelper::FillSpecFloatPresent(spec, spec_);
-        spec.sign = FormatterHelper::ConvertSpecSign(spec_.SignFlag);
+        spec.set_sign(FormatterHelper::ConvertSpecSign(spec_.SignFlag));
         break;
     case ArgRealType::Char:
         IF_LIKELY(disp == ArgDispType::Char || disp == ArgDispType::Any)
         {
-            spec.type = fmt::presentation_type::string;
+            spec.set_type(fmt::presentation_type::string);
             break;
         }
         [[fallthrough]];
@@ -591,7 +596,6 @@ bool FormatterExecutor::ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view s
     default:
         return false;
     }
-    memcpy_s(&dst.Real.Base, sizeof(OpaqueFormatSpecBase), &spec, sizeof(OpaqueFormatSpecBase));
     return true;
 }
 
@@ -604,34 +608,44 @@ struct WrapSpec
     uint8_t Data[sizeof(T)] = {};
     WrapSpec(const OpaqueFormatSpec& spec) noexcept
     {
-        IF_LIKELY (spec.Real.Fill.Count == 1) // already has compatible fill
-        {
+        if constexpr (sizeof(Char) == 1) // always the correct fill
             Ptr = reinterpret_cast<const T*>(&spec);
-        }
         else
         {
-            memcpy(&Data, &spec.Real.Base, sizeof(OpaqueFormatSpecBase));
-            auto& fill = std::launder(reinterpret_cast<OpaqueFormatSpecReal*>(Data))->Fill;
-            const auto fillCount = *reinterpret_cast<const FormatterHelper::FillCount*>(spec.Real.Fill.Count);
-            // plain copy is faster than fmt's constructor
-            if constexpr (sizeof(Char) == 4)
+            const auto fillsize = FormatterHelper::GetFillSizeFrom(spec);
+            IF_LIKELY(fillsize <= 1) // already has compatible fill
             {
-                memcpy(&fill.Fill, &spec.Fill32, sizeof(spec.Fill32));
-                fill.Count = 1; // always 1
-            }
-            else if constexpr (sizeof(Char) == 2)
-            {
-                memcpy(&fill.Fill, &spec.Fill16, sizeof(spec.Fill16));
-                fill.Count = fillCount.Count16;
-            }
-            else if constexpr (sizeof(Char) == 1)
-            {
-                memcpy(&fill.Fill, &spec.Real.Fill.Fill, sizeof(spec.Real.Fill.Fill));
-                fill.Count = fillCount.Count8;
+                Ptr = reinterpret_cast<const T*>(&spec);
             }
             else
-                static_assert(!AlwaysTrue<Char>);
-            Ptr = reinterpret_cast<const T*>(Data);
+            {
+                memcpy(&Data, &spec.Real, sizeof(T));
+                const auto outspec = std::launder(reinterpret_cast<T*>(Data));
+                if constexpr (sizeof(Char) == 4)
+                    outspec->set_fill(fmt::basic_string_view<detail::ForceFill4>{ reinterpret_cast<const detail::ForceFill4*>(spec.Fill32), 1 }); // length always 1
+                else if constexpr (sizeof(Char) == 2)
+                    outspec->set_fill(fmt::basic_string_view<detail::ForceFill4>{ reinterpret_cast<const detail::ForceFill4*>(spec.Fill16), fillsize == 4u ? 2u : 1u }); // surrogates when UTF8 sizxe is 4
+                else
+                    static_assert(!AlwaysTrue<Char>);
+                Ptr = outspec;
+                /*
+                // plain copy is faster than fmt's constructor
+                const auto offset = spec.Real.Fill - spec.Real.Data;
+                if constexpr (sizeof(Char) == 4)
+                {
+                    memcpy(Data + offset, &spec.Fill32, sizeof(spec.Fill32));
+                    FormatterHelper::SetFillSizeTo(Data, 1); // always 1
+                }
+                else if constexpr (sizeof(Char) == 2)
+                {
+                    memcpy(Data + offset, &spec.Fill16, sizeof(spec.Fill16));
+                    FormatterHelper::SetFillSizeTo(Data, fillsize == 4 ? 2 : 1); // surrogates when UTF8 sizxe is 4
+                }
+                else
+                    static_assert(!AlwaysTrue<Char>);
+                Ptr = reinterpret_cast<const T*>(Data);
+                */
+            }
         }
     }
 };
@@ -665,18 +679,18 @@ void CommonFormatter<Char>::PutInteger(StrType& ret, uint32_t val, bool isSigned
 {
     WrapSpec<Char> spec_(spec);
     const auto& fmtSpec = *spec_.Ptr;
-    const auto prefix = FormatterHelper::ProcessIntSign(val, isSigned, fmtSpec.sign);
+    const auto prefix = FormatterHelper::ProcessIntSign(val, isSigned, fmtSpec.sign());
     const fmt::detail::write_int_arg<uint32_t> arg{ val, prefix };
-    fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec, {});
+    fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec);
 }
 template<typename Char>
 void CommonFormatter<Char>::PutInteger(StrType& ret, uint64_t val, bool isSigned, const OpaqueFormatSpec& spec)
 {
     WrapSpec<Char> spec_(spec);
     const auto& fmtSpec = *spec_.Ptr;
-    const auto prefix = FormatterHelper::ProcessIntSign(val, isSigned, fmtSpec.sign);
+    const auto prefix = FormatterHelper::ProcessIntSign(val, isSigned, fmtSpec.sign());
     const fmt::detail::write_int_arg<uint64_t> arg{ val, prefix };
-    fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec, {});
+    fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec);
 }
 
 template<typename Char>
@@ -738,32 +752,32 @@ inline void Formatter<Char>::PutColorArg(StrType& ret, ScreenColor color, const 
             {
                 ret.push_back('#');
                 fmt::format_specs fmtSpec = {};
-                fmtSpec.type = fmt::presentation_type::hex;
-                fmtSpec.upper = false;
-                fmtSpec.fill = '0';
+                fmtSpec.set_type(fmt::presentation_type::hex);
+                //fmtSpec.upper = false;
+                fmtSpec.set_fill('0');
                 fmtSpec.width = 6;
                 const uint32_t color24 = (color.Value[0] << 0) | (color.Value[1] << 8) | (color.Value[2] << 16);
                 fmt::detail::write_int_arg<uint32_t> arg{ color24, 0 };
-                fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec, {});
+                fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec);
             }
             else
             {
                 char head[] = "rgb(";
                 ret.append(&head[0], &head[4]);
                 fmt::format_specs fmtSpec = {};
-                fmtSpec.type = fmt::presentation_type::dec;
+                fmtSpec.set_type(fmt::presentation_type::dec);
                 fmt::detail::write_int_arg<uint32_t> arg{ 0, 0 };
 
                 arg.abs_value = color.Value[0];
-                fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec, {});
+                fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec);
                 ret.push_back(',');
 
                 arg.abs_value = color.Value[1];
-                fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec, {});
+                fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec);
                 ret.push_back(',');
 
                 arg.abs_value = color.Value[2];
-                fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec, {});
+                fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec);
                 ret.push_back(')');
             }
             break;
@@ -779,8 +793,9 @@ void Formatter<Char>::PutString(StrType& ret, const void* str, size_t len, Forma
 {
     if (spec)
     {
-        auto fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(spec);
-        fmtSpec.type = fmt::presentation_type::string;
+        fmt::format_specs fmtSpec;
+        FormatterHelper::ConstructBasicAt<Char>(fmtSpec, *spec);
+        fmtSpec.set_type(fmt::presentation_type::string);
         switch (type)
         {
         case FormatterExecutor::StringType::UTF8:  return FormatterHelper::PutString(ret, reinterpret_cast<const char    *>(str), len, &fmtSpec);
@@ -801,57 +816,75 @@ void Formatter<Char>::PutString(StrType& ret, const void* str, size_t len, Forma
 template<typename Char>
 void Formatter<Char>::PutInteger(StrType& ret, uint32_t val, bool isSigned, const FormatSpec* spec)
 {
-    fmt::format_specs fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(spec);
-    if (spec)
-    {
-        FormatterHelper::FillSpecIntPresent(fmtSpec, *spec);
-    }
     const auto prefix = FormatterHelper::ProcessIntSign(val, isSigned, spec ? spec->SignFlag : FormatSpec::Sign::None);
     const fmt::detail::write_int_arg<uint32_t> arg{ val, prefix };
-    fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec, {});
+    if (spec)
+    {
+        fmt::format_specs fmtSpec;
+        FormatterHelper::ConstructBasicAt<Char>(fmtSpec, *spec);
+        FormatterHelper::FillSpecIntPresent(fmtSpec, *spec);
+        fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec);
+    }
+    else
+        fmt::detail::write_int<Char>(std::back_inserter(ret), arg, FormatterHelper::BaseFmtSpec);
 }
 template<typename Char>
 void Formatter<Char>::PutInteger(StrType& ret, uint64_t val, bool isSigned, const FormatSpec* spec)
 {
-    fmt::format_specs fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(spec);
-    if (spec)
-    {
-        FormatterHelper::FillSpecIntPresent(fmtSpec, *spec);
-    }
     const auto prefix = FormatterHelper::ProcessIntSign(val, isSigned, spec ? spec->SignFlag : FormatSpec::Sign::None);
     const fmt::detail::write_int_arg<uint64_t> arg{ val, prefix };
-    fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec, {});
+    if (spec)
+    {
+        fmt::format_specs fmtSpec;
+        FormatterHelper::ConstructBasicAt<Char>(fmtSpec, *spec);
+        FormatterHelper::FillSpecIntPresent(fmtSpec, *spec);
+        fmt::detail::write_int<Char>(std::back_inserter(ret), arg, fmtSpec);
+    }
+    else
+        fmt::detail::write_int<Char>(std::back_inserter(ret), arg, FormatterHelper::BaseFmtSpec);
 }
 
 template<typename Char>
 void Formatter<Char>::PutFloat(StrType& ret, float val, const FormatSpec* spec)
 {
-    fmt::format_specs fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(spec);
     if (spec)
     {
+        fmt::format_specs fmtSpec;
+        FormatterHelper::ConstructBasicAt<Char>(fmtSpec, *spec);
         FormatterHelper::FillSpecFloatPresent(fmtSpec, *spec);
-        fmtSpec.sign = FormatterHelper::ConvertSpecSign(spec->SignFlag);
+        fmtSpec.set_sign(FormatterHelper::ConvertSpecSign(spec->SignFlag));
+        fmt::detail::write_float<Char>(std::back_inserter(ret), val, fmtSpec, {});
     }
-    fmt::detail::write_float<Char>(std::back_inserter(ret), val, fmtSpec, {});
+    else
+        fmt::detail::write_float<Char>(std::back_inserter(ret), val, FormatterHelper::BaseFmtSpec, {});
 }
 template<typename Char>
 void Formatter<Char>::PutFloat(StrType& ret, double val, const FormatSpec* spec)
 {
-    fmt::format_specs fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(spec);
     if (spec)
     {
+        fmt::format_specs fmtSpec;
+        FormatterHelper::ConstructBasicAt<Char>(fmtSpec, *spec);
         FormatterHelper::FillSpecFloatPresent(fmtSpec, *spec);
-        fmtSpec.sign = FormatterHelper::ConvertSpecSign(spec->SignFlag);
+        fmtSpec.set_sign(FormatterHelper::ConvertSpecSign(spec->SignFlag));
+        fmt::detail::write_float<Char>(std::back_inserter(ret), val, fmtSpec, {});
     }
-    fmt::detail::write_float<Char>(std::back_inserter(ret), val, fmtSpec, {});
+    else
+        fmt::detail::write_float<Char>(std::back_inserter(ret), val, FormatterHelper::BaseFmtSpec, {});
 }
 
 template<typename Char>
 void Formatter<Char>::PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec)
 {
-    fmt::format_specs fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(spec);
-    fmtSpec.type = fmt::presentation_type::pointer;
-    fmt::detail::write_ptr<Char>(std::back_inserter(ret), val, &fmtSpec);
+    if (spec)
+    {
+        fmt::format_specs fmtSpec;
+        FormatterHelper::ConstructBasicAt<Char>(fmtSpec, *spec);
+        fmtSpec.set_type(fmt::presentation_type::pointer);
+        fmt::detail::write_ptr<Char>(std::back_inserter(ret), val, &fmtSpec);
+    }
+    else
+        fmt::detail::write_ptr<Char>(std::back_inserter(ret), val, &FormatterHelper::BaseFmtSpec);
 }
 
 template<typename Char>

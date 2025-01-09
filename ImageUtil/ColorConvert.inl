@@ -3468,7 +3468,7 @@ struct G16ToG8_NEON
         const U16x8 muler((uint16_t)0xff01u); // y => x / 0xffff * 0xff => x / 257 => ((x << 24) / 257) >> 24 => (x * (1 << 24) / 257) >> 24 ~> (x * 0xff01) >> 24
 
         const auto mid0 = dat0.MulX(muler).As<U16x8>();
-        const auto mid1 = dat0.MulX(muler).As<U16x8>();
+        const auto mid1 = dat1.MulX(muler).As<U16x8>();
 # if COMMON_SIMD_LV >= 200
         const auto val0 = vreinterpretq_u8_u16(vuzp2q_u16(mid0[0], mid0[1]));
         const auto val1 = vreinterpretq_u8_u16(vuzp2q_u16(mid1[0], mid1[1]));

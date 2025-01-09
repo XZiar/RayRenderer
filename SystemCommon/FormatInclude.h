@@ -62,19 +62,12 @@ struct FormatSpec
 #   pragma warning(push)
 #   pragma warning(disable:4324)
 #endif
-struct OpaqueFormatSpecBase
-{
-    uint8_t Dummy[11] = { 0 };
-};
-struct OpaqueFormatSpecFill
-{
-    uint8_t Fill[4] = { 0 };
-    uint8_t Count = 0;
-};
 struct alignas(4) OpaqueFormatSpecReal
 {
-    OpaqueFormatSpecBase Base;
-    OpaqueFormatSpecFill Fill;
+    uint8_t Data[8] = { 0 };
+    uint8_t Fill[4] = { 0 };
+    uint8_t Padding[4] = { 0 };
+    uint8_t Extra[8] = { 0 };
 };
 struct alignas(4) OpaqueFormatSpec
 {

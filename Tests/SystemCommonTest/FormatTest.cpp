@@ -651,13 +651,31 @@ TEST(Format, ParseString)
     }
     {
         constexpr auto ret = FormatterParser::ParseString("{:\xf0\xa4\xad\xa2<s}"sv);
-        CheckFail(2, FillNotSingleCP);
-        CheckIdxArgCount(ret, 1, 1);
+        CheckSuc();
+        CheckIdxArgType(ret, 1, String);
+        uint16_t idx = 0;
+        FormatterParser::FormatSpec spec
+        {
+            .Fill = U'𤭢',
+            .Type = 's',
+            .Alignment = FormatterParser::FormatSpec::Align::Left,
+        };
+        CheckOp(IdxArg, 0, &spec);
+        CheckOpFinish();
     }
     {
         constexpr auto ret = FormatterParser::ParseString(u"{:\xd852\xdf62<s}"sv);
-        CheckFail(2, FillNotSingleCP);
-        CheckIdxArgCount(ret, 1, 1);
+        CheckSuc();
+        CheckIdxArgType(ret, 1, String);
+        uint16_t idx = 0;
+        FormatterParser::FormatSpec spec
+        {
+            .Fill = U'𤭢',
+            .Type = 's',
+            .Alignment = FormatterParser::FormatSpec::Align::Left,
+        };
+        CheckOp(IdxArg, 0, &spec);
+        CheckOpFinish();
     }
     {
         constexpr auto ret = FormatterParser::ParseString(u"{:\xdf52<s}"sv);
@@ -671,8 +689,17 @@ TEST(Format, ParseString)
     }
     {
         constexpr auto ret = FormatterParser::ParseString(U"{:𤭢<s}"sv);
-        CheckFail(2, FillNotSingleCP);
-        CheckIdxArgCount(ret, 1, 1);
+        CheckSuc();
+        CheckIdxArgType(ret, 1, String);
+        uint16_t idx = 0;
+        FormatterParser::FormatSpec spec
+        {
+            .Fill = U'𤭢',
+            .Type = 's',
+            .Alignment = FormatterParser::FormatSpec::Align::Left,
+        };
+        CheckOp(IdxArg, 0, &spec);
+        CheckOpFinish();
     }
     {
         constexpr auto ret = FormatterParser::ParseString("{{"sv);
@@ -1191,42 +1218,36 @@ TEST(Format, Formatting)
         const auto ref = fmt::format("{},{:>6},{:_^7},{x}", "hello", "Hello", "World"sv, fmt::arg("x", "world"));
         const auto ret = ToString(FmtString("{},{:>6},{:_^7},{x}"sv), "hello", u"Hello", U"World"sv, NAMEARG("x")("world"sv));
         //const auto ret = ToString2("{},{:>6},{:_^7},{x}"sv, "hello", u"Hello", U"World"sv, NAMEARG("x")("world"sv));
+        EXPECT_EQ(ref, "hello, Hello,_World_,world");
         EXPECT_EQ(ret, ref);
-        EXPECT_EQ(ret, "hello, Hello,_World_,world");
     }
     {
         const auto ref = fmt::format("{},{:b},{:#X},{:05o},{x}", 13, uint8_t(64), int64_t(65535), 042, fmt::arg("x", -99));
         const auto ret = ToString(FmtString("{},{:b},{:#X},{:05o},{x}"sv), 13, uint8_t(64), int64_t(65535), 042, NAMEARG("x")(-99));
+        EXPECT_EQ(ref, "13,1000000,0XFFFF,00042,-99");
         EXPECT_EQ(ret, ref);
-        EXPECT_EQ(ret, "13,1000000,0XFFFF,00042,-99");
     }
     {
         const auto ref = fmt::format("{},{:g},{:f},{:+010.4g},{x}", 0.0, 4.9014e6, -392.5f, 392.65, fmt::arg("x", 392.65));
         const auto ret = ToString(FmtString("{},{:g},{:f},{:+010.4g},{x}"sv), 0.0, 4.9014e6, -392.5f, 392.65, NAMEARG("x")(392.65));
         //const auto ret = ToString2("{},{:g},{:f},{:+010.4g},{x}"sv, 0.0, 4.9014e6, -392.5f, 392.65, NAMEARG("x")(392.65));
+        EXPECT_EQ(ref, "0,4.9014e+06,-392.500000,+0000392.6,392.65");
         EXPECT_EQ(ret, ref);
-        EXPECT_EQ(ret, "0,4.9014e+06,-392.500000,+0000392.6,392.65");
     }
     {
         const auto ptr = reinterpret_cast<const int*>(uintptr_t(1));
         const auto ref = fmt::format("{},{}", (void*)ptr, false);
         const auto ret = ToString(FmtString("{},{}"sv), ptr, false);
+        EXPECT_EQ(ref, "0x1,false");
         EXPECT_EQ(ret, ref);
-        EXPECT_EQ(ret, "0x1,false");
-    }
-    {
-        const auto ref = fmt::format("{:<<3d},{:\xe6\x88\x91^4d},{},{:#X}", true, (uint16_t)u'a', false, 'c');
-        const auto ret = ToString(FmtString("{:<<3d},{:\xe6\x88\x91^4d},{},{:#X}"sv), true, u'a', false, 'c');
-        EXPECT_EQ(ret, ref);
-        EXPECT_EQ(ret, "1<<,我97我,false,0X63");
     }
     {
         const auto ref = fmt::format(u"{},{},{},{},{:g},{:f},{:+010.4g},{x}"sv,
             u"hello", u"Hello", u"World"sv, 0.0, 4.9014e6, -392.5f, 392.65, fmt::arg(u"x", 392.65));
         const auto ret = ToString(FmtString(u"{},{},{},{},{:g},{:f},{:+010.4g},{x}"sv),
             "hello", u"Hello", U"World"sv, 0.0, 4.9014e6, -392.5f, 392.65, NAMEARG("x")(392.65));
+        EXPECT_EQ(ref, u"hello,Hello,World,0,4.9014e+06,-392.500000,+0000392.6,392.65");
         EXPECT_EQ(ret, ref);
-        EXPECT_EQ(ret, u"hello,Hello,World,0,4.9014e+06,-392.500000,+0000392.6,392.65");
     }
     {
         int32_t datI32[4] = { 1,-3,9,0 };
@@ -1239,8 +1260,8 @@ TEST(Format, Formatting)
         common::span<const double> spanF64(datF64);
         const auto ref = fmt::format(u"{},{},{},{}"sv, spanI32, spanU64, spanF32, spanF64);
         const auto ret = ToString(FmtString(u"{},{},{},{}"sv), spanI32, spanU64, spanF32, spanF64);
+        EXPECT_EQ(ref, u"[1, -3, 9, 0],[996, 510, 4294967295, 0],[1, -3, -0],[0, 1e+51, -2e-50]");
         EXPECT_EQ(ret, ref);
-        EXPECT_EQ(ret, u"[1, -3, 9, 0],[996, 510, 4294967295, 0],[1, -3, -0],[0, 1e+51, -2e-50]");
     }
     {
         const auto ret = ToString(FmtString("{},{}"sv), TypeC{}, TypeD{});
@@ -1258,6 +1279,48 @@ TEST(Format, Formatting)
         const auto ref = fmt::format(std::locale::classic(), "{0:%Y-%m-%dT%H:%M:%S}|{0:%Y-%m-%dT%H:%M:%S}|{1:%Y-%m-%d %H:%M:%S}|{2:%Y-%m-%d %j=%b %U-%w %a %H:%M:%S}"sv, t1, t2, GetFmtTime(t3));
         const auto ret = ToString(FmtString("{}|{0:T}|{1:T%Y-%m-%d %H:%M:%S}|{2:T%Y-%m-%d %j=%b %U-%w %a %H:%M:%S}"sv), t1, t2, t3);
         EXPECT_EQ(ret, ref);
+    }
+}
+
+TEST(Format, FormatUTF)
+{
+    {
+        const auto ref = fmt::format("{:<<3d},{:\xe6\x88\x91^4d},{:\xf0\xa4\xad\xa2<4d},{},{:#X}", true, (uint16_t)u'a', -1, false, 'c');
+        const auto ret = ToString(FmtString("{:<<3d},{:\xe6\x88\x91^4d},{:\xf0\xa4\xad\xa2<4d},{},{:#X}"sv), true, (uint16_t)u'a', -1, false, 'c');
+        auto cachedFmter = FormatSpecCacher::CreateFrom(FmtString("{:<<3d},{:\xe6\x88\x91^4d},{:\xf0\xa4\xad\xa2<4d},{},{:#X}"sv), true, (uint16_t)u'a', -1, false, 'c');
+        std::string ret2;
+        cachedFmter.Format(ret2, true, (uint16_t)u'a', -1, false, 'c');
+        EXPECT_EQ(ref, "1<<,我97我,-1𤭢𤭢,false,0X63");
+        EXPECT_EQ(ret, ref);
+        EXPECT_EQ(ret2, ref);
+    }
+    {
+        const auto ref = fmt::format(U"{:我^4d},{:𤭢<4d},{},{:#X}", (uint16_t)u'a', -1, false, (uint8_t)'c');
+        const auto ret = ToString(FmtString(U"{:我^4d},{:𤭢<4d},{},{:#X}"sv), (uint16_t)u'a', -1, false, (uint8_t)'c');
+        auto cachedFmter = FormatSpecCacher::CreateFrom(FmtString(U"{:我^4d},{:𤭢<4d},{},{:#X}"), (uint16_t)u'a', -1, false, (uint8_t)'c');
+        std::u32string ret2;
+        cachedFmter.Format(ret2, (uint16_t)u'a', -1, false, (uint8_t)'c');
+        EXPECT_EQ(ref, U"我97我,-1𤭢𤭢,false,0X63");
+        EXPECT_EQ(ret, ref);
+        EXPECT_EQ(ret2, ref);
+    }
+    {
+        const auto ref = fmt::format(u"{:我^4d},{},{:#X}", (uint16_t)u'a', false, (uint8_t)'c');
+        const auto ret = ToString(FmtString(u"{:我^4d},{},{:#X}"sv), (uint16_t)u'a', false, (uint8_t)'c');
+        EXPECT_EQ(ref, u"我97我,false,0X63");
+        EXPECT_EQ(ret, ref);
+    }
+    {
+        //const auto ref = fmt::format(u"{:𤭢^4d},{},{:#X}", (uint16_t)u'a', false, (uint8_t)'c');
+        const auto ret = ToString(FmtString(u"{:𤭢^4d},{},{:#X}"sv), (uint16_t)u'a', false, (uint8_t)'c');
+        EXPECT_EQ(ret, u"𤭢97𤭢,false,0X63");
+        //EXPECT_EQ(ret, ref);
+    }
+    {
+        auto cachedFmter = FormatSpecCacher::CreateFrom(FmtString(u"{:我^4d},{:𤭢<4d},{},{:#X}"), (uint16_t)u'a', -1, false, (uint8_t)'c');
+        std::u16string ret;
+        cachedFmter.Format(ret, (uint16_t)u'a', -1, false, (uint8_t)'c');
+        EXPECT_EQ(ret, u"我97我,-1𤭢𤭢,false,0X63");
     }
 }
 

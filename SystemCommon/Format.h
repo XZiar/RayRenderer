@@ -588,21 +588,12 @@ struct FormatterParser
         return (common::is_constant_evaluated(true) ? valid : CM_UNPREDICT_BOOL(valid)) ? lutVal : FormatSpec::Sign::None;
     }
 
-    // fmt current limit fill in 16bit for non-utf8, so apply to all
-    static forceinline constexpr bool TryPutFill(ParseResultBase& result, FormatSpec& fmtSpec, uint32_t offset, uint32_t ch) noexcept
+    static forceinline constexpr bool TryPutFill([[maybe_unused]] ParseResultBase& result, FormatSpec& fmtSpec, [[maybe_unused]] uint32_t offset, uint32_t ch) noexcept
     {
-        IF_LIKELY(ch <= UINT16_MAX)
-        {
-            fmtSpec.Fill = ch;
-            if (ch != ' ')
-                fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::Fill;
-            return true;
-        }
-        else
-        {
-            result.SetError(offset, ParseResultBase::ErrorCode::FillNotSingleCP);
-            return false;
-        }
+        fmtSpec.Fill = ch;
+        if (ch != ' ')
+            fmtSpec.NonDefaultFlag |= FormatSpec::NonDefaultFlags::Fill;
+        return true;
     }
 
     static constexpr auto CommonColorMap26 = []()
