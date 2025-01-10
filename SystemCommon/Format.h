@@ -1733,6 +1733,7 @@ struct OpHolder<Char, 0>
 };
 
 struct CompileTimeFormatter {};
+struct CustomFormatterTag {};
 
 template<typename Char, uint16_t OpCount_, uint8_t NamedArgCount_, uint8_t IdxArgCount_>
 struct COMMON_EMPTY_BASES TrimedResult : public CompileTimeFormatter, public OpHolder<Char, OpCount_>, public NamedArgLimiter<NamedArgCount_>, public IdxArgLimiter<IdxArgCount_>

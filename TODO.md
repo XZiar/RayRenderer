@@ -67,8 +67,8 @@
   - [x] Make Image mutable
   - [x] Add stb as fallback handler
   - [x] Add more format suppprt
-  - [ ] Add DataType-based support query
-  - [ ] Throw proper exception when facing error
+  - [x] Add DataType-based support query
+  - [x] Throw proper exception when facing error
   - [ ] Return multiple image for image-sequence or planar image(e.g, YUV420)
   - [ ] Add intel oneVPL(media sdk) decoder/encoder
   - [x] Add android AImageDecoder decoder
@@ -77,6 +77,8 @@
   - [x] Add test for DataTypeConvertor
   - [ ] Add test for Imagecore's core operation
   - [ ] Add color space/gamma conversion
+  - [ ] Remove libjpg-turbo's 12/16bit since unused
+  - [ ] Add JXL
 
 * WindowHost
   - [x] Add support for direct image blit (for offscreen rendering)
@@ -95,6 +97,7 @@
   - [x] Add filepicker
   - [ ] Add messagebox/notification
   - [x] Revert to use std::any for data storage to ensure lifetime management
+  - [ ] Separate backgroung image support into default renderer
 
 * Nailang
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`

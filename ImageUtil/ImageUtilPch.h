@@ -3,6 +3,7 @@
 #include "ColorConvert.h"
 
 #include "SystemCommon/MiniLogger.h"
+#include "SystemCommon/FormatExtra.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/FileMapperEx.h"
 #include "SystemCommon/CopyEx.h"
@@ -14,6 +15,7 @@
 #include "common/Linq2.hpp"
 #include "common/StringEx.hpp"
 #include "common/TimeUtil.hpp"
+#include "common/StaticLookup.hpp"
 
 #include <array>
 #include <cmath>
@@ -22,6 +24,8 @@
 
 namespace xziar::img
 {
-common::mlog::MiniLogger<false>& ImgLog();
 using common::BaseException;
+using common::SimpleTimer;
+using namespace std::string_view_literals;
+common::mlog::MiniLogger<false>& ImgLog();
 }

@@ -173,10 +173,11 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, AlignedBuf
 
 
 
-BmpReader::BmpReader(RandomInputStream& stream) : Stream(stream), Header{}, Info{}
+BmpReader::BmpReader(RandomInputStream& stream) : Stream(stream), Info{}
 {
 }
 
+constexpr size_t BMP_HEADER_SIZE = sizeof(detail::BmpHeader);
 constexpr size_t BMP_INFO_SIZE = sizeof(detail::BmpInfo);
 constexpr size_t BMP_INFO_V2_SIZE = sizeof(detail::BmpInfoV2);
 constexpr size_t BMP_INFO_V3_SIZE = sizeof(detail::BmpInfoV3);
@@ -231,18 +232,19 @@ bool BmpReader::Validate()
 {
     Stream.SetPos(0);
 
-    if (!Stream.Read(Header))
+    detail::BmpHeader header{};
+    if (!Stream.Read(header))
         return false;
-    if (Header.Sig[0] != 'B' || Header.Sig[1] != 'M' || Header.Reserved != 0)
+    if (header.Sig[0] != 'B' || header.Sig[1] != 'M' || header.Reserved != 0)
         return false;
-    const auto size = util::ParseDWordLE(Header.Size);
+    const auto size = util::ParseDWordLE(header.Size);
     const auto fsize = Stream.GetSize();
     if (size > 0 && size != Stream.GetSize())
         return false;
-    if (util::ParseDWordLE(Header.Offset) >= fsize)
+    if (util::ParseDWordLE(header.Offset) >= fsize)
         return false;
 
-    return ValidateNoHeader(util::ParseDWordLE(Header.Offset));
+    return ValidateNoHeader(util::ParseDWordLE(header.Offset));
 }
 
 bool BmpReader::ValidateNoHeader(uint32_t pixOffset)
@@ -333,12 +335,23 @@ bool BmpReader::ValidateNoHeader(uint32_t pixOffset)
 
 Image BmpReader::Read(ImgDType dataType)
 {
-    if (dataType.IsFloat())
-        COMMON_THROWEX(BaseException, u"Cannot read as float datatype");
     const auto format = static_cast<PixFormat>(Format);
     const auto isSrcGray = HAS_FIELD(format, PixFormat::IsGray);
-    if (dataType.ChannelCount() < 3 && !isSrcGray)
-        COMMON_THROWEX(BaseException, u"Cannot read as gray iamge");
+    if (dataType)
+    {
+        if (dataType.IsFloat())
+            COMMON_THROWEX(BaseException, u"Cannot read as float datatype");
+        if (dataType.ChannelCount() < 3 && !isSrcGray)
+            COMMON_THROWEX(BaseException, u"Cannot read as gray iamge");
+    }
+    else
+    {
+        const auto hasAlpha = HAS_FIELD(format, PixFormat::HasAlpha);
+        const auto isBGR = HAS_FIELD(format, PixFormat::BGR);
+        const auto ch = isSrcGray ? (hasAlpha ? ImgDType::Channels::RA : ImgDType::Channels::R) :
+            (hasAlpha ? (isBGR ? ImgDType::Channels::BGRA : ImgDType::Channels::RGBA) : (isBGR ? ImgDType::Channels::BGR : ImgDType::Channels::RGB));
+        dataType = ImgDType{ ch, ImgDType::DataTypes::Uint8 };
+    }
     
     Image image(dataType);
     
@@ -407,7 +420,7 @@ Image BmpReader::Read(ImgDType dataType)
 }
 
 
-BmpWriter::BmpWriter(RandomOutputStream& stream) : Stream(stream), Header{}, Info{}
+BmpWriter::BmpWriter(RandomOutputStream& stream) : Stream(stream)
 {
 }
 
@@ -425,9 +438,9 @@ void BmpWriter::Write(ImageView image, const uint8_t)
     const bool isInputBGR = dstDType.IsBGROrder();
     const bool needAlpha = dstDType.HasAlpha();
 
-    auto header = util::EmptyStruct<detail::BmpHeader>();
+    detail::BmpHeader header{};
     header.Sig[0] = 'B', header.Sig[1] = 'M';
-    util::DWordToLE(header.Offset, detail::BMP_HEADER_SIZE + BMP_INFO_SIZE);
+    util::DWordToLE(header.Offset, BMP_HEADER_SIZE + BMP_INFO_SIZE);
     auto info = util::EmptyStruct<detail::BmpInfo>();
     info.Size = static_cast<uint32_t>(BMP_INFO_SIZE);
     util::DWordToLE(info.Width, image.GetWidth());
@@ -465,6 +478,7 @@ void BmpWriter::Write(ImageView image, const uint8_t)
             {
                 Stream.Write(irowsize, imgptr);
                 Stream.Write(padding, empty);
+                imgptr += irowsize;
             }
         }
     }
@@ -502,8 +516,11 @@ uint8_t BmpSupport::MatchExtension(std::u16string_view ext, ImgDType dataType, c
 {
     if (ext != u"BMP")
         return 0;
-    if (dataType.DataType() != ImgDType::DataTypes::Uint8)
-        return 0;
+    if (dataType)
+    {
+        if (dataType.DataType() != ImgDType::DataTypes::Uint8)
+            return 0;
+    }
     return 192;
 }
 

@@ -70,6 +70,38 @@ static constexpr auto DataTypeGuidLookup = BuildStaticLookup(uint8_t, DataTypeCv
 #undef DtypeGuidPair
 
 
+static std::optional<ImgDType> TryGetBitmapDType(IWICBitmapSource& wicbitmap)
+{
+    WICPixelFormatGUID srcFormat = {};
+    THROW_HR(wicbitmap.GetPixelFormat(&srcFormat), u"Failed to get wicbitmap's format");
+    for (const auto& cvt : wic::DataTypeGuidLookup.Items)
+    {
+        if (IsEqualGUID(srcFormat, *cvt.Value.Guid))
+        {
+            return cvt.Value.MidType;
+        }
+    }
+    return {};
+}
+
+static std::optional<Image> TryDirectGetImage(IWICBitmapSource& bitmap, uint32_t width, uint32_t height)
+{
+    WICPixelFormatGUID srcFormat = {};
+    THROW_HR(bitmap.GetPixelFormat(&srcFormat), u"Failed to get wicbitmap's format");
+    for (const auto& cvt : wic::DataTypeGuidLookup.Items)
+    {
+        if (IsEqualGUID(srcFormat, *cvt.Value.Guid))
+        {
+            Image img(cvt.Value.MidType);
+            img.SetSize(width, height, false);
+            THROW_HR(bitmap.CopyPixels(nullptr, gsl::narrow_cast<uint32_t>(img.GetElementSize() * width), gsl::narrow_cast<uint32_t>(img.GetSize()), img.GetRawPtr<BYTE>()),
+                u"Failed to copy pixels");
+            return img;
+        }
+    }
+    return {};
+}
+
 WicReader::WicReader(std::shared_ptr<const WicSupport>&& support, common::com::PtrProxy<WICDecoder>&& decoder) :
     Support(std::move(support)), Decoder(std::move(decoder))
 {
@@ -85,16 +117,36 @@ bool WicReader::Validate()
 
 Image WicReader::Read(ImgDType dataType)
 {
-    const auto cvt = DataTypeGuidLookup(dataType.Value);
-    if (!cvt)
-    {
-        COMMON_THROWEX(BaseException, u"datatype not supported");
-    }
 
     Microsoft::WRL::ComPtr<IWICBitmapFrameDecode> frame;
     THROW_HR(Decoder->GetFrame(0, frame.GetAddressOf()), u"Failed to get frame");
     uint32_t width = 0, height = 0;
     THROW_HR(frame->GetSize(&width, &height), u"Failed to get size");
+
+    if (!dataType)
+    {
+        try
+        {
+            if (auto img = wic::TryDirectGetImage(*frame.Get(), width, height); img)
+                return *std::move(img);
+            else
+                ImgLog().Verbose(u"Does not find direct mapping with format GUID, fallback to RGBA.\n");
+        }
+        catch (BaseException&) // already logged
+        {
+            ImgLog().Verbose(u"Can not find direct mapping datatype, fallback to RGBA.\n");
+        }
+        catch (...)
+        {
+            ImgLog().Verbose(u"Unknown error, can not find direct mapping datatype, fallback to RGBA.\n");
+        }
+        dataType = ImageDataType::RGBA; // default
+    }
+
+    const auto cvt = DataTypeGuidLookup(dataType.Value);
+    if (!cvt)
+        COMMON_THROWEX(BaseException, u"datatype not supported");
+
     Microsoft::WRL::ComPtr<IWICFormatConverter> converter;
     THROW_HR(Support->Factory->CreateFormatConverter(&converter), u"Failed to create converter");
     THROW_HR(converter->Initialize(frame.Get(), *cvt->Guid, WICBitmapDitherTypeNone, nullptr, 0.0f, WICBitmapPaletteTypeCustom),
@@ -350,7 +402,7 @@ std::unique_ptr<ImgReader> WicSupport::GetReader(common::io::RandomInputStream& 
     Microsoft::WRL::ComPtr<IStream> istream;
     if (const auto space = stream.TryGetAvaliableInMemory(); space && space->size() == stream.GetSize() && space->size() <= std::numeric_limits<DWORD>::max())
     { // all in memory and within uintmax
-        ImgLog().Verbose(u"WIC bypass Stream with mem region.\n");
+        ImgLog().Debug(u"WIC bypass Stream with mem region.\n");
         Microsoft::WRL::ComPtr<IWICStream> wicStream;
         THROW_HR(Factory->CreateStream(wicStream.GetAddressOf()), u"WIC failed to create WICStream");
         THROW_HR(wicStream->InitializeFromMemory(reinterpret_cast<BYTE*>(const_cast<std::byte*>(space->data())), static_cast<DWORD>(space->size())),
@@ -526,7 +578,7 @@ std::unique_ptr<ImgWriter> WicSupport::GetWriter(common::io::RandomOutputStream&
 
 uint8_t WicSupport::MatchExtension(std::u16string_view ext, ImgDType dataType, const bool isRead) const
 {
-    if (!DataTypeGuidLookup(dataType.Value))
+    if (dataType && !DataTypeGuidLookup(dataType.Value))
         return 0;
     if (isRead)
     {
@@ -538,7 +590,7 @@ uint8_t WicSupport::MatchExtension(std::u16string_view ext, ImgDType dataType, c
     else
     {
         if (ext == u"BMP")
-            return dataType.ChannelCount() <= 2 ? 64 : 240; // WIC asks for platte with Gray Bmp
+            return (dataType && dataType.ChannelCount() <= 2) ? 64 : 240; // WIC asks for platte with Gray Bmp
         if (ext == u"TIFF" || ext == u"TIF")
             return 240;
         if (ext == u"JPG" || ext == u"JPEG" || ext == u"PNG" || ext == u"JXL" || ext == u"HEIF" || ext == u"WEBP")
@@ -652,21 +704,10 @@ Image ConvertFromHBITMAP(void* hbitmap, void* hdc)
             Microsoft::WRL::ComPtr<IWICBitmap> wicBitmap;
             THROW_HR(factory->CreateBitmapFromHBITMAP(hbmp, nullptr, WICBitmapUseAlpha, wicBitmap.GetAddressOf()),
                 u"Failed to create wic bitmap from hbitmap");
-            WICPixelFormatGUID srcFormat = {};
-            THROW_HR(wicBitmap->GetPixelFormat(&srcFormat), u"Failed to get wicbitmap's format");
-            for (const auto& cvt : wic::DataTypeGuidLookup.Items)
-            {
-                if (IsEqualGUID(srcFormat, *cvt.Value.Guid))
-                {
-                    uint32_t width = 0, height = 0;
-                    THROW_HR(wicBitmap->GetSize(&width, &height), u"Failed to get size");
-                    Image img(cvt.Value.MidType);
-                    img.SetSize(width, height, false);
-                    THROW_HR(wicBitmap->CopyPixels(nullptr, gsl::narrow_cast<uint32_t>(img.GetElementSize() * width), gsl::narrow_cast<uint32_t>(img.GetSize()), img.GetRawPtr<BYTE>()),
-                        u"Failed to copy pixels");
-                    return img;
-                }
-            }
+            uint32_t width = 0, height = 0;
+            THROW_HR(wicBitmap->GetSize(&width, &height), u"Failed to get size");
+            if (auto img = wic::TryDirectGetImage(*wicBitmap.Get(), width, height); img)
+                return *std::move(img);
         }
         catch (BaseException&) {} // already logged
     }

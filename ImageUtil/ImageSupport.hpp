@@ -36,7 +36,7 @@ public:
     const std::u16string Name;
     [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, std::u16string_view ext) const = 0;
     [[nodiscard]] virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, std::u16string_view ext) const = 0;
-    [[nodiscard]] virtual uint8_t MatchExtension(std::u16string_view ext, ImgDType dataType, const bool IsRead) const = 0;
+    [[nodiscard]] virtual uint8_t MatchExtension(std::u16string_view ext, ImgDType dataType, const bool isRead) const = 0;
 };
 
 

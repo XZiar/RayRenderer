@@ -22,14 +22,14 @@ std::vector<std::shared_ptr<const ImgSupport>> GetSupport(common::mlog::MiniLogg
         txt.push_back(u' ');
         txt.append(support->Name);
     }
-    logger.Debug(u"Support for [{}][{}][{}]: {}\n", ext, isRead ? 'R' : 'W', dtype.ToString(), txt);
+    logger.Verbose(u"Support for [{}][{}][{}]: {}\n", ext, isRead ? 'R' : 'W', dtype.ToString(), txt);
     return supports;
 }
 
 void WriteBmp(common::mlog::MiniLogger<false>& logger, std::u16string_view writer, std::u16string_view name, const Image& img, common::fs::path fpath)
 {
     common::file::FileOutputStream stream(common::file::FileObject::OpenThrow(fpath, common::file::OpenFlag::CreateNewBinary));
-    logger.Debug(u"Write Image {}\n", fpath.u16string());
+    logger.Verbose(u"Write Image {}\n", fpath.u16string());
 
     const auto supports = GetSupport(logger, u"BMP", img.GetDataType(), false, writer);
     for (const auto& support : supports)
@@ -68,7 +68,7 @@ void TestResizeImage(std::string filepath, std::string_view reader_, std::string
     Image img0;
     {
         auto stream = common::file::MapFileForRead(fpath);
-        logger.Debug(u"Read Image {}\n", fpath.u16string());
+        logger.Verbose(u"Read Image {}\n", fpath.u16string());
         auto ext = fpath.extension().u16string();
         if (!ext.empty()) 
             ext = common::str::ToUpperEng(std::u16string_view(ext).substr(1), common::str::Encoding::UTF16LE);
@@ -85,8 +85,9 @@ void TestResizeImage(std::string filepath, std::string_view reader_, std::string
                     stream.SetPos(0);
                     continue;
                 }
-                img0 = inputer->Read(ImageDataType::RGBA);
+                img0 = inputer->Read({});
                 logger.Info(u"readed img using {}\n", support->Name);
+                break;
             }
             catch (const common::BaseException& be)
             {
@@ -106,7 +107,15 @@ void TestResizeImage(std::string filepath, std::string_view reader_, std::string
     const auto folder = fpath.parent_path();
     const auto basename = fpath.stem().string();
     const auto w = img0.GetWidth(), h = img0.GetHeight();
-    logger.Info(u"read img [{}]: {}x{}\n", basename, w, h);
+    logger.Info(u"read img [{}]: {}x{} [{}]\n", basename, w, h, img0.GetDataType());
+    if (img0.GetDataType() != ImageDataType::RGBA)
+    {
+        common::SimpleTimer timer;
+        timer.Start();
+        img0 = img0.ConvertTo(ImageDataType::RGBA);
+        timer.Stop();
+        logger.Info(u"Converted image to RGBA in {}ms\n", timer.ElapseUs() / 1000.f);
+    }
 
     const std::u16string writer(writer_.begin(), writer_.end());
 

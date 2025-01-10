@@ -270,6 +270,17 @@ public:
 
             msg = GenerateMessage(level, formatter.ToStrArgInfo(), ArgsInfo, argStore.ArgStore, Mapping);
         }
+        else if constexpr (std::is_base_of_v<CustomFormatterTag, U>)
+        {
+            using Char = typename U::CharType;
+            static_assert(std::is_same_v<Char, char16_t>, "Log formatter need to be char16_t");
+
+            static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
+            const auto [strinfo, mapping] = formatter.template TranslateInfo<Args...>();
+            const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
+            
+            msg = GenerateMessage(level, strinfo, ArgsInfo, argStore.ArgStore, mapping);
+        }
         else
         {
             const auto fmtSv = ToStringView(formatter);

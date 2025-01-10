@@ -13,9 +13,11 @@ enum class ImgType : uint8_t { None = 0, PNM, JPG, PNG, BMP, GIF, PSD, PIC, TGA 
 class StbReader : public ImgReader
 {
 private:
+    struct Context;
     common::io::RandomInputStream& Stream;
-    void *StbContext = nullptr;
+    std::unique_ptr<Context> StbContext;
     ImgType TestedType = ImgType::None;
+    ImgDType TestedDType;
 public:
     StbReader(common::io::RandomInputStream& stream);
     virtual ~StbReader() override;

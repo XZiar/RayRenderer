@@ -13,16 +13,11 @@ namespace detail
 #pragma pack(push, 1)
 struct BmpHeader
 {
-    char Sig[2];
-    std::byte Size[4];
-    union
-    {
-        uint8_t Dummy[4];
-        uint32_t Reserved;
-    };
-    std::byte Offset[4];
+    char Sig[2] = { 0 };
+    std::byte Size[4] = { std::byte{0} };
+    uint32_t Reserved = 0;
+    std::byte Offset[4] = { std::byte{0} };
 };
-constexpr size_t BMP_HEADER_SIZE = sizeof(BmpHeader);
 struct BmpInfo
 {
     uint32_t Size;
@@ -69,7 +64,6 @@ class BmpReader : public ImgReader
 {
 private:
     common::io::RandomInputStream& Stream;
-    detail::BmpHeader Header;
     detail::BmpInfoV5 Info;
     size_t PixelOffset = 0;
     size_t InfoOffset = 0;
@@ -87,8 +81,6 @@ class BmpWriter : public ImgWriter
 {
 private:
     common::io::RandomOutputStream& Stream;
-    detail::BmpHeader Header;
-    detail::BmpInfo Info;
 public:
     BmpWriter(common::io::RandomOutputStream& stream);
     virtual ~BmpWriter() override {};
@@ -96,7 +88,8 @@ public:
 };
 
 
-class IMGUTILAPI BmpSupport final : public ImgSupport {
+class IMGUTILAPI BmpSupport final : public ImgSupport 
+{
 public:
     BmpSupport() : ImgSupport(u"ZexBmp") {}
     ~BmpSupport() final {}
@@ -108,7 +101,7 @@ public:
     {
         return std::make_unique<BmpWriter>(stream);
     }
-    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImgDType, const bool) const final;
+    [[nodiscard]] uint8_t MatchExtension(std::u16string_view ext, ImgDType, const bool isRead) const final;
 };
 
 

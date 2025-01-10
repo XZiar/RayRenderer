@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ImageUtilRely.h"
+#include "SystemCommon/FormatInclude.h"
 
 
 #if COMMON_COMPILER_MSVC
@@ -72,6 +73,7 @@ struct ImgDType
         if (ret.empty()) return Stringify(*this, true);
         return ret;
     }
+    IMGUTILAPI void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec* spec) const;
 
     constexpr ImgDType& SetDatatype(DataTypes dt) noexcept
     {
@@ -143,12 +145,14 @@ protected:
     uint8_t ElementSize;
     void CheckSizeLegal() const
     {
-        if (static_cast<size_t>(Width)* Height* ElementSize != Size)
+        if (static_cast<size_t>(Width) * Height * ElementSize != Size)
             COMMON_THROW(common::BaseException, u"Size not match");
     }
 public:
     [[nodiscard]] static constexpr uint8_t GetElementSize(const ImgDType dataType) noexcept { return static_cast<uint8_t>(dataType.ElementSize()); }
     [[nodiscard]] static Image CombineChannels(const ImgDType dataType, common::span<const ImageView> channels);
+    [[nodiscard]] static Image CreateViewFromTemp(common::span<std::byte> space, const ImgDType dataType, uint32_t w, uint32_t h);
+
     Image(const ImgDType dataType = ImageDataType::RGBA) noexcept : Width(0), Height(0), DataType(dataType), ElementSize(GetElementSize(DataType))
     { }
     Image(const common::AlignedBuffer& data, const uint32_t width, const uint32_t height, const ImgDType dataType = ImageDataType::RGBA)

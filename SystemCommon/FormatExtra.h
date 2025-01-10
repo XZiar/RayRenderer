@@ -1,3 +1,4 @@
+#pragma once
 #include "Format.h"
 #include "Exceptions.h"
 #include "common/STLEx.hpp"
@@ -589,11 +590,23 @@ struct COMMON_EMPTY_BASES TrimedCombineResult : public NamedMapLimiter<NamedMapC
 };
 
 template<typename T, typename Char>
-struct CombineSelection
+struct CombineSelection : public CustomFormatterTag
 {
+    using CharType = Char;
     const StrArgInfoCh<Char>& StrInfo;
     span<const uint8_t> NamedMapping;
     constexpr CombineSelection(const StrArgInfoCh<Char>& info, span<const uint8_t> namedMapping) noexcept : StrInfo(info), NamedMapping(namedMapping) {}
+
+    template<typename... Args>
+    forceinline std::pair<std::reference_wrapper<const StrArgInfoCh<Char>>, NamedMapper> TranslateInfo() const noexcept
+    {
+        static constexpr auto Mapping = ArgChecker::CheckSS<T, Args...>();
+        auto mapping = ArgChecker::EmptyMapper;
+        uint32_t idx = 0;
+        for (const auto target : NamedMapping)
+            mapping[idx++] = Mapping[target];
+        return { StrInfo, mapping };
+    }
 
     template<typename... Args>
     forceinline void To(std::basic_string<Char>& dst, Formatter<Char>& formatter, Args&&... args) const

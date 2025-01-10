@@ -9,53 +9,31 @@ using std::string;
 using std::wstring;
 using std::u16string;
 using common::AlignedBuffer;
-using common::BaseException;
-using common::SimpleTimer;
 using common::io::RandomInputStream;
 using common::io::RandomOutputStream;
 
 
-TgaReader::TgaReader(RandomInputStream& stream) : Stream(stream), Header{}
+enum class TGAImgType : uint8_t
 {
-}
+    RLE_MASK = 0x8, EMPTY = 0,
+    COLOR_MAP = 1, COLOR = 2, GRAY = 3
+};
+MAKE_ENUM_BITFIELD(TGAImgType)
 
-bool TgaReader::Validate()
+constexpr size_t TGA_HEADER_SIZE = sizeof(detail::TgaHeader);
+
+struct ColorMapInfo
 {
-    using detail::TGAImgType;
-    Stream.SetPos(0);
-    if (!Stream.Read(Header))
-        return false;
-    switch (Header.ColorMapType)
+    uint16_t Offset;
+    uint16_t Size;
+    uint8_t ColorDepth;
+    ColorMapInfo(const detail::TgaHeader& header)
     {
-    case 1: // paletted image
-        if (REMOVE_MASK(Header.ImageType, TGAImgType::RLE_MASK) != TGAImgType::COLOR_MAP)
-            return false;
-        if (Header.PixelDepth != 8 && Header.PixelDepth != 16)
-            return false;
-        break;
-    case 0: // color image
-        if (REMOVE_MASK(Header.ImageType, TGAImgType::RLE_MASK) == TGAImgType::GRAY)
-        {
-            if (Header.PixelDepth != 8) // gray must be 8 bit
-                return false;
-        }
-        else if (REMOVE_MASK(Header.ImageType, TGAImgType::RLE_MASK) == TGAImgType::COLOR)
-        {
-            if (Header.PixelDepth != 15 && Header.PixelDepth != 16 && Header.PixelDepth != 24 && Header.PixelDepth != 32)//gray must not be 8 bit
-                return false;
-        }
-        else
-            return false;
-        break;
-    default:
-        return false;
+        Offset = util::ParseWordLE(header.ColorMapData.ColorMapOffset);
+        Size = util::ParseWordLE(header.ColorMapData.ColorMapCount);
+        ColorDepth = header.ColorMapData.ColorEntryDepth;
     }
-    Width = (int16_t)util::ParseWordLE(Header.Width);
-    Height = (int16_t)util::ParseWordLE(Header.Height);
-    if (Width < 1 || Height < 1)
-        return false;
-    return true;
-}
+};
 
 
 class TgaHelper
@@ -70,45 +48,45 @@ public:
         switch (colorDepth)
         {
         case 8:
-            {
-                AlignedBuffer tmp(count);
-                reader.Read(count, tmp.GetRawPtr());
-                cvter.GrayToRGBA(output.GetRawPtr<uint32_t>(), tmp.GetRawPtr<uint8_t>(), count);
-            } break;
+        {
+            AlignedBuffer tmp(count);
+            reader.Read(count, tmp.GetRawPtr());
+            cvter.GrayToRGBA(output.GetRawPtr<uint32_t>(), tmp.GetRawPtr<uint8_t>(), count);
+        } break;
         case 15:
-            {
-                const auto tmp = reader.template ReadToVector<uint16_t>(count);
-                uint32_t * __restrict destPtr = output.GetRawPtr<uint32_t>();
-                if (isOutputRGB)
-                    cvter.BGR555ToRGBA(destPtr, tmp.data(), tmp.size(), false);
-                else
-                    cvter.RGB555ToRGBA(destPtr, tmp.data(), tmp.size(), false);
-            } break;
+        {
+            const auto tmp = reader.template ReadToVector<uint16_t>(count);
+            uint32_t * __restrict destPtr = output.GetRawPtr<uint32_t>();
+            if (isOutputRGB)
+                cvter.BGR555ToRGBA(destPtr, tmp.data(), tmp.size(), false);
+            else
+                cvter.RGB555ToRGBA(destPtr, tmp.data(), tmp.size(), false);
+        } break;
         case 16:
-            {
-                const auto tmp = reader.template ReadToVector<uint16_t>(count);
-                uint32_t * __restrict destPtr = output.GetRawPtr<uint32_t>();
-                if (isOutputRGB)
-                    cvter.BGR555ToRGBA(destPtr, tmp.data(), tmp.size(), true);
-                else
-                    cvter.RGB555ToRGBA(destPtr, tmp.data(), tmp.size(), true);
-            } break;
+        {
+            const auto tmp = reader.template ReadToVector<uint16_t>(count);
+            uint32_t * __restrict destPtr = output.GetRawPtr<uint32_t>();
+            if (isOutputRGB)
+                cvter.BGR555ToRGBA(destPtr, tmp.data(), tmp.size(), true);
+            else
+                cvter.RGB555ToRGBA(destPtr, tmp.data(), tmp.size(), true);
+        } break;
         case 24: // BGR
-            {
-                auto * __restrict destPtr = output.GetRawPtr();
-                auto * __restrict srcPtr = destPtr + count;
-                reader.Read(3 * count, srcPtr);
-                if (isOutputRGB)
-                    cvter.BGRToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), count);
-                else
-                    cvter.RGBToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), count);
-            } break;
+        {
+            auto * __restrict destPtr = output.GetRawPtr();
+            auto * __restrict srcPtr = destPtr + count;
+            reader.Read(3 * count, srcPtr);
+            if (isOutputRGB)
+                cvter.BGRToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), count);
+            else
+                cvter.RGBToRGBA(reinterpret_cast<uint32_t*>(destPtr), reinterpret_cast<const uint8_t*>(srcPtr), count);
+        } break;
         case 32: // BGRA
-            {
-                reader.Read(4 * count, output.GetRawPtr());
-                if (isOutputRGB)
-                    cvter.RGBAToBGRA(output.GetRawPtr<uint32_t>(), output.GetRawPtr<uint32_t>(), count);
-            } break;
+        {
+            reader.Read(4 * count, output.GetRawPtr());
+            if (isOutputRGB)
+                cvter.RGBAToBGRA(output.GetRawPtr<uint32_t>(), output.GetRawPtr<uint32_t>(), count);
+        } break;
         }
     }
 
@@ -121,40 +99,40 @@ public:
         switch (colorDepth)
         {
         case 8:
-            {
-                AlignedBuffer tmp(count);
-                reader.Read(count, tmp.GetRawPtr());
-                cvter.GrayToRGB(output.GetRawPtr<uint8_t>(), tmp.GetRawPtr<uint8_t>(), count);
-            } break;
+        {
+            AlignedBuffer tmp(count);
+            reader.Read(count, tmp.GetRawPtr());
+            cvter.GrayToRGB(output.GetRawPtr<uint8_t>(), tmp.GetRawPtr<uint8_t>(), count);
+        } break;
         case 15:
         case 16:
-            {
-                const auto tmp = reader.template ReadToVector<uint16_t>(count);
-                auto * __restrict destPtr = output.GetRawPtr<uint8_t>();
-                if (isOutputRGB)
-                    cvter.BGR555ToRGB(destPtr, tmp.data(), tmp.size());
-                else
-                    cvter.RGB555ToRGB(destPtr, tmp.data(), tmp.size());
-            } break;
+        {
+            const auto tmp = reader.template ReadToVector<uint16_t>(count);
+            auto * __restrict destPtr = output.GetRawPtr<uint8_t>();
+            if (isOutputRGB)
+                cvter.BGR555ToRGB(destPtr, tmp.data(), tmp.size());
+            else
+                cvter.RGB555ToRGB(destPtr, tmp.data(), tmp.size());
+        } break;
         case 24: // BGR
-            {
-                reader.Read(3 * count, output.GetRawPtr());
-                if (isOutputRGB)
-                    cvter.RGBToBGR(output.GetRawPtr<uint8_t>(), output.GetRawPtr<uint8_t>(), count);
-            } break;
+        {
+            reader.Read(3 * count, output.GetRawPtr());
+            if (isOutputRGB)
+                cvter.RGBToBGR(output.GetRawPtr<uint8_t>(), output.GetRawPtr<uint8_t>(), count);
+        } break;
         case 32: // BGRA
+        {
+            Image tmp(ImageDataType::RGBA);
+            tmp.SetSize(output.GetWidth(), 1);
+            for (uint32_t row = 0; row < output.GetHeight(); ++row)
             {
-                Image tmp(ImageDataType::RGBA);
-                tmp.SetSize(output.GetWidth(), 1);
-                for (uint32_t row = 0; row < output.GetHeight(); ++row)
-                {
-                    reader.Read(4 * output.GetWidth(), tmp.GetRawPtr());
-                    if (isOutputRGB)
-                        cvter.RGBAToBGR(output.GetRawPtr<uint8_t>(row), tmp.GetRawPtr<uint32_t>(), count);
-                    else
-                        cvter.RGBAToRGB(output.GetRawPtr<uint8_t>(row), tmp.GetRawPtr<uint32_t>(), count);
-                }
-            } break;
+                reader.Read(4 * output.GetWidth(), tmp.GetRawPtr());
+                if (isOutputRGB)
+                    cvter.RGBAToBGR(output.GetRawPtr<uint8_t>(row), tmp.GetRawPtr<uint32_t>(), count);
+                else
+                    cvter.RGBAToRGB(output.GetRawPtr<uint8_t>(row), tmp.GetRawPtr<uint32_t>(), count);
+            }
+        } break;
         }
     }
 
@@ -166,7 +144,7 @@ public:
         const bool isOutputRGB = !dataType.IsBGROrder();
         const bool needAlpha = dataType.HasAlpha();
 
-        const detail::ColorMapInfo mapInfo(header);
+        const ColorMapInfo mapInfo(header);
         mapperReader.Skip(mapInfo.Offset);
         Image mapper(needAlpha ? ImageDataType::RGBA : ImageDataType::RGB);
         mapper.SetSize(mapInfo.Size, 1);
@@ -349,7 +327,7 @@ public:
     {
         if (image.GetElementSize() != 3)
             return;
-        const uint32_t colMax = image.GetWidth() * 3;//tga's limit should promise this will not overflow
+        const uint32_t colMax = image.GetWidth() * 3; // tga's limit should promise this will not overflow
         for (uint32_t row = 0; row < image.GetHeight(); ++row)
         {
             const uint8_t * __restrict data = image.GetRawPtr<uint8_t>(row);
@@ -367,12 +345,12 @@ public:
                     repeat = (cur == last);
                     break;
                 default:
-                    if (cur == last && !repeat)//changed
+                    if (cur == last && !repeat) // changed
                     {
                         WriteRLE3((const byte*)&data[col - len], len - 1, false, writer);
                         len = 1, repeat = true;
                     }
-                    else if (cur != last && repeat)//changed
+                    else if (cur != last && repeat) // changed
                     {
                         WriteRLE3((const byte*)&data[col - len], len, true, writer);
                         len = 0, repeat = false;
@@ -406,12 +384,12 @@ public:
                     repeat = (data[col] == last);
                     break;
                 default:
-                    if (data[col] == last && !repeat)//changed
+                    if (data[col] == last && !repeat) // changed
                     {
                         WriteRLE4((const byte*)&data[col - len], len - 1, false, writer);
                         len = 1, repeat = true;
                     }
-                    else if (data[col] != last && repeat)//changed
+                    else if (data[col] != last && repeat) // changed
                     {
                         WriteRLE4((const byte*)&data[col - len], len, true, writer);
                         len = 0, repeat = false;
@@ -444,12 +422,12 @@ public:
                     repeat = (data[col] == last);
                     break;
                 default:
-                    if (data[col] == last && !repeat)//changed
+                    if (data[col] == last && !repeat) // changed
                     {
                         WriteRLE1(&data[col - len], len - 1, false, writer);
                         len = 1, repeat = true;
                     }
-                    else if (data[col] != last && repeat)//changed
+                    else if (data[col] != last && repeat) // changed
                     {
                         WriteRLE1(&data[col - len], len, true, writer);
                         len = 0, repeat = false;
@@ -540,7 +518,7 @@ private:
             if (::HAS_FIELD(info, 0x80))
             {
                 uint8_t obj[3];
-                if (!Stream.Read(3, obj))//use array load will keep invoke ftell(), which serverely decrease the performance
+                if (!Stream.Read(3, obj)) // use array load will keep invoke ftell(), which serverely decrease the performance
                     return false;
                 for (auto count = size; count--;)
                 {
@@ -619,20 +597,75 @@ public:
     }
 };
 
+
+TgaReader::TgaReader(RandomInputStream& stream) : Stream(stream), Header{ util::EmptyStruct<detail::TgaHeader>() }
+{
+}
+
+bool TgaReader::Validate()
+{
+    Stream.SetPos(0);
+    if (!Stream.Read(Header))
+        return false;
+    Width = (int16_t)util::ParseWordLE(Header.Width);
+    Height = (int16_t)util::ParseWordLE(Header.Height);
+    if (Width < 1 || Height < 1)
+        return false;
+    const auto type = static_cast<TGAImgType>(Header.ImageType);
+    switch (Header.ColorMapType)
+    {
+    case 1: // paletted image
+        if (REMOVE_MASK(type, TGAImgType::RLE_MASK) != TGAImgType::COLOR_MAP)
+            return false;
+        if (Header.PixelDepth != 8 && Header.PixelDepth != 16)
+            return false;
+        break;
+    case 0: // color image
+        if (REMOVE_MASK(type, TGAImgType::RLE_MASK) == TGAImgType::GRAY)
+        {
+            if (Header.PixelDepth != 8) // gray must be 8 bit
+                return false;
+        }
+        else if (REMOVE_MASK(type, TGAImgType::RLE_MASK) == TGAImgType::COLOR)
+        {
+            if (Header.PixelDepth != 15 && Header.PixelDepth != 16 && Header.PixelDepth != 24 && Header.PixelDepth != 32) // color must not be 8 bit
+                return false;
+        }
+        else
+            return false;
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
+
 Image TgaReader::Read(ImgDType dataType)
 {
+    const auto type = static_cast<TGAImgType>(Header.ImageType);
+    const auto isSrcGray = REMOVE_MASK(type, TGAImgType::RLE_MASK) == TGAImgType::GRAY;
+    if (dataType)
+    {
+        if (!dataType.Is(ImgDType::DataTypes::Uint8))
+            COMMON_THROWEX(BaseException, u"Cannot read as non-uint8 datatype");
+        if (dataType.ChannelCount() < 3 && !isSrcGray)
+            COMMON_THROWEX(BaseException, u"Cannot read as gray iamge");
+    }
+    else
+    {
+        const auto ch = isSrcGray ? ImgDType::Channels::R : 
+            ((Header.PixelDepth == 15 || Header.PixelDepth == 24) ? ImgDType::Channels::BGR : ImgDType::Channels::BGRA);
+        dataType = ImgDType{ ch, ImgDType::DataTypes::Uint8 };
+    }
+    Image image(dataType);
+    image.SetSize(Width, Height);
+    Stream.SetPos(TGA_HEADER_SIZE + Header.IdLength); // Next ColorMap(optional)
     common::SimpleTimer timer;
     timer.Start();
-    Image image(dataType);
-    if (!dataType.Is(ImgDType::DataTypes::Uint8))
-        return image;
-    if (image.IsGray() && REMOVE_MASK(Header.ImageType, detail::TGAImgType::RLE_MASK) != detail::TGAImgType::GRAY)//down-convert, not supported
-        return image;
-    Stream.SetPos(detail::TGA_HEADER_SIZE + Header.IdLength);//Next ColorMap(optional)
-    image.SetSize(Width, Height);
+    const auto isRLE = HAS_FIELD(type, TGAImgType::RLE_MASK);
     if (Header.ColorMapType)
     {
-        if (HAS_FIELD(Header.ImageType, detail::TGAImgType::RLE_MASK))
+        if (isRLE)
         {
             RLEFileDecoder decoder(Stream, Header.PixelDepth);
             TgaHelper::ReadFromColorMapped(Header, image, Stream, decoder);
@@ -642,7 +675,7 @@ Image TgaReader::Read(ImgDType dataType)
     }
     else
     {
-        if (HAS_FIELD(Header.ImageType, detail::TGAImgType::RLE_MASK))
+        if (isRLE)
         {
             RLEFileDecoder decoder(Stream, Header.PixelDepth);
             TgaHelper::ReadDirect(Header, image, decoder);
@@ -651,21 +684,23 @@ Image TgaReader::Read(ImgDType dataType)
             TgaHelper::ReadDirect(Header, image, Stream);
     }
     timer.Stop();
-    ImgLog().Debug(u"zextga read cost {} ms\n", timer.ElapseMs());
+    const auto timeRead = timer.ElapseUs() / 1000.f;
+
     timer.Start();
+    bool flipped = false;
     switch ((Header.ImageDescriptor & 0x30) >> 4)//origin position
     {
-    case 0://left-down
-        image.FlipVertical(); break;
-    case 1://right-down
-        image.Rotate180(); break;
-    case 2://left-up
-        break;//no need to flip
-    case 3://right-up
-        image.FlipHorizontal(); break;
+    case 0: flipped = true; image.FlipVertical(); break; // left-down
+    case 1: flipped = true; image.Rotate180(); break; // right-down
+    case 2: break; // left-up, no need to flip
+    case 3: flipped = true; image.FlipHorizontal(); break; // right-up
+    default: CM_UNREACHABLE(); break;
     }
     timer.Stop();
-    ImgLog().Debug(u"zextga flip cost {} ms\n", timer.ElapseMs()); 
+    const auto timeFlip = timer.ElapseUs() / 1000.f;
+
+    const auto& syntax = common::str::FormatterCombiner::Combine(FmtString(u"zextga read[{}ms]\n"sv), FmtString(u"zextga read[{}ms] flip[{}ms]\n"sv));
+    ImgLog().Debug(syntax(flipped), timeRead, timeFlip);
     return image;
 }
 
@@ -687,7 +722,7 @@ void TgaWriter::Write(ImageView image, const uint8_t)
     
     header.IdLength = sizeof(identity);
     header.ColorMapType = 0;
-    header.ImageType = detail::TGAImgType::RLE_MASK | (image.IsGray() ? detail::TGAImgType::GRAY : detail::TGAImgType::COLOR);
+    header.ImageType = common::enum_cast(TGAImgType::RLE_MASK | (image.IsGray() ? TGAImgType::GRAY : TGAImgType::COLOR));
     memset(&header.ColorMapData, 0x0, 5);//5 bytes for color map spec
     util::WordToLE(header.OriginHorizontal, 0);
     util::WordToLE(header.OriginVertical, 0);
@@ -700,7 +735,7 @@ void TgaWriter::Write(ImageView image, const uint8_t)
     Stream.Write(identity);
     SimpleTimer timer;
     timer.Start();
-    //next: true image data
+    // next: true image data
     switch (dstDType.ChannelCount())
     {
     case 1: TgaHelper::WriteRLEGray  (image, Stream); break;
@@ -712,6 +747,17 @@ void TgaWriter::Write(ImageView image, const uint8_t)
     ImgLog().Debug(u"zextga write cost {} ms\n", timer.ElapseMs());
 }
 
+uint8_t TgaSupport::MatchExtension(std::u16string_view ext, ImgDType dataType, const bool) const
+{
+    if (ext != u"TGA")
+        return 0;
+    if (dataType)
+    {
+        if (dataType.DataType() != ImgDType::DataTypes::Uint8)
+            return 0;
+    }
+    return 160;
+}
 
 static auto DUMMY = RegistImageSupport<TgaSupport>();
 

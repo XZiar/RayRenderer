@@ -14,8 +14,6 @@ using std::string;
 using std::wstring;
 using std::u16string;
 using common::AlignedBuffer;
-using common::BaseException;
-using common::SimpleTimer;
 using common::io::RandomInputStream;
 using common::io::RandomOutputStream;
 
@@ -37,8 +35,9 @@ static void OnFlushFile([[maybe_unused]] png_structp pngStruct) {}
 
 static void OnError([[maybe_unused]] png_structrp pngStruct, const char *message)
 {
-    ImgLog().Error(u"LIBPNG report an error: {}\n", message);
-    COMMON_THROW(BaseException, u"Libpng report an error");
+    std::string_view msg(message);
+    ImgLog().Error(u"LIBPNG report an error: {}\n", msg);
+    COMMON_THROWEX(BaseException, u"Libpng report an error").Attach("detail", std::string(msg));
 }
 static void OnWarn([[maybe_unused]] png_structrp pngStruct, const char *message)
 {
@@ -49,21 +48,21 @@ static png_structp CreateReadStruct()
 {
     auto handle = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, OnError, OnWarn);
     if (!handle)
-        COMMON_THROW(BaseException, u"Cannot alloc space for png struct");
+        COMMON_THROWEX(BaseException, u"Cannot alloc space for png struct");
     return handle;
 }
 static png_structp CreateWriteStruct()
 {
     auto handle = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, OnError, OnWarn);
     if (!handle)
-        COMMON_THROW(BaseException, u"Cannot alloc space for png struct");
+        COMMON_THROWEX(BaseException, u"Cannot alloc space for png struct");
     return handle;
 }
 static png_infop CreateInfo(png_structp pngStruct)
 {
     auto handle = png_create_info_struct(pngStruct);
     if (!handle)
-        COMMON_THROW(BaseException, u"Cannot alloc space for png info");
+        COMMON_THROWEX(BaseException, u"Cannot alloc space for png info");
     return handle;
 }
 
@@ -94,42 +93,40 @@ bool PngReader::Validate()
     return !png_sig_cmp(buf, 0, PNG_BYTES_TO_CHECK);
 }
 
-Image PngReader::Read(const ImgDType dataType)
+Image PngReader::Read(ImgDType dataType)
 {
+    if (dataType && !dataType.Is(ImgDType::DataTypes::Uint8) && !dataType.Is(ImgDType::DataTypes::Uint16))
+        COMMON_THROWEX(BaseException, u"only uint8 and uint16 datatype supported");
+
     auto pngStruct = (png_structp)PngStruct;
     auto pngInfo = (png_infop)PngInfo;
-    if (!dataType.Is(ImgDType::DataTypes::Uint8) && !dataType.Is(ImgDType::DataTypes::Uint16))
-        COMMON_THROW(BaseException, u"only uint8 and uint16 datatype supported");
-    auto targetType = dataType;
-    Stream.SetPos(0);
 
+    Stream.SetPos(0);
     png_read_info(pngStruct, pngInfo);
     uint32_t width = 0, height = 0;
     int32_t bitDepth = -1, colorType = -1, interlaceType = -1;
     png_get_IHDR((png_structp)PngStruct, pngInfo, &width, &height, &bitDepth, &colorType, &interlaceType, nullptr, nullptr);
 
-    if (bitDepth == 16 && dataType.DataType() == ImgDType::DataTypes::Uint8)
-    {
-#ifdef PNG_READ_SCALE_16_TO_8_SUPPORTED
-        png_set_scale_16(pngStruct);
-#else
-        png_set_strip_16(pngStruct);
-#endif
-    }
-    else if (bitDepth == 8 && dataType.DataType() == ImgDType::DataTypes::Uint16)
-        targetType.SetDatatype(ImgDType::DataTypes::Uint8); // convert later
+    auto targetType = dataType;
+    if (width <= 0 || height <= 0)
+        COMMON_THROWEX(BaseException, u"Image load by libpng has unexpected shape");
+
     /* Extract multiple pixels with bit depths of 1, 2, and 4 from a single
     * byte into separate bytes (useful for paletted and grayscale images).
     */
     png_set_packing(pngStruct);
-    const auto askGray = targetType.ChannelCount() < 3;
+    bool isSrc16bit = false;
+    const bool srcHasAlpha = colorType & PNG_COLOR_MASK_ALPHA;
     switch (colorType)
     {
     case PNG_COLOR_TYPE_PALETTE:
-        if (askGray) // gray
-            COMMON_THROW(BaseException, u"cannot read platte into gray");
+        if (!dataType)
+            targetType.SetChannels(ImgDType::Channels::RGB);
+        else if (dataType.ChannelCount() < 3) // gray
+            COMMON_THROWEX(BaseException, u"cannot read platte into gray");
         /* Expand paletted colors into true RGB triplets */
         png_set_palette_to_rgb(pngStruct);
+        isSrc16bit = false;
         break;
     case PNG_COLOR_TYPE_GRAY:
     case PNG_COLOR_TYPE_GRAY_ALPHA:
@@ -140,33 +137,65 @@ Image PngReader::Read(const ImgDType dataType)
             /* Expand grayscale images to the full 8 bits from 1, 2, or 4 bits/pixel */
             png_set_expand_gray_1_2_4_to_8(pngStruct);
         }
-        if (!askGray)
+        if (!dataType)
+            targetType.SetChannels(srcHasAlpha ? ImgDType::Channels::RA : ImgDType::Channels::R);
+        else if (targetType.ChannelCount() >= 3)
             png_set_gray_to_rgb(pngStruct);
+        isSrc16bit = bitDepth == 16;
         break;
-    default: // color
-        if (askGray)
-            COMMON_THROW(BaseException, u"cannot read RGB into gray");
-        if (bitDepth < 8)
-            COMMON_THROW(BaseException, u"RGB should not be less than 8bit");
+    case PNG_COLOR_TYPE_RGB:
+    case PNG_COLOR_TYPE_RGB_ALPHA:
+        if (bitDepth != 8 && bitDepth != 16)
+            COMMON_THROWEX(BaseException, u"RGB is unsupproted for not 8bit or 16bit");
+        isSrc16bit = bitDepth == 16;
+        if (!dataType)
+            targetType.SetChannels(srcHasAlpha ? ImgDType::Channels::RGBA : ImgDType::Channels::RGB);
+        else if (dataType.ChannelCount() < 3) // gray
+            COMMON_THROWEX(BaseException, u"cannot read RGB into gray");
+        break;
+    default:
+        COMMON_THROWEX(BaseException, u"unknown colorType");
     }
+    Ensures(!ImgDType::Stringify(targetType.Channel()).empty()); // should have valid channel now
     /* Expand paletted or RGB images with transparency to full alpha channels
     * so the data will be available as RGBA quartets.
     */
     if (png_get_valid(pngStruct, pngInfo, PNG_INFO_tRNS) != 0)
         png_set_tRNS_to_alpha(pngStruct);
-    const bool srcHasAlpha = colorType & PNG_COLOR_MASK_ALPHA;
-    if (!dataType.HasAlpha() && srcHasAlpha)
-        png_set_strip_alpha(pngStruct);
-    else if (dataType.HasAlpha() && !srcHasAlpha)
-        png_set_add_alpha(pngStruct, 0xffff, PNG_FILLER_AFTER);
-    if (dataType.IsBGROrder())
-        png_set_bgr(pngStruct);
 
-    //handle interlace
-    const uint32_t passes = (interlaceType == PNG_INTERLACE_NONE) ? 1 : png_set_interlace_handling(pngStruct);
+    if (dataType)
+    {
+        if (isSrc16bit && dataType.DataType() == ImgDType::DataTypes::Uint8)
+        {
+#ifdef PNG_READ_SCALE_16_TO_8_SUPPORTED
+            png_set_scale_16(pngStruct);
+#else
+            png_set_strip_16(pngStruct);
+#endif
+        }
+        else if (!isSrc16bit && dataType.DataType() == ImgDType::DataTypes::Uint16)
+            targetType.SetDatatype(ImgDType::DataTypes::Uint8); // convert later
+
+        if (!dataType.HasAlpha() && srcHasAlpha)
+            png_set_strip_alpha(pngStruct);
+        else if (dataType.HasAlpha() && !srcHasAlpha)
+            png_set_add_alpha(pngStruct, 0xffff, PNG_FILLER_AFTER);
+        if (dataType.IsBGROrder())
+            png_set_bgr(pngStruct);
+    }
+    else
+    {
+        targetType.SetDatatype(isSrc16bit ? ImgDType::DataTypes::Uint16 : ImgDType::DataTypes::Uint8);
+        Ensures(targetType); // should be valid dtype now
+        dataType = targetType;
+        // defaulted to RGB
+    }
     
     Image image(targetType);
     image.SetSize(width, height, false);
+
+    //handle interlace
+    const uint32_t passes = (interlaceType == PNG_INTERLACE_NONE) ? 1 : png_set_interlace_handling(pngStruct);
     png_start_read_image(pngStruct);
     {
         auto ptrs = image.GetRowPtrs<uint8_t>();
@@ -178,18 +207,23 @@ Image PngReader::Read(const ImgDType dataType)
             png_read_rows(pngStruct, ptrs.data(), nullptr, image.GetHeight());
         }
         timer.Stop();
-        ImgLog().Debug(u"[libpng]decode {} pass cost {} ms\n", passes, timer.ElapseMs());
-
+        const auto timeRead = timer.ElapseUs() / 1000.f;
+        
+        timer.Start();
+        bool postconv = false;
         // post process, extend to 16bit
         if (targetType != dataType)
         {
+            postconv = true;
             Ensures(targetType.Channel() == dataType.Channel());
             Ensures(targetType.DataType() == ImgDType::DataTypes::Uint8 && dataType.DataType() == ImgDType::DataTypes::Uint16);
-            timer.Start();
             image = image.ConvertTo(dataType);
-            timer.Stop();
-            ImgLog().Debug(u"[png]post uint8->uint16 cost {} ms\n", timer.ElapseMs());
         }
+        timer.Stop();
+        const auto timePost = timer.ElapseUs() / 1000.f;
+
+        const auto& syntax = common::str::FormatterCombiner::Combine(FmtString(u"libpng read({} pass)[{}ms]\n"sv), FmtString(u"libpng read({} pass)[{}ms] post-conv[{}ms]\n"sv));
+        ImgLog().Verbose(syntax(postconv), passes, timeRead, timePost);
     }
     png_read_end(pngStruct, pngInfo);
     return image;
@@ -221,7 +255,7 @@ void PngWriter::Write(ImageView image, const uint8_t quality)
     auto pngInfo = (png_infop)PngInfo;
     auto dstDType = image.GetDataType();
     if (!dstDType.Is(ImgDType::DataTypes::Uint8) && !dstDType.Is(ImgDType::DataTypes::Uint16))
-        COMMON_THROW(BaseException, u"only uint8 and uint16 datatype supported");
+        COMMON_THROWEX(BaseException, u"only uint8 and uint16 datatype supported");
     Stream.SetPos(0);
 
     const auto alphaMask = dstDType.HasAlpha() ? PNG_COLOR_MASK_ALPHA : 0;
@@ -241,9 +275,11 @@ void PngWriter::Write(ImageView image, const uint8_t quality)
 
 uint8_t PngSupport::MatchExtension(std::u16string_view ext, ImgDType type, const bool) const
 {
-    if (const auto dt = type.DataType(); dt != ImgDType::DataTypes::Uint16 && dt != ImgDType::DataTypes::Uint8)
+    if (ext != u"PNG")
         return 0;
-    return ext == u"PNG" ? 240 : 0;
+    if (type && !type.Is(ImgDType::DataTypes::Uint16) && !type.Is(ImgDType::DataTypes::Uint8))
+        return 0;
+    return 240;
 }
 
 static auto DUMMY = RegistImageSupport<PngSupport>();

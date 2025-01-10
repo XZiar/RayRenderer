@@ -60,117 +60,144 @@ static int IsEof(void *user)
     auto& stream = *static_cast<RandomInputStream*>(user);
     return stream.IsEnd() ? 1 : 0;
 }
-static stbi_io_callbacks IOCallBack{ ReadStream, SkipStream, IsEof };
 
-struct StbData
+
+struct StbReader::Context : public stbi__context
+{ };
+StbReader::StbReader(RandomInputStream& stream) : Stream(stream), StbContext(std::make_unique<Context>())
 {
-    void* Ptr = nullptr;
-    ~StbData()
-    {
-        if (Ptr)
-            stbi_image_free(Ptr);
-    }
-};
-
-
-StbReader::StbReader(RandomInputStream& stream) : Stream(stream)
-{
-    auto context = new stbi__context();
-    StbContext = context;
     if (const auto space = Stream.TryGetAvaliableInMemory(); space && space->size() == Stream.GetSize() && space->size() <= std::numeric_limits<int>::max())
     { // all in memory and within intmax
-        ImgLog().Verbose(u"STB bypass Stream with mem region.\n");
-        stbi__start_mem(context, reinterpret_cast<const unsigned char*>(space->data()), static_cast<int>(space->size()));
+        ImgLog().Debug(u"STB bypass Stream with mem region.\n");
+        stbi__start_mem(StbContext.get(), reinterpret_cast<const unsigned char*>(space->data()), static_cast<int>(space->size()));
     }
     else
-        stbi__start_callbacks(context, &IOCallBack, &Stream);
+    {
+        stbi_io_callbacks callBacks{ ReadStream, SkipStream, IsEof }; 
+        stbi__start_callbacks(StbContext.get(), &callBacks, &Stream);
+    }
 }
 
 StbReader::~StbReader()
 {
-    if (!StbContext)
-        delete static_cast<stbi__context*>(StbContext);
+}
+
+static forceinline std::optional<ImgDType::Channels> CompToDType(const int comp) noexcept
+{
+    if (comp < 1 || comp > 4)
+        return {};
+    constexpr ImgDType::Channels Channels[4] = { ImgDType::Channels::R, ImgDType::Channels::RA, ImgDType::Channels::RGB, ImgDType::Channels::RGBA };
+    return Channels[comp - 1];
 }
 
 bool StbReader::Validate()
 {
-    auto context = static_cast<stbi__context*>(StbContext);
+    auto context = StbContext.get();
+    int w = 0, h = 0, comp = 0;
+    bool infoCheck = false, is16Bit = false;
     if (stbi__pnm_test(context))
+    {
         TestedType = ImgType::PNM;
+        infoCheck = stbi__pnm_info(context, &w, &h, &comp);
+        is16Bit = stbi__png_is16(context);
+    }
     else if (stbi__jpeg_test(context))
+    {
         TestedType = ImgType::JPG;
+        infoCheck = stbi__jpeg_info(context, &w, &h, &comp);
+    }
     else if (stbi__png_test(context))
+    {
         TestedType = ImgType::PNG;
+        infoCheck = stbi__png_info(context, &w, &h, &comp);
+        is16Bit = stbi__png_is16(context);
+    }
     else if (stbi__bmp_test(context))
+    {
         return false; // skip due to known issue https://github.com/nothings/stb/issues/1716
         // TestedType = ImgType::BMP;
+    }
     else if (stbi__pic_test(context))
+    {
         TestedType = ImgType::PIC;
+        infoCheck = stbi__pic_info(context, &w, &h, &comp);
+    }
     else if (stbi__tga_test(context))
+    {
         TestedType = ImgType::TGA;
+        infoCheck = stbi__tga_info(context, &w, &h, &comp);
+    }
     else
         return false;
+    if (!infoCheck || w <= 0 || h <= 0 || comp < 1 || comp > 4)
+        return false;
+    TestedDType = ImgDType{ *CompToDType(comp), is16Bit ? ImgDType::DataTypes::Uint16 : ImgDType::DataTypes::Uint8 };
+    stbi__rewind(context); // looks like xxx_info does not rewind
     return true;
 }
 
+struct StbDataHolder final : public common::AlignedBuffer::ExternBufInfo
+{
+    void* Ptr = nullptr;
+    size_t Size = 0;
+    ~StbDataHolder() final
+    {
+        if (Ptr)
+            stbi_image_free(Ptr);
+    }
+    [[nodiscard]] size_t GetSize() const noexcept final { return Size; }
+    [[nodiscard]] std::byte* GetPtr() const noexcept final { return reinterpret_cast<std::byte*>(Ptr); }
+};
+
 Image StbReader::Read(ImgDType dataType)
 {
-    if (!dataType.Is(ImgDType::DataTypes::Uint8))
-        COMMON_THROW(BaseException, u"unsupported datatype");
+    Expects(TestedDType);
+    if (dataType)
+    {
+        if (!dataType.Is(ImgDType::DataTypes::Uint8))
+            COMMON_THROW(BaseException, u"unsupported datatype");
+    }
+    else
+        dataType = TestedDType;
     //const int32_t reqComp = Image::GetElementSize(dataType);
-    int32_t width, height, comp;
+    int width = 0, height = 0, comp = 0;
     stbi__result_info resInfo;
     memset(&resInfo, 0, sizeof(stbi__result_info)); // make sure it's initialized if we add new fields
     resInfo.bits_per_channel = 8; // default is 8 so most paths don't have to be changed
     resInfo.channel_order = STBI_ORDER_RGB; // all current input & output are this, but this is here so we can add BGR order
     resInfo.num_channels = 0;
 
-    auto context = static_cast<stbi__context*>(StbContext);
-    StbData ret;
+    auto context = StbContext.get();
+    auto stbret = std::make_unique<StbDataHolder>();
     switch (TestedType)
     {
-    case ImgType::PNM:  ret.Ptr = stbi__pnm_load (context, &width, &height, &comp, 0, &resInfo); break;
-    case ImgType::JPG:  ret.Ptr = stbi__jpeg_load(context, &width, &height, &comp, 0, &resInfo); break;
-    case ImgType::PNG:  ret.Ptr = stbi__png_load (context, &width, &height, &comp, 0, &resInfo); break;
-    case ImgType::BMP:  ret.Ptr = stbi__bmp_load (context, &width, &height, &comp, 0, &resInfo); break;
-    case ImgType::PIC:  ret.Ptr = stbi__pic_load (context, &width, &height, &comp, 0, &resInfo); break;
-    case ImgType::TGA:  ret.Ptr = stbi__tga_load (context, &width, &height, &comp, 0, &resInfo); break;
+    case ImgType::PNM:  stbret->Ptr = stbi__pnm_load (context, &width, &height, &comp, 0, &resInfo); break;
+    case ImgType::JPG:  stbret->Ptr = stbi__jpeg_load(context, &width, &height, &comp, 0, &resInfo); break;
+    case ImgType::PNG:  stbret->Ptr = stbi__png_load (context, &width, &height, &comp, 0, &resInfo); break;
+    case ImgType::BMP:  stbret->Ptr = stbi__bmp_load (context, &width, &height, &comp, 0, &resInfo); break;
+    case ImgType::PIC:  stbret->Ptr = stbi__pic_load (context, &width, &height, &comp, 0, &resInfo); break;
+    case ImgType::TGA:  stbret->Ptr = stbi__tga_load (context, &width, &height, &comp, 0, &resInfo); break;
     default:            COMMON_THROW(BaseException, u"unvalidated image");
     }
-    if (ret.Ptr == nullptr)
-    {
+
+    if (stbret->Ptr == nullptr)
         COMMON_THROW(BaseException, common::str::to_u16string(stbi_failure_reason()));
-    }
+    if (width <= 0 || height <= 0)
+        COMMON_THROW(BaseException, u"Image load by stb has unexpected shape");
+    if (resInfo.bits_per_channel != 8 && resInfo.bits_per_channel != 16)
+        COMMON_THROW(BaseException, u"Image load by stb has unexpected bits per channel");
+    const auto retCh = CompToDType(comp);
+    if (!retCh)
+        COMMON_THROW(BaseException, u"cannot parse image");
 
-    ImgDType retType;
-    switch (comp)
-    {
-    case 1: retType = ImageDataType::GRAY; break;
-    case 2: retType = ImageDataType::GA; break;
-    case 3: retType = ImageDataType::RGB; break;
-    case 4: retType = ImageDataType::RGBA; break;
-    default: COMMON_THROW(BaseException, u"cannot parse image");
-    }
-    Image img(retType);
-    img.SetSize(width, height);
-
-    if (resInfo.bits_per_channel != 8)
-    {
-        if (resInfo.bits_per_channel != 16)
-            COMMON_THROW(BaseException, u"Image load by stb has unexpected bits per channel");
-        const size_t pixCount = width * height * comp;
-        const uint16_t* __restrict u16Data = reinterpret_cast<const uint16_t*>(ret.Ptr);
-        uint8_t* __restrict u8Data = img.GetRawPtr<uint8_t>();
-        for (size_t i = 0; i < pixCount; ++i)
-            u8Data[i] = (u16Data[i] >> 8);
-    }
-    else
-    {
-        memcpy_s(img.GetRawPtr(), comp * width * height, ret.Ptr, width * height * comp);
-    }
+    ImgDType retType{ *retCh, resInfo.bits_per_channel == 16 ? ImgDType::DataTypes::Uint16 : ImgDType::DataTypes::Uint8 };
+    if (retType != TestedDType)
+        ImgLog().Warning(u"stb loads [{}] image rather than [{}] during validate\n", retType, TestedDType);
+    stbret->Size = static_cast<size_t>(width) * height * retType.ElementSize();
+    Image img(common::AlignedBuffer::CreateBuffer(std::move(stbret)), static_cast<uint32_t>(width), static_cast<uint32_t>(height), retType);
 
     if (retType != dataType)
-        img = img.ConvertTo(dataType);
+        return img.ConvertTo(dataType);
     return img;
 }
 
@@ -228,6 +255,8 @@ uint8_t StbSupport::MatchExtension(std::u16string_view ext, ImgDType datatype, c
 {
     if (isRead)
     {
+        if (datatype && !datatype.Is(ImgDType::DataTypes::Uint8) && !datatype.Is(ImgDType::DataTypes::Uint16))
+            return 0;
         if (ext == u"PPM" || ext == u"PGM")
             return 240;
         if (ext == u"JPG" || ext == u"JPEG" || ext == u"PNG" || ext == u"BMP" || ext == u"PIC" || ext == u"TGA")

@@ -1,11 +1,6 @@
 #include "ImageUtilPch.h"
 #include "ImageNDK.h"
-#include "SystemCommon/Format.h"
-#include "SystemCommon/Exceptions.h"
-#include "SystemCommon/StackTrace.h"
 #include "SystemCommon/DynamicLibrary.h"
-
-#include "common/StaticLookup.hpp"
 
 #undef __INTRODUCED_IN // not directly use, ignore api check
 #include <android/bitmap.h>
@@ -15,8 +10,6 @@
 
 namespace xziar::img::ndk
 {
-using common::BaseException;
-using namespace std::string_view_literals;
 
 #define DEFINE_FUNC(func, name) using T_P##name = decltype(&func); static constexpr auto N_##name = #func ""sv
 #define DECLARE_FUNC(name) T_P##name name = nullptr
@@ -123,7 +116,8 @@ bool NdkReader::Validate()
     const auto info = Support->Host->GetInfo(decoder);
     const auto width = Support->Host->GetWidth(info);
     const auto height = Support->Host->GetHeight(info);
-    if (width < 0 || height < 0) return false;
+    if (width < 0 || height < 0)
+        return false;
     const auto format = Support->Host->GetFormat(info);
     switch (format)
     {
@@ -133,6 +127,7 @@ bool NdkReader::Validate()
     case ANDROID_BITMAP_FORMAT_RGB_565:
         break;
     default:
+        ImgLog().Verbose(u"NDK reprots unknown format [{}].\n", format);
         return false;
     }
 
@@ -162,14 +157,21 @@ Image NdkReader::Read(ImgDType dataType)
         break;
     case ANDROID_BITMAP_FORMAT_RGB_565:
         isGray = false; isFloat = false;
-        origType = ImgDType{ dataType.Channel(), ImgDType::DataTypes::Uint8 };
+        origType = ImgDType{ dataType ? dataType.Channel() : ImgDType::Channels::RGB, ImgDType::DataTypes::Uint8 };
         break;
-    default: Expects(false); return {};
+    default:
+        CM_UNREACHABLE();
+        Ensures(false);
     }
-    if (!isGray && dataType.ChannelCount() < 3)
-        return {};
-    if (isFloat != dataType.IsFloat())
-        return {};
+    if (dataType)
+    {
+        if (!isGray && dataType.ChannelCount() < 3)
+            COMMON_THROWEX(BaseException, u"cannot read gray from non-gray");
+        if (isFloat != dataType.IsFloat())
+            COMMON_THROWEX(BaseException, isFloat ? u"cannot read non-float from float" : u"cannot read float from non-float");
+    }
+    else
+        dataType = origType;
 
     Image image(origType);
     image.SetSize(Width, Height);
@@ -211,7 +213,9 @@ Image NdkReader::Read(ImgDType dataType)
         Ensures(stride == image.GetElementSize() * image.GetWidth());
         THROW_DEC(Support->Host, DecodeImg(decoder, image.GetRawPtr(), stride, image.GetSize()), u"Failed to decode image");
     } break;
-    default: Expects(false); return {};
+    default:
+        CM_UNREACHABLE();
+        Ensures(false);
     }
 
     if (origType != dataType)
@@ -268,12 +272,12 @@ std::unique_ptr<ImgReader> NdkSupport::GetReader(common::io::RandomInputStream& 
     common::span<const std::byte> src;
     if (const auto space = stream.TryGetAvaliableInMemory(); space && space->size() == stream.GetSize())
     { // all in memory
-        ImgLog().Verbose(u"NDK bypass Stream with mem region.\n");
+        ImgLog().Debug(u"NDK bypass Stream with mem region.\n");
         src = *space;
     }
     else
     {
-        ImgLog().Verbose(u"NDK faces Non-MemoryStream, read all.\n");
+        ImgLog().Debug(u"NDK faces Non-MemoryStream, read all.\n");
         tmp = common::AlignedBuffer(stream.GetSize());
         stream.ReadMany(stream.GetSize(), 1, tmp.GetRawPtr());
         src = tmp.AsSpan();
@@ -330,7 +334,7 @@ static auto DUMMY = []()
     catch (const BaseException& be)
     {
         common::mlog::LogInitMessage(common::mlog::LogLevel::Warning, "ImageNDK",
-            common::str::Formatter<char>{}.FormatStatic(FmtString("{}: {}.\n"), be.Message(), be.GetDetailMessage()));
+            common::str::Formatter<char>{}.FormatStatic(FmtString("{}.\n"), be));
     }
     return 0u;
 }();

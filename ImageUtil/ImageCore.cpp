@@ -1,8 +1,6 @@
 #include "ImageUtilPch.h"
 #include "ImageCore.h"
 #include "ColorConvert.h"
-#include "SystemCommon/FormatExtra.h"
-#include "common/StaticLookup.hpp"
 
 #include <boost/preprocessor/punctuation/comma_if.hpp>
 #include <boost/preprocessor/seq/for_each_i.hpp>
@@ -19,8 +17,6 @@ using std::byte;
 using std::string;
 using std::wstring;
 using std::u16string;
-using common::BaseException;
-using namespace std::string_view_literals;
 
 
 std::string_view ImgDType::Stringify(Channels ch) noexcept
@@ -66,9 +62,27 @@ std::string ImgDType::Stringify(const ImgDType& type, bool detail) noexcept
         return {};
     }
     const auto ch = Stringify(type.Channel());
-    const auto dt = Stringify(type.Channel());
+    const auto dt = Stringify(type.DataType());
     if (ch.empty() || dt.empty()) return "UNKNOWN";
     return std::string(dt).append("|").append(ch);
+}
+void ImgDType::FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec* spec) const
+{
+    if (const auto knownName = DataTypeNameLookup(Value); knownName)
+    {
+        executor.PutString(context, *knownName, spec);
+        return;
+    }
+    const auto ch = Stringify(Channel());
+    const auto dt = Stringify(DataType());
+    if (ch.empty() || dt.empty())
+    {
+        executor.PutString(context, "UNKNOWN"sv, spec);
+        return;
+    }
+    executor.PutString(context, dt, spec);
+    executor.PutString(context, "|"sv, spec);
+    executor.PutString(context, ch, spec);
 }
 
 
@@ -628,6 +642,22 @@ Image Image::CombineChannels(const ImgDType dataType, common::span<const ImageVi
 }
 
 
+struct TempHolder final : public common::AlignedBuffer::ExternBufInfo
+{
+    common::span<std::byte> Space;
+    TempHolder(common::span<std::byte> space) : Space(space) {}
+    ~TempHolder() final {}
+    [[nodiscard]] size_t GetSize() const noexcept final { return Space.size(); }
+    [[nodiscard]] std::byte* GetPtr() const noexcept final { return Space.data(); }
+};
+Image Image::CreateViewFromTemp(common::span<std::byte> space, const ImgDType dataType, uint32_t w, uint32_t h)
+{
+    const auto size = static_cast<size_t>(w) * h * dataType.ElementSize();
+    if (size > space.size())
+        COMMON_THROW(BaseException, common::str::Formatter<char16_t>{}.FormatStatic(FmtString(u"given size [{}] too small for [{}x{}][] image(expects [{}])"),
+            space.size(), w, h, dataType, size));
+    return { common::AlignedBuffer::CreateBuffer(std::make_unique<TempHolder>(space.subspan(0, size))), w, h, dataType };
+}
 
 }
 
