@@ -54,6 +54,12 @@
 #include <sys/mman.h>
 #include <linux/input.h>
 
+
+#if COMMON_COMPILER_CLANG
+#   pragma clang diagnostic push
+#   pragma clang diagnostic ignored "-Wunused-const-variable"
+#endif
+
 constexpr uint32_t MessageCreate    = 1;
 constexpr uint32_t MessageTask      = 2;
 constexpr uint32_t MessageClose     = 3;
@@ -66,6 +72,10 @@ constexpr uint32_t MessageClipboard = 12;
 constexpr uint32_t FdCookieComplex      = 0x80000000u;
 constexpr uint32_t FdCookieClipboard    = 1;
 constexpr uint32_t FdCookieDrag         = 2;
+
+#if COMMON_COMPILER_CLANG
+#   pragma clang diagnostic pop
+#endif
 
 
 namespace hack
@@ -267,16 +277,6 @@ public:
 
 struct ImageBuffer
 {
-private:
-    struct Holder final : public common::AlignedBuffer::ExternBufInfo
-    {
-        common::span<std::byte> Space;
-        Holder(common::span<std::byte> space) : Space(space) {}
-        ~Holder() final {}
-        [[nodiscard]] size_t GetSize() const noexcept final { return Space.size(); }
-        [[nodiscard]] std::byte* GetPtr() const noexcept final { return Space.data(); }
-    };
-public:
     WaylandProxy ShmPool;
     WaylandProxy Buf;
     common::span<std::byte> Space;
@@ -1840,7 +1840,7 @@ public:
             {
                 uint64_t dummy = 0;
                 read(MsgQueueFd, &dummy, 8);
-                while(MsgQueue.pop(msg))
+                while (MsgQueue.pop(msg))
                 {
                     //Logger.Verbose(u"Read Msg[{}] on window[{:x}].\n", msg.OpCode, (uintptr_t)msg.Host->Surface.Proxy);
                     switch(msg.OpCode)
@@ -1868,11 +1868,11 @@ public:
                     } break;
                     case MessageUpdIcon:
                     {
-                        const auto ptrIcon = GetWindowResource(msg.Host, WdAttrIndex::Icon);
-                        if (ptrIcon)
+                        auto& icon = *GetWindowResource(msg.Host, WdAttrIndex::Icon);
+                        if (icon)
                         {
                             IconLock lock(msg.Host);
-                            auto& holder = static_cast<IconHolder&>(*ptrIcon);
+                            auto& holder = static_cast<IconHolder&>(icon);
                             SetIcon(*msg.Host, holder.Extract());
                         }
                         else
@@ -2034,7 +2034,7 @@ public:
 
     WindowHost Create(const CreateInfo& info_) final
     {
-        WaylandCreateInfo info;
+        WaylandCreateInfo info{};
         static_cast<CreateInfo&>(info) = info_;
         return Create(info);
     }
@@ -2064,7 +2064,7 @@ void ImageBuffer::PrepareForSize(const WindowManagerWayland& manager, int32_t w,
     Space = { reinterpret_cast<std::byte*>(mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, Fd, 0)), static_cast<size_t>(size) };
     ShmPool = manager.GetFrom<WL_SHM_CREATE_POOL>(manager.Shm, manager.IShmPool, Fd, size);
     Buf = manager.GetFrom<WL_SHM_POOL_CREATE_BUFFER>(ShmPool, manager.IBuffer, 0, w, h, stride, manager.ShmDType->first);
-    RealImage = Image(common::AlignedBuffer::CreateBuffer(std::make_unique<Holder>(Space)), w, h, manager.ShmDType->second);
+    RealImage = Image::CreateViewFromTemp(Space, manager.ShmDType->second, w, h);
 }
 void IconHolder::TheDisposer(const OpaqueResource& res) noexcept
 {

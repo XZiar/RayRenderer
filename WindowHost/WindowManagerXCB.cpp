@@ -29,6 +29,12 @@
 #undef Always
 #undef None
 
+
+#if COMMON_COMPILER_CLANG
+#   pragma clang diagnostic push
+#   pragma clang diagnostic ignored "-Wunused-const-variable"
+#endif
+
 constexpr uint32_t MessageCreate    = 1;
 constexpr uint32_t MessageTask      = 2;
 constexpr uint32_t MessageClose     = 3;
@@ -36,6 +42,10 @@ constexpr uint32_t MessageStop      = 4;
 constexpr uint32_t MessageDpi       = 5;
 constexpr uint32_t MessageUpdTitle  = 10;
 constexpr uint32_t MessageUpdIcon   = 11;
+
+#if COMMON_COMPILER_CLANG
+#   pragma clang diagnostic pop
+#endif
 
 
 namespace xziar::gui::detail

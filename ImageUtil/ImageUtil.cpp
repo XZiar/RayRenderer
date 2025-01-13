@@ -112,14 +112,14 @@ Image ReadImage(RandomInputStream& stream, const std::u16string_view ext, const 
     COMMON_THROW(BaseException, u"cannot read image");
 }
 
-void WriteImage(const Image& image, const common::fs::path & path, const uint8_t quality)
+void WriteImage(const ImageView& image, const common::fs::path & path, const uint8_t quality)
 {
     common::file::FileOutputStream stream(common::file::FileObject::OpenThrow(path, common::file::OpenFlag::CreateNewBinary));
     ImgLog().Debug(u"Write Image {}\n", path.u16string());
     WriteImage(image, stream, GetExtName(path), quality);
 }
 
-void WriteImage(const Image& image, RandomOutputStream& stream, const std::u16string& ext, const uint8_t quality)
+void WriteImage(const ImageView& image, RandomOutputStream& stream, const std::u16string& ext, const uint8_t quality)
 {
     const auto extName = common::str::ToUpperEng(ext, common::str::Encoding::UTF16LE);
     auto testList = GenerateSupportList(extName, image.GetDataType(), false, false);

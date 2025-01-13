@@ -18,6 +18,14 @@ struct Position
     int32_t X, Y;
     constexpr Position() noexcept : X(0), Y(0) { }
     constexpr Position(int32_t x, int32_t y) noexcept : X(x), Y(y) { }
+    constexpr bool operator==(const Position other) const noexcept 
+    { 
+        return X == other.X && Y == other.Y;
+    }
+    constexpr bool operator!=(const Position other) const noexcept
+    {
+        return X != other.X || Y != other.Y;
+    }
     constexpr Distance operator-(const Position other) const noexcept
     {
         return Distance(X - other.X, Y - other.Y);

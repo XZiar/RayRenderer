@@ -26,6 +26,7 @@ class WindowManager;
 class WindowManagerWin32;
 class WindowManagerXCB;
 class WindowManagerWayland;
+class WindowManagerTermuxGUI;
 class WindowManagerCocoa;
 
 }
@@ -177,6 +178,7 @@ class WDHOSTAPI WindowHost_ :
     friend detail::WindowManagerWin32;
     friend detail::WindowManagerXCB;
     friend detail::WindowManagerWayland;
+    friend detail::WindowManagerTermuxGUI;
     friend detail::WindowManagerCocoa;
 private:
     struct Pimpl;
@@ -365,6 +367,26 @@ public:
     [[nodiscard]] virtual bool CanClientDecorate() const noexcept = 0;
 };
 using WaylandWdHost = std::shared_ptr<WaylandBackend::WaylandWdHost>;
+
+class TermuxGUIBackend : public WindowBackend
+{
+protected:
+    using WindowBackend::WindowBackend;
+public:
+    struct TermuxGUICreateInfo : public CreateInfo
+    {
+    };
+    class TermuxGUIWdHost : public WindowHost_
+    {
+    protected:
+        using WindowHost_::WindowHost_;
+    public:
+        [[nodiscard]] virtual void* GetCurrentHWBuffer() const noexcept = 0;
+    };
+    using WindowBackend::Create;
+    [[nodiscard]] virtual std::shared_ptr<TermuxGUIWdHost> Create(const TermuxGUICreateInfo& info = {}) = 0;
+};
+using TermuxGUIWdHost = std::shared_ptr<TermuxGUIBackend::TermuxGUIWdHost>;
 
 class CocoaBackend : public WindowBackend
 {
