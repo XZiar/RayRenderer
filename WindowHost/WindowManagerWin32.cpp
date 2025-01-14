@@ -11,6 +11,7 @@
 #include "common/ContainerEx.hpp"
 #include "common/StaticLookup.hpp"
 #include "common/StringPool.hpp"
+#include "common/TimeUtil.hpp"
 #include "common/Linq2.hpp"
 
 #include <mutex>
@@ -24,13 +25,13 @@
 #include <shobjidl.h>
 #include <wrl/client.h>
 
-constexpr uint32_t MessageCreate    = WM_USER + 1;
-constexpr uint32_t MessageTask      = WM_USER + 2;
-constexpr uint32_t MessageClose     = WM_USER + 3;
-constexpr uint32_t MessageStop      = WM_USER + 4;
-constexpr uint32_t MessageDpi       = WM_USER + 5;
-constexpr uint32_t MessageUpdTitle  = WM_USER + 10;
-constexpr uint32_t MessageUpdIcon   = WM_USER + 11;
+static inline constexpr uint32_t MessageCreate    = WM_USER + 1;
+static inline constexpr uint32_t MessageTask      = WM_USER + 2;
+static inline constexpr uint32_t MessageClose     = WM_USER + 3;
+static inline constexpr uint32_t MessageStop      = WM_USER + 4;
+static inline constexpr uint32_t MessageDpi       = WM_USER + 5;
+static inline constexpr uint32_t MessageUpdTitle  = WM_USER + 10;
+static inline constexpr uint32_t MessageUpdIcon   = WM_USER + 11;
 
 
 namespace xziar::gui
@@ -38,6 +39,7 @@ namespace xziar::gui
 using namespace std::string_view_literals;
 using common::HResultHolder;
 using common::BaseException;
+using common::SimpleTimer;
 using xziar::img::Image;
 using xziar::img::ImageView;
 using event::CommonKeys;
@@ -116,6 +118,9 @@ struct HBMPHolder
 namespace detail
 {
 
+namespace win32
+{
+
 struct IconHolder : public OpaqueResource
 {
     explicit IconHolder(HICON sicon, HICON bicon) noexcept : OpaqueResource(&TheDisposer, reinterpret_cast<uintptr_t>(sicon), reinterpret_cast<uintptr_t>(bicon)) {}
@@ -130,67 +135,101 @@ struct IconHolder : public OpaqueResource
     }
 };
 
-struct RenderImgHolder : public OpaqueResource
-{
-    explicit RenderImgHolder(HBITMAP bmp, uint32_t w, uint32_t h) noexcept : OpaqueResource(&TheDisposer, reinterpret_cast<uintptr_t>(bmp), static_cast<uint64_t>(w) << 32 | h) {}
-    HBITMAP Bitmap() const noexcept { return reinterpret_cast<HBITMAP>(static_cast<uintptr_t>(Cookie[0])); }
-    std::pair<uint32_t, uint32_t> Size() const noexcept { return { static_cast<uint32_t>(Cookie[1] >> 32), static_cast<uint32_t>(Cookie[1]) }; }
-    static void TheDisposer(const OpaqueResource& res) noexcept
-    {
-        const auto& holder = static_cast<const RenderImgHolder&>(res);
-        const auto bmp = holder.Bitmap();
-        if (bmp) DeleteObject(bmp);
-    }
-};
-
+}
+using namespace win32;
 
 class WindowManagerWin32 final : public Win32Backend, public WindowManager
 {
 public:
     static constexpr std::string_view BackendName = "Win32"sv;
 private:
-    class WdHost final : public Win32Backend::Win32WdHost
+    class WdHost;
+    class GDIRenderer final : private CacheRect<int32_t>, public BasicRenderer
     {
-    public:
-        WindowManagerWin32& GetManager() noexcept { return static_cast<WindowManagerWin32&>(WindowHost_::GetManager()); }
-        
-        struct Backbuffer
-        {
-            HRGN Region = nullptr;
-            int32_t Width = 0, Height = 0;
-            bool UpdateSize(WdHost& wd) noexcept
-            {
-                if (wd.Width != Width || wd.Height != wd.Height)
-                {
-                    Width = wd.Width, Height = wd.Height;
-                    const auto bmp = CreateCompatibleBitmap(wd.DCHandle, Width, Height);
-                    const auto oldBmp = SelectObject(wd.MemDC, bmp);
-                    if (oldBmp) DeleteObject(oldBmp);
-                    if (Region) DeleteObject(Region);
-                    Region = CreateRectRgn(0, 0, Width, Height);
-                    return true;
-                }
-                return false;
-            }
-        };
-        HWND Handle = nullptr;
-        HDC DCHandle = nullptr;
+        friend WindowManagerWin32;
+        WdHost& Window;
         HDC MemDC = nullptr;
         HBRUSH BGBrush = nullptr;
         HRGN Region = nullptr;
-        std::mutex ClipboardLock;
-        CacheRect<int32_t> BackBuf;
-        bool NeedBackground = true;
-        WdHost(WindowManagerWin32& manager, const Win32CreateInfo& info) noexcept :
-            Win32WdHost(manager, info) { }
-        ~WdHost() final 
+        std::tuple<HBITMAP, uint32_t, uint32_t> AttachedImage = { nullptr, 0u, 0u };
+        LockField ResourceLock;
+        [[nodiscard]] forceinline auto& Log() noexcept { return Window.Manager.Logger; }
+        [[nodiscard]] forceinline auto UseImg() noexcept { return detail::LockField::ConsumerLock<0>{ResourceLock}; }
+        bool ReplaceImage(HBITMAP bmp, uint32_t w, uint32_t h)
         {
+            detail::LockField::ProducerLock<0> lock{ ResourceLock };
+            if (auto& bmp_ = std::get<0>(AttachedImage); bmp_)
+                DeleteObject(bmp_);
+            AttachedImage = { bmp, w, h };
+            return lock;
+        }
+    public:
+        GDIRenderer(WdHost* wd) : Window(*wd) {}
+        ~GDIRenderer() final 
+        {
+            ReplaceImage(nullptr, 0, 0);
+            DeleteObject(Region);
+            DeleteObject(BGBrush);
             DeleteDC(MemDC);
+        }
+        void Initialize() noexcept
+        {
+            MemDC = CreateCompatibleDC(Window.DCHandle);
+            BGBrush = GetSysColorBrush(COLOR_WINDOW);
+            {
+                SetStretchBltMode(MemDC, STRETCH_HALFTONE);
+                SetBrushOrgEx(MemDC, 0, 0, nullptr);
+            }
+        }
+        void Render(bool forceRedraw) noexcept;
+        void SetImage(std::optional<xziar::img::ImageView> img) noexcept final
+        {
+            if (img)
+            {
+                if (auto bmp = HBMPHolder::Create(*img, Window.DCHandle, true); bmp)
+                {
+                    ReplaceImage(bmp.Extract(), img->GetWidth(), img->GetHeight());
+                }
+            }
+            else
+                ReplaceImage(nullptr, 0, 0);
+        }
+    };
+    class WdHost final : public Win32Backend::Win32WdHost
+    {
+        friend GDIRenderer;
+    public:
+        [[nodiscard]] forceinline WindowManagerWin32& GetManager() noexcept { return static_cast<WindowManagerWin32&>(Manager); }
+        
+        HWND Handle = nullptr;
+        HDC DCHandle = nullptr;
+        std::optional<GDIRenderer> Renderer;
+        WdHost(WindowManagerWin32& manager, const Win32CreateInfo& info) noexcept :
+            Win32WdHost(manager, info) 
+        {
+            if (info.UseDefaultRenderer)
+                Renderer.emplace(this);
+        }
+        ~WdHost() final { }
+        uintptr_t FormatAs() const noexcept
+        {
+            return reinterpret_cast<uintptr_t>(Handle);
         }
         void* GetHDC() const noexcept final { return DCHandle; }
         void* GetHWND() const noexcept final { return Handle; }
-        void OnDisplay(bool forceRedraw) noexcept final;
-        void GetClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type) final;
+        void OnDisplay(bool forceRedraw) noexcept final
+        {
+            if (Renderer)
+            {
+                Renderer->Render(forceRedraw);
+            }
+            WindowHost_::OnDisplay(forceRedraw);
+        }
+        BasicRenderer* GetRenderer() noexcept final { return Renderer ? &*Renderer : nullptr; }
+        void GetClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type) final
+        {
+            GetManager().GetClipboard(*this, handler, type);
+        }
     };
 
     //static intptr_t __stdcall WindowProc(uintptr_t, uint32_t, uintptr_t, intptr_t);
@@ -234,6 +273,7 @@ private:
         return std::find(std::begin(Features), std::end(Features), feat) != std::end(Features);
     }
 
+    std::mutex ClipboardLock;
     void* InstanceHandle = nullptr;
     HDC MemDC;
     uint32_t BuildNumber;
@@ -417,6 +457,8 @@ public:
         }
         return true;
     }
+    void GetClipboard(WdHost& wd, const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type);
+
     void CreateNewWindow(CreatePayload& payload) final
     {
         if (SendGeneralMessage(reinterpret_cast<uintptr_t>(&payload), MessageCreate))
@@ -438,14 +480,14 @@ public:
     {
         SendGeneralMessage(reinterpret_cast<uintptr_t>(host), MessageUpdIcon);
     }
-    void UpdateBgImg(WindowHost_* host_) const final
-    {
-        const auto host = static_cast<WdHost*>(host_);
-        if (0 == RedrawWindow(host->Handle, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASENOW | RDW_NOCHILDREN))
-        {
-            Logger.Error(u"Error when asking redraw window: {}\n", GetLastError());
-        }
-    }
+    //void UpdateBgImg(WindowHost_* host_) const final
+    //{
+    //    const auto host = static_cast<WdHost*>(host_);
+    //    if (0 == RedrawWindow(host->Handle, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASENOW | RDW_NOCHILDREN))
+    //    {
+    //        Logger.Error(u"Error when asking redraw window: {}\n", GetLastError());
+    //    }
+    //}
     void CloseWindow(WindowHost_* host) const final
     {
         SendGeneralMessage(reinterpret_cast<uintptr_t>(host), MessageClose);
@@ -454,8 +496,7 @@ public:
     {
         UnregisterHost(host_);
         const auto host = static_cast<WdHost*>(host_);
-        if (host->MemDC) DeleteObject(host->MemDC);
-        if (host->Region) DeleteObject(host->Region);
+        host->Renderer.reset();
         ReleaseDC(host->Handle, host->DCHandle);
     }
 
@@ -539,21 +580,6 @@ public:
         return static_cast<OpaqueResource>(IconHolder(sicon, bicon));
     }
 
-    OpaqueResource CacheRenderImage(WindowHost_& host, xziar::img::ImageView img) const noexcept 
-    {
-        bool useDDB = true;
-        auto dc = static_cast<WdHost&>(host).DCHandle;
-        if (!dc)
-        {
-            useDDB = false;
-            dc = MemDC;
-        }
-        auto bmp = HBMPHolder::Create(img, dc, useDDB);
-        if (bmp)
-            return static_cast<OpaqueResource>(RenderImgHolder(bmp.Extract(), img.GetWidth(), img.GetHeight()));
-        return {};
-    }
-
     WindowHost Create(const CreateInfo& info_) final
     {
         Win32CreateInfo info;
@@ -571,62 +597,58 @@ public:
 };
 
 
-void WindowManagerWin32::WdHost::OnDisplay(bool forceRedraw) noexcept
+
+void WindowManagerWin32::GDIRenderer::Render(bool forceRedraw) noexcept
 {
-    const auto [ sizeChanged, needInit ] = BackBuf.Update(*this);
+    const auto [sizeChanged, needInit] = Update(Window);
     if (sizeChanged)
     {
-        const auto bmp = CreateCompatibleBitmap(DCHandle, BackBuf.Width, BackBuf.Height);
+        const auto bmp = CreateCompatibleBitmap(Window.DCHandle, Width, Height);
         const auto oldBmp = SelectObject(MemDC, bmp);
         if (oldBmp) DeleteObject(oldBmp);
         if (Region) DeleteObject(Region);
-        Region = CreateRectRgn(0, 0, BackBuf.Width, BackBuf.Height);
+        Region = CreateRectRgn(0, 0, Width, Height);
     }
     bool needDraw = false;
     {
-        BgLock lock(this);
-        const bool bgChanged = lock;
-        const auto& holder = static_cast<RenderImgHolder&>(*GetWindowResource(this, WdAttrIndex::Background));
-        if (bgChanged || sizeChanged)
+        auto imgLock = UseImg();
+        const bool imgChanged = imgLock;
+        const auto& [bmp, w, h] = AttachedImage;
+        if (imgChanged || sizeChanged)
         {
-            common::SimpleTimer timer;
+            SimpleTimer timer;
             timer.Start();
             FillRgn(MemDC, Region, BGBrush);
-            if (holder)
+            if (bmp)
             {
-                const auto& bmp = holder.Bitmap();
-                const auto [w, h] = holder.Size();
-                const auto [tw, th] = BackBuf.ResizeWithin(w, h);
-                const auto bmpDC = CreateCompatibleDC(DCHandle);
+                const auto [tw, th] = ResizeWithin(w, h);
+                const auto bmpDC = CreateCompatibleDC(Window.DCHandle);
                 const auto oldbmp = SelectObject(bmpDC, bmp);
                 [[maybe_unused]] const auto ret = StretchBlt(MemDC, 0, 0, tw, th, bmpDC, 0, 0, static_cast<int>(w), static_cast<int>(h), SRCCOPY);
                 GdiFlush();
                 SelectObject(bmpDC, oldbmp);
                 timer.Stop();
-                Manager.Logger.Verbose(u"Window[{:x}] rebuild backbuffer in [{} ms].\n", reinterpret_cast<uintptr_t>(Handle), timer.ElapseMs());
+                Log().Verbose(FmtString(u"Window[{:x}] rebuild backbuffer in [{} ms].\n"), Window, timer.ElapseMs<true>());
             }
         }
-        needDraw = forceRedraw || bgChanged || (sizeChanged && (NeedBackground || holder));
-        // needDraw = NeedBackground || bgChanged || (sizeChanged && holder);
+        needDraw = forceRedraw || imgChanged || (sizeChanged && bmp);
     }
     if (needDraw)
-        BitBlt(DCHandle, 0, 0, BackBuf.Width, BackBuf.Height, MemDC, 0, 0, SRCCOPY);
-    WindowHost_::OnDisplay(forceRedraw);
+        BitBlt(Window.DCHandle, 0, 0, Width, Height, MemDC, 0, 0, SRCCOPY);
 }
 
-void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type)
+
+void WindowManagerWin32::GetClipboard(WdHost& wd, const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type)
 {
     std::unique_lock<std::mutex> cpLock(ClipboardLock);
-    if (!OpenClipboard(Handle)) return;
-    auto& manager = GetManager();
-    auto& logger = Manager.Logger;
+    if (!OpenClipboard(wd.Handle)) return;
     bool finished = false;
     constexpr bool StopAtFault = true;
     wchar_t tmp[256] = { L'\0' };
     for (uint32_t format = EnumClipboardFormats(0); format && !finished; format = EnumClipboardFormats(format))
     {
         const size_t strlen = GetClipboardFormatNameW(format, tmp, 255);
-        logger.Verbose(u"At clipboard format[{}]({}).\n", format, std::wstring_view{ tmp, strlen });
+        Logger.Verbose(u"At clipboard format[{}]({}).\n", format, std::wstring_view{ tmp, strlen });
         switch (format)
         {
         case CF_UNICODETEXT:
@@ -639,9 +661,9 @@ void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoard
                 if (ptr && size)
                 {
                     if (format == CF_UNICODETEXT)
-                        finished = manager.InvokeClipboard(handler, ClipBoardTypes::Text, std::u16string_view{ reinterpret_cast<const char16_t*>(ptr), size / sizeof(char16_t) }, StopAtFault);
+                        finished = InvokeClipboard(handler, ClipBoardTypes::Text, std::u16string_view{ reinterpret_cast<const char16_t*>(ptr), size / sizeof(char16_t) }, StopAtFault);
                     else
-                        finished = manager.InvokeClipboard(handler, ClipBoardTypes::Text, std::   string_view{ reinterpret_cast<const char    *>(ptr), size / sizeof(char    ) }, StopAtFault);
+                        finished = InvokeClipboard(handler, ClipBoardTypes::Text, std::   string_view{ reinterpret_cast<const char    *>(ptr), size / sizeof(char    ) }, StopAtFault);
                 }
                 GlobalUnlock(data);
             } break;
@@ -651,7 +673,7 @@ void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoard
             {
                 const auto hbitmap = GetClipboardData(format);
                 if (const auto img = xziar::img::ConvertFromHBITMAP(hbitmap); img.GetSize())
-                    finished = manager.InvokeClipboard(handler, ClipBoardTypes::Image, ImageView(img), StopAtFault);
+                    finished = InvokeClipboard(handler, ClipBoardTypes::Image, ImageView(img), StopAtFault);
             } break;
         case CF_DIB:
         case CF_DIBV5:
@@ -675,7 +697,7 @@ void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoard
                     .TryGetFirst();
                 if (zexbmp)
                 {
-                    manager.WrapException([&]()
+                    WrapException([&]()
                     {
                         common::io::MemoryInputStream stream(common::span<const std::byte>{ptr, size});
                         const auto reader_ = (*zexbmp)->GetReader(stream, u"BMP");
@@ -701,24 +723,24 @@ void WindowManagerWin32::WdHost::GetClipboard(const std::function<bool(ClipBoard
                     };
                     memcpy(buffer.GetRawPtr(), &header, sizeof(header));
                     memcpy(buffer.GetRawPtr() + sizeof(header), ptr, size);
-                    if (ImageView img_ = manager.TryReadImage(buffer.AsSpan(), u"BMP", xziar::img::ImageDataType::RGBA, u"read DIB with header"); img_.GetSize() > 0)
+                    if (ImageView img_ = TryReadImage(buffer.AsSpan(), u"BMP", xziar::img::ImageDataType::RGBA, u"read DIB with header"); img_.GetSize() > 0)
                         img = img_;
                 }
                 if (img)
-                    finished = manager.InvokeClipboard(handler, ClipBoardTypes::Image, *img, StopAtFault);
+                    finished = InvokeClipboard(handler, ClipBoardTypes::Image, *img, StopAtFault);
             } break;
         case CF_HDROP:
             if (HAS_FIELD(type, ClipBoardTypes::File))
             {
                 const auto data = GetClipboardData(format);
                 auto list = ProcessDropFile((HDROP)data);
-                finished = manager.InvokeClipboard(handler, ClipBoardTypes::File, std::move(list), StopAtFault);
+                finished = InvokeClipboard(handler, ClipBoardTypes::File, std::move(list), StopAtFault);
             } break;
         default:
             if (HAS_FIELD(type, ClipBoardTypes::Raw))
             {
                 const auto data = GetClipboardData(format);
-                finished = manager.InvokeClipboard(handler, ClipBoardTypes::Raw, std::pair<const void*, uint32_t>{data, format}, StopAtFault);
+                finished = InvokeClipboard(handler, ClipBoardTypes::Raw, std::pair<const void*, uint32_t>{data, format}, StopAtFault);
             } break;
         }
     }
@@ -811,18 +833,8 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
         SetWindowLongPtrW(hwnd, 0, reinterpret_cast<LONG_PTR>(host));
         host->Handle = hwnd;
         host->DCHandle = GetDC(hwnd);
-        host->MemDC = CreateCompatibleDC(host->DCHandle);
-        host->BGBrush = GetSysColorBrush(COLOR_WINDOW);
-        {
-            SetStretchBltMode(host->MemDC, STRETCH_HALFTONE);
-            SetBrushOrgEx(host->MemDC, 0, 0, nullptr);
-        }
-        if (payload.ExtraData)
-        {
-            const auto bg_ = (*payload.ExtraData)("background");
-            if (const auto bg = TryGetFinally<bool>(bg_); bg)
-                host->NeedBackground = *bg;
-        }
+        if (host->Renderer)
+            host->Renderer->Initialize();
         host->Initialize();
     }
     else if (msg == WM_NCCREATE)

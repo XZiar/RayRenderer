@@ -6,12 +6,6 @@
 #include <ctime>
 
 
-#if defined(__has_cpp_attribute) && __has_cpp_attribute(nodiscard)
-#   define CM_NODISCARD [[nodiscard]]
-#else
-#   define CM_NODISCARD
-#endif
-
 
 namespace common
 {
@@ -20,27 +14,27 @@ namespace common
 struct SimpleTimer
 {
 private:
-    std::chrono::high_resolution_clock::time_point from, to;
+    std::chrono::high_resolution_clock::time_point From, To;
 public:
-    CM_NODISCARD static uint64_t getCurTime() noexcept
+    [[nodiscard]] static uint64_t getCurTime() noexcept
     {
         return std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch())
             .count();
     }
-    CM_NODISCARD static uint64_t getCurTimeUS() noexcept
+    [[nodiscard]] static uint64_t getCurTimeUS() noexcept
     {
         return std::chrono::duration_cast<std::chrono::microseconds>(
             std::chrono::high_resolution_clock::now().time_since_epoch())
             .count();
     }
-    CM_NODISCARD static uint64_t getCurTimeNS() noexcept
+    [[nodiscard]] static uint64_t getCurTimeNS() noexcept
     {
         return std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::high_resolution_clock::now().time_since_epoch())
             .count();
     }
-    CM_NODISCARD static auto getCurLocalTime()
+    [[nodiscard]] static auto getCurLocalTime()
     {
         const auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         std::tm tm;
@@ -54,30 +48,37 @@ public:
     SimpleTimer() noexcept { Start(); }
     uint64_t Start() noexcept
     {
-        from = std::chrono::high_resolution_clock::now();
-        return from.time_since_epoch().count();
+        From = std::chrono::high_resolution_clock::now();
+        return From.time_since_epoch().count();
     }
     uint64_t Stop() noexcept
     {
-        to = std::chrono::high_resolution_clock::now();
-        return to.time_since_epoch().count();
+        To = std::chrono::high_resolution_clock::now();
+        return To.time_since_epoch().count();
     }
-    CM_NODISCARD constexpr uint64_t ElapseNs() const noexcept
+    [[nodiscard]] constexpr uint64_t ElapseNs() const noexcept
     {
-        return (to - from).count();
+        return (To - From).count();
     }
-    CM_NODISCARD constexpr uint64_t ElapseUs() const noexcept
+    template<bool Float = false>
+    [[nodiscard]] constexpr std::conditional_t<Float, float, uint64_t> ElapseUs() const noexcept
     {
-        return std::chrono::duration_cast<std::chrono::microseconds>(to - from).count();
+        if constexpr (!Float)
+            return std::chrono::duration_cast<std::chrono::microseconds>(To - From).count();
+        else
+            return static_cast<float>(ElapseNs()) / 1000.f;
     }
-    CM_NODISCARD constexpr uint64_t ElapseMs() const noexcept
+    template<bool Float = false>
+    [[nodiscard]] constexpr std::conditional_t<Float, float, uint64_t> ElapseMs() const noexcept
     {
-        return std::chrono::duration_cast<std::chrono::milliseconds>(to - from).count();
+        if constexpr (!Float)
+            return std::chrono::duration_cast<std::chrono::milliseconds>(To - From).count();
+        else
+            return static_cast<float>(ElapseNs()) / 1e6f;
     }
 };
 
 
 }
 
-#undef CM_NODISCARD
 

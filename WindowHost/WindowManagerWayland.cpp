@@ -13,6 +13,7 @@
 #include "common/StringEx.hpp"
 #include "common/StringPool.hpp"
 #include "common/StringLinq.hpp"
+#include "common/TimeUtil.hpp"
 #include "common/TrunckedContainer.hpp"
 #include "common/MemoryStream.hpp"
 #include "common/Linq2.hpp"
@@ -60,18 +61,18 @@
 #   pragma clang diagnostic ignored "-Wunused-const-variable"
 #endif
 
-constexpr uint32_t MessageCreate    = 1;
-constexpr uint32_t MessageTask      = 2;
-constexpr uint32_t MessageClose     = 3;
-constexpr uint32_t MessageStop      = 4;
-constexpr uint32_t MessageDpi       = 5;
-constexpr uint32_t MessageUpdTitle  = 10;
-constexpr uint32_t MessageUpdIcon   = 11;
-constexpr uint32_t MessageClipboard = 12;
+static inline constexpr uint32_t MessageCreate    = 1;
+static inline constexpr uint32_t MessageTask      = 2;
+static inline constexpr uint32_t MessageClose     = 3;
+static inline constexpr uint32_t MessageStop      = 4;
+static inline constexpr uint32_t MessageDpi       = 5;
+static inline constexpr uint32_t MessageUpdTitle  = 10;
+static inline constexpr uint32_t MessageUpdIcon   = 11;
+static inline constexpr uint32_t MessageClipboard = 12;
 
-constexpr uint32_t FdCookieComplex      = 0x80000000u;
-constexpr uint32_t FdCookieClipboard    = 1;
-constexpr uint32_t FdCookieDrag         = 2;
+static inline constexpr uint32_t FdCookieComplex      = 0x80000000u;
+static inline constexpr uint32_t FdCookieClipboard    = 1;
+static inline constexpr uint32_t FdCookieDrag         = 2;
 
 #if COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop
@@ -106,6 +107,10 @@ using xziar::img::Image;
 using xziar::img::ImageView;
 using xziar::img::ImgDType;
 using common::BaseException;
+using common::SimpleTimer;
+
+namespace wayland
+{
 
 static constexpr auto ShmFormatLookup = BuildStaticLookup(uint32_t, ImgDType,
     { WL_SHM_FORMAT_ARGB8888,       xziar::img::ImageDataType::BGRA   },
@@ -317,16 +322,6 @@ struct IconHolder : public OpaqueResource
     }
     static void TheDisposer(const OpaqueResource& res) noexcept;
 };
-struct ImgHolder : public OpaqueResource
-{
-    explicit ImgHolder(const ImageView& img) noexcept : OpaqueResource(&TheDisposer, reinterpret_cast<uintptr_t>(new ImageView(img))) {}
-    const ImageView& Image() const noexcept { return *reinterpret_cast<const ImageView*>(Cookie[0]); }
-    static void TheDisposer(const OpaqueResource& res) noexcept
-    {
-        const auto& holder = static_cast<const ImgHolder&>(res);
-        delete &holder.Image();
-    }
-};
 
 
 #define ItemPair(str, type) { str ""sv, ClipBoardTypes::type }
@@ -486,6 +481,8 @@ DefineVer(Keyboard, 4, WL_KEYBOARD_, KEYMAP, RELEASE, REPEAT_INFO);
 #undef UpdateMax
 };
 
+}
+using namespace wayland;
 
 class WindowManagerWayland final : public WaylandBackend, public WindowManager
 {
@@ -495,19 +492,69 @@ public:
     static constexpr std::string_view BackendName = "Wayland"sv;
 private:
     class WdHost;
-    struct Msg
+    class ShmRenderer;
+    struct BackBuffer : public ImageBuffer
     {
-        WdHost* Host;
-        void* Ptr;
-        uint32_t OpCode;
-        uint32_t Data;
-        constexpr Msg(WdHost* host, uint32_t op, uint32_t data = 0, void* ptr = nullptr) noexcept : Host(host), Ptr(ptr), OpCode(op), Data(data) {}
-        constexpr Msg() noexcept : Msg(nullptr, 0) {}
+        std::mutex UseMutex;
+        SimpleTimer Timer;
+        CacheRect<int32_t> Rect;
+        bool Update(WdHost& wd, ShmRenderer& renderer)
+        {
+            const auto [ sizeChanged, needInit ] = Rect.Update(wd);
+            if (sizeChanged)
+            {
+                auto& manager = wd.GetManager();
+                PrepareForSize(manager, Rect.Width, Rect.Height);
+                manager.AddListener(Buf, ShmRenderer::ListenerBackBuf, &renderer);
+                manager.Logger.Verbose(u"Resize shm to [{}].\n", Space.size());
+            }
+            return sizeChanged;
+        }
     };
-    class WdHost final : public WaylandBackend::WaylandWdHost
+    class ShmRenderer final : private CacheRect<uint16_t>, public BasicRenderer
     {
+        WdHost& Window;
+        BackBuffer BackBuf[2];
+        uint32_t BackBufIdx = 0;
+        std::optional<ImageView> AttachedImage;
+        LockField ResourceLock;
+        [[nodiscard]] forceinline auto& Log() const noexcept { return Window.Manager.Logger; }
+        [[nodiscard]] forceinline auto UseImg() noexcept { return detail::LockField::ConsumerLock<0>{ResourceLock}; }
+        bool ReplaceImage(std::optional<ImageView> img)
+        {
+            detail::LockField::ProducerLock<0> lock{ ResourceLock };
+            AttachedImage = std::move(img);
+            return lock;
+        }
     public:
-        WindowManagerWayland& GetManager() noexcept { return static_cast<WindowManagerWayland&>(WindowHost_::GetManager()); }
+        ShmRenderer(WdHost* wd) : Window(*wd) {}
+        ~ShmRenderer() final 
+        {
+            auto& manager = Window.GetManager();
+            for (auto& buf : BackBuf)
+                buf.ReleaseObjects(manager);
+        }
+        void Render(bool forceRedraw) noexcept;
+        void SetImage(std::optional<ImageView> img) noexcept final
+        {
+            if (img)
+            {
+                const auto dtype = Window.GetManager().ShmDType->second;
+                if (const auto w = img->GetWidth(), h = img->GetHeight(); w >= UINT16_MAX || h >= UINT16_MAX)
+                {
+                    uint32_t neww = 0, newh = 0;
+                    (w > h ? neww : newh) = UINT16_MAX;
+                    img = img->ResizeTo(neww, newh, true, true);
+                }
+                if (img->GetDataType() != dtype)
+                {
+                    img = img->ConvertTo(dtype);
+                }
+                ReplaceImage(*img);
+            }
+            else
+                ReplaceImage({});
+        }
 
         void BackBufRelease(wl_buffer* buffer)
         {
@@ -521,11 +568,50 @@ private:
                 auto& buf = BackBuf[bufIdx];
                 buf.UseMutex.unlock();
                 buf.Timer.Stop();
-                const auto lockTime = buf.Timer.ElapseUs();
-                Manager.Logger.Verbose(u"buffer [{}] used [{}ms].\n", bufIdx, lockTime / 1000.f);
+                Log().Verbose(FmtString(u"buffer[{}] used [{}ms].\n"), bufIdx, buf.Timer.ElapseMs<true>());
             }
         }
-        WaylandListener(wl_buffer, WdHost, BackBuf, (release, BackBufRelease));
+        WaylandListener(wl_buffer, ShmRenderer, BackBuf, (release, BackBufRelease));
+    };
+    class EGLRenderer : private CacheRect<int32_t>
+    {
+        friend WdHost;
+        WdHost& Window;
+        wl_egl_window* EGLWindow = nullptr;
+    public:
+        EGLRenderer(WdHost* wd) : Window(*wd) {}
+        ~EGLRenderer() 
+        {
+            Window.GetManager().egl_window_destroy(EGLWindow);
+        }
+        void Initialize() noexcept
+        {
+            EGLWindow = Window.GetManager().egl_window_create(reinterpret_cast<wl_surface*>(Window.Surface.Proxy), Window.Width, Window.Height);
+        }
+        void Prepare() noexcept
+        {
+            Update(Window);
+            ReSizingLock sizeLock(Window);
+            Window.UpdateSizeAndDecor(*this);
+            if (Width && Height)
+            {
+                Window.GetManager().egl_window_resize(EGLWindow, Width, Height, 0, 0);
+            }
+        }
+    };
+    struct Msg
+    {
+        WdHost* Host;
+        void* Ptr;
+        uint32_t OpCode;
+        uint32_t Data;
+        constexpr Msg(WdHost* host, uint32_t op, uint32_t data = 0, void* ptr = nullptr) noexcept : Host(host), Ptr(ptr), OpCode(op), Data(data) {}
+        constexpr Msg() noexcept : Msg(nullptr, 0) {}
+    };
+    class WdHost final : public WaylandBackend::WaylandWdHost
+    {
+    public:
+        [[nodiscard]] forceinline WindowManagerWayland& GetManager() noexcept { return static_cast<WindowManagerWayland&>(Manager); }
 
         void FrameDone(wl_callback* cb, uint32_t dat)
         {
@@ -533,9 +619,9 @@ private:
             LastFrame = dat;
             auto& manager = GetManager();
             manager.Destroy(reinterpret_cast<wl_proxy*>(cb));
-            manager.Logger.Verbose(u"frame done with [{}ms].\n", elapse);
+            manager.Logger.Verbose(FmtString(u"frame done with [{}ms].\n"), elapse);
         }
-        WaylandListener(wl_callback, WdHost, Frame, (done, FrameDone), (xdy, BackBufRelease));
+        WaylandListener(wl_callback, WdHost, Frame, (done, FrameDone));
 
         void SurfaceConfig(xdg_surface* surface, uint32_t serial)
         {
@@ -684,13 +770,14 @@ private:
                 manager.decor_frame_commit(frame, state, config);
                 manager.decor_state_free(state);
             }
-
-            host.Invalidate(stateDiff);
+            bool forceRedraw = stateDiff;
             if (!host.IsRunning())
             {
                 manager.Logger.Verbose(u"now initialize.\n");
                 host.Initialize();
+                forceRedraw = true;
             }
+            host.Invalidate(forceRedraw);
         }
         static void DecorFrameClose(libdecor_frame* frame, void* data)
         {
@@ -720,25 +807,6 @@ private:
             Ensures(host.DecorFrame == frame);
         }
 
-        struct BackBuffer : public ImageBuffer
-        {
-            std::mutex UseMutex;
-            common::SimpleTimer Timer;
-            CacheRect<int32_t> Rect;
-            bool Update(WdHost& wd)
-            {
-                const auto [ sizeChanged, needInit ] = Rect.Update(wd);
-                if (sizeChanged)
-                {
-                    auto& manager = wd.GetManager();
-                    PrepareForSize(manager, Rect.Width, Rect.Height);
-                    manager.AddListener(Buf, ListenerBackBuf, &wd);
-                    manager.Logger.Verbose(u"Resize shm to [{}].\n", Space.size());
-                }
-                return sizeChanged;
-            }
-        };
-        
         libdecor_frame_interface DecorFrameCB = 
         {
             .configure = &DecorFrameConfig,
@@ -750,21 +818,22 @@ private:
         WaylandProxy XdgSurface;
         WaylandProxy Toplevel;
         WaylandProxy ToplvDecor;
-        wl_egl_window* EGLWindow = nullptr;
         libdecor_frame* DecorFrame = nullptr;
         std::unique_ptr<IconData> CurIcon;
-        BackBuffer BackBuf[2];
-        uint32_t BackBufIdx = 0;
+        std::variant<std::monostate, EGLRenderer, ShmRenderer> Renderer;
         uint32_t LastFrame = 0; // main thread use
         RectBase<int32_t> LastSize, NonMaximizeSize;
         libdecor_window_state DecorState = LIBDECOR_WINDOW_STATE_NONE;
         bool UseLibDecor = false;
-        bool NeedBackground = true;
-        bool BgChangedLasttime = false;
         bool ShouldClose = false;
         WdHost(WindowManagerWayland& manager, const WaylandCreateInfo& info) noexcept :
             WaylandWdHost(manager, info) , UseLibDecor(info.PreferLibDecor)
-        { }
+        {
+            if (info.UseDefaultRenderer)
+                Renderer.emplace<ShmRenderer>(this);
+            else if (manager.WlEGL)
+                Renderer.emplace<EGLRenderer>(this);
+        }
         ~WdHost() final
         { }
         uintptr_t FormatAs() const noexcept
@@ -772,16 +841,26 @@ private:
             return reinterpret_cast<uintptr_t>(Surface.Proxy);
         }
         void* GetSurface() const noexcept final { return Surface.Proxy; }
-        void* GetEGLWindow() const noexcept final { return EGLWindow; }
-        void OnResize(int32_t width, int32_t height) noexcept final
+        void* GetEGLWindow() const noexcept final { return Renderer.index() == 1 ? std::get<1>(Renderer).EGLWindow : nullptr; }
+        void OnDisplay(bool forceRedraw) noexcept final
         {
-            WindowHost_::OnResize(width, height);
-            if (EGLWindow && width && height)
+            switch (Renderer.index())
             {
-                GetManager().egl_window_resize(EGLWindow, width, height, 0, 0);
+            case 1: std::get<1>(Renderer).Prepare(); break;
+            case 2: std::get<2>(Renderer).Render(forceRedraw); break;
+            default:
+            {
+                ReSizingLock sizeLock(*this);
+                UpdateSizeAndDecor(*this);
+            } break;
             }
+            WindowHost_::OnDisplay(forceRedraw);
+            if (Renderer.index() != 2)
+                UpdateFrameCallback();
+            auto& manager = GetManager();
+            manager.display_flush(manager.Display);
         }
-        void OnDisplay(bool forceRedraw) noexcept final;
+        BasicRenderer* GetRenderer() noexcept final { return Renderer.index() == 2 ? &std::get<2>(Renderer) : nullptr; }
         void GetClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type) final
         {
             auto& manager = GetManager();
@@ -793,6 +872,26 @@ private:
                 if (cp.Tasks.size() == 1)
                     manager.SendControlMessage(this, MessageClipboard);
             }
+        }
+        
+        void UpdateSizeAndDecor(const RectBase<int32_t>& size) // must under ReSizingLock by Renderer
+        {
+            if (LastSize == size) return;
+            LastSize = size;
+            if (UseLibDecor)
+            {
+                auto& manager = GetManager();
+                auto state = manager.decor_state_new(LastSize.Width, LastSize.Height);
+                manager.Logger.Verbose(FmtString(u"update decor size to [{}].\n"), LastSize);
+                manager.decor_frame_commit(DecorFrame, state, nullptr);
+                manager.decor_state_free(state);
+            }
+        }
+        void UpdateFrameCallback()
+        {
+            auto& manager = GetManager();
+            const auto cb = manager.GetFrom<WL_SURFACE_FRAME>(Surface, manager.ICallback); // wl_surface_frame
+            manager.AddListener(cb, ListenerFrame, this);
         }
     };
 
@@ -1922,9 +2021,6 @@ public:
     {
         if (payload.ExtraData)
         {
-            const auto bg_ = (*payload.ExtraData)("background");
-            if (const auto bg = TryGetFinally<bool>(bg_); bg)
-                host.NeedBackground = *bg;
         }
         host.UseLibDecor = !XdgDecor || (host.UseLibDecor && LibDecor);
 
@@ -1953,10 +2049,8 @@ public:
             MarshalFlags<void, ZXDG_TOPLEVEL_DECORATION_V1_SET_MODE>(host.ToplvDecor, ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE); // zxdg_toplevel_decoration_v1_set_mode
             SetTitle(host, host.Title);
         }
-        if (WlEGL)
-        {
-            host.EGLWindow = egl_window_create(reinterpret_cast<wl_surface*>(host.Surface.Proxy), host.Width, host.Height);
-        }
+        if (host.Renderer.index() == 1)
+            std::get<1>(host.Renderer).Initialize();
         MarshalFlags<void, WL_SURFACE_COMMIT>(host.Surface); // wl_surface_commit
         display_roundtrip(Display);
     }
@@ -1984,10 +2078,7 @@ public:
     void ReleaseWindow(WindowHost_* host) final
     {
         auto& wd = *static_cast<WdHost*>(host);
-        if (wd.EGLWindow)
-            egl_window_destroy(wd.EGLWindow);
-        for (auto& buf : wd.BackBuf)
-            buf.ReleaseObjects(*this);
+        wd.Renderer.emplace<std::monostate>();
         if (wd.DecorFrame)
             decor_frame_unref(wd.DecorFrame);
         Destroy<ZXDG_TOPLEVEL_DECORATION_V1_DESTROY>(wd.ToplvDecor);
@@ -2015,21 +2106,6 @@ public:
         MarshalFlags<void, XDG_TOPLEVEL_ICON_V1_ADD_BUFFER>(data->Icon, data->Buf.Proxy, 1);
 
         return static_cast<OpaqueResource>(IconHolder(*this, std::move(data)));
-    }
-    OpaqueResource CacheRenderImage(WindowHost_& host_, ImageView img) const noexcept final
-    {
-        if (!ShmDType) return {};
-        if (const auto w = img.GetWidth(), h = img.GetHeight(); w >= UINT16_MAX || h >= UINT16_MAX)
-        {
-            uint32_t neww = 0, newh = 0;
-            (w > h ? neww : newh) = UINT16_MAX;
-            img = img.ResizeTo(neww, newh, true, true);
-        }
-        if (img.GetDataType() != ShmDType->second)
-        {
-            img = img.ConvertTo(ShmDType->second);
-        }
-        return static_cast<OpaqueResource>(ImgHolder(img));
     }
 
     WindowHost Create(const CreateInfo& info_) final
@@ -2077,89 +2153,60 @@ void IconHolder::TheDisposer(const OpaqueResource& res) noexcept
 }
 
 
-void WindowManagerWayland::WdHost::OnDisplay(bool forceRedraw) noexcept
+void WindowManagerWayland::ShmRenderer::Render(bool forceRedraw) noexcept
 {
-    auto& manager = GetManager();
+    auto& manager = Window.GetManager();
     auto& backBuf = BackBuf[BackBufIdx];
     auto& rect = backBuf.Rect;
-    common::SimpleTimer timer;
+    SimpleTimer timer;
     timer.Start();
     backBuf.UseMutex.lock();
     timer.Stop();
-    const auto lockBufTime = timer.ElapseNs() / 1000.f;
-    const auto sizeChanged = backBuf.Update(*this);
-    if (sizeChanged)
-    {
-        memset(backBuf.Space.data(), 0xff, backBuf.Space.size());
-        //const auto ptr = reinterpret_cast<uint32_t*>(backBuf.Space.data());
-        //for (int32_t h = 0; h < rect.Height; ++h)
-        //{
-        //    const auto hval = h * 255u / rect.Height;
-        //    for (int32_t w = 0; w < rect.Width; ++w)
-        //    {
-        //        const auto wval = w * 255u / rect.Width;
-        //        const auto clr = ((hval << 8) + wval) << (BackBufIdx ? 8 : 0);
-        //        ptr[h * rect.Width + w] = 0xff000000u + clr;
-        //    }
-        //}
-    }
+    const auto lockBufTime = timer.ElapseUs<true>();
+    const auto sizeChanged = backBuf.Update(Window, *this); // buffer invalidated
+    const auto sizeUpdated = rect != Window.LastSize; // window need update
     bool needDraw = false;
     {
-        BgLock lock(this);
-        const bool bgChanged = lock;
-        const auto& holder = static_cast<ImgHolder&>(*GetWindowResource(this, WdAttrIndex::Background));
-        if (bgChanged || BgChangedLasttime || sizeChanged)
+        auto imgLock = UseImg();
+        const bool imgChanged = imgLock;
+        needDraw = forceRedraw || imgChanged || sizeUpdated || (sizeChanged && AttachedImage);
+        if (forceRedraw || imgChanged || sizeUpdated || sizeChanged)
         {
-            common::SimpleTimer timer;
+            Log().Verbose(FmtString(u"Rebuild[{}] force[{}] ic[{}] su[{}] sc[{}]\n"), needDraw, forceRedraw, imgChanged, sizeUpdated, sizeChanged);
             timer.Start();
-            memset(backBuf.Space.data(), 0xff, backBuf.Space.size());
-            if (holder)
+            if (AttachedImage)
             {
-                const auto& img = holder.Image();
-                const auto [tw, th] = rect.ResizeWithin(img.GetWidth(), img.GetHeight());
-                img.ResizeTo(backBuf.RealImage, 0, 0, 0, 0, tw, th, true, true);
-                timer.Stop();
-                Manager.Logger.Verbose(u"Window[{:x}] rebuild backbuffer in [{} ms].\n", *this, timer.ElapseMs());
+                memset(backBuf.Space.data(), 0xff, backBuf.Space.size());
+                const auto [tw, th] = rect.ResizeWithin(AttachedImage->GetWidth(), AttachedImage->GetHeight());
+                AttachedImage->ResizeTo(backBuf.RealImage, 0, 0, 0, 0, tw, th, true, true);
             }
+            else
+            {
+                FillBufferColorXXXA(reinterpret_cast<uint32_t*>(backBuf.Space.data()), rect.Width, rect.Height, rect.Width, BackBufIdx);
+            }
+            timer.Stop();
+            Log().Verbose(FmtString(u"Window[{:x}] rebuild backbuffer in [{} ms].\n"), Window, timer.ElapseMs<true>());
         }
-        needDraw = forceRedraw || bgChanged || BgChangedLasttime || (sizeChanged && (NeedBackground || holder));
-        if (needDraw)
-            manager.Logger.Verbose(u"draw reason force[{}] bg[{}] lastbg[{}] size[{}].\n", forceRedraw, bgChanged, BgChangedLasttime, sizeChanged);
-        BgChangedLasttime = bgChanged;
+        else
+            Ensures(!needDraw);
     }
-    if (!needDraw)
-        backBuf.UseMutex.unlock();
-    if (needDraw || rect != LastSize)
+    if (needDraw)
     {
         timer.Start();
-        ReSizingLock sizeLock(*this);
+        ReSizingLock sizeLock(Window);
         timer.Stop();
-        if (rect != LastSize) // update size
-        {
-            LastSize = rect;
-            if (UseLibDecor)
-            {
-                auto state = manager.decor_state_new(LastSize.Width, LastSize.Height);
-                manager.Logger.Verbose(u"update decor size to [{}].\n", LastSize);
-                manager.decor_frame_commit(DecorFrame, state, nullptr);
-                manager.decor_state_free(state);
-            }
-        }
-        if (needDraw)
-        {
-            const auto lockSizeTime = timer.ElapseNs() / 1000.f;
-            manager.Logger.Verbose(u"draw [{}] with lock Buf[{}us] Size[{}us].\n", BackBufIdx, lockBufTime, lockSizeTime);
-            backBuf.Timer.Start();
-            manager.MarshalFlags<void, WL_SURFACE_ATTACH>(Surface, backBuf.Buf.Proxy, 0, 0); // wl_surface_attach
-            manager.MarshalFlags<void, WL_SURFACE_DAMAGE_BUFFER>(Surface, 0u, 0u, backBuf.Rect.Width, backBuf.Rect.Height); // wl_surface_damage_buffer
-            const auto cb = manager.GetFrom<WL_SURFACE_FRAME>(Surface, manager.ICallback); // wl_surface_frame
-            manager.AddListener(cb, ListenerFrame, this);
-            manager.MarshalFlags<void, WL_SURFACE_COMMIT>(Surface); // wl_surface_commit
-            BackBufIdx = BackBufIdx ^ 0b1u;
-        }
+        Window.UpdateSizeAndDecor(rect);
+        const auto lockSizeTime = timer.ElapseUs<true>();
+        manager.Logger.Verbose(u"draw [{}] with lock Buf[{}us] Size[{}us].\n", BackBufIdx, lockBufTime, lockSizeTime);
+        backBuf.Timer.Start();
+        manager.MarshalFlags<void, WL_SURFACE_ATTACH>(Window.Surface, backBuf.Buf.Proxy, 0, 0); // wl_surface_attach
+        manager.MarshalFlags<void, WL_SURFACE_DAMAGE_BUFFER>(Window.Surface, 0u, 0u, backBuf.Rect.Width, backBuf.Rect.Height); // wl_surface_damage_buffer
+        Window.UpdateFrameCallback();
+        manager.MarshalFlags<void, WL_SURFACE_COMMIT>(Window.Surface); // wl_surface_commit
+        BackBufIdx = BackBufIdx ^ 0b1u;
     }
-    WindowHost_::OnDisplay(forceRedraw);
-    manager.display_flush(manager.Display);
+    else
+        backBuf.UseMutex.unlock();
 }
 
 

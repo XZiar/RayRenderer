@@ -4,6 +4,7 @@
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/SharedMemory.h"
 #include "SystemCommon/Exceptions.h"
+#include "SystemCommon/CopyEx.h"
 #include "common/ContainerEx.hpp"
 #include "common/FrozenDenseSet.hpp"
 #include "common/StringEx.hpp"
@@ -35,13 +36,13 @@
 #   pragma clang diagnostic ignored "-Wunused-const-variable"
 #endif
 
-constexpr uint32_t MessageCreate    = 1;
-constexpr uint32_t MessageTask      = 2;
-constexpr uint32_t MessageClose     = 3;
-constexpr uint32_t MessageStop      = 4;
-constexpr uint32_t MessageDpi       = 5;
-constexpr uint32_t MessageUpdTitle  = 10;
-constexpr uint32_t MessageUpdIcon   = 11;
+static inline constexpr uint32_t MessageCreate    = 1;
+static inline constexpr uint32_t MessageTask      = 2;
+static inline constexpr uint32_t MessageClose     = 3;
+static inline constexpr uint32_t MessageStop      = 4;
+static inline constexpr uint32_t MessageDpi       = 5;
+static inline constexpr uint32_t MessageUpdTitle  = 10;
+static inline constexpr uint32_t MessageUpdIcon   = 11;
 
 #if COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop
@@ -56,7 +57,10 @@ using xziar::img::Image;
 using xziar::img::ImageView;
 using xziar::img::ImgDType;
 using common::BaseException;
+using common::SimpleTimer;
 
+namespace xcb
+{
 
 struct PropertyResult
 {
@@ -115,23 +119,96 @@ struct IconHolder : public OpaqueResource
         ::delete[] data.data();
     }
 };
-struct ImgHolder : public OpaqueResource
-{
-    explicit ImgHolder(const ImageView& img) noexcept : OpaqueResource(&TheDisposer, reinterpret_cast<uintptr_t>(new ImageView(img))) {}
-    const ImageView& Image() const noexcept { return *reinterpret_cast<const ImageView*>(Cookie[0]); }
-    static void TheDisposer(const OpaqueResource& res) noexcept
-    {
-        const auto& holder = static_cast<const ImgHolder&>(res);
-        delete &holder.Image();
-    }
-};
 
+}
+using namespace xcb;
+
+
+#define GHError(...) GeneralHandleError(__VA_ARGS__, __LINE__)
 class WindowManagerXCB final : public XCBBackend, public WindowManager
 {
 public:
     static constexpr std::string_view BackendName = "XCB"sv;
 private:
     class WdHost;
+    class PixmapRenderer final : private CacheRect<uint16_t>, public BasicRenderer
+    {
+        friend WindowManagerXCB;
+        WdHost& Window;
+        std::shared_ptr<common::SharedMemory> Memory;
+        Image RealImage;
+        std::optional<ImageView> AttachedImage;
+        xcb_shm_seg_t ShmSeg = 0;
+        xcb_pixmap_t Pixmap = 0;
+        LockField ResourceLock;
+        [[nodiscard]] forceinline auto& Log() const noexcept { return Window.Manager.Logger; }
+        [[nodiscard]] forceinline auto UseImg() noexcept { return detail::LockField::ConsumerLock<0>{ResourceLock}; }
+        bool ReplaceImage(std::optional<ImageView> img)
+        {
+            detail::LockField::ProducerLock<0> lock{ ResourceLock };
+            AttachedImage = std::move(img);
+            return lock;
+        }
+        [[nodiscard]] bool UpdateShm() noexcept
+        {
+            auto& manager = Window.GetManager();
+            const auto size = static_cast<size_t>(Width) * Height * manager.PixmapDType.ElementSize();
+            if (!Memory || Memory->AsSpan().size() < size) // need new size
+            {
+                if (Memory)
+                {
+                    if (!manager.GHError(xcb_shm_detach_checked(manager.Connection, ShmSeg)))
+                        return false;
+                }
+                Memory = common::SharedMemory::CreateAnonymous(size);
+                manager.Logger.Verbose(FmtString(u"Resize shm to [{}].\n"), Memory->AsSpan().size());
+                Ensures(Memory->AsSpan().size() >= size);
+                if (!manager.GHError(xcb_shm_attach_checked(manager.Connection, ShmSeg, static_cast<uint32_t>(Memory->GetHandle()), 0)))
+                    return false;
+            }
+            if (!manager.GHError(xcb_shm_create_pixmap_checked(manager.Connection, Pixmap, Window.Handle,
+                Width, Height, manager.Screen->root_depth, ShmSeg, 0)))
+                return false;
+            RealImage = Image(Memory->AsBuffer().CreateSubBuffer(0, size), Width, Height, manager.PixmapDType);
+            return true;
+        }
+    public:
+        PixmapRenderer(WdHost* wd) : Window(*wd) {}
+        ~PixmapRenderer() final 
+        {
+            auto& manager = Window.GetManager();
+            manager.Free(Pixmap);
+        }
+        void Initialize(bool tryShm) noexcept
+        {
+            auto& manager = Window.GetManager();
+            Pixmap = xcb_generate_id(manager.Connection);
+            if (tryShm)
+                ShmSeg = xcb_generate_id(manager.Connection);
+        }
+        void Render(bool forceRedraw) noexcept;
+        void SetImage(std::optional<ImageView> img) noexcept final
+        {
+            if (img)
+            {
+                const auto dtype = Window.GetManager().PixmapDType;
+                if (!dtype) return;
+                if (const auto w = img->GetWidth(), h = img->GetHeight(); w >= UINT16_MAX || h >= UINT16_MAX)
+                {
+                    uint32_t neww = 0, newh = 0;
+                    (w > h ? neww : newh) = UINT16_MAX;
+                    img = img->ResizeTo(neww, newh, true, true);
+                }
+                if (img->GetDataType() != dtype)
+                {
+                    img = img->ConvertTo(dtype);
+                }
+                ReplaceImage(*img);
+            }
+            else
+                ReplaceImage({});
+        }
+    };
     struct PropertyTask
     {
         using CB = std::function<void(WdHost&, common::span<const std::byte>)>;
@@ -143,108 +220,33 @@ private:
     class WdHost final : public XCBBackend::XCBWdHost
     {
     public:
-        struct BackImageHolder : public CacheRect<uint16_t>
-        {
-            std::shared_ptr<common::SharedMemory> Memory;
-            Image RealImage;
-            xcb_shm_seg_t ShmSeg = 0;
-            xcb_pixmap_t Pixmap = 0;
-            bool TryShm(const WdHost& wd, WindowManagerXCB& manager) noexcept
-            {
-                const auto size = static_cast<size_t>(Width) * Height * manager.PixmapDType.ElementSize();
-                if (!Memory || Memory->AsSpan().size() < size) // need new size
-                {
-                    if (Memory)
-                    {
-                        if (!manager.GeneralHandleError(xcb_shm_detach_checked(manager.Connection, ShmSeg)))
-                            return false;
-                    }
-                    Memory = common::SharedMemory::CreateAnonymous(size);
-                    manager.Logger.Verbose(u"Resize shm to [{}].\n", Memory->AsSpan().size());
-                    Ensures(Memory->AsSpan().size() >= size);
-                    if (!manager.GeneralHandleError(xcb_shm_attach_checked(manager.Connection, ShmSeg, static_cast<uint32_t>(Memory->GetHandle()), 0)))
-                        return false;
-                }
-                if (!manager.GeneralHandleError(xcb_shm_create_pixmap_checked(manager.Connection, Pixmap, wd.Handle, 
-                    Width, Height, manager.Screen->root_depth, ShmSeg, 0)))
-                    return false;
-                RealImage = Image(Memory->AsBuffer().CreateSubBuffer(0, size), Width, Height, manager.PixmapDType);
-                return true;
-            }
-            bool Update(const WdHost& wd, WindowManagerXCB& manager) noexcept
-            {
-                const auto [ sizeChanged, needInit ] = CacheRect::Update(wd);
-                if (sizeChanged)
-                {
-                    if (!needInit) manager.Free(Pixmap);
-                    if (ShmSeg)
-                    {
-                        if (TryShm(wd, manager))
-                            return sizeChanged;
-                        manager.Logger.Warning(u"Failed using SHM for pixmap, fallback to normal copy.\n");
-                        RealImage = {};
-                        Memory.reset();
-                        ShmSeg = 0;
-                    }
-                    manager.GeneralHandleError(xcb_create_pixmap_checked(manager.Connection, manager.Screen->root_depth, Pixmap, wd.Handle, Width, Height));
-                }
-                return sizeChanged;
-            }
-        };
-        WindowManagerXCB& GetManager() noexcept { return static_cast<WindowManagerXCB&>(WindowHost_::GetManager()); }
+        [[nodiscard]] forceinline WindowManagerXCB& GetManager() noexcept { return static_cast<WindowManagerXCB&>(Manager); }
         xcb_window_t Handle = 0;
         xcb_gcontext_t GContext = 0;
-        BackImageHolder BackImage;
+        std::optional<PixmapRenderer> Renderer;
         DragInfos DragInfo;
         std::list<ClipboardInfo> ClipboardAsks;
         std::map<xcb_atom_t, std::unique_ptr<PropertyTask>> PropertyTasks;
-        bool NeedBackground = true;
-        WdHost(WindowManagerXCB& manager, const XCBCreateInfo& info) noexcept :
-            XCBWdHost(manager, info) { }
+        WdHost(WindowManagerXCB& manager, const XCBCreateInfo& info) noexcept : XCBWdHost(manager, info) 
+        {
+            if (info.UseDefaultRenderer)
+                Renderer.emplace(this);
+        }
         ~WdHost() final {}
+        uint32_t FormatAs() const noexcept
+        {
+            return Handle;
+        }
         uint32_t GetWindow() const noexcept final { return Handle; }
         void OnDisplay(bool forceRedraw) noexcept final
         {
-            auto& manager = GetManager();
-            const auto sizeChanged = BackImage.Update(*this, manager);
-            bool needDraw = false;
+            if (Renderer)
             {
-                BgLock lock(this);
-                const bool bgChanged = lock;
-                const auto& holder = static_cast<ImgHolder&>(*GetWindowResource(this, WdAttrIndex::Background));
-                if (bgChanged || sizeChanged)
-                {
-                    common::SimpleTimer timer;
-                    timer.Start();
-                    xcb_rectangle_t rect{ .x = 0, .y = 0, .width = BackImage.Width, .height = BackImage.Height };
-                    xcb_poly_fill_rectangle(manager.Connection, BackImage.Pixmap, GContext, 1, &rect);
-                    if (holder)
-                    {
-                        const auto& img = holder.Image();
-                        const auto [tw, th] = BackImage.ResizeWithin(img.GetWidth(), img.GetHeight());
-                        if (BackImage.ShmSeg)
-                        {
-                            img.ResizeTo(BackImage.RealImage, 0, 0, 0, 0, tw, th, true, true);
-                        }
-                        else
-                        {
-                            const auto newimg = img.ResizeTo(tw, th, true, true);
-                            manager.PutImageInPixmap(*this, BackImage.Pixmap, newimg, BackImage.Width, BackImage.Height);
-                        }
-                        timer.Stop();
-                        Manager.Logger.Verbose(u"Window[{:x}] rebuild backbuffer in [{} ms].\n", Handle, timer.ElapseMs());
-                    }
-                }
-                needDraw = forceRedraw || bgChanged || (sizeChanged && (NeedBackground || holder));
-                // needDraw = NeedBackground || bgChanged || (sizeChanged && holder);
-            }
-            if (needDraw)
-            {
-                xcb_copy_area(manager.Connection, BackImage.Pixmap, Handle, GContext, 0, 0, 0, 0, BackImage.Width, BackImage.Height);
-                xcb_flush(manager.Connection);
+                Renderer->Render(forceRedraw);
             }
             WindowHost_::OnDisplay(forceRedraw);
         }
+        BasicRenderer* GetRenderer() noexcept final { return Renderer ? &*Renderer : nullptr; }
         void GetClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type) final
         {
             if (LockWindowFor<0>(*this, [&](){ ClipboardAsks.emplace_back(handler, type); return ClipboardAsks.size() == 1; }))
@@ -327,7 +329,7 @@ private:
     void* GetConnection() const noexcept final { return Connection; }
     int32_t GetDefaultScreen() const noexcept final { return DefScreen; }
 
-    bool GeneralHandleError(xcb_generic_error_t* err, bool freeErr = true) const noexcept
+    bool GeneralHandleError(xcb_generic_error_t* err, bool freeErr = true, uint32_t line = 0) const noexcept
     {
         if (err)
         {
@@ -337,16 +339,16 @@ private:
                 txtBuf.resize(1024, '\0');
                 XGetErrorText(TheDisplay, err->error_code, txtBuf.data(), 1024);
             }
-            Logger.Error(u"Error: [{:>3d}]({}) [{:>3d},{}]\n", err->error_code, txtBuf, err->major_code, err->minor_code);
+            Logger.Error(FmtString(u"Error at line[{:5d}]: [{:>3d}]({}) [{:>3d},{}]\n"), line, err->error_code, txtBuf, err->major_code, err->minor_code);
             if (freeErr)
                 free(err);
             return false;
         }
         return true;
     }
-    forceinline bool GeneralHandleError(xcb_void_cookie_t cookie) const noexcept
+    forceinline bool GeneralHandleError(xcb_void_cookie_t cookie, uint32_t line = 0) const noexcept
     {
-        return GeneralHandleError(xcb_request_check(Connection, cookie));
+        return GeneralHandleError(xcb_request_check(Connection, cookie), true, line);
     }
     std::vector<std::string_view> QueryAtomNames(common::span<const xcb_atom_t> atoms) noexcept
     {
@@ -395,7 +397,7 @@ private:
         xcb_get_atom_name_cookie_t cookie = xcb_get_atom_name(Connection, atom);
         xcb_generic_error_t *err = nullptr;
         xcb_get_atom_name_reply_t* reply = xcb_get_atom_name_reply(Connection, cookie, &err);
-        GeneralHandleError(err);
+        GHError(err);
         std::string_view ret;
         if (reply)
         {
@@ -421,7 +423,7 @@ private:
         xcb_get_property_cookie_t cookie = xcb_get_property(Connection, shoudlDel ? 1 : 0, window, prop, type, readOffset, ReqMaxSize / 4);
         xcb_generic_error_t *err = nullptr;
         xcb_get_property_reply_t* reply = xcb_get_property_reply(Connection, cookie, &err);
-        GeneralHandleError(err);
+        GHError(err);
         if (!reply)
             return { XCB_NONE, 0u, 0u };
         const auto rtype = reply->type;
@@ -1249,6 +1251,7 @@ public:
                 GeneralHandleError(xcb_create_gc_checked(Connection, host->GContext, host->Handle, XCB_GC_FOREGROUND | XCB_GC_GRAPHICS_EXPOSURES, values));
                 host->Initialize();
             }
+            host->Invalidate(true);
         }
     }
     void OnMessageLoop() final
@@ -1268,6 +1271,7 @@ public:
                 break;
             case XCB_MAP_NOTIFY:
                 InitializeWindow(reinterpret_cast<xcb_map_notify_event_t*>(evt)->window);
+                
                 break;
             case XCB_MOTION_NOTIFY:
             {
@@ -1476,18 +1480,14 @@ public:
             const auto vi_ = (*payload.ExtraData)("visual");
             if (const auto vi = TryGetFinally<int>(vi_); vi)
                 visualId = *vi;
-            const auto bg_ = (*payload.ExtraData)("background");
-            if (const auto bg = TryGetFinally<bool>(bg_); bg)
-                host->NeedBackground = *bg;
             const auto shm_ = (*payload.ExtraData)("pixmap-shm");
             if (const auto shm = TryGetFinally<bool>(shm_); shm && *shm)
                 tryShm = CanPixmapShm && PixmapDType;
         }
 
         host->GContext = xcb_generate_id(Connection);
-        host->BackImage.Pixmap = xcb_generate_id(Connection);
-        if (tryShm)
-            host->BackImage.ShmSeg = xcb_generate_id(Connection);
+        if (host->Renderer)
+            host->Renderer->Initialize(tryShm);
 
         // Create XID's for window 
         xcb_window_t window = xcb_generate_id(Connection);
@@ -1592,7 +1592,8 @@ public:
     void ReleaseWindow(WindowHost_* host) final
     {
         auto& wd = *static_cast<WdHost*>(host);
-        //xcb_free_pixmap(Connection, wd.BackImage);
+        if (wd.Renderer)
+            wd.Renderer.reset();
         xcb_free_gc(Connection, wd.GContext);
         UnregisterHost(host);
     }
@@ -1660,21 +1661,6 @@ public:
         Logger.Verbose(u"Image transfer complete.\n");
         return true;
     }
-    OpaqueResource CacheRenderImage(WindowHost_& host_, ImageView img) const noexcept final
-    {
-        if (!PixmapDType) return {};
-        if (const auto w = img.GetWidth(), h = img.GetHeight(); w >= UINT16_MAX || h >= UINT16_MAX)
-        {
-            uint32_t neww = 0, newh = 0;
-            (w > h ? neww : newh) = UINT16_MAX;
-            img = img.ResizeTo(neww, newh, true, true);
-        }
-        if (img.GetDataType() != PixmapDType)
-        {
-            img = img.ConvertTo(PixmapDType);
-        }
-        return static_cast<OpaqueResource>(ImgHolder(img));
-    }
 
     WindowHost Create(const CreateInfo& info_) final
     {
@@ -1694,6 +1680,68 @@ public:
 
     static inline const auto Dummy = RegisterBackend<WindowManagerXCB>();
 };
+
+
+void WindowManagerXCB::PixmapRenderer::Render(bool forceRedraw) noexcept
+{
+    const auto [sizeChanged, needInit] = Update(Window);
+    auto& manager = Window.GetManager();
+    if (sizeChanged)
+    {
+        if (!needInit)
+            manager.Free(Pixmap);
+        if (ShmSeg && !UpdateShm())
+        {
+            manager.Logger.Warning(u"Failed using SHM for pixmap, fallback to normal copy.\n");
+            RealImage = {};
+            Memory.reset();
+            ShmSeg = 0;
+        }
+        if (!ShmSeg)
+            manager.GHError(xcb_create_pixmap_checked(manager.Connection, manager.Screen->root_depth, Pixmap, Window.Handle, Width, Height));
+    }
+    bool needDraw = false;
+    {
+        auto imgLock = UseImg();
+        const bool imgChanged = imgLock;
+        needDraw = forceRedraw || needInit || imgChanged || sizeChanged;
+        if (needDraw)
+        {
+            SimpleTimer timer;
+            timer.Start();
+            if (AttachedImage)
+            {
+                const auto [tw, th] = ResizeWithin(AttachedImage->GetWidth(), AttachedImage->GetHeight());
+                if (ShmSeg)
+                {
+                    common::CopyEx.BroadcastMany(RealImage.GetRawPtr<uint32_t>(), manager.BGColor, RealImage.PixelCount());
+                    AttachedImage->ResizeTo(RealImage, 0, 0, 0, 0, tw, th, true, true);
+                }
+                else
+                {
+                    xcb_rectangle_t rect{ .x = 0, .y = 0, .width = Width, .height = Height };
+                    xcb_poly_fill_rectangle(manager.Connection, Pixmap, Window.GContext, 1, &rect);
+                    const auto newimg = AttachedImage->ResizeTo(tw, th, true, true);
+                    manager.PutImageInPixmap(Window, Pixmap, newimg, Width, Height);
+                }
+            }
+            else
+            {
+                if (ShmSeg)
+                {
+                    FillBufferColorXXXA(RealImage.GetRawPtr<uint32_t>(), Width, Height, Width, 0);
+                }
+            }
+            timer.Stop();
+            Log().Verbose(FmtString(u"Window[{:x}] rebuild backbuffer in [{} ms].\n"), Window, timer.ElapseMs<true>());
+        }
+    }
+    if (needDraw)
+    {
+        xcb_copy_area(manager.Connection, Pixmap, Window.Handle, Window.GContext, 0, 0, 0, 0, Width, Height);
+        xcb_flush(manager.Connection);
+    }
+}
 
 
 }

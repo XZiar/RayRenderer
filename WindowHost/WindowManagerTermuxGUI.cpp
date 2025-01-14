@@ -1,4 +1,4 @@
-//#define TGUI_TEST 1
+#define TGUI_TEST 1
 #if defined(TGUI_TEST) || (defined(__has_include) && __has_include(<termuxgui/termuxgui.h>))
 
 #include "WindowManager.h"
@@ -21,7 +21,7 @@
 #include <boost/container/flat_map.hpp>
 #include <boost/lockfree/queue.hpp>
 
-#ifndef TGUI_TEST
+#if defined(__has_include) && __has_include(<termuxgui/termuxgui.h>)
 #   include <termuxgui/termuxgui.h>
 #   undef __INTRODUCED_IN // not directly use, ignore api check
 #   define __INTRODUCED_IN(x)
@@ -44,6 +44,7 @@ int AHardwareBuffer_lock(AHardwareBuffer* buffer, uint64_t usage, int32_t fence,
 int AHardwareBuffer_lockAndGetInfo(AHardwareBuffer* buffer, uint64_t usage, int32_t fence, const void* rect, void** outVirtualAddress, int32_t* outBytesPerPixel, int32_t* outBytesPerStride);
 int AHardwareBuffer_unlock(AHardwareBuffer* buffer, int32_t* fence);
 inline constexpr auto AHARDWAREBUFFER_USAGE_CPU_WRITE_RARELY = 2UL << 4;
+inline constexpr auto AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN = 3UL << 4;
 #endif
 
 #include <mutex>
@@ -72,15 +73,15 @@ IF_UNLIKELY(err___ != TGUI_ERR_OK)                                  \
 #   pragma clang diagnostic ignored "-Wunused-const-variable"
 #endif
 
-constexpr uint32_t MessageCreate    = 1;
-constexpr uint32_t MessageTask      = 2;
-constexpr uint32_t MessageClose     = 3;
-constexpr uint32_t MessageStop      = 4;
-constexpr uint32_t MessageDpi       = 5;
-constexpr uint32_t MessageUpdTitle  = 10;
-constexpr uint32_t MessageUpdIcon   = 11;
-constexpr uint32_t MessageClipboard = 12;
-constexpr uint32_t MessageFilePick  = 13;
+static inline constexpr uint32_t MessageCreate    = 1;
+static inline constexpr uint32_t MessageTask      = 2;
+static inline constexpr uint32_t MessageClose     = 3;
+static inline constexpr uint32_t MessageStop      = 4;
+static inline constexpr uint32_t MessageDpi       = 5;
+static inline constexpr uint32_t MessageUpdTitle  = 10;
+static inline constexpr uint32_t MessageUpdIcon   = 11;
+static inline constexpr uint32_t MessageClipboard = 12;
+static inline constexpr uint32_t MessageFilePick  = 13;
 
 #if COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop
@@ -104,6 +105,8 @@ static constexpr auto TGUIErrorNames = BuildStaticLookup(int, std::string_view,
     TERR(OK), TERR(SYSTEM), TERR(CONNECTION_LOST), TERR(ACTIVITY_DESTROYED), TERR(MESSAGE), TERR(NOMEM), TERR(EXCEPTION), TERR(VIEW_INVALID), TERR(API_LEVEL));
 #undef TERR
 
+namespace tgui
+{
 
 static constexpr auto KeyCodeLookup = BuildStaticLookup(uint32_t, event::CombinedKey,
     { 131,  CommonKeys::F1 },
@@ -165,7 +168,6 @@ static constexpr auto KeyCodeLookup = BuildStaticLookup(uint32_t, event::Combine
     { 162,  '(' },
     { 163,  ')' },
 );
-
 static event::CombinedKey ProcessAndroidKey(uint32_t keycode, uint32_t codePoint) noexcept
 {
     if (codePoint >= '0' && codePoint <= '9')
@@ -176,7 +178,6 @@ static event::CombinedKey ProcessAndroidKey(uint32_t keycode, uint32_t codePoint
         return static_cast<uint8_t>(codePoint - 'a' + 'A');
     return KeyCodeLookup(keycode).value_or(CommonKeys::UNDEFINE);
 }
-
 
 struct IconHolder : public OpaqueResource
 {
@@ -190,17 +191,66 @@ struct IconHolder : public OpaqueResource
             delete &holder.Data();
     }
 };
-struct ImgHolder : public OpaqueResource
+
+struct FilePicker
 {
-    explicit ImgHolder(const ImageView& img) noexcept : OpaqueResource(&TheDisposer, reinterpret_cast<uintptr_t>(new ImageView(img))) {}
-    const ImageView& Image() const noexcept { return *reinterpret_cast<const ImageView*>(Cookie[0]); }
-    static void TheDisposer(const OpaqueResource& res) noexcept
+    struct Item
     {
-        const auto& holder = static_cast<const ImgHolder&>(res);
-        delete& holder.Image();
-    }
+        common::fs::path Path;
+        bool IsFolder;
+        bool IsSelected = false;
+        Item(common::fs::path&& path, bool isFolder) noexcept : Path(std::move(path)), IsFolder(isFolder) {}
+    };
+    struct Task
+    {
+        FilePickerInfo Info;
+        std::promise<FileList> Pms;
+        common::fs::path CurPath;
+        std::vector<Item> CurItems;
+        uint32_t FilterIdx;
+        Task(const FilePickerInfo& info) : Info(info), CurPath(common::fs::current_path()), FilterIdx(Info.ExtensionFilters.empty() ? UINT32_MAX : 0u) {}
+        void UpdateList(common::mlog::MiniLogger<false>&, const common::fs::path& newPath)
+        {
+            std::vector<common::fs::path> folders, files;
+            for (const auto& entry : common::fs::directory_iterator(newPath))
+            {
+                if (entry.is_directory())
+                    folders.push_back(entry.path());
+                else if (!Info.IsFolder)
+                {
+                    if (FilterIdx != UINT32_MAX)
+                    {
+                        const auto& filters = Info.ExtensionFilters[FilterIdx].second;
+                        auto ext = entry.path().extension().u16string();
+                        if (!ext.empty()) ext = ext.substr(1); // remove dot
+                        if (std::find(filters.begin(), filters.end(), ext) == filters.end())
+                        {
+                            continue;
+                        }
+                    }
+                    files.push_back(entry.path());
+                }
+            }
+            std::sort(folders.begin(), folders.end());
+            std::sort(files.begin(), files.end());
+            CurPath = newPath;
+            CurItems.clear();
+            for (auto& item : folders)
+                CurItems.emplace_back(std::move(item), true);
+            for (auto& item : files)
+                CurItems.emplace_back(std::move(item), false);
+        }
+    };
+    std::mutex MainMutex;
+    std::deque<Task> TaskList;
+    tgui_activity Activity = -1;
+    tgui_view View = -1;
+    tgui_view BtnOK = -1, BtnCancel = -1, TxtTitle = -1, TxtPath = -1, SpinFilter = -1, ViewBtns = -1, ViewListHolder = -1, ViewList = -1;
+    boost::container::flat_map<tgui_view, uint32_t> CurItems;
 };
 
+}
+using namespace tgui;
 
 class WindowManagerTermuxGUI final : public TermuxGUIBackend, public WindowManager
 {
@@ -208,7 +258,109 @@ public:
     static constexpr std::string_view BackendName = "TermuxGUI"sv;
 private:
     inline static constexpr ImgDType BackBufType = img::ImageDataType::RGBA;
+    struct BackBuffer
+    {
+        tgui_hardware_buffer HWBuf = { 0, nullptr };
+        RectBase<int32_t> Shape;
+        uint32_t RealWidth = 0;
+        bool UpdateSize(WindowManagerTermuxGUI& manager, const RectBase<int32_t>& shape, tgui_hardware_buffer_cpu_frequency usage)
+        {
+            if (shape != Shape)
+            {
+                Shape = shape;
+                Release(manager);
+                LOG_TERR(manager.hardware_buffer_create(manager.Connection, &HWBuf, TGUI_HARDWARE_BUFFER_FORMAT_RGBA8888,
+                    Shape.Width, Shape.Height, usage, usage), manager.Logger, u"Can't create HW Buffer");
+                AHardwareBuffer_Desc desc{};
+                manager.AHB_describe(HWBuf.buffer, &desc);
+                RealWidth = desc.stride;
+                Ensures(desc.stride >= static_cast<uint32_t>(Shape.Width));
+                manager.Logger.Verbose(u"Resize HWBuffer to [{}({})x{}].\n", Shape.Width, RealWidth, Shape.Height);
+                return true;
+            }
+            return false;
+        }
+        void Release(WindowManagerTermuxGUI& manager)
+        {
+            if (HWBuf.buffer)
+            {
+                LOG_TERR(manager.hardware_buffer_destroy(manager.Connection, &HWBuf), manager.Logger, u"Can't destroy HW Buffer");
+                HWBuf = { 0, nullptr };
+            }
+        }
+    };
     class WdHost;
+    struct HWRenderer
+    {
+        WdHost& Window;
+        CacheRect<int32_t> LastRect;
+        BackBuffer BackBuf[2] = { };
+        uint32_t BackBufIdx = 0;
+        HWRenderer(WdHost* wd) : Window(*wd) {}
+        [[nodiscard]] forceinline BackBuffer& Back() noexcept { return BackBuf[BackBufIdx]; }
+        [[nodiscard]] forceinline const BackBuffer& Back() const noexcept { return BackBuf[BackBufIdx]; }
+        forceinline std::pair<bool, bool> Update(tgui_hardware_buffer_cpu_frequency usage = TGUI_HARDWARE_BUFFER_CPU_NEVER)
+        {
+            auto& backBuf = Back();
+            const auto [sizeChanged, needInit] = LastRect.Update(Window);
+            backBuf.UpdateSize(Window.GetManager(), LastRect, usage);
+            return { sizeChanged, needInit };
+        }
+        forceinline void Draw()
+        {
+            auto& backBuf = Back();
+            auto& manager = Window.GetManager();
+            manager.surface_view_set_buffer(manager.Connection, Window.Activity, Window.View, &backBuf.HWBuf);
+            BackBufIdx = BackBufIdx ^ 0b1u;
+        }
+    };
+    class CPURenderer final : public HWRenderer, public BasicRenderer
+    {
+        friend WindowManagerTermuxGUI;
+        std::optional<ImageView> AttachedImage;
+        LockField ResourceLock;
+        [[nodiscard]] forceinline auto& Log() noexcept { return Window.Manager.Logger; }
+        [[nodiscard]] forceinline auto UseImg() noexcept { return detail::LockField::ConsumerLock<0>{ResourceLock}; }
+        bool ReplaceImage(std::optional<ImageView> img)
+        {
+            detail::LockField::ProducerLock<0> lock{ ResourceLock };
+            AttachedImage = std::move(img);
+            return lock;
+        }
+    public:
+        using HWRenderer::HWRenderer;
+        ~CPURenderer() final { }
+        void Initialize() noexcept
+        {
+        }
+        void Render(bool forceRedraw) noexcept;
+        void SetImage(std::optional<ImageView> src) noexcept final
+        {
+            if (src)
+            {
+                std::optional<Image> img;
+                if (const auto w = src->GetWidth(), h = src->GetHeight(); w >= UINT16_MAX || h >= UINT16_MAX)
+                {
+                    uint32_t neww = 0, newh = 0;
+                    (w > h ? neww : newh) = UINT16_MAX;
+                    img = src->ResizeTo(neww, newh, true, true);
+                }
+                if (src->GetDataType() != BackBufType)
+                {
+                    if (img) img = img->ConvertTo(BackBufType);
+                    else img = src->ConvertTo(BackBufType);
+                }
+                // pre-filp since back buffer is flipped
+                if (img)
+                    img->FlipVertical();
+                else
+                    img = src->FlipToVertical();
+                ReplaceImage(*img);
+            }
+            else
+                ReplaceImage({});
+        }
+    };
     struct Msg
     {
         WdHost* Host;
@@ -221,50 +373,18 @@ private:
     class WdHost final : public TermuxGUIBackend::TermuxGUIWdHost
     {
     public:
-        struct BackBuffer
-        {
-            CacheRect<int32_t> Rect;
-            tgui_hardware_buffer HWBuf = { 0, nullptr };
-            uint32_t RealWidth = 0;
-            bool Update(WdHost& wd)
-            {
-                const auto [sizeChanged, needInit] = Rect.Update(wd);
-                if (sizeChanged)
-                {
-                    auto& manager = wd.GetManager();
-                    Release(manager);
-                    LOG_TERR(manager.hardware_buffer_create(manager.Connection, &HWBuf, TGUI_HARDWARE_BUFFER_FORMAT_RGBA8888,
-                        Rect.Width, Rect.Height, TGUI_HARDWARE_BUFFER_CPU_RARELY, TGUI_HARDWARE_BUFFER_CPU_RARELY), manager.Logger, u"Can't create HW Buffer");
-                    AHardwareBuffer_Desc desc{};
-                    manager.AHB_describe(HWBuf.buffer, &desc);
-                    RealWidth = desc.stride;
-                    Ensures(desc.stride >= static_cast<uint32_t>(Rect.Width));
-                    manager.Logger.Verbose(u"Resize HWBuffer to [{}({})x{}].\n", Rect.Width, RealWidth, Rect.Height);
-                }
-                return sizeChanged;
-            }
-            void Release(WindowManagerTermuxGUI& manager)
-            {
-                if (HWBuf.buffer)
-                {
-                    LOG_TERR(manager.hardware_buffer_destroy(manager.Connection, &HWBuf), manager.Logger, u"Can't destroy HW Buffer");
-                    HWBuf = { 0, nullptr };
-                }
-            }
-        };
-
         tgui_activity Activity = -1;
         tgui_view View = -1;
-        BackBuffer BackBuf[2] = { };
-        uint32_t BackBufIdx = 0;
         std::pair<float, float> DPIs = { 0.f, 0.f };
-        RectBase<int32_t> LastSize;
+        std::variant<std::monostate, HWRenderer, CPURenderer> Renderer;
         int32_t MainPointer = -1;
-        WindowManagerTermuxGUI& GetManager() noexcept { return static_cast<WindowManagerTermuxGUI&>(WindowHost_::GetManager()); }
-        bool NeedBackground = true;
-        WdHost(WindowManagerTermuxGUI& manager, const TermuxGUICreateInfo& info) noexcept :
-            TermuxGUIWdHost(manager, info) 
+        [[nodiscard]] forceinline WindowManagerTermuxGUI& GetManager() noexcept { return static_cast<WindowManagerTermuxGUI&>(Manager); }
+        WdHost(WindowManagerTermuxGUI& manager, const TermuxGUICreateInfo& info) noexcept : TermuxGUIWdHost(manager, info) 
         {
+            if (info.UseDefaultRenderer)
+                Renderer.emplace<CPURenderer>(this);
+            else
+                Renderer.emplace<HWRenderer>(this);
         }
         ~WdHost() final {}
         uint64_t FormatAs() const noexcept
@@ -274,131 +394,25 @@ private:
 
         [[nodiscard]] void* GetCurrentHWBuffer() const noexcept final
         {
-            return BackBuf[BackBufIdx ^ 0b1u].HWBuf.buffer;
+            if (Renderer.index() == 1)
+            {
+                return std::get<1>(Renderer).Back().HWBuf.buffer;
+            }
+            return nullptr;
         }
         void OnDisplay(bool forceRedraw) noexcept final
         {
-            auto& manager = GetManager();
-            auto& backBuf = BackBuf[BackBufIdx];
-            auto& rect = backBuf.Rect;
-            SimpleTimer timer;
-            const auto sizeChanged = backBuf.Update(*this);
-            BgLock lock(this);
-            const bool bgChanged = lock;
-            const auto& holder = static_cast<ImgHolder&>(*GetWindowResource(this, WdAttrIndex::Background));
-            const auto sizeUpdated = rect != LastSize;
-            const bool needDraw = forceRedraw || bgChanged || (sizeUpdated && (NeedBackground || holder));
-            if (needDraw)
+            switch (Renderer.index())
             {
-                LastSize = rect;
-                timer.Start();
-                void* bufptr = nullptr;
-                if (manager.AHB_lockAndGetInfo)
-                {
-                    int32_t bpp = 0, stride_ = 0;
-                    if (const auto ret = manager.AHB_lockAndGetInfo(backBuf.HWBuf.buffer, AHARDWAREBUFFER_USAGE_CPU_WRITE_RARELY, -1, nullptr, &bufptr, &bpp, &stride_); ret)
-                        Manager.Logger.Error(u"Failed to lock AHB : {:#}.\n", common::ErrnoHolder(-ret));
-                    Ensures(bpp > 0 && static_cast<uint32_t>(bpp) == BackBufType.ElementSize());
-                    Ensures(stride_ > 0 && static_cast<uint32_t>(stride_) == backBuf.RealWidth * BackBufType.ElementSize());
-                }
-                else
-                {
-                    if (const auto ret = manager.AHB_lock(backBuf.HWBuf.buffer, AHARDWAREBUFFER_USAGE_CPU_WRITE_RARELY, -1, nullptr, &bufptr); ret)
-                        Manager.Logger.Error(u"Failed to lock AHB : {:#}.\n", common::ErrnoHolder(-ret));
-                }
-                auto backImg = Image::CreateViewFromTemp({ reinterpret_cast<std::byte*>(bufptr), static_cast<size_t>(backBuf.RealWidth) * rect.Height * BackBufType.ElementSize() },
-                    BackBufType, backBuf.RealWidth, rect.Height);
-                if (NeedBackground && holder)
-                {
-                    if (!sizeChanged)
-                        memset(backImg.GetRawPtr(), 0, backImg.GetSize()); // clear first
-                    const auto& img = holder.Image();
-                    const auto [tw, th] = rect.ResizeWithin(img.GetWidth(), img.GetHeight());
-                    // back buffer and img both are flipped
-                    Ensures(backImg.GetHeight() >= static_cast<uint32_t>(th));
-                    img.ResizeTo(backImg, 0, 0, 0, backImg.GetHeight() - th, tw, th, true, true);
-                }
-                else
-                {
-                    const auto ptr = backImg.GetRawPtr<uint32_t>();
-                    for (int32_t h = 0; h < rect.Height; ++h)
-                    {
-                        const auto hval = h * 255u / rect.Height;
-                        for (int32_t w = 0; w < rect.Width; ++w)
-                        {
-                            const auto wval = w * 255u / rect.Width;
-                            const auto clr = ((hval << 8) + wval) << (BackBufIdx ? 8 : 0);
-                            ptr[h * backBuf.RealWidth + w] = 0xff000000u + clr;
-                        }
-                    }
-                }
-                if (const auto ret = manager.AHB_unlock(backBuf.HWBuf.buffer, nullptr); ret)
-                    Manager.Logger.Error(u"Failed to unlock AHB : {:#}.\n", common::ErrnoHolder(-ret));
-                timer.Stop();
-                Manager.Logger.Verbose(u"Window[{:x}] rebuild backbuffer[{}] in [{} ms].\n", *this, BackBufIdx, timer.ElapseUs() / 1000.f);
-
-                manager.surface_view_set_buffer(manager.Connection, Activity, View, &backBuf.HWBuf);
-                BackBufIdx = BackBufIdx ^ 0b1u;
+            case 1: std::get<1>(Renderer).Update(); break;
+            case 2: std::get<2>(Renderer).Render(forceRedraw); break;
+            default: break;
             }
-            TermuxGUIWdHost::OnDisplay(forceRedraw);
+            WindowHost_::OnDisplay(forceRedraw);
+            if (Renderer.index() == 1)
+                std::get<1>(Renderer).Draw();
         }
-    };
-
-    struct FilePicker
-    {
-        struct Item
-        {
-            common::fs::path Path;
-            bool IsFolder;
-            bool IsSelected = false;
-            Item(common::fs::path&& path, bool isFolder) noexcept : Path(std::move(path)), IsFolder(isFolder) {}
-        };
-        struct Task
-        {
-            FilePickerInfo Info;
-            std::promise<FileList> Pms;
-            common::fs::path CurPath;
-            std::vector<Item> CurItems;
-            uint32_t FilterIdx;
-            Task(const FilePickerInfo& info) : Info(info), CurPath(common::fs::current_path()), FilterIdx(Info.ExtensionFilters.empty() ? UINT32_MAX : 0u) {}
-            void UpdateList(common::mlog::MiniLogger<false>&, const common::fs::path& newPath)
-            {
-                std::vector<common::fs::path> folders, files;
-                for (const auto& entry : common::fs::directory_iterator(newPath))
-                {
-                    if (entry.is_directory())
-                        folders.push_back(entry.path());
-                    else if (!Info.IsFolder)
-                    {
-                        if (FilterIdx != UINT32_MAX)
-                        {
-                            const auto& filters = Info.ExtensionFilters[FilterIdx].second;
-                            auto ext = entry.path().extension().u16string();
-                            if (!ext.empty()) ext = ext.substr(1); // remove dot
-                            if (std::find(filters.begin(), filters.end(), ext) == filters.end())
-                            {
-                                continue;
-                            }
-                        }
-                        files.push_back(entry.path());
-                    }
-                }
-                std::sort(folders.begin(), folders.end());
-                std::sort(files.begin(), files.end());
-                CurPath = newPath;
-                CurItems.clear();
-                for (auto& item : folders)
-                    CurItems.emplace_back(std::move(item), true);
-                for (auto& item : files)
-                    CurItems.emplace_back(std::move(item), false);
-            }
-        };
-        std::mutex MainMutex;
-        std::deque<Task> TaskList;
-        tgui_activity Activity = -1;
-        tgui_view View = -1;
-        tgui_view BtnOK = -1, BtnCancel = -1, TxtTitle = -1, TxtPath = -1, SpinFilter = -1, ViewBtns = -1, ViewListHolder = -1, ViewList = -1;
-        boost::container::flat_map<tgui_view, uint32_t> CurItems;
+        BasicRenderer* GetRenderer() noexcept final { return Renderer.index() == 2 ? &std::get<2>(Renderer) : nullptr; }
     };
 
     common::DynLib TGui;
@@ -1096,27 +1110,6 @@ public:
             return static_cast<OpaqueResource>(IconHolder(std::make_unique<std::vector<std::byte>>(std::move(data))));
         return {};
     }
-    OpaqueResource CacheRenderImage(WindowHost_&, ImageView img_) const noexcept final
-    {
-        std::optional<Image> img;
-        if (const auto w = img_.GetWidth(), h = img_.GetHeight(); w >= UINT16_MAX || h >= UINT16_MAX)
-        {
-            uint32_t neww = 0, newh = 0;
-            (w > h ? neww : newh) = UINT16_MAX;
-            img = img_.ResizeTo(neww, newh, true, true);
-        }
-        if (img_.GetDataType() != BackBufType)
-        {
-            if (img) img = img->ConvertTo(BackBufType);
-            else img = img_.ConvertTo(BackBufType);
-        }
-        // pre-filp since back buffer is flipped
-        if (img)
-            img->FlipVertical();
-        else
-            img = img_.FlipToVertical();
-        return static_cast<OpaqueResource>(ImgHolder(*img));
-    }
 
     WindowHost Create(const CreateInfo& info_) final
     {
@@ -1140,6 +1133,64 @@ public:
     static inline const auto Dummy = RegisterBackend<WindowManagerTermuxGUI>();
 
 };
+
+
+void WindowManagerTermuxGUI::CPURenderer::Render(bool forceRedraw) noexcept
+{
+    const auto [sizeChanged, needInit] = Update(TGUI_HARDWARE_BUFFER_CPU_OFTEN);
+    bool needDraw = false;
+    {
+        auto imgLock = UseImg();
+        const bool imgChanged = imgLock;
+        needDraw = forceRedraw || needInit || imgChanged || (sizeChanged && AttachedImage);
+        if (forceRedraw || imgChanged || sizeChanged) // need to be larger than needDraw to ensure buffer is correct
+        {
+            auto& backBuf = Back();
+            auto& manager = Window.GetManager();
+            SimpleTimer timer;
+            timer.Start();
+            void* bufptr = nullptr;
+            const auto bufStride = backBuf.RealWidth * BackBufType.ElementSize();
+            if (manager.AHB_lockAndGetInfo)
+            {
+                int32_t bpp = 0, stride_ = 0;
+                if (const auto ret = manager.AHB_lockAndGetInfo(backBuf.HWBuf.buffer, AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN, -1, nullptr, &bufptr, &bpp, &stride_); ret)
+                    Log().Error(FmtString(u"Failed to lock AHB : {:#}.\n"), common::ErrnoHolder(-ret));
+                Ensures(bpp > 0 && static_cast<uint32_t>(bpp) == BackBufType.ElementSize());
+                Ensures(stride_ > 0 && static_cast<uint32_t>(stride_) == bufStride);
+            }
+            else
+            {
+                if (const auto ret = manager.AHB_lock(backBuf.HWBuf.buffer, AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN, -1, nullptr, &bufptr); ret)
+                    Log().Error(FmtString(u"Failed to lock AHB : {:#}.\n"), common::ErrnoHolder(-ret));
+            }
+            if (AttachedImage)
+            {
+                const auto bufSize = static_cast<size_t>(bufStride) * backBuf.Shape.Height;
+                memset(bufptr, 0, bufSize); // clear first
+                auto backImg = Image::CreateViewFromTemp({ reinterpret_cast<std::byte*>(bufptr), bufSize }, BackBufType, backBuf.RealWidth, backBuf.Shape.Height);
+                const auto [tw, th] = backBuf.Shape.ResizeWithin(AttachedImage->GetWidth(), AttachedImage->GetHeight());
+                // back buffer and img both are flipped
+                Ensures(backImg.GetHeight() >= static_cast<uint32_t>(th));
+                AttachedImage->ResizeTo(backImg, 0, 0, 0, backImg.GetHeight() - th, tw, th, true, true);
+            }
+            else
+            {
+                FillBufferColorXXXA(reinterpret_cast<uint32_t*>(bufptr), backBuf.Shape.Width, backBuf.Shape.Height, backBuf.RealWidth, BackBufIdx);
+            }
+            if (const auto ret = manager.AHB_unlock(backBuf.HWBuf.buffer, nullptr); ret)
+                Log().Error(FmtString(u"Failed to unlock AHB : {:#}.\n"), common::ErrnoHolder(-ret));
+            timer.Stop();
+            Log().Verbose(FmtString(u"Window[{:x}] rebuild backbuffer[{}] in [{} ms].\n"), Window, BackBufIdx, timer.ElapseMs<true>());
+        }
+        else
+            Ensures(!needDraw);
+    }
+    if (needDraw)
+    {
+        Draw();
+    }
+}
 
 
 }

@@ -37,6 +37,7 @@ struct CreateInfo
     std::u16string Title;
     uint32_t Width = 1280, Height = 720;
     uint16_t TargetFPS = 0;
+    bool UseDefaultRenderer = true;
 };
 
 enum class ClipBoardTypes : uint8_t
@@ -75,7 +76,7 @@ protected:
     virtual void OnDeInitialize() noexcept;
 public:
     virtual ~WindowBackend();
-    WDHOSTAPI bool IsInited() const noexcept;
+    bool IsInited() const noexcept;
     void Init()
     {
         EnsureInitState(false);
@@ -85,6 +86,8 @@ public:
     WDHOSTAPI bool Stop();
     [[nodiscard]] virtual std::string_view Name() const noexcept = 0;
     [[nodiscard]] virtual bool CheckFeature(std::string_view feat) const noexcept = 0;
+    [[nodiscard]] virtual WindowHost Create(const CreateInfo& info = {}) = 0;
+    [[nodiscard]] common::PromiseResult<FileList> OpenFilePicker(const FilePickerInfo& info) noexcept override;
     
     [[nodiscard]] WDHOSTAPI static common::span<WindowBackend* const> GetBackends() noexcept;
     template<typename T>
@@ -125,10 +128,16 @@ public:
         }
         return nullptr;
     }
-    virtual WindowHost Create(const CreateInfo& info = {}) = 0;
-    common::PromiseResult<FileList> OpenFilePicker(const FilePickerInfo& info) noexcept override;
 };
 
+
+class BasicRenderer
+{
+    friend WindowHost_;
+public:
+    virtual ~BasicRenderer() = 0;
+    virtual void SetImage(std::optional<xziar::img::ImageView> img) noexcept = 0;
+};
 
 template<typename... Args>
 class WindowEventDelegate;
@@ -180,10 +189,11 @@ class WDHOSTAPI WindowHost_ :
     friend detail::WindowManagerWayland;
     friend detail::WindowManagerTermuxGUI;
     friend detail::WindowManagerCocoa;
+protected:
+    detail::WindowManager& Manager;
 private:
     struct Pimpl;
     std::unique_ptr<Pimpl> Impl;
-    detail::WindowManager& Manager;
     std::u16string Title;
     int32_t Width, Height;
     event::Position LastPos, LeftBtnPos;
@@ -201,7 +211,6 @@ private:
     void RefreshMouseButton(event::MouseButton pressed) noexcept;
 protected:
     WindowHost_(detail::WindowManager& manager, const CreateInfo& info) noexcept;
-    detail::WindowManager& GetManager() noexcept { return Manager; }
     using LoopBase::Wakeup;
     bool HandleInvoke() noexcept;
 
@@ -227,10 +236,10 @@ protected:
 public:
     ~WindowHost_() override;
 
-    event::ModifierKeys GetModifiers() const noexcept { return Modifiers; }
-    event::Position     GetLastPosition() const noexcept { return LastPos; }
+    [[nodiscard]] event::ModifierKeys GetModifiers() const noexcept { return Modifiers; }
+    [[nodiscard]] event::Position     GetLastPosition() const noexcept { return LastPos; }
     template<typename T>
-    const T* GetWindowData(std::string_view name) const noexcept 
+    [[nodiscard]] const T* GetWindowData(std::string_view name) const noexcept
     { 
         return std::any_cast<T>(GetWindowData_(name));
     }
@@ -242,35 +251,35 @@ public:
     void RemoveWindowData(std::string_view name) const noexcept;
 
     // below delegates are called inside UI thread (Window Loop)
-    WindowEventDelegate<> Openning() const noexcept;
-    WindowEventDelegate<> Displaying() const noexcept;
-    WindowEventDelegate<> Closed() const noexcept;
+    [[nodiscard]] WindowEventDelegate<> Openning() const noexcept;
+    [[nodiscard]] WindowEventDelegate<> Displaying() const noexcept;
+    [[nodiscard]] WindowEventDelegate<> Closed() const noexcept;
 
     // below delegates are called inside Manager thread (Main Loop)
-    WindowEventDelegate<bool&> Closing() const noexcept;
-    WindowEventDelegate<int32_t, int32_t> Resizing() const noexcept;
-    WindowEventDelegate<> Minimizing() const noexcept;
-    WindowEventDelegate<float, float> DPIChanging() const noexcept;
-    WindowEventDelegate<const event::MouseEvent&> MouseEnter() const noexcept;
-    WindowEventDelegate<const event::MouseEvent&> MouseLeave() const noexcept;
-    WindowEventDelegate<const event::MouseButtonEvent&> MouseButtonDown() const noexcept;
-    WindowEventDelegate<const event::MouseButtonEvent&> MouseButtonUp() const noexcept;
-    WindowEventDelegate<const event::MouseMoveEvent&> MouseMove() const noexcept;
-    WindowEventDelegate<const event::MouseDragEvent&> MouseDrag() const noexcept;
-    WindowEventDelegate<const event::MouseScrollEvent&> MouseScroll() const noexcept;
-    WindowEventDelegate<const event::KeyEvent&> KeyDown() const noexcept;
-    WindowEventDelegate<const event::KeyEvent&> KeyUp() const noexcept;
-    WindowEventDelegate<const event::DropFileEvent&> DropFile() const noexcept;
+    [[nodiscard]] WindowEventDelegate<bool&> Closing() const noexcept;
+    [[nodiscard]] WindowEventDelegate<int32_t, int32_t> Resizing() const noexcept;
+    [[nodiscard]] WindowEventDelegate<> Minimizing() const noexcept;
+    [[nodiscard]] WindowEventDelegate<float, float> DPIChanging() const noexcept;
+    [[nodiscard]] WindowEventDelegate<const event::MouseEvent&> MouseEnter() const noexcept;
+    [[nodiscard]] WindowEventDelegate<const event::MouseEvent&> MouseLeave() const noexcept;
+    [[nodiscard]] WindowEventDelegate<const event::MouseButtonEvent&> MouseButtonDown() const noexcept;
+    [[nodiscard]] WindowEventDelegate<const event::MouseButtonEvent&> MouseButtonUp() const noexcept;
+    [[nodiscard]] WindowEventDelegate<const event::MouseMoveEvent&> MouseMove() const noexcept;
+    [[nodiscard]] WindowEventDelegate<const event::MouseDragEvent&> MouseDrag() const noexcept;
+    [[nodiscard]] WindowEventDelegate<const event::MouseScrollEvent&> MouseScroll() const noexcept;
+    [[nodiscard]] WindowEventDelegate<const event::KeyEvent&> KeyDown() const noexcept;
+    [[nodiscard]] WindowEventDelegate<const event::KeyEvent&> KeyUp() const noexcept;
+    [[nodiscard]] WindowEventDelegate<const event::DropFileEvent&> DropFile() const noexcept;
 
     // below delegates are called from any thread
 
     void Show(const std::function<std::any(std::string_view)>& provider = {});
     void Close();
-    WindowHost GetSelf();
+    [[nodiscard]] WindowHost GetSelf();
+    [[nodiscard]] virtual BasicRenderer* GetRenderer() noexcept { return nullptr; }
     virtual void GetClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type);
     void SetTitle(const std::u16string_view title);
     void SetIcon(xziar::img::ImageView img);
-    void SetBackground(std::optional<xziar::img::ImageView> img);
     void Invoke(std::function<void(void)> task);
     void InvokeUI(std::function<void(WindowHost_&)> task);
     virtual void Invalidate(bool forceRedraw = false);

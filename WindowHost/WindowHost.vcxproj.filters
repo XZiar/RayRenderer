@@ -24,9 +24,6 @@
     <ClCompile Include="WindowHost.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="WindowManagerBackend.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="WindowManagerCocoa.cpp">
       <Filter>源文件</Filter>
     </ClCompile>

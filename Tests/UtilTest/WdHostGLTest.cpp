@@ -187,8 +187,13 @@ static void RunTest(WindowBackend& backend)
         return;
     }
 
-    xziar::gui::CreateInfo wdInfo;
-    wdInfo.Width = 1280, wdInfo.Height = 720, wdInfo.Title = u"WdHostGLTest";
+    xziar::gui::CreateInfo wdInfo
+    {
+        .Title = u"WdHostGLTest",
+        .Width = 1280u,
+        .Height = 720u,
+        .UseDefaultRenderer = false,
+    };
     const auto window = backend.Create(wdInfo);
     std::promise<void> closePms;
     window->Openning() += [&](const auto&) 

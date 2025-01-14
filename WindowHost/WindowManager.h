@@ -232,7 +232,6 @@ namespace WdAttrIndex
 {
 inline constexpr uint8_t Title = 0;
 inline constexpr uint8_t Icon = 1;
-inline constexpr uint8_t Background = 2;
 inline constexpr uint8_t Custom = 8;
 }
 
@@ -343,7 +342,6 @@ protected:
     };
     using TitleLock = ResApplyLock<WdAttrIndex::Title>;
     using IconLock = ResApplyLock<WdAttrIndex::Icon>;
-    using BgLock = ResApplyLock<WdAttrIndex::Background>;
     template<uint8_t Idx>
     using CustomLock = ResApplyLock<WdAttrIndex::Custom + Idx>;
     template<uint8_t Idx>
@@ -364,6 +362,18 @@ protected:
         }
         constexpr bool operator==(const RectBase<T>& rhs) const noexcept { return Width == rhs.Width && Height == rhs.Height; }
         constexpr bool operator!=(const RectBase<T>& rhs) const noexcept { return Width != rhs.Width || Height != rhs.Height; }
+        constexpr std::pair<T, T> ResizeWithin(uint32_t w, uint32_t h) const noexcept
+        {
+            const auto dw = this->Width, dh = this->Height;
+            const auto wAlignH = uint64_t(dw) * h / w, hAlignW = uint64_t(dh) * w / h;
+            Ensures((wAlignH <= (uint32_t)dh) || (hAlignW <= (uint32_t)dw));
+            T tw = 0, th = 0;
+            if (wAlignH <= (uint32_t)dh) // W-align
+                tw = dw, th = static_cast<T>(wAlignH);
+            else // H-align
+                tw = static_cast<T>(hAlignW), th = dh;
+            return { tw, th };
+        }
     };
     template<typename T>
     struct CacheRect : public RectBase<T>
@@ -380,18 +390,6 @@ protected:
                 return { true, !initilized };
             }
             return { false, false };
-        }
-        constexpr std::pair<T, T> ResizeWithin(uint32_t w, uint32_t h) const noexcept
-        {
-            const auto dw = this->Width, dh = this->Height;
-            const auto wAlignH = uint64_t(dw) * h / w, hAlignW = uint64_t(dh) * w / h;
-            Ensures((wAlignH <= (uint32_t)dh) || (hAlignW <= (uint32_t)dw));
-            T tw = 0, th = 0;
-            if (wAlignH <= (uint32_t)dh) // W-align
-                tw = dw, th = static_cast<T>(wAlignH);
-            else // H-align
-                tw = static_cast<T>(hAlignW), th = dh;
-            return { tw, th };
         }
     };
 
@@ -440,12 +438,10 @@ public:
     virtual void AfterWindowOpen(WindowHost_*) const {}
     virtual void UpdateTitle(WindowHost_* host) const = 0;
     virtual void UpdateIcon(WindowHost_*) const {}
-    virtual void UpdateBgImg(WindowHost_*) const {}
     virtual void CloseWindow(WindowHost_* host) const = 0;
     virtual void ReleaseWindow(WindowHost_* host) = 0;
     virtual const void* GetWindowData(const WindowHost_* host, std::string_view name) const noexcept;
     virtual OpaqueResource PrepareIcon(WindowHost_&, xziar::img::ImageView) const noexcept { return {}; }
-    virtual OpaqueResource CacheRenderImage(WindowHost_&, xziar::img::ImageView) const noexcept { return {}; }
 
     void AddInvoke(std::function<void(void)>&& task);
 
@@ -453,6 +449,7 @@ public:
 };
 
 
+void FillBufferColorXXXA(uint32_t* ptr, uint32_t w, uint32_t h, uint32_t rowStride, uint32_t idx = 0) noexcept;
 #if COMMON_OS_UNIX
 xziar::gui::event::CombinedKey ProcessXKBKey(void* state, uint8_t keycode) noexcept;
 FileList UriStringToFiles(std::string_view str) noexcept;

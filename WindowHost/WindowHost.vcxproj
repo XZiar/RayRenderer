@@ -202,7 +202,6 @@
   <ItemGroup>
     <ClCompile Include="WindowManager.cpp" />
     <ClCompile Include="WindowHost.cpp" />
-    <ClCompile Include="WindowManagerBackend.cpp" />
     <ClCompile Include="WindowManagerCocoa.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>

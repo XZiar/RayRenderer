@@ -66,6 +66,12 @@ static void SetBgImg(xziar::gui::WindowHost_& wd, const FileList& files) noexcep
     {
         log().Verbose(u"--{}\n", fpath);
     }
+    const auto renderer = wd.GetRenderer(); 
+    if (!renderer)
+    {
+        log().Warning(u"No renderer, abort image setting\n");
+        return;
+    }
     for (std::u16string_view fpath : files)
     {
         try
@@ -73,7 +79,7 @@ static void SetBgImg(xziar::gui::WindowHost_& wd, const FileList& files) noexcep
             const auto img = xziar::img::ReadImage(fpath, xziar::img::ImageDataType::BGRA);
             if (img.GetSize())
             {
-                wd.SetBackground(img);
+                renderer->SetImage(img);
                 return;
             }
         }
@@ -94,8 +100,14 @@ static void OpenTestWindow(WindowBackend& backend, const Creator& creator)
         iconimg = xziar::img::ReadImage(stream, u"PNG", xziar::img::ImageDataType::BGRA);
     }
 
-    xziar::gui::CreateInfo wdInfo;
-    wdInfo.Width = 1280, wdInfo.Height = 720, wdInfo.TargetFPS = 60, wdInfo.Title = u"WdHostTest";
+    xziar::gui::CreateInfo wdInfo
+    {
+        .Title = u"WdHostTest",
+        .Width = 1280u,
+        .Height = 720u,
+        .TargetFPS = 60u,
+        .UseDefaultRenderer = true,
+    };
     const auto window = creator(backend, wdInfo);
     window->Openning() += [&](const auto&) 
     { 
@@ -192,7 +204,8 @@ static void OpenTestWindow(WindowBackend& backend, const Creator& creator)
         {
             if (evt.HasShift())
             {
-                wd.SetBackground({});
+                if (const auto renderer = wd.GetRenderer(); renderer)
+                    renderer->SetImage({});
             }
             else
             {
@@ -227,7 +240,8 @@ static void OpenTestWindow(WindowBackend& backend, const Creator& creator)
                     if (const auto img = std::any_cast<ImageView>(&data); img && img->GetSize())
                     {
                         log().Info(u"Recieved clipboard of image: [{}x{}] [{}].\n", img->GetWidth(), img->GetHeight(), img->GetDataType().ToString());
-                        host->SetBackground(*img);
+                        if (const auto renderer = host->GetRenderer(); renderer)
+                            renderer->SetImage(*img);
                     }
                     break;
                 case ClipBoardTypes::Text:

@@ -88,7 +88,7 @@
   - [ ] Add support for gesture
   - [ ] Add support for touch screen logic
   - [ ] Add support for remote redering via IPC or network
-  - [ ] Add backend for termux-gui
+  - [x] Add backend for termux-gui
   - [x] Add multi-backend support
   - [x] Add Icon support
   - [ ] Add timer support
@@ -97,7 +97,7 @@
   - [x] Add filepicker
   - [ ] Add messagebox/notification
   - [x] Revert to use std::any for data storage to ensure lifetime management
-  - [ ] Separate backgroung image support into default renderer
+  - [x] Separate backgroung image support into default renderer
 
 * Nailang
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`

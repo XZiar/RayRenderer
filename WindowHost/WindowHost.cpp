@@ -23,6 +23,9 @@ using common::BaseException;
 //MAKE_ENABLER_IMPL(WindowHostActive)
 
 
+BasicRenderer::~BasicRenderer() {}
+
+
 #define WD_EVT_NAMES BOOST_PP_VARIADIC_TO_SEQ(Openning, Displaying, Closed, \
     Closing, DPIChanging, Resizing, Minimizing, \
     MouseEnter, MouseLeave, MouseButtonDown, MouseButtonUp,  \
@@ -110,7 +113,6 @@ detail::OpaqueResource* detail::WindowManager::GetWindowResource(WindowHost_* ho
         switch (resIdx)
         {
         case detail::WdAttrIndex::Icon:         return &host->Impl->NewIcon;
-        case detail::WdAttrIndex::Background:   return &host->Impl->BgImg;
         default: /*Logger.Warning(u"Access wrong resource [{}]\n"sv, resIdx);*/ break;
         }
     }
@@ -119,7 +121,7 @@ detail::OpaqueResource* detail::WindowManager::GetWindowResource(WindowHost_* ho
 
 
 WindowHost_::WindowHost_(detail::WindowManager& manager, const CreateInfo& info) noexcept :
-    LoopBase(LoopBase::GetThreadedExecutor), Impl(std::make_unique<Pimpl>(info.TargetFPS)), Manager(manager),
+    LoopBase(LoopBase::GetThreadedExecutor), Manager(manager), Impl(std::make_unique<Pimpl>(info.TargetFPS)),
     Title(info.Title), Width(info.Width), Height(info.Height)
 { }
 WindowHost_::~WindowHost_()
@@ -443,25 +445,8 @@ void WindowHost_::GetClipboard(const std::function<bool(ClipBoardTypes, const st
 }
 
 
-//template<uint8_t Index>
-//struct ProducerLock
-//{
-//    static_assert(Index < 16);
-//    detail::LockField& Target;
-//    const bool AlreadyChanged = false;
-//    ProducerLock(detail::LockField& target) noexcept : Target(target), AlreadyChanged(detail::LockField::LockChange(Target, Index))
-//    { }
-//    COMMON_NO_COPY(ProducerLock)
-//    COMMON_NO_MOVE(ProducerLock)
-//    ~ProducerLock()
-//    {
-//        detail::LockField::DoUnlock(Target, Index);
-//    }
-//    constexpr operator bool() const noexcept { return AlreadyChanged; }
-//};
 using TitleLock = detail::LockField::ProducerLock<detail::WdAttrIndex::Title>;
 using IconLock  = detail::LockField::ProducerLock<detail::WdAttrIndex::Icon>;
-using BgLock    = detail::LockField::ProducerLock<detail::WdAttrIndex::Background>;
 
 void WindowHost_::SetTitle(const std::u16string_view title)
 {
@@ -479,20 +464,6 @@ void WindowHost_::SetIcon(xziar::img::ImageView img)
     Impl->NewIcon = std::move(icon);
     if (!lock)
         Manager.UpdateIcon(this);
-}
-
-void WindowHost_::SetBackground(std::optional<xziar::img::ImageView> img)
-{
-    detail::OpaqueResource cimg;
-    if (img)
-    {
-        cimg = Manager.CacheRenderImage(*this, *img);
-        if (!cimg) return;
-    }
-    BgLock lock(Impl->AttributeLock);
-    Impl->BgImg = std::move(cimg);
-    if (!lock)
-        Manager.UpdateBgImg(this);
 }
 
 void WindowHost_::Invoke(std::function<void(void)> task)

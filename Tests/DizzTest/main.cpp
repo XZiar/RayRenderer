@@ -89,8 +89,13 @@ void RunDizzCore(WindowBackend& backend)
     const auto& xcbBackend = static_cast<XCBBackend&>(backend);
     const auto host = loader->CreateHost(xcbBackend.GetDisplay(), xcbBackend.GetDefaultScreen());
 #endif
-    xziar::gui::CreateInfo wdInfo;
-    wdInfo.Width = 1280, wdInfo.Height = 720, wdInfo.Title = u"DizzTest";
+    xziar::gui::CreateInfo wdInfo
+    {
+        .Title = u"DizzTest",
+        .Width = 1280u,
+        .Height = 720u,
+        .UseDefaultRenderer = false,
+    };
     const auto window = std::dynamic_pointer_cast<WdType>(backend.Create(wdInfo));
     WindowHost wd2;
     std::promise<void> openPms, closePms;
