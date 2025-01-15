@@ -1,5 +1,6 @@
 #include "oglPch.h"
 #include "oglUtil.h"
+#include "oglFBO.h"
 #include "SystemCommon/StringDetect.h"
 
 #undef APIENTRY
@@ -11,6 +12,7 @@
 
 namespace oglu
 {
+MAKE_ENABLER_IMPL(oglAHBRenderBuffer_)
 using namespace std::string_view_literals;
 
 
@@ -39,12 +41,17 @@ DEFINE_FUNC(eglDestroyContext,         DestroyContext);
 DEFINE_FUNC(eglDestroySurface,         DestroySurface);
 DEFINE_FUNC(eglTerminate,              Terminate);
 DEFINE_FUNC(eglSwapBuffers,            SwapBuffers);
+DEFINE_FUNC(eglCreateImage,            CreateImage);
+DEFINE_FUNC(eglDestroyImage,           DestroyImage);
 DEFINE_FUNC2(PFNEGLQUERYDEVICESEXTPROC,         eglQueryDevicesEXT,         QueryDevicesEXT);
 DEFINE_FUNC2(PFNEGLQUERYDEVICESTRINGEXTPROC,    eglQueryDeviceStringEXT,    QueryDeviceStringEXT);
 DEFINE_FUNC2(PFNEGLGETPLATFORMDISPLAYEXTPROC,   eglGetPlatformDisplayEXT,   GetPlatformDisplayEXT);
 DEFINE_FUNC2(PFNEGLQUERYDISPLAYATTRIBEXTPROC,   eglQueryDisplayAttribEXT,   QueryDisplayAttribEXT);
 DEFINE_FUNC2(PFNEGLQUERYDEVICEBINARYEXTPROC,    eglQueryDeviceBinaryEXT,    QueryDeviceBinaryEXT);
 DEFINE_FUNC2(PFNEGLQUERYDEVICEATTRIBEXTPROC,    eglQueryDeviceAttribEXT,    QueryDeviceAttribEXT);
+DEFINE_FUNC2(PFNEGLCREATEIMAGEKHRPROC,          eglCreateImageKHR,          CreateImageKHR);
+DEFINE_FUNC2(PFNEGLDESTROYIMAGEKHRPROC,         eglDestroyImageKHR,         DestroyImageKHR);
+DEFINE_FUNC2(PFNEGLGETNATIVECLIENTBUFFERANDROIDPROC, eglGetNativeClientBufferANDROID, GetNativeClientBufferANDROID);
 
 
 template<typename T, typename E>
@@ -88,6 +95,7 @@ struct EnumBitfield
 
 class EGLLoader_ final : public EGLLoader
 {
+    friend oglEGLImage_;
 private:
     struct FBConfig
     {
@@ -99,6 +107,7 @@ private:
     struct EGLHost final : public EGLLoader::EGLHost
     {
         friend EGLLoader_;
+        friend oglEGLImage_;
         EGLDisplay DeviceContext;
         const EGLLoader::DeviceHolder* RefDevice = nullptr;
         EGLLoader::DeviceHolder SelfDevice;
@@ -255,6 +264,55 @@ private:
             if (SelfDevice.Cookie) return &SelfDevice;
             return nullptr;
         }
+        std::shared_ptr<oglEGLImage_> CreateImageFromAndroidHWBuffer(void* ahb) const noexcept final
+        {
+            if (Extensions.Has("EGL_ANDROID_get_native_client_buffer"))
+            {
+                auto& loader = static_cast<EGLLoader_&>(Loader);
+                Ensures(loader.GetNativeClientBufferANDROID && (loader.CreateImage || loader.CreateImageKHR));
+                // Create EGLImages for the buffers
+                const auto cbuf = loader.GetNativeClientBufferANDROID(reinterpret_cast<const AHardwareBuffer*>(ahb));
+                EGLImage img = nullptr;
+                if (loader.CreateImage)
+                {
+                    EGLAttrib imageAttribs[] = { EGL_IMAGE_PRESERVED_KHR, EGL_TRUE, EGL_NONE };
+                    img = loader.CreateImage(DeviceContext, EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID, cbuf, imageAttribs);
+                }
+                else
+                {
+                    EGLint imageAttribs[] = { EGL_IMAGE_PRESERVED_KHR, EGL_TRUE, EGL_NONE };
+                    loader.CreateImageKHR(DeviceContext, EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID, cbuf, imageAttribs);
+                }
+                if (img != EGL_NO_IMAGE_KHR)
+                {
+                    return std::make_shared<oglEGLImage_>(shared_from_this(), img);
+                }
+            }
+            else
+                oglLog().Warning(u"EGL Host does not support create image from Android Hardware Buffer.\n");
+            return {};
+        }
+        std::shared_ptr<oglAHBRenderBuffer_> CreateRBOFromAndroidHWBuffer(void* ahb, uint32_t w, uint32_t h) const noexcept final
+        {
+            auto image = CreateImageFromAndroidHWBuffer(ahb);
+            if (image)
+            {
+                return MAKE_ENABLER_SHARED(oglAHBRenderBuffer_, (std::move(image), w, h));
+            }
+            return {};
+        }
+        void DestroyImage(EGLImage image) const noexcept
+        {
+            auto& loader = static_cast<EGLLoader_&>(Loader);
+            if (loader.DestroyImage)
+            {
+                loader.DestroyImage(DeviceContext, image);
+            }
+            else
+            {
+                loader.DestroyImageKHR(DeviceContext, image);
+            }
+        }
         void* LoadFunction(std::string_view name) const noexcept final
         {
             return reinterpret_cast<void*>(static_cast<EGLLoader_&>(Loader).GetProcAddress(name.data()));
@@ -288,13 +346,18 @@ private:
     DECLARE_FUNC(DestroyContext);
     DECLARE_FUNC(DestroySurface);
     DECLARE_FUNC(Terminate);
-    DECLARE_FUNC(SwapBuffers); 
+    DECLARE_FUNC(SwapBuffers);
+    DECLARE_FUNC(CreateImage);
+    DECLARE_FUNC(DestroyImage);
     DECLARE_FUNC(QueryDevicesEXT);
     DECLARE_FUNC(QueryDeviceStringEXT);
     DECLARE_FUNC(GetPlatformDisplayEXT);
     DECLARE_FUNC(QueryDisplayAttribEXT);
     DECLARE_FUNC(QueryDeviceBinaryEXT);
     DECLARE_FUNC(QueryDeviceAttribEXT);
+    DECLARE_FUNC(CreateImageKHR);
+    DECLARE_FUNC(DestroyImageKHR);
+    DECLARE_FUNC(GetNativeClientBufferANDROID);
     common::container::FrozenDenseSet<std::string_view> Extensions;
     EnumBitfield<uint16_t, AngleBackend> BackendMask;
     EGLType Type = EGLType::Unknown;
@@ -326,6 +389,8 @@ public:
         LOAD_FUNC(EGL, DestroySurface);
         LOAD_FUNC(EGL, Terminate);
         LOAD_FUNC(EGL, SwapBuffers);
+        TrLd_FUNC(EGL, CreateImage);
+        TrLd_FUNC(EGL, DestroyImage);
 
 #define LdEGLFUNC(lib, name) name = reinterpret_cast<T_P##name>(GetProcAddress(N_##name.data())); if (!name) TrLd_FUNC(lib, name)
         LdEGLFUNC(EGL, QueryDevicesEXT);
@@ -334,6 +399,9 @@ public:
         LdEGLFUNC(EGL, QueryDisplayAttribEXT);
         LdEGLFUNC(EGL, QueryDeviceBinaryEXT);
         LdEGLFUNC(EGL, QueryDeviceAttribEXT);
+        LdEGLFUNC(EGL, CreateImageKHR);
+        LdEGLFUNC(EGL, DestroyImageKHR);
+        LdEGLFUNC(EGL, GetNativeClientBufferANDROID);
 #undef LdEGLFUNC
         if (const auto exts = QueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS); exts)
         {
@@ -341,7 +409,7 @@ public:
             std::string extNames;
             for (const auto ext : Extensions)
                 extNames.append(ext).push_back('\n');
-            oglLog().Debug(u"Loaded EGL with client exts:\n{}", extNames);
+            oglLog().Debug(FmtString(u"Loaded EGL({}) with client exts:\n{}"), dllpath.u16string(), extNames);
             if (Extensions.Has("EGL_KHR_platform_android") || Extensions.Has("EGL_ANDROID_GLES_layers"sv))
                 Type = EGLType::ANDROID;
             else if (Extensions.Has("EGL_ANGLE_platform_angle"sv))
@@ -793,6 +861,12 @@ private:
             return true;
         }();
 };
+
+
+oglEGLImage_::~oglEGLImage_()
+{
+    static_cast<const EGLLoader_::EGLHost*>(Host.get())->DestroyImage(Image);
+}
 
 
 inline constexpr std::u16string_view EGLLoader_::GetErrorString(EGLint err) noexcept

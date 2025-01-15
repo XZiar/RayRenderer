@@ -187,7 +187,7 @@ struct NSMenuItem : public Instance
 };
 
 
-class WindowManagerCocoa : public CocoaBackend, public WindowManager
+class WindowManagerCocoa final : public CocoaBackend, public WindowManager
 {
     static_assert(sizeof(NSInteger) == sizeof(intptr_t), "Expects NSInteger to be as large as intptr_t");
 public:
@@ -196,6 +196,7 @@ private:
     class WdHost final : public CocoaBackend::CocoaWdHost
     {
     public:
+        [[nodiscard]] forceinline WindowManagerCocoa& GetManager() const noexcept { return static_cast<WindowManagerCocoa&>(Manager); }
         Instance Window = nullptr;
         Instance WindowDlg = nullptr;
         id View = nullptr;
@@ -203,6 +204,7 @@ private:
         WdHost(WindowManagerCocoa& manager, const CocoaCreateInfo& info) noexcept :
             CocoaWdHost(manager, info) { }
         ~WdHost() final {}
+        WindowBackend& GetBackend() const noexcept final { return GetManager(); }
         void* GetWindow() const noexcept final { return Window; }
     };
     class CocoaView : public Instance
@@ -295,8 +297,8 @@ private:
         }
     };
 
-    std::string_view Name() const noexcept { return BackendName; }
-    bool CheckFeature(std::string_view feat) const noexcept
+    std::string_view Name() const noexcept final { return BackendName; }
+    bool CheckFeature(std::string_view feat) const noexcept final
     {
         constexpr std::string_view Features[] =
         {
@@ -405,7 +407,7 @@ private:
     }
     static event::CombinedKey ProcessKey(uint16_t keycode) noexcept;
 public:
-    WindowManagerCocoa() : CocoaBackend(false), App(nullptr), AppDlg(nullptr){ }
+    WindowManagerCocoa() : CocoaBackend(false), App(nullptr), AppDlg(nullptr) { }
     ~WindowManagerCocoa() final { }
 
     void OnInitialize(const void* info) final

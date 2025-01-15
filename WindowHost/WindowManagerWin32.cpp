@@ -302,7 +302,7 @@ private:
     {
         friend GDIRenderer;
     public:
-        [[nodiscard]] forceinline WindowManagerWin32& GetManager() noexcept { return static_cast<WindowManagerWin32&>(Manager); }
+        [[nodiscard]] forceinline WindowManagerWin32& GetManager() const noexcept { return static_cast<WindowManagerWin32&>(Manager); }
         
         HWND Handle = nullptr;
         HDC DCHandle = nullptr;
@@ -323,6 +323,7 @@ private:
         {
             return reinterpret_cast<uintptr_t>(Handle);
         }
+        WindowBackend& GetBackend() const noexcept final { return GetManager(); }
         void* GetHDC() const noexcept final { return DCHandle; }
         void* GetHWND() const noexcept final { return Handle; }
         void OnDPIChange(float x, float y) noexcept final
@@ -957,6 +958,12 @@ static constexpr auto KeyCodeLookup = BuildStaticLookup(WPARAM, event::CombinedK
     { VK_TAB,       CommonKeys::Tab },
     { VK_RETURN,    CommonKeys::Enter },
     { VK_CAPITAL,   CommonKeys::CapsLock },
+    { VK_VOLUME_UP,         CommonKeys::VolumeUp },
+    { VK_VOLUME_DOWN,       CommonKeys::VolumeDown },
+    { VK_VOLUME_MUTE,       CommonKeys::VolumeMute },
+    { VK_MEDIA_NEXT_TRACK,  CommonKeys::PlayNext },
+    { VK_MEDIA_PREV_TRACK,  CommonKeys::PlayPrev },
+    { VK_MEDIA_PLAY_PAUSE,  CommonKeys::PlayPause },
     { VK_ADD,       '+' },
     { VK_OEM_PLUS,  '+' },
     { VK_SUBTRACT,  '-' },

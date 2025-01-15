@@ -135,6 +135,7 @@ enum class CommonKeys : uint8_t
     Home, End, PageUp, PageDown, 
     Insert,
     Ctrl, Shift, Alt,
+    VolumeUp = 240, VolumeDown, VolumeMute, PlayNext, PlayPrev, PlayPause,
     CapsLock = 254,
     UNDEFINE = 255
 };

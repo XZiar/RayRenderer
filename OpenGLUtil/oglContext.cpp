@@ -194,17 +194,20 @@ void oglContext_::FinishGL()
     CHECKCURRENT();
     CtxFunc->Finish();
 }
-
 void oglContext_::SwapBuffer()
 {
     CHECKCURRENT();
     Host->SwapBuffer();
 }
-
 void oglContext_::ForceSync()
 {
     CHECKCURRENT();
     CtxFunc->Finish();
+}
+void oglContext_::Flush()
+{
+    CHECKCURRENT();
+    CtxFunc->Flush();
 }
 
 oglContext_::~oglContext_()

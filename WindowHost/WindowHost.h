@@ -236,6 +236,7 @@ protected:
 public:
     ~WindowHost_() override;
 
+    [[nodiscard]] virtual WindowBackend& GetBackend() const noexcept = 0;
     [[nodiscard]] event::ModifierKeys GetModifiers() const noexcept { return Modifiers; }
     [[nodiscard]] event::Position     GetLastPosition() const noexcept { return LastPos; }
     template<typename T>
@@ -390,7 +391,7 @@ public:
     protected:
         using WindowHost_::WindowHost_;
     public:
-        [[nodiscard]] virtual void* GetCurrentHWBuffer() const noexcept = 0;
+        [[nodiscard]] virtual std::tuple<void*, uint32_t, uint32_t> GetCurrentHWBuffer() const noexcept = 0;
     };
     using WindowBackend::Create;
     [[nodiscard]] virtual std::shared_ptr<TermuxGUIWdHost> Create(const TermuxGUICreateInfo& info) = 0;

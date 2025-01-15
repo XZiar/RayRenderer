@@ -11,6 +11,8 @@
 
 namespace oglu
 {
+class EGLLoader_;
+class oglEGLImage_;
 class oglRenderBuffer_;
 using oglRBO = std::shared_ptr<oglRenderBuffer_>;
 class oglFrameBuffer_;
@@ -34,7 +36,7 @@ enum class RBOFormat : uint8_t
     Depth   = TYPE_DEPTH   | 0x0, Depth16  = TYPE_DEPTH   | 0x1, Depth24  = TYPE_DEPTH   | 0x2, Depth32   = TYPE_DEPTH   | 0x3,
     Stencil = TYPE_STENCIL | 0x0, Stencil1 = TYPE_STENCIL | 0x1, Stencil8 = TYPE_STENCIL | 0x2, Stencil16 = TYPE_STENCIL | 0x3,
     RGBA8   = TYPE_COLOR   | 0x0, RGBA8U   = TYPE_COLOR   | 0x1, RGBAf    = TYPE_COLOR   | 0x2, RGB10A2   = TYPE_COLOR   | 0x3,
-    Depth24Stencil8 = TYPE_DEPTH_STENCIL | 0x0, Depth32Stencil8 = TYPE_DEPTH_STENCIL | 0x1,
+    Color = TYPE_COLOR | 0xf, Depth24Stencil8 = TYPE_DEPTH_STENCIL | 0x0, Depth32Stencil8 = TYPE_DEPTH_STENCIL | 0x1,
 };
 MAKE_ENUM_BITFIELD(RBOFormat)
 
@@ -50,10 +52,12 @@ class OGLUAPI oglRenderBuffer_ : public common::NonMovable, public detail::oglCt
 private:
     MAKE_ENABLER();
     std::u16string Name;
-    uint32_t RBOId;
     RBOFormat InnerFormat;
     uint32_t Width, Height;
     oglRenderBuffer_(const uint32_t width, const uint32_t height, const RBOFormat format);
+protected:
+    uint32_t RBOId;
+    oglRenderBuffer_(const uint32_t width, const uint32_t height);
 public:
     ~oglRenderBuffer_();
     
@@ -64,6 +68,18 @@ public:
     [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
 
     [[nodiscard]] static oglRBO Create(const uint32_t width, const uint32_t height, const RBOFormat format);
+};
+
+
+class OGLUAPI oglAHBRenderBuffer_ : public oglRenderBuffer_
+{
+    friend EGLLoader_;
+private:
+    MAKE_ENABLER();
+    std::shared_ptr<oglEGLImage_> Image;
+    oglAHBRenderBuffer_(std::shared_ptr<oglEGLImage_> image, const uint32_t width, const uint32_t height);
+public:
+    ~oglAHBRenderBuffer_();
 };
 
 

@@ -209,6 +209,7 @@ public:
     COMMON_NO_MOVE(oglContext_)
     ~oglContext_();
     [[nodiscard]] const auto& GetExtensions() const { return Capability->Extensions; }
+    [[nodiscard]] const std::shared_ptr<GLHost>& GetHost() const { return Host; }
     [[nodiscard]] const common::container::FrozenDenseSet<std::string_view>& GetPlatformExtensions() const noexcept;
     [[nodiscard]] std::optional<std::array<std::byte, 8>> GetLUID() const noexcept;
     [[nodiscard]] std::optional<std::array<std::byte, 16>> GetUUID() const noexcept;
@@ -219,6 +220,7 @@ public:
     void Release();
     void SwapBuffer();
     void ForceSync();
+    void Flush();
     template<bool IsShared, typename T, bool Dummy>
     [[nodiscard]] T& GetOrCreate(const CtxResConfig<Dummy, T>& cfg)
     {

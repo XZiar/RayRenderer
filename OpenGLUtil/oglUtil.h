@@ -9,6 +9,7 @@
 
 namespace oglu
 {
+class oglAHBRenderBuffer_;
 
 struct CreateInfo
 {
@@ -58,6 +59,7 @@ protected:
     }
 public:
     virtual ~GLHost() = 0;
+    [[nodiscard]] forceinline std::string_view LoaderName() const noexcept;
     [[nodiscard]] virtual const xcomp::CommonDeviceInfo* GetCommonDevice() const noexcept;
     [[nodiscard]] virtual void* GetDeviceContext() const noexcept = 0;
     [[nodiscard]] virtual uint32_t GetVersion() const noexcept = 0;
@@ -117,6 +119,9 @@ public:
     }
 };
 
+std::string_view GLHost::LoaderName() const noexcept { return Loader.Name(); }
+
+
 class WGLLoader : public oglLoader
 {
 public:
@@ -164,6 +169,8 @@ public:
         virtual void InitSurface(uintptr_t surface) = 0;
         virtual const int& GetVisualId() const noexcept = 0;
         virtual const DeviceHolder* GetDeviceInfo() const noexcept = 0;
+        virtual std::shared_ptr<oglEGLImage_> CreateImageFromAndroidHWBuffer(void* ahb) const noexcept = 0;
+        virtual std::shared_ptr<oglAHBRenderBuffer_> CreateRBOFromAndroidHWBuffer(void* ahb, uint32_t w, uint32_t h) const noexcept = 0;
     };
 #if COMMON_OS_DARWIN
     using NativeDisplay = int;

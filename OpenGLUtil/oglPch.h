@@ -33,6 +33,18 @@
 namespace oglu
 {
 namespace msimd = common::math::simd;
+class GLHost;
+class oglAHBRenderBuffer_;
+
+class oglEGLImage_
+{
+    friend oglAHBRenderBuffer_;
+    std::shared_ptr<const GLHost> Host;
+    void* Image;
+public:
+    oglEGLImage_(std::shared_ptr<const GLHost> host, void* image) noexcept : Host(std::move(host)), Image(image) {}
+    ~oglEGLImage_();
+};
 
 namespace detail
 {

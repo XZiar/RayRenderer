@@ -1,4 +1,4 @@
-#define TGUI_TEST 1
+//#define TGUI_TEST 1
 #if defined(TGUI_TEST) || (defined(__has_include) && __has_include(<termuxgui/termuxgui.h>))
 
 #include "WindowManager.h"
@@ -143,6 +143,12 @@ static constexpr auto KeyCodeLookup = BuildStaticLookup(uint32_t, event::Combine
     { 122,  CommonKeys::Home },
     { 123,  CommonKeys::End },
     { 124,  CommonKeys::Insert },
+    { 24,   CommonKeys::VolumeUp },
+    { 25,   CommonKeys::VolumeDown },
+    { 164,  CommonKeys::VolumeMute },
+    { 87,   CommonKeys::PlayNext },
+    { 88,   CommonKeys::PlayPrev },
+    { 85,   CommonKeys::PlayPause },
     { 17,   '*' },
     { 18,   '#' },
     { 55,   ',' },
@@ -311,6 +317,7 @@ private:
             auto& backBuf = Back();
             auto& manager = Window.GetManager();
             manager.surface_view_set_buffer(manager.Connection, Window.Activity, Window.View, &backBuf.HWBuf);
+            Window.Manager.Logger.Verbose(FmtString(u"draw use buffer[{}]({:p}) and swap\n"), BackBufIdx, backBuf.HWBuf.buffer);
             BackBufIdx = BackBufIdx ^ 0b1u;
         }
     };
@@ -376,7 +383,7 @@ private:
         std::pair<float, float> DPIs = { 0.f, 0.f };
         std::variant<std::monostate, HWRenderer, CPURenderer> Renderer;
         int32_t MainPointer = -1;
-        [[nodiscard]] forceinline WindowManagerTermuxGUI& GetManager() noexcept { return static_cast<WindowManagerTermuxGUI&>(Manager); }
+        [[nodiscard]] forceinline WindowManagerTermuxGUI& GetManager() const noexcept { return static_cast<WindowManagerTermuxGUI&>(Manager); }
         WdHost(WindowManagerTermuxGUI& manager, const TermuxGUICreateInfo& info) noexcept : TermuxGUIWdHost(manager, info) 
         {
             if (info.UseDefaultRenderer)
@@ -389,14 +396,15 @@ private:
         {
             return (static_cast<uint64_t>(Activity) << 32) + static_cast<uint32_t>(View);
         }
-
-        [[nodiscard]] void* GetCurrentHWBuffer() const noexcept final
+        WindowBackend& GetBackend() const noexcept final { return GetManager(); }
+        [[nodiscard]] std::tuple<void*, uint32_t, uint32_t> GetCurrentHWBuffer() const noexcept final
         {
             if (Renderer.index() == 1)
             {
-                return std::get<1>(Renderer).Back().HWBuf.buffer;
+                const auto& buf = std::get<1>(Renderer).Back();
+                return { buf.HWBuf.buffer, static_cast<uint32_t>(buf.Shape.Width), static_cast<uint32_t>(buf.Shape.Height) };
             }
-            return nullptr;
+            return { nullptr, 0u, 0u };
         }
         void OnDisplay(bool forceRedraw) noexcept final
         {
@@ -430,6 +438,7 @@ private:
     DECLARE_FUNC(activity_set_task_description);
     DECLARE_FUNC(activity_set_input_mode);
     DECLARE_FUNC(activity_intercept_back_button);
+    DECLARE_FUNC(activity_intercept_volume_buttons);
     DECLARE_FUNC(activity_finish);
     DECLARE_FUNC(create_linear_layout);
     DECLARE_FUNC(create_button);
@@ -515,6 +524,7 @@ public:
         LOAD_FUNC(activity_set_task_description);
         LOAD_FUNC(activity_set_input_mode);
         LOAD_FUNC(activity_intercept_back_button);
+        LOAD_FUNC(activity_intercept_volume_buttons);
         LOAD_FUNC(activity_finish);
         LOAD_FUNC(create_linear_layout);
         LOAD_FUNC(create_button);
@@ -582,13 +592,14 @@ public:
         if (host.View == -1) 
         {
             THROW_TERR(activity_set_input_mode(Connection, host.Activity, TGUI_ACTIVITY_INPUT_MODE_RESIZE), u"Can't set input mode");
-            //THROW_TERR(activity_intercept_back_button(Connection, host.Activity, true), u"Can't set intercept back");
+            THROW_TERR(activity_intercept_volume_buttons(Connection, host.Activity, true, true), u"Can't set intercept volume button");
             THROW_TERR(create_surface_view(Connection, host.Activity, &host.View, nullptr, TGUI_VIS_VISIBLE, true), u"Can't create surface view");
             Logger.Verbose(u"create view [{}] for [{}]\n", host.View, host.Activity);
             THROW_TERR(surface_view_config(Connection, host.Activity, host.View, 0xffffffff, TGUI_MISMATCH_STICK_TOPLEFT, TGUI_MISMATCH_STICK_TOPLEFT, 60), u"Can't config surface view");
             THROW_TERR(send_touch_event(Connection, host.Activity, host.View, true), u"Can't enable touch for surface view");
         }
         host.Initialize();
+        host.Invalidate(true);
     }
     void OnMessageLoop() final
     {
@@ -641,8 +652,17 @@ public:
                         if (host)
                             host->Stop();
                         break;
+                    case TGUI_EVENT_VOLUME:
+                        if (host)
+                        {
+                            const event::CombinedKey key = evt.volume.volume_up ? CommonKeys::VolumeUp : CommonKeys::VolumeDown;
+                            if (evt.volume.released)
+                                host->OnKeyUp(key);
+                            else
+                                host->OnKeyDown(key);
+                        }
+                        break;
                     case TGUI_EVENT_KEY:
-                        Logger.Verbose(u"=>key [{}]\n", evt.activity);
                         if (host)
                         {
                             const auto key = ProcessAndroidKey(evt.key.code, evt.key.codePoint);

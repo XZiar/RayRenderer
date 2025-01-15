@@ -189,6 +189,7 @@ public:
     void     (GLAPIENTRYP GetTextureParameteriv_) (GLuint texture, GLenum pname, GLint* params) = nullptr;
     void     (GLAPIENTRYP GetTextureParameterivEXT_) (GLuint texture, GLenum target, GLenum pname, GLint* params) = nullptr;
     void     (GLAPIENTRYP GetTexParameteriv_) (GLenum target, GLenum pname, GLint* params) = nullptr;
+    void     (GLAPIENTRYP EGLImageTargetTexture2DOES)(GLenum target, GLeglImageOES image) = nullptr;
 
     void CreateTextures(GLenum target, GLsizei n, GLuint* textures) const;
     void BindTextureUnit(GLuint unit, GLuint texture, GLenum target) const;
@@ -227,6 +228,7 @@ public:
     void (GLAPIENTRYP NamedRenderbufferStorageMultisampleCoverageEXT_) (GLuint renderbuffer, GLsizei coverageSamples, GLsizei colorSamples, GLenum internalformat, GLsizei width, GLsizei height) = nullptr;
     void (GLAPIENTRYP RenderbufferStorageMultisampleCoverageNV_) (GLenum target, GLsizei coverageSamples, GLsizei colorSamples, GLenum internalformat, GLsizei width, GLsizei height) = nullptr;
     void (GLAPIENTRYP GetRenderbufferParameteriv_) (GLenum target, GLenum pname, GLint* params) = nullptr;
+    void (GLAPIENTRYP EGLImageTargetRenderbufferStorageOES)(GLenum target, GLeglImageOES image) = nullptr;
 
     void CreateRenderbuffers(GLsizei n, GLuint* renderbuffers) const;
     void NamedRenderbufferStorage(GLuint renderbuffer, GLenum internalformat, GLsizei width, GLsizei height) const;

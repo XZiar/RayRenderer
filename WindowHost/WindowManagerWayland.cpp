@@ -612,7 +612,7 @@ private:
     class WdHost final : public WaylandBackend::WaylandWdHost
     {
     public:
-        [[nodiscard]] forceinline WindowManagerWayland& GetManager() noexcept { return static_cast<WindowManagerWayland&>(Manager); }
+        [[nodiscard]] forceinline WindowManagerWayland& GetManager() const noexcept { return static_cast<WindowManagerWayland&>(Manager); }
 
         void FrameDone(wl_callback* cb, uint32_t dat)
         {
@@ -841,6 +841,7 @@ private:
         {
             return reinterpret_cast<uintptr_t>(Surface.Proxy);
         }
+        WindowBackend& GetBackend() const noexcept final { return GetManager(); }
         void* GetSurface() const noexcept final { return Surface.Proxy; }
         void* GetEGLWindow() const noexcept final { return Renderer.index() == 1 ? std::get<1>(Renderer).EGLWindow : nullptr; }
         void OnDisplay(bool forceRedraw) noexcept final

@@ -436,6 +436,7 @@ CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shoul
     QUERY_FUNC(0, GETTEXTUREPARAMETERIV,          GetTextureParameteriv,          (),           _);
     QUERY_FUNC(0, GETTEXTUREPARAMETERIVEXT,       GetTextureParameterivEXT,       (),           _);
     QUERY_FUNC(0, GETTEXPARAMETERIV,              GetTexParameteriv,              (),           ());
+    QUERY_FUNC(1, EGLIMAGETARGETTEXTURE2DOES,     EGLImageTargetTexture2DOES,     _,            ());
 
     //rbo related
     QUERY_FUNC(0, GENRENDERBUFFERS,                               GenRenderbuffers,                               (, EXT), ());
@@ -449,6 +450,7 @@ CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shoul
     QUERY_FUNC(0, NAMEDRENDERBUFFERSTORAGEMULTISAMPLECOVERAGEEXT, NamedRenderbufferStorageMultisampleCoverageEXT, (),      _);
     QUERY_FUNC(0, RENDERBUFFERSTORAGEMULTISAMPLECOVERAGENV,       RenderbufferStorageMultisampleCoverageNV,       (),      _);
     QUERY_FUNC(0, GETRENDERBUFFERPARAMETERIV,                     GetRenderbufferParameteriv,                     (, EXT), ());
+    QUERY_FUNC(1, EGLIMAGETARGETRENDERBUFFERSTORAGEOES,           EGLImageTargetRenderbufferStorageOES,           _,       ());
     
     //fbo related
     QUERY_FUNC(0, GENFRAMEBUFFERS,                          GenFramebuffers,                          (, EXT),      ());

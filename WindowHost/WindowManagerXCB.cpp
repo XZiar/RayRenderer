@@ -221,7 +221,7 @@ private:
     class WdHost final : public XCBBackend::XCBWdHost
     {
     public:
-        [[nodiscard]] forceinline WindowManagerXCB& GetManager() noexcept { return static_cast<WindowManagerXCB&>(Manager); }
+        [[nodiscard]] forceinline WindowManagerXCB& GetManager() const noexcept { return static_cast<WindowManagerXCB&>(Manager); }
         xcb_window_t Handle = 0;
         xcb_gcontext_t GContext = 0;
         std::optional<PixmapRenderer> Renderer;
@@ -238,6 +238,7 @@ private:
         {
             return Handle;
         }
+        WindowBackend& GetBackend() const noexcept final { return GetManager(); }
         uint32_t GetWindow() const noexcept final { return Handle; }
         void OnDisplay(bool forceRedraw) noexcept final
         {

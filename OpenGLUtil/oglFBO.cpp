@@ -34,8 +34,13 @@ static GLenum ParseRBOFormat(const RBOFormat format)
 }
 
 
+oglRenderBuffer_::oglRenderBuffer_(const uint32_t width, const uint32_t height)
+    : InnerFormat(RBOFormat::Color), Width(width), Height(height), RBOId(GL_INVALID_INDEX)
+{
+    CtxFunc->CreateRenderbuffers(1, &RBOId);
+}
 oglRenderBuffer_::oglRenderBuffer_(const uint32_t width, const uint32_t height, const RBOFormat format)
-    : RBOId(GL_INVALID_INDEX), InnerFormat(format), Width(width), Height(height)
+    : InnerFormat(format), Width(width), Height(height), RBOId(GL_INVALID_INDEX)
 {
     CtxFunc->CreateRenderbuffers(1, &RBOId);
     CtxFunc->NamedRenderbufferStorage(RBOId, ParseRBOFormat(InnerFormat), Width, Height);
@@ -55,6 +60,16 @@ void oglRenderBuffer_::SetName(std::u16string name) noexcept
 {
     Name = std::move(name);
     CtxFunc->SetObjectLabel(GL_RENDERBUFFER, RBOId, Name);
+}
+
+
+oglAHBRenderBuffer_::oglAHBRenderBuffer_(std::shared_ptr<oglEGLImage_> image, const uint32_t w, const uint32_t h) : oglRenderBuffer_(w, h), Image(std::move(image))
+{
+    CtxFunc->BindRenderbuffer_(GL_RENDERBUFFER, RBOId);
+    CtxFunc->EGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER, reinterpret_cast<GLeglImageOES>(Image->Image));
+}
+oglAHBRenderBuffer_::~oglAHBRenderBuffer_()
+{
 }
 
 

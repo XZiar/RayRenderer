@@ -5,6 +5,7 @@
 #include "WindowHost/WindowHost.h"
 #include <thread>
 #include <future>
+#include <deque>
 
 using namespace std::string_view_literals;
 using namespace common;
@@ -133,8 +134,71 @@ static std::shared_ptr<GLHost> CreateHostAndinit(WindowBackend& backend, xziar::
                 return host;
             }
         }
+        else if (backend.Name() == "TermuxGUI")
+        {
+#if COMMON_OS_ANDROID
+            if (auto host = ld.CreateHostFromAndroid(true); host)
+            {
+                host->InitSurface(0);
+                return host;
+            }
+#endif
+        }
     }
     return {};
+}
+
+using TPresent = void(*)(const oglContext&, const WindowHost_&);
+
+static void NormalSwapBuffer(const oglContext& context, const WindowHost_&)
+{
+    context->SwapBuffer();
+}
+
+static void TermuxGUIPresent(const oglContext& context, const WindowHost_&)
+{
+    context->ForceSync();
+}
+
+static TPresent PrepareFBO(const oglContext& context, const WindowHost_& host)
+{
+    // TODO: add offscreen rendering method
+    if (host.GetBackend().Name() == "TermuxGUI")
+    {
+        const auto& glhost = context->GetHost();
+        Ensures(glhost->LoaderName() == "EGL");
+        constexpr uint32_t KeepCount = 2;
+        static std::deque<std::pair<void*, oglFBO2D>> FBOCache;
+        const auto fbo = [&]() -> oglFBO2D
+        {
+            const auto [ahb, w, h] = static_cast<const TermuxGUIBackend::TermuxGUIWdHost&>(host).GetCurrentHWBuffer();
+            for (const auto& [handle, fbo] : FBOCache)
+            {
+                if (handle == ahb)
+                    return fbo;
+            }
+            auto fbo = oglFrameBuffer2D_::Create();
+            const auto clrRbo = static_cast<EGLLoader::EGLHost*>(glhost.get())->CreateRBOFromAndroidHWBuffer(ahb, w, h);
+            fbo->AttachColorTexture(clrRbo);
+            auto dsRbo = oglRenderBuffer_::Create(w, h, RBOFormat::Depth24Stencil8);
+            fbo->AttachDepthStencilBuffer(dsRbo);
+            log().Info(u"Create FBO [{}x{}] from [{:p}]: {}.\n", w, h, ahb, fbo->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
+            FBOCache.emplace_back(ahb, fbo);
+            if (FBOCache.size() > KeepCount)
+                FBOCache.pop_front();
+            return fbo;
+        }();
+        fbo->Use();
+        fbo->ClearAll();
+        return TermuxGUIPresent;
+    }
+    else
+    {
+        const auto defFBO = oglDefaultFrameBuffer_::Get();
+        defFBO->Use();
+        defFBO->ClearAll();
+        return NormalSwapBuffer;
+    }
 }
 
 static void RunTest(WindowBackend& backend)
@@ -195,6 +259,7 @@ static void RunTest(WindowBackend& backend)
         .UseDefaultRenderer = false,
     };
     const auto window = backend.Create(wdInfo);
+    uint32_t lastWidth = 1280u;
     std::promise<void> closePms;
     window->Openning() += [&](const auto&) 
     {
@@ -301,33 +366,32 @@ static void RunTest(WindowBackend& backend)
     };
     window->Displaying() += [&](const auto& wd) 
     { 
-        const auto defFBO = oglu::oglDefaultFrameBuffer_::Get();
         if (shouldLut)
         {
             lutter->DoLut(context);
             //context->SetViewPort(0, 0, width, height);
         }
-        defFBO->Use();
-        defFBO->ClearAll();
+        const auto present = PrepareFBO(context, wd);
+        log().Verbose(u"draw: lutZ is now {}.\n", lutZ);
         drawer->Draw()
             .SetVal("lutZ", lutZ)
             .SetVal("shouldLut", shouldLut ? 1 : 0)
             .Draw(basicVAO); 
-        context->SwapBuffer();
+        present(context, wd);
     };
     window->Resizing() += [&](const auto&, int32_t width, int32_t height)
     {
+        lastWidth = static_cast<uint32_t>(width);
         window->InvokeUI([=](auto& wd)
         {
             oglDefaultFrameBuffer_::Get()->SetWindowSize(width, height);
-            //wd.Invalidate();
+            wd.Invalidate();
             log().Info(u"resize to [{:4} x {:4}].\n", width, height);
         });
     };
     window->MouseDrag() += [&](const auto&, const auto& evt)
     {
-        lutZ += evt.Delta.X / 1000.0f;
-        log().Verbose(u"lutZ is now {}.\n", lutZ);
+        lutZ += evt.Delta.X * 1.f / lastWidth;
         window->Invalidate();
     };
     window->KeyDown() += [&](const auto&, const auto& evt)
@@ -335,6 +399,7 @@ static void RunTest(WindowBackend& backend)
         switch (evt.ChangedKey.Key)
         {
         case event::CommonKeys::Enter:
+        case event::CommonKeys::VolumeUp:
             shouldLut = !shouldLut;
             window->SetTitle(shouldLut ? u"WdHostGLTest - LUT"sv : u"WdHostGLTest - NoLUT"sv);
             log().Verbose(u"shouldLut is now {}.\n", shouldLut ? "ON" : "OFF");
