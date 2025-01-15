@@ -20,10 +20,14 @@
 #define NOMINMAX 1
 #include <Windows.h>
 #include <windowsx.h>
+#include <D2D1.h>
+#include <D2D1helper.h>
 #include <shellapi.h>
 #define STRICT_TYPED_ITEMIDS
 #include <shobjidl.h>
 #include <wrl/client.h>
+#pragma comment(lib, "d2d1.lib")
+
 
 static inline constexpr uint32_t MessageCreate    = WM_USER + 1;
 static inline constexpr uint32_t MessageTask      = WM_USER + 2;
@@ -34,7 +38,7 @@ static inline constexpr uint32_t MessageUpdTitle  = WM_USER + 10;
 static inline constexpr uint32_t MessageUpdIcon   = WM_USER + 11;
 
 
-namespace xziar::gui
+namespace xziar::gui::detail
 {
 using namespace std::string_view_literals;
 using common::HResultHolder;
@@ -42,8 +46,36 @@ using common::BaseException;
 using common::SimpleTimer;
 using xziar::img::Image;
 using xziar::img::ImageView;
+using xziar::img::ImgDType;
 using event::CommonKeys;
 
+
+namespace win32
+{
+
+struct PixFormatTarget
+{
+    ImgDType MidType;
+    D2D1_PIXEL_FORMAT Format;
+};
+#define PixItem(dtype, mid, format, alpha) { xziar::img::ImageDataType::dtype.Value, { xziar::img::ImageDataType::mid, { DXGI_FORMAT_##format, D2D1_ALPHA_MODE_##alpha } } }
+static constexpr auto PixFormatLookup = BuildStaticLookup(uint32_t, PixFormatTarget,
+    PixItem(RGBA,   RGBA,   B8G8R8A8_UNORM, PREMULTIPLIED),
+    PixItem(BGRA,   BGRA,   B8G8R8A8_UNORM, PREMULTIPLIED),
+    PixItem(RGB,    RGBA,   B8G8R8X8_UNORM, IGNORE),
+    PixItem(BGR,    BGRA,   B8G8R8X8_UNORM, IGNORE),
+    PixItem(RGBAf,  RGBAf,  R32G32B32A32_FLOAT, PREMULTIPLIED),
+    PixItem(RGBf,   RGBf,   R32G32B32_FLOAT, IGNORE),
+    PixItem(BGRAf,  RGBAf,  R32G32B32A32_FLOAT, PREMULTIPLIED),
+    PixItem(BGRf,   RGBf,   R32G32B32_FLOAT, IGNORE),
+    PixItem(RGBAh,  RGBAh,  R16G16B16A16_FLOAT, PREMULTIPLIED),
+    PixItem(BGRAh,  RGBAh,  R16G16B16A16_FLOAT, PREMULTIPLIED),
+    PixItem(RGBh,   RGBAh,  R16G16B16A16_FLOAT, IGNORE),
+    PixItem(BGRh,   RGBAh,  R16G16B16A16_FLOAT, IGNORE),
+    PixItem(GRAY,   GRAY,   A8_UNORM, PREMULTIPLIED),
+    PixItem(GA,     GRAY,   A8_UNORM, PREMULTIPLIED)
+    );
+#undef PixItem
 
 struct HBMPHolder
 {
@@ -115,12 +147,6 @@ struct HBMPHolder
     }
 };
 
-namespace detail
-{
-
-namespace win32
-{
-
 struct IconHolder : public OpaqueResource
 {
     explicit IconHolder(HICON sicon, HICON bicon) noexcept : OpaqueResource(&TheDisposer, reinterpret_cast<uintptr_t>(sicon), reinterpret_cast<uintptr_t>(bicon)) {}
@@ -155,19 +181,20 @@ private:
         LockField ResourceLock;
         [[nodiscard]] forceinline auto& Log() noexcept { return Window.Manager.Logger; }
         [[nodiscard]] forceinline auto UseImg() noexcept { return detail::LockField::ConsumerLock<0>{ResourceLock}; }
-        bool ReplaceImage(HBITMAP bmp, uint32_t w, uint32_t h)
+        void ReplaceImage(HBITMAP bmp, uint32_t w, uint32_t h, bool invalidate) noexcept
         {
             detail::LockField::ProducerLock<0> lock{ ResourceLock };
             if (auto& bmp_ = std::get<0>(AttachedImage); bmp_)
                 DeleteObject(bmp_);
             AttachedImage = { bmp, w, h };
-            return lock;
+            if (lock && invalidate)
+                Window.Invalidate();
         }
     public:
         GDIRenderer(WdHost* wd) : Window(*wd) {}
         ~GDIRenderer() final 
         {
-            ReplaceImage(nullptr, 0, 0);
+            ReplaceImage(nullptr, 0, 0, false);
             DeleteObject(Region);
             DeleteObject(BGBrush);
             DeleteDC(MemDC);
@@ -182,17 +209,93 @@ private:
             }
         }
         void Render(bool forceRedraw) noexcept;
-        void SetImage(std::optional<xziar::img::ImageView> img) noexcept final
+        void SetImage(std::optional<xziar::img::ImageView> img) final
         {
             if (img)
             {
                 if (auto bmp = HBMPHolder::Create(*img, Window.DCHandle, true); bmp)
                 {
-                    ReplaceImage(bmp.Extract(), img->GetWidth(), img->GetHeight());
+                    ReplaceImage(bmp.Extract(), img->GetWidth(), img->GetHeight(), true);
+                    Window.Invalidate();
                 }
             }
             else
-                ReplaceImage(nullptr, 0, 0);
+            {
+                ReplaceImage(nullptr, 0, 0, true);
+                Window.Invalidate();
+            }
+        }
+    };
+    class D2DRenderer final : private CacheRect<int32_t>, public BasicRenderer
+    {
+        friend WindowManagerWin32;
+        WdHost& Window;
+        Microsoft::WRL::ComPtr<ID2D1HwndRenderTarget> Target;
+        Microsoft::WRL::ComPtr<ID2D1Brush> BlackBrush;
+        std::tuple<Microsoft::WRL::ComPtr<ID2D1Bitmap>, bool> AttachedImage = { {}, false };
+        uint32_t BgColor = 0;
+        uint32_t MaxBmpSize = 0;
+        LockField ResourceLock;
+        [[nodiscard]] forceinline auto& Log() noexcept { return Window.Manager.Logger; }
+        [[nodiscard]] forceinline auto UseImg() noexcept { return detail::LockField::ConsumerLock<0>{ResourceLock}; }
+        void ReplaceImage(const Microsoft::WRL::ComPtr<ID2D1Bitmap>& bmp, bool isGray, bool invalidate) noexcept
+        {
+            detail::LockField::ProducerLock<0> lock{ ResourceLock };
+            AttachedImage = { bmp, isGray };
+            if (lock && invalidate)
+                Window.Invalidate();
+        }
+    public:
+        D2DRenderer(WdHost* wd) : Window(*wd), BgColor(GetSysColor(COLOR_WINDOW)) { }
+        ~D2DRenderer() final
+        {
+            ReplaceImage({}, false, false);
+            Target->Release();
+        }
+        void Initialize() noexcept
+        {
+            auto& manager = Window.GetManager();
+            const HResultHolder hr = manager.D2DFactory->CreateHwndRenderTarget(
+                D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT, { DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE }),
+                D2D1::HwndRenderTargetProperties(Window.Handle, D2D1::SizeU(Window.Width, Window.Height), D2D1_PRESENT_OPTIONS_NONE),
+                Target.GetAddressOf());
+            if (!hr)
+                manager.Logger.Warning(u"Cannot create rernder target: {}\n", hr);
+            {
+                Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> brush;
+                Target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Enum::Black), brush.GetAddressOf());
+                brush.As(&BlackBrush);
+            }
+            MaxBmpSize = Target->GetMaximumBitmapSize();
+        }
+        void Render(bool forceRedraw) noexcept;
+        void SetImage(std::optional<xziar::img::ImageView> img) final
+        {
+            if (img)
+            {
+                auto pfmt = PixFormatLookup(img->GetDataType().Value);
+                if (!pfmt)
+                {
+                    img = img->ConvertTo(xziar::img::ImageDataType::RGBA);
+                    pfmt = PixFormatLookup(img->GetDataType().Value);
+                }
+                if (!pfmt) return;
+                if (const auto w = img->GetWidth(), h = img->GetHeight(); MaxBmpSize && (w > MaxBmpSize || h > MaxBmpSize))
+                {
+                    uint32_t sw = 0, sh = 0;
+                    (w > h ? sw : sh) = MaxBmpSize;
+                    img = img->ResizeTo(sw, sh, true, true);
+                }
+                if (pfmt->MidType != img->GetDataType())
+                    img = img->ConvertTo(pfmt->MidType);
+                Microsoft::WRL::ComPtr<ID2D1Bitmap> bmp;
+                const HResultHolder hr = Target->CreateBitmap(D2D1::SizeU(img->GetWidth(), img->GetHeight()), img->GetRawPtr(), gsl::narrow_cast<uint32_t>(img->RowSize()),
+                    D2D1::BitmapProperties(pfmt->Format), bmp.GetAddressOf());
+                if (hr)
+                    ReplaceImage(bmp, pfmt->MidType.ChannelCount() < 3, true);
+            }
+            else
+                ReplaceImage({}, false, true);
         }
     };
     class WdHost final : public Win32Backend::Win32WdHost
@@ -203,12 +306,17 @@ private:
         
         HWND Handle = nullptr;
         HDC DCHandle = nullptr;
-        std::optional<GDIRenderer> Renderer;
+        std::variant<std::monostate, GDIRenderer, D2DRenderer> Renderer;
         WdHost(WindowManagerWin32& manager, const Win32CreateInfo& info) noexcept :
             Win32WdHost(manager, info) 
         {
             if (info.UseDefaultRenderer)
-                Renderer.emplace(this);
+            {
+                if (info.RendererType == Win32CreateInfo::RendererTypes::D2D && manager.D2DFactory)
+                    Renderer.emplace<D2DRenderer>(this);
+                else
+                    Renderer.emplace<GDIRenderer>(this);
+            }
         }
         ~WdHost() final { }
         uintptr_t FormatAs() const noexcept
@@ -217,15 +325,35 @@ private:
         }
         void* GetHDC() const noexcept final { return DCHandle; }
         void* GetHWND() const noexcept final { return Handle; }
+        void OnDPIChange(float x, float y) noexcept final
+        {
+            ReSizingLock lock(*this);
+            if (Renderer.index() == 2)
+            {
+                std::get<2>(Renderer).Target->SetDpi(x, y);
+                Invalidate();
+            }
+            WindowHost_::OnDPIChange(x, y);
+        }
         void OnDisplay(bool forceRedraw) noexcept final
         {
-            if (Renderer)
+            switch (Renderer.index())
             {
-                Renderer->Render(forceRedraw);
+            case 1: std::get<1>(Renderer).Render(forceRedraw); break;
+            case 2: std::get<2>(Renderer).Render(forceRedraw); break;
+            default: break;
             }
             WindowHost_::OnDisplay(forceRedraw);
         }
-        BasicRenderer* GetRenderer() noexcept final { return Renderer ? &*Renderer : nullptr; }
+        BasicRenderer* GetRenderer() noexcept final 
+        {
+            switch (Renderer.index())
+            {
+            case 1: return &std::get<1>(Renderer);
+            case 2: return &std::get<2>(Renderer);
+            default: return nullptr;
+            }
+        }
         void GetClipboard(const std::function<bool(ClipBoardTypes, const std::any&)>& handler, ClipBoardTypes type) final
         {
             GetManager().GetClipboard(*this, handler, type);
@@ -274,6 +402,7 @@ private:
     }
 
     std::mutex ClipboardLock;
+    Microsoft::WRL::ComPtr<ID2D1Factory> D2DFactory;
     void* InstanceHandle = nullptr;
     HDC MemDC;
     uint32_t BuildNumber;
@@ -294,6 +423,18 @@ public:
             for (const auto mode : DPIModes)
                 if (SetProcessDpiAwarenessContext(mode) != NULL)
                     break;
+        }
+        D2D1_FACTORY_OPTIONS options
+        {
+#if CM_DEBUG
+            D2D1_DEBUG_LEVEL_INFORMATION
+#else
+            D2D1_DEBUG_LEVEL_ERROR
+#endif
+        };
+        if (HResultHolder hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, options, D2DFactory.GetAddressOf()); !hr)
+        {
+            Logger.Warning(u"Win32 WindowManager cannot create D2D factory: {}\n", hr);
         }
     }
     ~WindowManagerWin32() final { }
@@ -480,14 +621,6 @@ public:
     {
         SendGeneralMessage(reinterpret_cast<uintptr_t>(host), MessageUpdIcon);
     }
-    //void UpdateBgImg(WindowHost_* host_) const final
-    //{
-    //    const auto host = static_cast<WdHost*>(host_);
-    //    if (0 == RedrawWindow(host->Handle, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASENOW | RDW_NOCHILDREN))
-    //    {
-    //        Logger.Error(u"Error when asking redraw window: {}\n", GetLastError());
-    //    }
-    //}
     void CloseWindow(WindowHost_* host) const final
     {
         SendGeneralMessage(reinterpret_cast<uintptr_t>(host), MessageClose);
@@ -496,7 +629,7 @@ public:
     {
         UnregisterHost(host_);
         const auto host = static_cast<WdHost*>(host_);
-        host->Renderer.reset();
+        host->Renderer.emplace<std::monostate>();
         ReleaseDC(host->Handle, host->DCHandle);
     }
 
@@ -591,6 +724,7 @@ public:
         return std::make_shared<WdHost>(*this, info);
     }
 
+    common::PromiseResult<FileList> OpenFilePicker(const FilePickerInfo& info) noexcept final;
 
 
     static inline const auto Dummy = RegisterBackend<WindowManagerWin32>();
@@ -614,7 +748,8 @@ void WindowManagerWin32::GDIRenderer::Render(bool forceRedraw) noexcept
         auto imgLock = UseImg();
         const bool imgChanged = imgLock;
         const auto& [bmp, w, h] = AttachedImage;
-        if (imgChanged || sizeChanged)
+        needDraw = forceRedraw || imgChanged || (sizeChanged && bmp);
+        if (forceRedraw || imgChanged || sizeChanged)
         {
             SimpleTimer timer;
             timer.Start();
@@ -631,10 +766,52 @@ void WindowManagerWin32::GDIRenderer::Render(bool forceRedraw) noexcept
                 Log().Verbose(FmtString(u"Window[{:x}] rebuild backbuffer in [{} ms].\n"), Window, timer.ElapseMs<true>());
             }
         }
-        needDraw = forceRedraw || imgChanged || (sizeChanged && bmp);
+        else
+            Ensures(!needDraw);
     }
     if (needDraw)
         BitBlt(Window.DCHandle, 0, 0, Width, Height, MemDC, 0, 0, SRCCOPY);
+}
+
+void WindowManagerWin32::D2DRenderer::Render(bool forceRedraw) noexcept
+{
+    const auto [sizeChanged, needInit] = Update(Window);
+    if (sizeChanged)
+    {
+        Target->Resize(D2D1::SizeU(Width, Height));
+    }
+    {
+        auto imgLock = UseImg();
+        const bool imgChanged = imgLock;
+        const auto& [bmp, isGray] = AttachedImage;
+        if (forceRedraw || imgChanged || sizeChanged)
+        {
+            Target->BeginDraw();
+            Target->Clear(D2D1::ColorF(BgColor));
+            if (bmp)
+            {
+                const auto rtsize = Target->GetSize();
+                const auto isize = bmp->GetSize();
+                const auto scaleW = rtsize.width / isize.width, scaleH = rtsize.height / isize.height;
+                const auto scale = std::min(scaleW, scaleH);
+                const auto drawRect = D2D1::RectF(0.f, 0.f, isize.width * scale, isize.height * scale);
+                if (isGray)
+                    Target->FillOpacityMask(bmp.Get(), BlackBrush.Get(), D2D1_OPACITY_MASK_CONTENT_GRAPHICS, &drawRect);
+                else
+                    Target->DrawBitmap(bmp.Get(), drawRect);
+            }
+            const HResultHolder ret = Target->EndDraw();
+            IF_UNLIKELY(!ret)
+            {
+                Log().Warning(FmtString(u"Failed to finish draw : {}\n"), ret);
+                if (ret.Value == D2DERR_RECREATE_TARGET)
+                {
+                    Initialize();
+                    Window.Invalidate(true);
+                }
+            }
+        }
+    }
 }
 
 
@@ -833,8 +1010,11 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
         SetWindowLongPtrW(hwnd, 0, reinterpret_cast<LONG_PTR>(host));
         host->Handle = hwnd;
         host->DCHandle = GetDC(hwnd);
-        if (host->Renderer)
-            host->Renderer->Initialize();
+        std::visit([](auto& renderer)
+        {
+            if constexpr (!std::is_same_v<std::decay_t<decltype(renderer)>, std::monostate>)
+                renderer.Initialize();
+        }, host->Renderer);
         host->Initialize();
     }
     else if (msg == WM_NCCREATE)
@@ -1036,10 +1216,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
-}
-
-
-common::PromiseResult<FileList> Win32Backend::OpenFilePicker(const FilePickerInfo& info) noexcept
+common::PromiseResult<FileList> WindowManagerWin32::OpenFilePicker(const FilePickerInfo& info) noexcept
 {
     common::StringPool<char16_t> pool;
     std::vector<std::pair<common::StringPiece<char16_t>, common::StringPiece<char16_t>>> extFilters;

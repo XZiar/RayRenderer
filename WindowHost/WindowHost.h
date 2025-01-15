@@ -136,7 +136,7 @@ class BasicRenderer
     friend WindowHost_;
 public:
     virtual ~BasicRenderer() = 0;
-    virtual void SetImage(std::optional<xziar::img::ImageView> img) noexcept = 0;
+    virtual void SetImage(std::optional<xziar::img::ImageView> img) = 0;
 };
 
 template<typename... Args>
@@ -294,7 +294,8 @@ protected:
 public:
     struct Win32CreateInfo : public CreateInfo
     {
-
+        enum class RendererTypes { D2D, GDI };
+        RendererTypes RendererType = RendererTypes::D2D;
     };
     class Win32WdHost : public WindowHost_
     {
@@ -305,8 +306,7 @@ public:
         [[nodiscard]] virtual void* GetHWND() const noexcept = 0;
     };
     using WindowBackend::Create;
-    [[nodiscard]] virtual std::shared_ptr<Win32WdHost> Create(const Win32CreateInfo& info = {}) = 0;
-    common::PromiseResult<FileList> OpenFilePicker(const FilePickerInfo& info) noexcept final;
+    [[nodiscard]] virtual std::shared_ptr<Win32WdHost> Create(const Win32CreateInfo& info) = 0;
 };
 using Win32WdHost = std::shared_ptr<Win32Backend::Win32WdHost>;
 
@@ -336,7 +336,7 @@ public:
         OnInitialize(&info);
     }
     using WindowBackend::Create;
-    [[nodiscard]] virtual std::shared_ptr<XCBWdHost> Create(const XCBCreateInfo& info = {}) = 0;
+    [[nodiscard]] virtual std::shared_ptr<XCBWdHost> Create(const XCBCreateInfo& info) = 0;
     [[nodiscard]] virtual void* GetDisplay() const noexcept = 0;
     [[nodiscard]] virtual void* GetConnection() const noexcept = 0;
     [[nodiscard]] virtual int32_t GetDefaultScreen() const noexcept = 0;
@@ -393,7 +393,7 @@ public:
         [[nodiscard]] virtual void* GetCurrentHWBuffer() const noexcept = 0;
     };
     using WindowBackend::Create;
-    [[nodiscard]] virtual std::shared_ptr<TermuxGUIWdHost> Create(const TermuxGUICreateInfo& info = {}) = 0;
+    [[nodiscard]] virtual std::shared_ptr<TermuxGUIWdHost> Create(const TermuxGUICreateInfo& info) = 0;
 };
 using TermuxGUIWdHost = std::shared_ptr<TermuxGUIBackend::TermuxGUIWdHost>;
 
@@ -414,7 +414,7 @@ public:
         [[nodiscard]] virtual void* GetWindow() const noexcept = 0;
     };
     using WindowBackend::Create;
-    [[nodiscard]] virtual std::shared_ptr<CocoaWdHost> Create(const CocoaCreateInfo& info = {}) = 0;
+    [[nodiscard]] virtual std::shared_ptr<CocoaWdHost> Create(const CocoaCreateInfo& info) = 0;
 };
 using XCBWdHost = std::shared_ptr<XCBBackend::XCBWdHost>;
 

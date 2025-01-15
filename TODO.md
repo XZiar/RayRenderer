@@ -82,7 +82,7 @@
 
 * WindowHost
   - [x] Add support for direct image blit (for offscreen rendering)
-  - [ ] Add support for D2d rendering
+  - [x] Add support for D2d rendering
   - [x] Add support for wayland
   - [ ] Add support for iOS (Cocoa Touch)
   - [ ] Add support for gesture

@@ -520,11 +520,12 @@ private:
         LockField ResourceLock;
         [[nodiscard]] forceinline auto& Log() const noexcept { return Window.Manager.Logger; }
         [[nodiscard]] forceinline auto UseImg() noexcept { return detail::LockField::ConsumerLock<0>{ResourceLock}; }
-        bool ReplaceImage(std::optional<ImageView> img)
+        void ReplaceImage(std::optional<ImageView> img, bool invalidate) noexcept
         {
             detail::LockField::ProducerLock<0> lock{ ResourceLock };
             AttachedImage = std::move(img);
-            return lock;
+            if (lock && invalidate)
+                Window.Invalidate();
         }
     public:
         ShmRenderer(WdHost* wd) : Window(*wd) {}
@@ -535,7 +536,7 @@ private:
                 buf.ReleaseObjects(manager);
         }
         void Render(bool forceRedraw) noexcept;
-        void SetImage(std::optional<ImageView> img) noexcept final
+        void SetImage(std::optional<ImageView> img) final
         {
             if (img)
             {
@@ -550,10 +551,10 @@ private:
                 {
                     img = img->ConvertTo(dtype);
                 }
-                ReplaceImage(*img);
+                ReplaceImage(*img, true);
             }
             else
-                ReplaceImage({});
+                ReplaceImage({}, true);
         }
 
         void BackBufRelease(wl_buffer* buffer)

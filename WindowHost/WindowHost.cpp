@@ -63,7 +63,6 @@ struct alignas(uint64_t) WindowHost_::Pimpl
     detail::LockField AttributeLock;
     common::RWSpinLock DataLock;
     detail::OpaqueResource NewIcon;
-    detail::OpaqueResource BgImg;
     uint16_t TargetFPS;
 #define DEF_DELEGATE(name) typename CastEventType<decltype(std::declval<WindowHost_&>().name())>::DlgType name;
     WD_EVT_EACH(DEF_DELEGATE)

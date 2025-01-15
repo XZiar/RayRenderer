@@ -321,20 +321,18 @@ private:
         LockField ResourceLock;
         [[nodiscard]] forceinline auto& Log() noexcept { return Window.Manager.Logger; }
         [[nodiscard]] forceinline auto UseImg() noexcept { return detail::LockField::ConsumerLock<0>{ResourceLock}; }
-        bool ReplaceImage(std::optional<ImageView> img)
+        void ReplaceImage(std::optional<ImageView> img, bool invalidate) noexcept
         {
             detail::LockField::ProducerLock<0> lock{ ResourceLock };
             AttachedImage = std::move(img);
-            return lock;
+            if (lock && invalidate)
+                Window.Invalidate();
         }
     public:
         using HWRenderer::HWRenderer;
         ~CPURenderer() final { }
-        void Initialize() noexcept
-        {
-        }
         void Render(bool forceRedraw) noexcept;
-        void SetImage(std::optional<ImageView> src) noexcept final
+        void SetImage(std::optional<ImageView> src) final
         {
             if (src)
             {
@@ -355,10 +353,10 @@ private:
                     img->FlipVertical();
                 else
                     img = src->FlipToVertical();
-                ReplaceImage(*img);
+                ReplaceImage(*img, true);
             }
             else
-                ReplaceImage({});
+                ReplaceImage({}, true);
         }
     };
     struct Msg
