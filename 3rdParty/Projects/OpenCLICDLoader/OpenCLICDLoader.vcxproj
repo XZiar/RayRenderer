@@ -82,16 +82,20 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros">
     <RealSourceDir>$(SolutionDir)3rdParty\OpenCL-ICD-Loader\loader</RealSourceDir>
+    <TargetCLVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText("$(SolutionDir)3rdParty\OpenCL-ICD-Loader\CMakeLists.txt")), `CL_TARGET_OPENCL_VERSION=(\d+)`).Result("$1"))</TargetCLVersion>
+    <LoaderVersionMajor>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText("$(SolutionDir)3rdParty\OpenCL-ICD-Loader\CMakeLists.txt")), `OPENCL_ICD_LOADER_VERSION_MAJOR=(\d+)`).Result("$1"))</LoaderVersionMajor>
+    <LoaderVersionMinor>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText("$(SolutionDir)3rdParty\OpenCL-ICD-Loader\CMakeLists.txt")), `OPENCL_ICD_LOADER_VERSION_MINOR=(\d+)`).Result("$1"))</LoaderVersionMinor>
+    <LoaderVersionRev>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText("$(SolutionDir)3rdParty\OpenCL-ICD-Loader\CMakeLists.txt")), `OPENCL_ICD_LOADER_VERSION_REV=(\d+)`).Result("$1"))</LoaderVersionRev>
   </PropertyGroup>
   <PropertyGroup>
     <IncludePath>$(RealSourceDir);$(SolutionDir)3rdParty;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=300;OPENCL_ICD_LOADER_VERSION_MAJOR=3;OPENCL_ICD_LOADER_VERSION_MINOR=0;OPENCL_ICD_LOADER_VERSION_REV=6;CL_NO_NON_ICD_DISPATCH_EXTENSION_PROTOTYPES;CL_ENABLE_LAYERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=$(TargetCLVersion);OPENCL_ICD_LOADER_VERSION_MAJOR=$(LoaderVersionMajor);OPENCL_ICD_LOADER_VERSION_MINOR=$(LoaderVersionMinor);OPENCL_ICD_LOADER_VERSION_REV=$(LoaderVersionRev);CL_NO_NON_ICD_DISPATCH_EXTENSION_PROTOTYPES;CL_ENABLE_LAYERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=300;OPENCL_ICD_LOADER_VERSION_MAJOR=3;OPENCL_ICD_LOADER_VERSION_MINOR=0;OPENCL_ICD_LOADER_VERSION_REV=6;CL_NO_NON_ICD_DISPATCH_EXTENSION_PROTOTYPES;CL_ENABLE_LAYERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=$(TargetCLVersion);OPENCL_ICD_LOADER_VERSION_MAJOR=$(LoaderVersionMajor);OPENCL_ICD_LOADER_VERSION_MINOR=$(LoaderVersionMinor);OPENCL_ICD_LOADER_VERSION_REV=$(LoaderVersionRev);CL_NO_NON_ICD_DISPATCH_EXTENSION_PROTOTYPES;CL_ENABLE_LAYERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

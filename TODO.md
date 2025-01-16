@@ -77,7 +77,6 @@
   - [x] Add test for DataTypeConvertor
   - [ ] Add test for Imagecore's core operation
   - [ ] Add color space/gamma conversion
-  - [ ] Remove libjpg-turbo's 12/16bit since unused
   - [ ] Add JXL
 
 * WindowHost

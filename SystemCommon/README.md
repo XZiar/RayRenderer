@@ -147,7 +147,7 @@ A wrapper to support setting or getting thread's information. It's designed to b
 
   `DigestFuncs` depends on it to provide NAIVE implementation.
 
-* [`date`](../3rdParty/date) [A date and time library based on the C++11/14/17 <chrono> header](https://howardhinnant.github.io/date/date.html) ([MIT License](./3rdParty/date/LICENSE.txt)) 3.0.1
+* [`date`](../3rdParty/date) [A date and time library based on the C++11/14/17 <chrono> header](https://howardhinnant.github.io/date/date.html) ([MIT License](./3rdParty/date/LICENSE.txt)) 3.0.3
 
   `Date` depends on it to provide support for compiler/runtime that does not fully implemented C++20. 
   

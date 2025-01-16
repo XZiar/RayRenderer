@@ -93,11 +93,11 @@ python3 xzbuild buildall UtilTest
 
   [BSD 3-Clause License](https://github.com/google/googletest/blob/master/LICENSE)
 
-* [boost](http://www.boost.org/)  1.86.0 (not included in this repo)
+* [boost](http://www.boost.org/)  1.87.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 
-* [fmt](https://fmt.dev/) `submodule` 11.0.2
+* [fmt](https://fmt.dev/) `submodule` 11.1.2
 
   [MIT License](https://github.com/fmtlib/fmt/blob/master/LICENSE.rst)
 

@@ -10,6 +10,7 @@
 namespace oglu
 {
 class oglAHBRenderBuffer_;
+class oglEGLImage_;
 
 struct CreateInfo
 {
