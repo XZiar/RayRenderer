@@ -48,7 +48,10 @@ inline uint32_t RegistImageSupport()
     return RegistImageSupport(std::make_shared<T>());
 }
 
-IMGUTILAPI std::vector<std::shared_ptr<const ImgSupport>> GetImageSupport(std::u16string_view ext, ImgDType dataType, const bool isRead) noexcept;
+IMGUTILAPI [[nodiscard]] std::vector<std::shared_ptr<const ImgSupport>> GetImageSupport(std::u16string_view ext, ImgDType dataType, const bool isRead) noexcept;
+IMGUTILAPI [[nodiscard]] std::shared_ptr<const ImgSupport> GetImageSupport(const std::type_info& type) noexcept;
+template<typename T>
+[[nodiscard]] std::shared_ptr<const ImgSupport> GetImageSupport() noexcept { return GetImageSupport(typeid(T)); }
 
 }
 

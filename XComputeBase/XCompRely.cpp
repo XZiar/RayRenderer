@@ -17,21 +17,21 @@ using namespace std::string_view_literals;
 using common::simd::VecDataInfo;
 
 
-void PCI_BDF::FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec*) const
+void PCI_BDF::FormatWith(common::str::FormatterHost& host, common::str::FormatterContext& context, const common::str::FormatSpec*) const
 {
     using namespace common::str;
     static const auto specCache = []() 
     {
         std::array<OpaqueFormatSpec, 2> specs = {};
-        FormatterExecutor::ConvertSpec(specs[0], U"02X"sv, ArgRealType::UInt);
-        FormatterExecutor::ConvertSpec(specs[1], U"1X"sv, ArgRealType::UInt);
+        FormatterHost::ConvertSpec(specs[0], U"02X"sv, ArgRealType::UInt);
+        FormatterHost::ConvertSpec(specs[1], U"1X"sv, ArgRealType::UInt);
         return specs;
     }();
-    executor.PutInteger(context, Bus(), false, specCache[0]);
-    executor.PutString(context, ":"sv, nullptr);
-    executor.PutInteger(context, Device(), false, specCache[0]);
-    executor.PutString(context, "."sv, nullptr);
-    executor.PutInteger(context, Function(), false, specCache[1]);
+    host.PutInteger(context, Bus(), false, specCache[0]);
+    host.PutString(context, ":"sv, nullptr);
+    host.PutInteger(context, Device(), false, specCache[0]);
+    host.PutString(context, "."sv, nullptr);
+    host.PutInteger(context, Function(), false, specCache[1]);
 }
 std::string PCI_BDF::ToString() const noexcept
 {
@@ -120,6 +120,13 @@ std::u16string_view CommonDeviceInfo::GetICDPath(ICDTypes) const noexcept { retu
 std::u16string_view CommonDeviceInfo::GetDevicePath() const noexcept { return {}; }
 uint32_t CommonDeviceInfo::GetDisplay() const noexcept { return UINT32_MAX; }
 bool CommonDeviceInfo::CheckDisplay(uint32_t) const noexcept { return false; }
+
+void CommonDeviceInfo::FormatWith(common::str::FormatterHost& host, common::str::FormatterContext& context, const common::str::FormatSpec*) const
+{
+    common::str::FormatterBase::NestedFormat(host, context, FmtString(u"{@<W}[{}][VID {:#010x} DID {:#010x}][Disp{:>4}]{@<G}{} {@<w}[{}][{}]"sv),
+        PCIEAddress, VendorId, DeviceId, std::min(GetDisplay(), 9999u), Name,
+        common::MiscIntrin.HexToStr(Guid), common::MiscIntrin.HexToStr(Luid));
+}
 
 #if !COMMON_OS_WIN && !COMMON_OS_LINUX
 struct CommonDeviceContainerImpl final : public CommonDeviceContainer

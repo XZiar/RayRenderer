@@ -20,28 +20,28 @@ private:
     std::string(*Hex2Str)(const uint8_t* data, size_t size, bool isCapital) noexcept = nullptr;
     bool(*PauseCycles)(uint32_t) noexcept = nullptr;
 #if COMMON_COMPILER_MSVC
-    [[nodiscard]] forceinline uint16_t ByteSwap16(const uint16_t num) const noexcept
+    [[nodiscard]] static forceinline uint16_t ByteSwap16(const uint16_t num) noexcept
     { 
         return _byteswap_ushort(num);
     }
-    [[nodiscard]] forceinline uint32_t ByteSwap32(const uint32_t num) const noexcept
+    [[nodiscard]] static forceinline uint32_t ByteSwap32(const uint32_t num) noexcept
     { 
         return _byteswap_ulong(num);
     }
-    [[nodiscard]] forceinline uint64_t ByteSwap64(const uint64_t num) const noexcept
+    [[nodiscard]] static forceinline uint64_t ByteSwap64(const uint64_t num) noexcept
     { 
         return _byteswap_uint64(num);
     }
 #elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
-    [[nodiscard]] forceinline uint16_t ByteSwap16(const uint16_t num) const noexcept
+    [[nodiscard]] static forceinline uint16_t ByteSwap16(const uint16_t num) noexcept
     { 
         return __builtin_bswap16(num);
     }
-    [[nodiscard]] forceinline uint32_t ByteSwap32(const uint32_t num) const noexcept
+    [[nodiscard]] static forceinline uint32_t ByteSwap32(const uint32_t num) noexcept
     { 
         return __builtin_bswap32(num);
     }
-    [[nodiscard]] forceinline uint64_t ByteSwap64(const uint64_t num) const noexcept
+    [[nodiscard]] static forceinline uint64_t ByteSwap64(const uint64_t num) noexcept
     { 
         return __builtin_bswap64(num);
     }
@@ -111,7 +111,7 @@ public:
             return PopCounts(reinterpret_cast<const std::byte*>(space.data()), byteCount);
     }
     template<typename T>
-    [[nodiscard]] forceinline T ByteSwap(const T num) const noexcept
+    [[nodiscard]] static forceinline T ByteSwap(const T num) noexcept
     {
         if constexpr (sizeof(T) == 2)
             return ByteSwap16(static_cast<uint16_t>(num));

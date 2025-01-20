@@ -66,23 +66,23 @@ std::string ImgDType::Stringify(const ImgDType& type, bool detail) noexcept
     if (ch.empty() || dt.empty()) return "UNKNOWN";
     return std::string(dt).append("|").append(ch);
 }
-void ImgDType::FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec* spec) const
+void ImgDType::FormatWith(common::str::FormatterHost& host, common::str::FormatterContext& context, const common::str::FormatSpec* spec) const
 {
     if (const auto knownName = DataTypeNameLookup(Value); knownName)
     {
-        executor.PutString(context, *knownName, spec);
+        host.PutString(context, *knownName, spec);
         return;
     }
     const auto ch = Stringify(Channel());
     const auto dt = Stringify(DataType());
     if (ch.empty() || dt.empty())
     {
-        executor.PutString(context, "UNKNOWN"sv, spec);
+        host.PutString(context, "UNKNOWN"sv, spec);
         return;
     }
-    executor.PutString(context, dt, spec);
-    executor.PutString(context, "|"sv, spec);
-    executor.PutString(context, ch, spec);
+    host.PutString(context, dt, spec);
+    host.PutString(context, "|"sv, spec);
+    host.PutString(context, ch, spec);
 }
 
 

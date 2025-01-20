@@ -102,87 +102,108 @@ struct DateStructure
     int32_t GMTOffset = 0;
 };
 
-
 struct FormatterBase;
-struct SpecReader;
-struct SYSCOMMONAPI FormatterExecutor
+struct FormatterContext {};
+struct SYSCOMMONAPI FormatterOpExecutor
 {
-    friend FormatterBase;
-public:
-    enum class StringType : uint8_t { UTF8, UTF16, UTF32 };
+    using Context = FormatterContext;
+    virtual ~FormatterOpExecutor() = 0;
+    virtual void OnBrace(Context& context, bool isLeft) = 0;
+    virtual void OnColor(Context& context, ScreenColor color) = 0;
+    virtual void OnFmtStr(Context& context, uint32_t offset, uint32_t length) = 0;
+    virtual void OnArg(Context& context, uint8_t argIdx, bool isNamed, const uint8_t* spec) = 0;
+protected:
+    uint32_t Execute(span<const uint8_t>& opcodes, Context& context, uint32_t instCount = UINT32_MAX);
+};
 
-    struct Context { };
-    virtual void OnBrace(Context& context, bool isLeft);
-    virtual void OnColor(Context& context, ScreenColor color);
+enum class StringType : uint8_t { UTF8, UTF16, UTF32 };
+template<typename T, typename Context>
+struct StringFormatter
+{
+    template<typename Spec>
+    forceinline void PutString(Context& context, ::std::string_view str, const Spec& spec)
+    {
+        static_cast<T*>(this)->PutString(context, str.data(), str.size(), StringType::UTF8, spec);
+    }
+    template<typename Spec>
+    forceinline void PutString(Context& context, ::std::wstring_view str, const Spec& spec)
+    {
+        static_cast<T*>(this)->PutString(context, str.data(), str.size(), sizeof(wchar_t) == sizeof(char16_t) ? StringType::UTF16 : StringType::UTF32, spec);
+    }
+    template<typename Spec>
+    forceinline void PutString(Context& context, ::std::u16string_view str, const Spec& spec)
+    {
+        static_cast<T*>(this)->PutString(context, str.data(), str.size(), StringType::UTF16, spec);
+    }
+    template<typename Spec>
+    forceinline void PutString(Context& context, ::std::u32string_view str, const Spec& spec)
+    {
+        static_cast<T*>(this)->PutString(context, str.data(), str.size(), StringType::UTF32, spec);
+    }
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    template<typename Spec>
+    forceinline void PutString(Context& context, ::std::u8string_view str, const Spec& spec)
+    {
+        static_cast<T*>(this)->PutString(context, str.data(), str.size(), StringType::UTF8, spec);
+    }
+#endif
+};
+template<typename T, typename Context>
+struct DateFormatter
+{
+    forceinline void PutDate(Context& context, ::std::string_view str, const DateStructure& date)
+    {
+        static_cast<T*>(this)->PutDate(context, str.data(), str.size(), StringType::UTF8, date);
+    }
+    forceinline void PutDate(Context& context, ::std::wstring_view str, const DateStructure& date)
+    {
+        static_cast<T*>(this)->PutDate(context, str.data(), str.size(), sizeof(wchar_t) == sizeof(char16_t) ? StringType::UTF16 : StringType::UTF32, date);
+    }
+    forceinline void PutDate(Context& context, ::std::u16string_view str, const DateStructure& date)
+    {
+        static_cast<T*>(this)->PutDate(context, str.data(), str.size(), StringType::UTF16, date);
+    }
+    forceinline void PutDate(Context& context, ::std::u32string_view str, const DateStructure& date)
+    {
+        static_cast<T*>(this)->PutDate(context, str.data(), str.size(), StringType::UTF32, date);
+    }
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    forceinline void PutDate(Context& context, ::std::u8string_view str, const DateStructure& date)
+    {
+        static_cast<T*>(this)->PutDate(context, str.data(), str.size(), StringType::UTF8, date);
+    }
+#endif
+};
+
+struct SYSCOMMONAPI FormatterHost : public StringFormatter<FormatterHost, FormatterContext>, public DateFormatter<FormatterHost, FormatterContext>
+{
+public:
+    using Context = FormatterContext;
+    virtual ~FormatterHost() = 0;
 
     virtual void PutString(Context& context, const void* str, size_t len, StringType type, const OpaqueFormatSpec& spec) = 0;
     virtual void PutInteger(Context& context, uint32_t val, bool isSigned, const OpaqueFormatSpec& spec) = 0;
     virtual void PutInteger(Context& context, uint64_t val, bool isSigned, const OpaqueFormatSpec& spec) = 0;
-    virtual void PutFloat  (Context& context, float  val, const OpaqueFormatSpec& spec) = 0;
-    virtual void PutFloat  (Context& context, double val, const OpaqueFormatSpec& spec) = 0;
+    virtual void PutFloat(Context& context, float  val, const OpaqueFormatSpec& spec) = 0;
+    virtual void PutFloat(Context& context, double val, const OpaqueFormatSpec& spec) = 0;
     virtual void PutPointer(Context& context, uintptr_t val, const OpaqueFormatSpec& spec) = 0;
 
     virtual void PutString(Context& context, const void* str, size_t len, StringType type, const FormatSpec* spec) = 0;
     virtual void PutInteger(Context& context, uint32_t val, bool isSigned, const FormatSpec* spec) = 0;
     virtual void PutInteger(Context& context, uint64_t val, bool isSigned, const FormatSpec* spec) = 0;
-    virtual void PutFloat  (Context& context, float  val, const FormatSpec* spec) = 0;
-    virtual void PutFloat  (Context& context, double val, const FormatSpec* spec) = 0;
+    virtual void PutFloat(Context& context, float  val, const FormatSpec* spec) = 0;
+    virtual void PutFloat(Context& context, double val, const FormatSpec* spec) = 0;
     virtual void PutPointer(Context& context, uintptr_t val, const FormatSpec* spec) = 0;
-    virtual void PutDate   (Context& context, ::std::string_view fmtStr, const DateStructure& date) = 0;
 
+    virtual void PutColor(Context& context, ScreenColor color);
+    virtual void PutDate(Context& context, const void* fmtStr, size_t len, StringType type, const DateStructure& date);
 
-    forceinline void PutString(Context& context, ::std::string_view str, const OpaqueFormatSpec& spec)
-    {
-        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
-    }
-    forceinline void PutString(Context& context, ::std::wstring_view str, const OpaqueFormatSpec& spec)
-    {
-        PutString(context, str.data(), str.size(), sizeof(wchar_t) == sizeof(char16_t) ? FormatterExecutor::StringType::UTF16 : FormatterExecutor::StringType::UTF32, spec);
-    }
-    forceinline void PutString(Context& context, ::std::u16string_view str, const OpaqueFormatSpec& spec)
-    {
-        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF16, spec);
-    }
-    forceinline void PutString(Context& context, ::std::u32string_view str, const OpaqueFormatSpec& spec)
-    {
-        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF32, spec);
-    }
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-    forceinline void PutString(Context& context, ::std::u8string_view str, const OpaqueFormatSpec& spec)
-    {
-        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
-    }
-#endif
-
-    forceinline void PutString(Context& context, ::std::string_view str, const FormatSpec* spec)
-    {
-        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
-    }
-    forceinline void PutString(Context& context, ::std::wstring_view str, const FormatSpec* spec)
-    {
-        PutString(context, str.data(), str.size(), sizeof(wchar_t) == sizeof(char16_t) ? FormatterExecutor::StringType::UTF16 : FormatterExecutor::StringType::UTF32, spec);
-    }
-    forceinline void PutString(Context& context, ::std::u16string_view str, const FormatSpec* spec)
-    {
-        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF16, spec);
-    }
-    forceinline void PutString(Context& context, ::std::u32string_view str, const FormatSpec* spec)
-    {
-        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF32, spec);
-    }
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-    forceinline void PutString(Context& context, ::std::u8string_view str, const FormatSpec* spec)
-    {
-        PutString(context, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
-    }
-#endif
+    using StringFormatter<FormatterHost, FormatterContext>::PutString;
+    using DateFormatter  <FormatterHost, FormatterContext>::PutDate;
 
     // context irrelevant
     static bool ConvertSpec(OpaqueFormatSpec& dst, const FormatSpec* src, ArgRealType real, ArgDispType disp) noexcept;
     static bool ConvertSpec(OpaqueFormatSpec& dst, std::u32string_view spectxt, ArgRealType real) noexcept;
-protected:
-    virtual void OnFmtStr(Context& context, uint32_t offset, uint32_t length) = 0;
-    virtual void OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader) = 0;
 };
 
 
@@ -190,7 +211,7 @@ template<typename T>
 inline auto FormatAs(const T& arg);
 
 template<typename T>
-inline auto FormatWith(const T& arg, FormatterExecutor& executor, FormatterExecutor::Context& context, const FormatSpec* spec);
+inline auto FormatWith(const T& arg, FormatterHost& executor, FormatterContext& context, const FormatSpec* spec);
 
 template<typename Char>
 inline auto FormatAs(const StrVariant<Char>& arg)
@@ -203,41 +224,47 @@ inline auto FormatAs(const HashedStrView<Char>& arg)
     return arg.View;
 }
 
-template<typename T, typename U = std::decay_t<T>, typename = std::enable_if_t<std::is_integral_v<U> || std::is_floating_point_v<U>>>
-inline void FormatWith(const span<T>& arg, FormatterExecutor& executor, FormatterExecutor::Context& context, const FormatSpec* spec)
+template<typename T> concept BasicFormatable = std::is_integral_v<std::decay_t<T>> || std::is_floating_point_v<std::decay_t<T>> ||
+common::is_specialization<std::decay_t<T>, std::basic_string>::value || common::is_specialization<std::decay_t<T>, std::basic_string_view>::value;
+template<BasicFormatable T>
+inline void FormatWith(const span<T>& arg, FormatterHost& host, FormatterContext& context, const FormatSpec* spec)
 {
-    executor.PutString(context, "[", nullptr);
-    static_assert(sizeof(U) <= sizeof(uint64_t));
+    using U = std::decay_t<T>;
+    host.PutString(context, "[", nullptr);
     for (size_t i = 0; i < arg.size(); ++i)
     {
         if (i > 0)
         {
-            executor.PutString(context, ", ", nullptr);
+            host.PutString(context, ", ", nullptr);
         }
         if constexpr (std::is_floating_point_v<U>)
         {
-            if constexpr (std::is_same_v<U, double>)
+            static_assert(sizeof(U) <= sizeof(double));
+            if constexpr (sizeof(U) == sizeof(double))
             {
-                executor.PutFloat(context, arg[i], spec);
+                host.PutFloat(context, static_cast<double>(arg[i]), spec);
             }
             else
             {
-                executor.PutFloat(context, static_cast<float>(arg[i]), spec);
+                host.PutFloat(context, static_cast<float>(arg[i]), spec);
+            }
+        }
+        else if constexpr (std::is_integral_v<U>)
+        {
+            static_assert(sizeof(U) <= sizeof(uint64_t));
+            if constexpr (sizeof(U) == sizeof(uint64_t))
+            {
+                host.PutInteger(context, static_cast<uint64_t>(arg[i]), !std::is_unsigned_v<U>, spec);
+            }
+            else
+            {
+                host.PutInteger(context, static_cast<uint32_t>(arg[i]), !std::is_unsigned_v<U>, spec);
             }
         }
         else
-        {
-            if constexpr (sizeof(U) == sizeof(uint64_t))
-            {
-                executor.PutInteger(context, arg[i], !std::is_unsigned_v<U>, spec);
-            }
-            else
-            {
-                executor.PutInteger(context, static_cast<uint32_t>(arg[i]), !std::is_unsigned_v<U>, spec);
-            }
-        }
+            host.PutString(context, arg[i], spec);
     }
-    executor.PutString(context, "]", nullptr);
+    host.PutString(context, "]", nullptr);
 }
 
 

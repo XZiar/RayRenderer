@@ -188,14 +188,8 @@ public:
     {
         for (const auto& [k, v] : GetVariants())
         {
-            std::string names;
-            for (const auto& name : v)
-            {
-                if (!names.empty())
-                    names.append(", ");
-                names.append(name);
-            }
-            TestCout() << common::str::Formatter<char>{}.FormatStatic(FmtString("[{}.{}] get support: [{}]\n"), SuiteName, k, names);
+            TestCout() << common::str::Formatter<char>{}.FormatStatic(FmtString("[{}.{}] get support: {}\n"), 
+                SuiteName, k, common::to_span(v));
         }
     }
 };

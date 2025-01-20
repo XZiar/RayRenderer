@@ -22,9 +22,7 @@ void PrintCommonDevice()
         fmter.FormatToStatic(fmter.Str, FmtString(u"{@<w}Common Devices:\n"sv));
         for (const auto& dev : xcomp::ProbeDevice())
         {
-            fmter.FormatToStatic(fmter.Str, FmtString(u"{@<W}[{}][VID {:#010x} DID {:#010x}][Disp{:>4}]{@<G}{} {@<w}[{}][{}]\n"sv),
-                dev.PCIEAddress, dev.VendorId, dev.DeviceId, std::min(dev.GetDisplay(), 9999u), dev.Name,
-                common::MiscIntrin.HexToStr(dev.Guid), common::MiscIntrin.HexToStr(dev.Luid));
+            fmter.FormatToStatic(fmter.Str, FmtString(u"{}\n"sv), dev);
         }
         PrintToConsole(fmter);
         return 0;

@@ -276,7 +276,10 @@ struct FormatterParser
             const auto opcnt = 1 + 1 + 1 + (isOffset16 ? 1 : 0) + (isLength16 ? 1 : 0);
             auto space = result.ReserveSpace(offset, opcnt);
             IF_UNLIKELY(!space) return false;
-            *space++ = Op | FieldFmtStr;
+            auto opval = Op | FieldFmtStr;
+            if (isOffset16) opval |= DataOffset16;
+            if (isLength16) opval |= DataLength16;
+            *space++ = static_cast<uint8_t>(opval);
             *space++ = static_cast<uint8_t>(offset);
             if (isOffset16)
                 *space++ = static_cast<uint8_t>(offset >> 8);
@@ -1985,14 +1988,15 @@ inline auto FormatAs(const SharedString<Char>& arg)
 namespace detail
 {
 template<typename T>
-using HasFormatAsMemFn = decltype(std::declval<const T&>().FormatAs());
+concept HasFormatAsMemFn = requires(T x) { x.FormatAs(); };
 template<typename T>
-using HasFormatAsSpeFn = decltype(FormatAs(std::declval<const T&>()));
+concept HasFormatAsSpeFn = requires(T x) { ::common::str::FormatAs(std::forward<T>(x)); };
 template<typename T>
-using HasFormatWithMemFn = decltype(std::declval<const T&>().FormatWith(std::declval<FormatterExecutor&>(), std::declval<FormatterExecutor::Context&>(), std::declval<const FormatSpec*>()));
+concept HasFormatWithMemFn = requires(T x) { x.FormatWith(std::declval<FormatterHost&>(), std::declval<FormatterContext&>(), std::declval<const FormatSpec*>()); };
 template<typename T>
-using HasFormatWithSpeFn = decltype(FormatWith(std::declval<const T&>(), std::declval<FormatterExecutor&>(), std::declval<FormatterExecutor::Context&>(), std::declval<const FormatSpec*>()));
-using FmtWithPtr = void(*)(const void*, FormatterExecutor&, FormatterExecutor::Context&, const FormatSpec*);
+concept HasFormatWithSpeFn = requires(T x) { FormatWith(std::forward<T>(x), std::declval<FormatterHost&>(), std::declval<FormatterContext&>(), std::declval<const FormatSpec*>()); };
+
+using FmtWithPtr = void(*)(const void*, FormatterHost&, FormatterContext&, const FormatSpec*);
 struct FmtWithPair
 {
     const void* Data;
@@ -2108,15 +2112,15 @@ struct ArgInfo
             // size 1,2,4,8: CommonColor, pair<CommonColor>, ScreenColor, pair<ScreenColor>
             return ArgRealType::Color | EncodeTypeSizeData<U>();
         }
-        else if constexpr (is_detected_v<detail::HasFormatAsMemFn, U>)
+        else if constexpr (detail::HasFormatAsMemFn<T>)
         {
-            return GetArgType<detail::HasFormatAsMemFn<U>>();
+            return GetArgType<decltype(std::declval<T>().FormatAs())>();
         }
-        else if constexpr (is_detected_v<detail::HasFormatAsSpeFn, U>)
+        else if constexpr (detail::HasFormatAsSpeFn<T>)
         {
-            return GetArgType<detail::HasFormatAsSpeFn<U>>();
+            return GetArgType<decltype(FormatAs(std::declval<T>()))>();
         }
-        else if constexpr (is_detected_v<detail::HasFormatWithMemFn, U> || is_detected_v<detail::HasFormatWithSpeFn, U>)
+        else if constexpr (detail::HasFormatWithMemFn<U> || detail::HasFormatWithSpeFn<U>)
         {
             return ArgRealType::Custom;
         }
@@ -2216,27 +2220,27 @@ struct ArgInfo
             {
                 return arg;
             }
-            else if constexpr (is_detected_v<detail::HasFormatAsMemFn, U>)
+            else if constexpr (detail::HasFormatAsMemFn<T>)
             {
                 return BoxAnArg(arg.FormatAs());
             }
-            else if constexpr (is_detected_v<detail::HasFormatAsSpeFn, U>)
+            else if constexpr (detail::HasFormatAsSpeFn<T>)
             {
                 return BoxAnArg(FormatAs(arg));
             }
-            else if constexpr (is_detected_v<detail::HasFormatWithMemFn, U>)
+            else if constexpr (detail::HasFormatWithMemFn<T>)
             {
-                detail::FmtWithPair data{ &arg, [](const void* data, FormatterExecutor& executor, FormatterExecutor::Context& context, const FormatSpec* spec)
+                detail::FmtWithPair data{ &arg, [](const void* data, FormatterHost& host, FormatterContext& context, const FormatSpec* spec)
                     {
-                        reinterpret_cast<const U*>(data)->FormatWith(executor, context, spec);
+                        reinterpret_cast<const U*>(data)->FormatWith(host, context, spec);
                     } };
                 return data;
             }
-            else if constexpr (is_detected_v<detail::HasFormatWithSpeFn, U>)
+            else if constexpr (detail::HasFormatWithSpeFn<T>)
             {
-                detail::FmtWithPair data{ &arg, [](const void* data, FormatterExecutor& executor, FormatterExecutor::Context& context, const FormatSpec* spec)
+                detail::FmtWithPair data{ &arg, [](const void* data, FormatterHost& host, FormatterContext& context, const FormatSpec* spec)
                     {
-                        FormatWith(*reinterpret_cast<const U*>(data), executor, context, spec);
+                        FormatWith(*reinterpret_cast<const U*>(data), host, context, spec);
                     } };
                 return data;
             }
@@ -2438,13 +2442,20 @@ struct Formatter;
 struct FormatterBase
 {
 protected:
-    template<typename T>
-    SYSCOMMONAPI static uint32_t Execute(span<const uint8_t>& opcodes, T& executor, typename T::Context& context, uint32_t instCount = UINT32_MAX);
     template<typename Char>
-    struct StaticExecutor;
+    SYSCOMMONAPI static void NestedExecute(FormatterHost& host, FormatterContext& context,
+        const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, span<const uint16_t> argStore, const NamedMapper& mapping);
 public:
-    template<typename Char>
-    SYSCOMMONAPI static void FormatTo(Formatter<Char>& formatter, std::basic_string<Char>& ret, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, span<const uint16_t> argStore, const NamedMapper& mapping);
+    template<typename T, typename... Args>
+    forceinline static void NestedFormat(FormatterHost& host, FormatterContext& context, const T&, Args&&... args)
+    {
+        using Char = typename std::decay_t<T>::CharType;
+        static constexpr auto Mapping = ArgChecker::CheckSS<T, Args...>();
+        static constexpr T StrInfo;
+        static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
+        const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
+        NestedExecute(host, context, StrInfo.ToStrArgInfo(), ArgsInfo, argStore.ArgStore, Mapping);
+    }
 };
 
 struct SpecReader
@@ -2460,7 +2471,6 @@ private:
         Ptr = ptr;
         SpecSize = 0;
     }
-    [[nodiscard]] forceinline constexpr uint32_t EnsureSize() noexcept;
 public:
     constexpr SpecReader() noexcept : Ptr(nullptr) {}
     explicit constexpr SpecReader(const uint8_t* ptr) noexcept : Ptr(ptr) {}
@@ -2530,77 +2540,60 @@ public:
 };
 
 template<typename Char>
-struct CommonFormatter
+struct Formatter : public DateFormatter<Formatter<Char>, std::basic_string<Char>>
 {
     using StrType = std::basic_string<Char>;
 public:
-    SYSCOMMONAPI static void PutString(StrType& ret, const void* str, size_t len, FormatterExecutor::StringType type, const OpaqueFormatSpec* spec);
-    forceinline static void PutString(StrType& ret, std::   string_view str, const OpaqueFormatSpec* spec)
-    {
-        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
-    }
-    forceinline static void PutString(StrType& ret, std::  wstring_view str, const OpaqueFormatSpec* spec)
-    {
-        PutString(ret, str.data(), str.size(), sizeof(wchar_t) == sizeof(char16_t) ? FormatterExecutor::StringType::UTF16 : FormatterExecutor::StringType::UTF32, spec);
-    }
-    forceinline static void PutString(StrType& ret, std::u16string_view str, const OpaqueFormatSpec* spec)
-    {
-        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF16, spec);
-    }
-    forceinline static void PutString(StrType& ret, std::u32string_view str, const OpaqueFormatSpec* spec)
-    {
-        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF32, spec);
-    }
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-    forceinline static void PutString(StrType& ret, std:: u8string_view str, const OpaqueFormatSpec* spec)
-    {
-        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
-    }
-#endif
+    SYSCOMMONAPI static void PutString(StrType& ret, const void* str, size_t len, StringType type, const OpaqueFormatSpec& spec);
     SYSCOMMONAPI static void PutInteger(StrType& ret, uint32_t val, bool isSigned, const OpaqueFormatSpec& spec);
     SYSCOMMONAPI static void PutInteger(StrType& ret, uint64_t val, bool isSigned, const OpaqueFormatSpec& spec);
     SYSCOMMONAPI static void PutFloat(StrType& ret, float  val, const OpaqueFormatSpec& spec);
     SYSCOMMONAPI static void PutFloat(StrType& ret, double val, const OpaqueFormatSpec& spec);
     SYSCOMMONAPI static void PutPointer(StrType& ret, uintptr_t val, const OpaqueFormatSpec& spec);
-};
-template<typename Char>
-struct Formatter : public FormatterBase
-{
-    friend FormatterBase;
-    using StrType = std::basic_string<Char>;
-public:
-    SYSCOMMONAPI virtual void PutColor(StrType& ret, ScreenColor color);
-    SYSCOMMONAPI         void PutColorArg(StrType& ret, ScreenColor color, const FormatSpec* spec);
-    SYSCOMMONAPI virtual void PutString(StrType& ret, const void* str, size_t len, FormatterExecutor::StringType type, const FormatSpec* spec);
-    forceinline void PutString(StrType& ret, std::   string_view str, const FormatSpec* spec)
+
+    SYSCOMMONAPI static void PutColorStr(StrType& ret, ScreenColor color, const FormatSpec* spec);
+
+    SYSCOMMONAPI static void PutString(StrType& ret, const void* str, size_t len, StringType type, const FormatSpec* spec);
+    SYSCOMMONAPI static void PutInteger(StrType& ret, uint32_t val, bool isSigned, const FormatSpec* spec);
+    SYSCOMMONAPI static void PutInteger(StrType& ret, uint64_t val, bool isSigned, const FormatSpec* spec);
+    SYSCOMMONAPI static void PutFloat(StrType& ret, float  val, const FormatSpec* spec);
+    SYSCOMMONAPI static void PutFloat(StrType& ret, double val, const FormatSpec* spec);
+    SYSCOMMONAPI static void PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec);
+
+    SYSCOMMONAPI static void PutColor(StrType& ret, ScreenColor color);
+    SYSCOMMONAPI static void PutDate(StrType& ret, const void* fmtStr, size_t len, StringType type, const DateStructure& date);
+
+
+    template<typename Spec>
+    forceinline static void PutString(StrType& ret, ::std::string_view str, const Spec& spec)
     {
-        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
+        PutString(ret, str.data(), str.size(), StringType::UTF8, spec);
     }
-    forceinline void PutString(StrType& ret, std::  wstring_view str, const FormatSpec* spec)
+    template<typename Spec>
+    forceinline static void PutString(StrType& ret, ::std::wstring_view str, const Spec& spec)
     {
-        PutString(ret, str.data(), str.size(), sizeof(wchar_t) == sizeof(char16_t) ? FormatterExecutor::StringType::UTF16 : FormatterExecutor::StringType::UTF32, spec);
+        PutString(ret, str.data(), str.size(), sizeof(wchar_t) == sizeof(char16_t) ? StringType::UTF16 : StringType::UTF32, spec);
     }
-    forceinline void PutString(StrType& ret, std::u16string_view str, const FormatSpec* spec)
+    template<typename Spec>
+    forceinline static void PutString(StrType& ret, ::std::u16string_view str, const Spec& spec)
     {
-        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF16, spec);
+        PutString(ret, str.data(), str.size(), StringType::UTF16, spec);
     }
-    forceinline void PutString(StrType& ret, std::u32string_view str, const FormatSpec* spec)
+    template<typename Spec>
+    forceinline static void PutString(StrType& ret, ::std::u32string_view str, const Spec& spec)
     {
-        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF32, spec);
+        PutString(ret, str.data(), str.size(), StringType::UTF32, spec);
     }
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-    forceinline void PutString(StrType& ret, std:: u8string_view str, const FormatSpec* spec)
+    template<typename Spec>
+    forceinline static void PutString(StrType& ret, ::std::u8string_view str, const Spec& spec)
     {
-        PutString(ret, str.data(), str.size(), FormatterExecutor::StringType::UTF8, spec);
+        PutString(ret, str.data(), str.size(), StringType::UTF8, spec);
     }
 #endif
-    SYSCOMMONAPI virtual void PutInteger(StrType& ret, uint32_t val, bool isSigned, const FormatSpec* spec);
-    SYSCOMMONAPI virtual void PutInteger(StrType& ret, uint64_t val, bool isSigned, const FormatSpec* spec);
-    SYSCOMMONAPI virtual void PutFloat(StrType& ret, float  val, const FormatSpec* spec);
-    SYSCOMMONAPI virtual void PutFloat(StrType& ret, double val, const FormatSpec* spec);
-    SYSCOMMONAPI virtual void PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec);
-    SYSCOMMONAPI virtual void PutDate(StrType& ret, std::basic_string_view<Char> fmtStr, const DateStructure& date);
-    SYSCOMMONAPI virtual void PutDateBase(StrType& ret, std::string_view fmtStr, const DateStructure& date);
+
+    using DateFormatter<Formatter<Char>, std::basic_string<Char>>::PutDate;
+
     template<typename T, typename... Args>
     forceinline void FormatToStatic(std::basic_string<Char>& dst, const T&, Args&&... args)
     {
@@ -2609,7 +2602,7 @@ public:
         static constexpr T StrInfo;
         static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
         const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
-        FormatterBase::FormatTo<Char>(*this, dst, StrInfo, ArgsInfo, argStore.ArgStore, Mapping);
+        FormatTo(dst, StrInfo, ArgsInfo, argStore.ArgStore, Mapping);
     }
     template<typename... Args>
     forceinline void FormatToDynamic(std::basic_string<Char>& dst, std::basic_string_view<Char> format, Args&&... args)
@@ -2647,6 +2640,7 @@ public:
         DirectFormatTo(ret, target, spec);
         return ret;
     }
+    SYSCOMMONAPI void FormatTo(std::basic_string<Char>& ret, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, span<const uint16_t> argStore, const NamedMapper& mapping);
 private:
     SYSCOMMONAPI void DirectFormatTo_(std::basic_string<Char>& dst, const detail::FmtWithPair& fmtPair, const FormatSpec* spec);
     SYSCOMMONAPI void FormatToDynamic_(std::basic_string<Char>& dst, std::basic_string_view<Char> format, const ArgInfo& argInfo, span<const uint16_t> argStore);

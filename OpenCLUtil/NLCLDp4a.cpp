@@ -14,36 +14,16 @@ struct ConvB4Arg
     constexpr ConvB4Arg(std::u32string_view arg, char32_t pfx, bool isPacked, bool wantPacked) :
         Arg(arg), IsUnsigned(pfx == U'u'), IsToPacked(wantPacked), NeedConv(wantPacked != isPacked) { }
 
-    void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec*) const
+    void FormatWith(common::str::FormatterHost& host, common::str::FormatterContext& context, const common::str::FormatSpec*) const
     {
         if (!NeedConv)
-            executor.PutString(context, Arg, nullptr);
+            host.PutString(context, Arg, nullptr);
         else
-            executor.PutString(context, common::str::Formatter<char32_t>{}.FormatStatic(FmtString(U"as_{}({})"),
-                IsToPacked ? (IsUnsigned ? U"uint"sv : U"int"sv) : (IsUnsigned ? U"uchar4"sv : U"char4"sv), Arg),
-            nullptr);
+            common::str::FormatterBase::NestedFormat(host, context, FmtString(U"as_{}({})"),
+                IsToPacked ? (IsUnsigned ? U"uint"sv : U"int"sv) : (IsUnsigned ? U"uchar4"sv : U"char4"sv), Arg);
     }
 };
 
-//template<typename Char>
-//struct fmt::formatter<ConvB4Arg, Char>
-//{
-//    template<typename ParseContext>
-//    constexpr auto parse(ParseContext& ctx) const
-//    {
-//        return ctx.begin();
-//    }
-//    template<typename FormatContext>
-//    auto format(const ConvB4Arg& arg, FormatContext& ctx) const
-//    {
-//        if (!arg.NeedConv)
-//            return fmt::format_to(ctx.out(), FMT_STRING(U"{}"), arg.Arg);
-//        else
-//            return fmt::format_to(ctx.out(), FMT_STRING(U"as_{}({})"), 
-//                arg.IsToPacked ? (arg.IsUnsigned ? U"uint"sv : U"int"sv) : (arg.IsUnsigned ? U"uchar4"sv : U"char4"sv), 
-//                arg.Arg);
-//    }
-//};
 
 namespace oclu
 {

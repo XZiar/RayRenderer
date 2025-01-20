@@ -11,43 +11,23 @@ struct OptionalArg
 {
     std::u32string_view Arg;
 
-    void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec*) const
+    void FormatWith(common::str::FormatterHost& host, common::str::FormatterContext& context, const common::str::FormatSpec*) const
     {
         if (!Arg.empty())
         {
             if constexpr (IsPrefix)
             {
-                executor.PutString(context, Arg, nullptr);
-                executor.PutString(context, U", "sv, nullptr);
+                host.PutString(context, Arg, nullptr);
+                host.PutString(context, U", "sv, nullptr);
             }
             else
             {
-                executor.PutString(context, U", "sv, nullptr);
-                executor.PutString(context, Arg, nullptr);
+                host.PutString(context, U", "sv, nullptr);
+                host.PutString(context, Arg, nullptr);
             }
         }
     }
 };
-
-//template<typename Char, bool IsPrefix>
-//struct fmt::formatter<OptionalArg<IsPrefix>, Char>
-//{
-//    template<typename ParseContext>
-//    constexpr auto parse(ParseContext& ctx) const
-//    {
-//        return ctx.begin();
-//    }
-//    template<typename FormatContext>
-//    auto format(const OptionalArg<IsPrefix>& arg, FormatContext& ctx) const
-//    {
-//        if (arg.Arg.empty())
-//            return ctx.out();
-//        if constexpr (IsPrefix)
-//            return fmt::format_to(ctx.out(), FMT_STRING(U"{}, "), arg.Arg);
-//        else
-//            return fmt::format_to(ctx.out(), FMT_STRING(U", {}"), arg.Arg);
-//    }
-//};
 
 namespace oclu
 {

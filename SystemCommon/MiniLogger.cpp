@@ -312,7 +312,7 @@ template<typename Char>
 LoggerFormatter<Char>::~LoggerFormatter()
 { }
 template<typename Char>
-void LoggerFormatter<Char>::PutColor(std::basic_string<Char>&, ScreenColor color)
+void LoggerFormatter<Char>::PutColor(str::FormatterContext&, ScreenColor color)
 {
     Seperator->HandleColor(color, Str.size());
 }
@@ -341,7 +341,8 @@ template struct LoggerFormatter<char8_t>;
 LogMessage* MiniLoggerBase::GenerateMessage(const LogLevel level, const str::StrArgInfoCh<char16_t>& strInfo, const str::ArgInfo& argInfo, span<const uint16_t> argStore, const str::NamedMapper& mapping) const
 {
     LoggerFormatter<char16_t> formatter;
-    str::FormatterBase::FormatTo(formatter, formatter.Str, strInfo, argInfo, argStore, mapping);
+    formatter.FormatTo(formatter.Str, strInfo, argInfo, argStore, mapping);
+    //str::FormatterBase::FormatTo(formatter, formatter.Str, strInfo, argInfo, argStore, mapping);
     const auto segs = to_span(formatter.GetColorSegements());
     // if constexpr (!std::is_same_v<Char, char16_t>)
     // {

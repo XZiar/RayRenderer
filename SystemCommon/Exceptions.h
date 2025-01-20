@@ -143,7 +143,7 @@ public:
         return Info->Message;
     }
     [[nodiscard]] std::u16string_view GetDetailMessage() const noexcept;
-    void FormatWith(::common::str::FormatterExecutor&, ::common::str::FormatterExecutor::Context&, const ::common::str::FormatSpec*) const noexcept;
+    void FormatWith(::common::str::FormatterHost&, ::common::str::FormatterContext&, const ::common::str::FormatSpec*) const noexcept;
 
     template<typename T, typename... Args>
     [[nodiscard]] static T CreateWithStack(StackTraceItem&& sti, Args... args)

@@ -253,7 +253,7 @@ else SetPlatte(2);
 
 WicSupport::WicSupport() : ImgSupport(u"Wic")
 {
-    if (const HResultHolder ret = CoInitializeEx(nullptr, COINIT_MULTITHREADED); ret.Value == S_OK || ret.Value == S_FALSE)
+    if (const HResultHolder ret = CoInitializeEx(nullptr, COINIT_MULTITHREADED); ret == S_OK || ret == S_FALSE)
     {
         // Create WIC factory
         THROW_HR(CoCreateInstance(CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&Factory)), u"Init WIC Factory failed");

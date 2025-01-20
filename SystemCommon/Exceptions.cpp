@@ -58,9 +58,9 @@ std::vector<StackTraceItem> BaseException::GetAllStacks() const noexcept
     return {};
 }
 
-void BaseException::FormatWith(::common::str::FormatterExecutor& executor, ::common::str::FormatterExecutor::Context& context, const ::common::str::FormatSpec*) const noexcept
+void BaseException::FormatWith(::common::str::FormatterHost& host, ::common::str::FormatterContext& context, const ::common::str::FormatSpec*) const noexcept
 {
-    executor.PutString(context, Message(), nullptr);
+    host.PutString(context, Message(), nullptr);
     const auto ptr = Info->Resources.QueryItem("detail");
     if (ptr)
     {
@@ -80,11 +80,11 @@ void BaseException::FormatWith(::common::str::FormatterExecutor& executor, ::com
 #undef STRMatch
         if (detail.index())
         {
-            executor.PutString(context, ", ", nullptr);
+            host.PutString(context, ":\n", nullptr);
             std::visit([&](const auto& txt) 
             {
                 if constexpr (!std::is_same_v<std::decay_t<decltype(txt)>, std::monostate>)
-                    executor.PutString(context, txt, nullptr);
+                    host.PutString(context, txt, nullptr);
             }, detail);
         }
     }

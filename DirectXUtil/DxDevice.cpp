@@ -56,7 +56,7 @@ DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device>
             SMVer = (ret->HighestShaderModel & 0xf) + (ret->HighestShaderModel >> 4) * 10;
             break;
         }
-        else if (ret.HResult.Value != E_INVALIDARG)
+        else if (ret.HResult != E_INVALIDARG)
             COMMON_THROWEX(DxException, ret.HResult, u"Failed to check SM version");
     }
     SMVer = std::max(SMVer, 51u); // at least SM5.1 for DX12

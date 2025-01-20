@@ -392,7 +392,7 @@ struct OfferHolder
             else if (size == -1)
             {
                 const auto err = common::ErrnoHolder::GetCurError();
-                if (err.Value == EAGAIN) // fully readed, wait for next signal
+                if (err == EAGAIN) // fully readed, wait for next signal
                 {
                     logger.Verbose(u"DataOffer type[{}]({}) wait for next signal, cur [{}]bytes.\n", typeIdx, mime, Data.size());
                     return States::More;

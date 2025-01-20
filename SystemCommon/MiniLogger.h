@@ -1,6 +1,7 @@
 #pragma once
 #include "SystemCommonRely.h"
 #include "Format.h"
+#include "FormatExtra.h"
 #include "StringConvert.h"
 #include "Delegate.h"
 #include "SpinLock.h"
@@ -64,10 +65,10 @@ public:
 struct ColorSeperator;
 
 template<typename Char>
-struct LoggerFormatter final : public str::Formatter<Char>
+struct LoggerFormatter final : public str::BasicExecutor<Char>
 {
 private:
-    void PutColor(std::basic_string<Char>&, ScreenColor color) final;
+    void PutColor(str::FormatterContext&, ScreenColor color) final;
 public:
     std::basic_string<Char> Str;
     std::unique_ptr<detail::ColorSeperator> Seperator;

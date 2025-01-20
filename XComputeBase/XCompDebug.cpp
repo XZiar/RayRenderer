@@ -113,11 +113,10 @@ MessageBlock::MessageBlock(MessageBlock&& other) noexcept :
 MessageBlock::~MessageBlock() {}
 
 
-struct MessageFormatExecutor final : public common::str::CombinedExecutor<char, common::str::Formatter<char>>
+struct MessageFormatExecutor final : public common::str::DirectExecutor<char>
 {
-    using Fmter = common::str::Formatter<char>;
-    using Base  = common::str::CombinedExecutor<char, Fmter>;
-    using CTX   = common::str::FormatterExecutor::Context;
+    using Base  = common::str::DirectExecutor<char>;
+    using CTX   = common::str::FormatterContext;
     struct Context : public Base::Context
     {
         const common::str::FormatSpecCacher& SpecCache;
@@ -128,16 +127,10 @@ struct MessageFormatExecutor final : public common::str::CombinedExecutor<char, 
             Base::Context(dst, fmtstr), SpecCache(specCache), Layout(layout), Data(data) { }
     };
 
-    void OnColor(CTX& ctx, common::ScreenColor color) final
-    {
-        auto& context = static_cast<Context&>(ctx);
-        PutColor(context.Dst, color);
-    }
-
     template<typename P = void>
     static void FormatVecArray(std::string& txt, const std::byte* data, common::simd::VecDataInfo vinfo, const common::str::OpaqueFormatSpec& spec)
     {
-        using F = common::str::CommonFormatter<char>;
+        using F = common::str::Formatter<char>;
         using half_float::half;
         for (uint32_t i = 0; i < vinfo.Dim0; ++i)
         {
@@ -182,9 +175,8 @@ struct MessageFormatExecutor final : public common::str::CombinedExecutor<char, 
         }
     }
 
-    void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, common::str::SpecReader&) final
+    void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, const uint8_t*) final
     {
-        using F = common::str::CommonFormatter<char>;
         Expects(!isNamed);
         auto& context = static_cast<Context&>(ctx);
         const auto& item = context.Layout[argIdx];
@@ -212,8 +204,7 @@ struct MessageFormatExecutor final : public common::str::CombinedExecutor<char, 
             context.Dst.append(" }"sv);
         }
     }
-
-    using FormatterBase::Execute;
+    using FormatterOpExecutor::Execute;
 };
 static MessageFormatExecutor MsgFmtExecutor;
 
@@ -224,7 +215,7 @@ common::str::u8string MessageBlock::GetString(common::span<const std::byte> data
     common::str::u8string ret;
     MessageFormatExecutor::Context ctx { *reinterpret_cast<std::string*>(&ret), strInfo.FormatString, FormatCache->SpecCache, Layout, data };
     auto opcodes = strInfo.Opcodes;
-    MessageFormatExecutor::Execute<common::str::FormatterExecutor>(opcodes, MsgFmtExecutor, ctx);
+    MsgFmtExecutor.Execute(opcodes, ctx);
     return ret;
 }
 
@@ -565,14 +556,13 @@ void ExcelXmlPrinter::AddItem(SheetPackage& sheet, std::string_view info, common
     const auto& block = *MsgPacks[sheet.MsgPkgIdx].MsgBlock;
     const auto strInfo = block.FormatCache->StrInfo.ToStrArgInfo();
     MessageFormatExecutor::Context ctx{ sheet.Contents, strInfo.FormatString, block.FormatCache->SpecCache, block.Layout, dat };
-    common::str::SpecReader reader;
     for (uint32_t i = 0; i < block.Layout.ArgCount; ++i)
     {
         const auto& arg = block.Layout[i];
         const auto& cellb = arg.Info.Dim0 > 1 ? StrCellBegin : NumCellBegin;
         const auto& celle = CellEnd;
         sheet.Contents.append(cellb);
-        MsgFmtExecutor.OnArg(ctx, static_cast<uint8_t>(i), false, reader);
+        MsgFmtExecutor.OnArg(ctx, static_cast<uint8_t>(i), false, nullptr);
         sheet.Contents.append(celle);
     }
     /*for (const auto& arg : block.Layout.ByIndex())
@@ -642,9 +632,8 @@ void ExcelXmlPrinter::Output(common::io::OutputStream& stream)
 common::StringPiece<char> ExcelXmlPrinter::InfoCache::GenerateThreadInfo(const WorkItemInfo& info)
 {
     common::str::OpaqueFormatSpec intFmt, fpFmt;
-    common::str::FormatterExecutor::ConvertSpec(intFmt, nullptr, common::str::ArgRealType::UInt, common::str::ArgDispType::Integer);
-    common::str::FormatterExecutor::ConvertSpec(fpFmt, nullptr, common::str::ArgRealType::Float, common::str::ArgDispType::Float);
-    using Fmter = common::str::CommonFormatter<char>;
+    common::str::FormatterHost::ConvertSpec(intFmt, nullptr, common::str::ArgRealType::UInt, common::str::ArgDispType::Integer);
+    common::str::FormatterHost::ConvertSpec(fpFmt, nullptr, common::str::ArgRealType::Float, common::str::ArgDispType::Float);
     using half_float::half;
     const auto space = InfoProv.GetFullInfoSpace(info);
     std::string txt;

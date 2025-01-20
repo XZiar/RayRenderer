@@ -73,7 +73,7 @@ struct ImgDType
         if (ret.empty()) return Stringify(*this, true);
         return ret;
     }
-    IMGUTILAPI void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec* spec) const;
+    IMGUTILAPI void FormatWith(common::str::FormatterHost& host, common::str::FormatterContext& context, const common::str::FormatSpec* spec) const;
 
     constexpr ImgDType& SetDatatype(DataTypes dt) noexcept
     {

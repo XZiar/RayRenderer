@@ -805,7 +805,7 @@ void WindowManagerWin32::D2DRenderer::Render(bool forceRedraw) noexcept
             IF_UNLIKELY(!ret)
             {
                 Log().Warning(FmtString(u"Failed to finish draw : {}\n"), ret);
-                if (ret.Value == D2DERR_RECREATE_TARGET)
+                if (ret == D2DERR_RECREATE_TARGET)
                 {
                     Initialize();
                     Window.Invalidate(true);
@@ -869,16 +869,12 @@ void WindowManagerWin32::GetClipboard(WdHost& wd, const std::function<bool(ClipB
                     break;
                 
                 std::optional<ImageView> img;
-                const auto zexbmp = common::linq::FromContainer(xziar::img::GetImageSupport(u"BMP", xziar::img::ImageDataType::RGBA, true))
-                    .Select([](const auto& support) { return std::dynamic_pointer_cast<const xziar::img::zex::BmpSupport>(support); })
-                    .Where([](const auto& support) { return static_cast<bool>(support); })
-                    .TryGetFirst();
-                if (zexbmp)
+                if (const auto zexbmp = xziar::img::GetImageSupport<xziar::img::zex::BmpSupport>(); zexbmp)
                 {
                     WrapException([&]()
                     {
                         common::io::MemoryInputStream stream(common::span<const std::byte>{ptr, size});
-                        const auto reader_ = (*zexbmp)->GetReader(stream, u"BMP");
+                        const auto reader_ = zexbmp->GetReader(stream, u"BMP");
                         auto& reader = *static_cast<xziar::img::zex::BmpReader*>(reader_.get());
                         if (reader.ValidateNoHeader(gsl::narrow_cast<uint32_t>(pixOffset)))
                         {

@@ -871,7 +871,7 @@ public:
                 const auto namePtr  = item.second.data() + 1;
                 atomCookies.emplace_back(xcb_intern_atom_unchecked(Connection, onlyIfExists, nameSize, namePtr));
             }
-            std::string fails;
+            std::vector<std::string_view> fails;
             std::vector<uint32_t> imageAtoms;
             size_t atomIdx = 0;
             for (const auto& cookie : atomCookies)
@@ -885,8 +885,7 @@ public:
                 }
                 if (!*item.first && item.second[0] == '1')
                 {
-                    if (!fails.empty()) fails.append(", ");
-                    fails.append(item.second, 1);
+                    fails.emplace_back(item.second.substr(1));
                 }
                 if (*item.first && item.second.starts_with("2image/"))
                 {
@@ -899,7 +898,7 @@ public:
                 SkippedPropAtoms = skipProps;
             }
             if (!fails.empty())
-                Logger.Verbose(u"Following atoms not recognized: [{}].\n", fails);
+                Logger.Verbose(u"Following atoms not recognized: {}.\n", common::to_span(fails));
         }
         // read xsettings
         LoadXSettings();

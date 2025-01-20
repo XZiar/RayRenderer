@@ -534,25 +534,22 @@ bool NailangBase::ThrowIfNotBool(const Arg& arg, const std::u32string_view varNa
     return ret.value();
 }
 
-struct NailangFormatExecutor final : public common::str::CombinedExecutor<char32_t, common::str::Formatter<char32_t>>
+struct NailangFormatExecutor final : public common::str::DirectExecutor<char32_t>
 {
     using Fmter = common::str::Formatter<char32_t>;
-    using Base  = common::str::CombinedExecutor<char32_t, Fmter>;
-    using CTX   = common::str::FormatterExecutor::Context;
+    using Base  = common::str::DirectExecutor<char32_t>;
+    using CTX   = common::str::FormatterContext;
     struct Context : public Base::Context
     {
         common::span<const Arg> Args;
         constexpr Context(std::u32string& dst, std::u32string_view fmtstr, common::span<const Arg> args) noexcept : 
             Base::Context(dst, fmtstr), Args(args) { }
     };
-    /*void OnColor(CTX& ctx, common::ScreenColor color) final
-    {
-        auto& context = static_cast<Context&>(ctx);
-        PutColor(context.Dst, color);
-    }*/
-    void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, common::str::SpecReader& reader) final
+    ~NailangFormatExecutor() final {};
+    void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, const uint8_t* specPtr) final
     {
         Expects(!isNamed);
+        common::str::SpecReader reader(specPtr);
         const auto spec = reader.ReadSpec();
         auto& context = static_cast<Context&>(ctx);
         const auto& arg = context.Args[argIdx];
@@ -567,7 +564,7 @@ struct NailangFormatExecutor final : public common::str::CombinedExecutor<char32
         default: break;
         }
     }
-    using FormatterBase::Execute;
+    using FormatterOpExecutor::Execute;
 };
 static NailangFormatExecutor NLFmtExecutor;
 
@@ -597,7 +594,7 @@ std::u32string NailangBase::FormatString(const std::u32string_view formatter, co
         std::u32string dst;
         NailangFormatExecutor::Context ctx{ dst, formatter, args };
         auto opcodes = strInfo.Opcodes;
-        NailangFormatExecutor::Execute<common::str::FormatterExecutor>(opcodes, NLFmtExecutor, ctx);
+        NLFmtExecutor.Execute(opcodes, ctx);
         return dst;
     }
     catch (const common::BaseException& be)

@@ -216,90 +216,53 @@ auto FormatSpecCacher::CreateFrom(const T&, Args&&...)
 }
 
 
-template<typename Char, typename Fmter>
-struct CombinedExecutor : public FormatterExecutor, protected Fmter
+template<typename Char>
+struct DirectHost : public FormatterHost
 {
-    static_assert(std::is_base_of_v<Formatter<Char>, Fmter>, "Fmter need to derive from Formatter<Char>");
-    using CFmter = CommonFormatter<Char>;
-    using CTX = FormatterExecutor::Context;
+    using CTX = FormatterContext;
+    using Fmter = Formatter<Char>;
     struct Context : public CTX
     {
         std::basic_string<Char>& Dst;
-        std::basic_string_view<Char> FmtStr;
-        constexpr Context(std::basic_string<Char>& dst, std::basic_string_view<Char> fmtstr) noexcept : 
-            Dst(dst), FmtStr(fmtstr) { }
+        constexpr Context(std::basic_string<Char>& dst) noexcept : Dst(dst) { }
     };
+    SYSCOMMONAPI virtual ~DirectHost() override;
 
-    void OnBrace(CTX& ctx, bool isLeft) final
-    {
-        auto& context = static_cast<Context&>(ctx);
-        context.Dst.push_back(ParseLiterals<Char>::BracePair[isLeft ? 0 : 1]);
-    }
-    void OnColor(CTX& ctx, ScreenColor color) override
-    {
-        auto& context = static_cast<Context&>(ctx);
-        Fmter::PutColor(context.Dst, color);
-    }
-    
     void PutString(CTX& ctx, const void* str, size_t len, StringType type, const OpaqueFormatSpec& spec) override
     {
         auto& context = static_cast<Context&>(ctx);
-        CFmter::PutString(context.Dst, str, len, type, &spec);
-    }
-    forceinline void PutString(CTX& ctx, std::  string_view str, const OpaqueFormatSpec& spec)
-    {
-        PutString(ctx, str.data(), str.size(), StringType::UTF8, spec);
-    }
-    forceinline void PutString(CTX& ctx, std::u16string_view str, const OpaqueFormatSpec& spec)
-    {
-        PutString(ctx, str.data(), str.size(), StringType::UTF16, spec);
-    }
-    forceinline void PutString(CTX& ctx, std::u32string_view str, const OpaqueFormatSpec& spec)
-    {
-        PutString(ctx, str.data(), str.size(), StringType::UTF32, spec);
+        Fmter::PutString(context.Dst, str, len, type, spec);
     }
     void PutInteger(CTX& ctx, uint32_t val, bool isSigned, const OpaqueFormatSpec& spec) override
     {
         auto& context = static_cast<Context&>(ctx);
-        CFmter::PutInteger(context.Dst, val, isSigned, spec);
+        Fmter::PutInteger(context.Dst, val, isSigned, spec);
     }
     void PutInteger(CTX& ctx, uint64_t val, bool isSigned, const OpaqueFormatSpec& spec) override
     {
         auto& context = static_cast<Context&>(ctx);
-        CFmter::PutInteger(context.Dst, val, isSigned, spec);
+        Fmter::PutInteger(context.Dst, val, isSigned, spec);
     }
-    void PutFloat  (CTX& ctx, float  val, const OpaqueFormatSpec& spec) override
+    void PutFloat(CTX& ctx, float  val, const OpaqueFormatSpec& spec) override
     {
         auto& context = static_cast<Context&>(ctx);
-        CFmter::PutFloat(context.Dst, val, spec);
+        Fmter::PutFloat(context.Dst, val, spec);
     }
-    void PutFloat  (CTX& ctx, double val, const OpaqueFormatSpec& spec) override
+    void PutFloat(CTX& ctx, double val, const OpaqueFormatSpec& spec) override
     {
         auto& context = static_cast<Context&>(ctx);
-        CFmter::PutFloat(context.Dst, val, spec);
+        Fmter::PutFloat(context.Dst, val, spec);
     }
     void PutPointer(CTX& ctx, uintptr_t val, const OpaqueFormatSpec& spec) override
     {
         auto& context = static_cast<Context&>(ctx);
-        CFmter::PutPointer(context.Dst, val, spec);
+        Fmter::PutPointer(context.Dst, val, spec);
     }
 
     void PutString(CTX& ctx, const void* str, size_t len, StringType type, const FormatSpec* spec) override
     {
         auto& context = static_cast<Context&>(ctx);
         Fmter::PutString(context.Dst, str, len, type, spec);
-    }
-    forceinline void PutString(CTX& ctx, std::   string_view str, const FormatSpec* spec)
-    {
-        PutString(ctx, str.data(), str.size(), StringType::UTF8, spec);
-    }
-    forceinline void PutString(CTX& ctx, std::u16string_view str, const FormatSpec* spec)
-    {
-        PutString(ctx, str.data(), str.size(), StringType::UTF16, spec);
-    }
-    forceinline void PutString(CTX& ctx, std::u32string_view str, const FormatSpec* spec)
-    {
-        PutString(ctx, str.data(), str.size(), StringType::UTF32, spec);
     }
     void PutInteger(CTX& ctx, uint32_t val, bool isSigned, const FormatSpec* spec) override
     {
@@ -311,12 +274,12 @@ struct CombinedExecutor : public FormatterExecutor, protected Fmter
         auto& context = static_cast<Context&>(ctx);
         Fmter::PutInteger(context.Dst, val, isSigned, spec);
     }
-    void PutFloat  (CTX& ctx, float  val, const FormatSpec* spec) override
+    void PutFloat(CTX& ctx, float  val, const FormatSpec* spec) override
     {
         auto& context = static_cast<Context&>(ctx);
         Fmter::PutFloat(context.Dst, val, spec);
     }
-    void PutFloat  (CTX& ctx, double val, const FormatSpec* spec) override
+    void PutFloat(CTX& ctx, double val, const FormatSpec* spec) override
     {
         auto& context = static_cast<Context&>(ctx);
         Fmter::PutFloat(context.Dst, val, spec);
@@ -326,18 +289,46 @@ struct CombinedExecutor : public FormatterExecutor, protected Fmter
         auto& context = static_cast<Context&>(ctx);
         Fmter::PutPointer(context.Dst, val, spec);
     }
-    void PutDate   (CTX& ctx, std::string_view fmtStr, const DateStructure& date) override
+
+    void PutDate(CTX& ctx, const void* fmtStr, size_t len, StringType type, const DateStructure& date) override
     {
         auto& context = static_cast<Context&>(ctx);
-        Fmter::PutDateBase(context.Dst, fmtStr, date);
+        Fmter::PutDate(context.Dst, fmtStr, len, type, date);
     }
+    void PutColor(CTX& ctx, ScreenColor color) override
+    {
+        auto& context = static_cast<Context&>(ctx);
+        Fmter::PutColor(context.Dst, color);
+    }
+    using FormatterHost::PutString;
+    using FormatterHost::PutDate;
+};
+
+
+template<typename Char>
+struct DirectExecutor : public FormatterOpExecutor, public DirectHost<Char>
+{
+    using CTX = FormatterContext;
+    using Fmter = Formatter<Char>;
+    struct Context : public DirectHost<Char>::Context
+    {
+        std::basic_string_view<Char> FmtStr;
+        constexpr Context(std::basic_string<Char>& dst, std::basic_string_view<Char> fmtstr) noexcept : 
+            DirectHost<Char>::Context(dst), FmtStr(fmtstr) { }
+    };
+    SYSCOMMONAPI ~DirectExecutor() override;
 protected:
-    using Fmter::PutString;
-    using Fmter::PutInteger;
-    using Fmter::PutFloat;
-    using Fmter::PutPointer;
-    using Fmter::PutDate;
+    using FormatterOpExecutor::Execute;
 private:
+    void OnBrace(CTX& ctx, bool isLeft) final
+    {
+        auto& context = static_cast<Context&>(ctx);
+        context.Dst.push_back(ParseLiterals<Char>::BracePair[isLeft ? 0 : 1]);
+    }
+    void OnColor(CTX& ctx, ScreenColor color) final
+    {
+        this->PutColor(ctx, color);
+    }
     void OnFmtStr(CTX& ctx, uint32_t offset, uint32_t length) final
     {
         auto& context = static_cast<Context&>(ctx);
@@ -345,32 +336,37 @@ private:
     }
 };
 
-
 template<typename Char>
-struct FormatterBase::StaticExecutor
+struct BasicExecutor : public DirectExecutor<Char>
 {
-    struct Context 
+    struct Context : public DirectExecutor<Char>::Context
     {
-        std::basic_string<Char>& Dst;
         const StrArgInfoCh<Char>& StrInfo;
         const ArgInfo& TheArgInfo;
         span<const uint16_t> ArgStore;
         NamedMapper Mapping;
+        constexpr Context(std::basic_string<Char>& dst, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, span<const uint16_t> argStore, const NamedMapper& mapping) noexcept :
+            DirectExecutor<Char>::Context(dst, strInfo.FormatString), StrInfo(strInfo), TheArgInfo(argInfo), ArgStore(argStore), Mapping(mapping) {}
     };
-    Formatter<Char>& Fmter;
-    forceinline void OnFmtStr(Context& context, uint32_t offset, uint32_t length)
+
+    void FormatTo(std::basic_string<Char>& dst, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, span<const uint16_t> argStore, const NamedMapper& mapping)
     {
-        context.Dst.append(context.StrInfo.FormatString.data() + offset, length);
+        Context context(dst, strInfo, argInfo, argStore, mapping);
+        auto opcodes = strInfo.Opcodes;
+        FormatterOpExecutor::Execute(opcodes, context);
     }
-    forceinline void OnBrace(Context& context, bool isLeft)
+    template<typename T, typename... Args>
+    forceinline void FormatToStatic(std::basic_string<Char>& dst, const T&, Args&&... args)
     {
-        context.Dst.push_back(ParseLiterals<Char>::BracePair[isLeft ? 0 : 1]);
+        static_assert(std::is_same_v<typename std::decay_t<T>::CharType, Char>);
+        static constexpr auto Mapping = ArgChecker::CheckSS<T, Args...>();
+        static constexpr T StrInfo;
+        static constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
+        const auto argStore = ArgInfo::PackArgsStatic(std::forward<Args>(args)...);
+        FormatTo(dst, StrInfo, ArgsInfo, argStore.ArgStore, Mapping);
     }
-    forceinline void OnColor(Context& context, ScreenColor color)
-    {
-        Fmter.PutColor(context.Dst, color);
-    }
-    SYSCOMMONAPI void OnArg(Context& context, uint8_t argIdx, bool isNamed, SpecReader& reader);
+private:
+    SYSCOMMONAPI void OnArg(FormatterContext& context, uint8_t argIdx, bool isNamed, const uint8_t* spec) final;
 };
 
 
@@ -620,7 +616,7 @@ struct CombineSelection : public CustomFormatterTag
         {
             mapping[idx++] = Mapping[target];
         }
-        FormatterBase::FormatTo<Char>(formatter, dst, StrInfo, ArgsInfo, argStore.ArgStore, mapping);
+        formatter.FormatTo(dst, StrInfo, ArgsInfo, argStore.ArgStore, mapping);
     }
 
     template<typename... Args>

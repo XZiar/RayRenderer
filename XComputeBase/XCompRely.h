@@ -42,14 +42,14 @@ struct PCI_BDF
     constexpr PCI_BDF() noexcept : Val(0) {}
     constexpr PCI_BDF(uint32_t bus, uint32_t dev, uint32_t func) noexcept :
         Val(static_cast<uint16_t>((bus << 8) | ((dev & 0b11111) << 3) | (func & 0b111))) {}
-    constexpr uint32_t Bus() const noexcept { return Val >> 8; }
-    constexpr uint32_t Device() const noexcept { return (Val >> 3) & 0b11111; }
-    constexpr uint32_t Function() const noexcept { return Val & 0b111; }
-    constexpr explicit operator bool() const noexcept { return Val != 0 && Val != UINT16_MAX; }
-    constexpr bool operator==(const PCI_BDF& other) const noexcept { return Val == other.Val; }
-    constexpr bool operator!=(const PCI_BDF& other) const noexcept { return Val != other.Val; }
-    XCOMPBASAPI void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec* spec) const;
-    XCOMPBASAPI std::string ToString() const noexcept;
+    [[nodiscard]] constexpr uint32_t Bus() const noexcept { return Val >> 8; }
+    [[nodiscard]] constexpr uint32_t Device() const noexcept { return (Val >> 3) & 0b11111; }
+    [[nodiscard]] constexpr uint32_t Function() const noexcept { return Val & 0b111; }
+    [[nodiscard]] constexpr explicit operator bool() const noexcept { return Val != 0 && Val != UINT16_MAX; }
+    [[nodiscard]] constexpr bool operator==(const PCI_BDF& other) const noexcept { return Val == other.Val; }
+    [[nodiscard]] constexpr bool operator!=(const PCI_BDF& other) const noexcept { return Val != other.Val; }
+    XCOMPBASAPI void FormatWith(common::str::FormatterHost& host, common::str::FormatterContext& context, const common::str::FormatSpec* spec) const;
+    XCOMPBASAPI [[nodiscard]] std::string ToString() const noexcept;
 };
 
 
@@ -81,43 +81,43 @@ struct VTypeInfo
     constexpr VTypeInfo(uint32_t idx) noexcept :
         Dims(static_cast<uint8_t>(idx)), Bits(static_cast<uint8_t>(idx >> 8)), Flag(static_cast<TypeFlags>(idx >> 16)), Type(DataTypes::Custom) 
     {
-        Expects(idx <= 0xffffff);
+        Expects(idx <= 0xffffffu);
     }
-    forceinline constexpr explicit operator bool() const noexcept 
+    [[nodiscard]] forceinline constexpr explicit operator bool() const noexcept
     { 
         return Type != DataTypes::Empty;
     }
-    forceinline constexpr bool IsCustomType() const noexcept
+    [[nodiscard]] forceinline constexpr bool IsCustomType() const noexcept
     {
         return Type == DataTypes::Custom;
     }
-    forceinline constexpr bool HasFlag(TypeFlags flag) const noexcept;
-    forceinline constexpr bool IsSupportVec() const noexcept
+    [[nodiscard]] forceinline constexpr bool HasFlag(TypeFlags flag) const noexcept;
+    [[nodiscard]] forceinline constexpr bool IsSupportVec() const noexcept
     {
         return !HasFlag(TypeFlags::Unsupport);
     }
-    forceinline constexpr operator uint32_t() const noexcept
+    [[nodiscard]] forceinline constexpr operator uint32_t() const noexcept
     {
         return (static_cast<uint32_t>(Dims) << 0) | (static_cast<uint32_t>(Bits) << 8)
             | (static_cast<uint32_t>(Flag) << 16) | (static_cast<uint32_t>(Type) << 24);
     }
-    forceinline constexpr uint32_t ToIndex() const noexcept
+    [[nodiscard]] forceinline constexpr uint32_t ToIndex() const noexcept
     {
         return (static_cast<uint32_t>(Dims) << 0) | (static_cast<uint32_t>(Bits) << 8) | (static_cast<uint32_t>(Flag) << 16);
     }
-    forceinline constexpr common::simd::VecDataInfo ToVecDataInfo() const noexcept
+    [[nodiscard]] forceinline constexpr common::simd::VecDataInfo ToVecDataInfo() const noexcept
     {
         return { Type, Bits, Dim0(), Dim1() };
     }
-    forceinline constexpr uint8_t Dim0() const noexcept
+    [[nodiscard]] forceinline constexpr uint8_t Dim0() const noexcept
     {
         return DimUnPackMap[Dims & 0xfu];
     }
-    forceinline constexpr uint8_t Dim1() const noexcept
+    [[nodiscard]] forceinline constexpr uint8_t Dim1() const noexcept
     {
         return DimUnPackMap[Dims >> 4];
     }
-    forceinline constexpr void SetDims(uint8_t dim0, uint8_t dim1) noexcept
+    [[nodiscard]] forceinline constexpr void SetDims(uint8_t dim0, uint8_t dim1) noexcept
     {
         Dims = PackDims(dim0, dim1);
     }
@@ -150,6 +150,7 @@ struct VecDimSupport
         CHECK_N(8);
         CHECK_N(16);
         CHECK_N(32);
+#undef CHECK_N
         default: return false;
         }
     }
@@ -171,10 +172,11 @@ struct CommonDeviceInfo
     bool SupportDisplay : 1;
     bool SupportPV : 1;
     CommonDeviceInfo() noexcept;
-    virtual std::u16string_view GetICDPath(ICDTypes type) const noexcept;
-    virtual std::u16string_view GetDevicePath() const noexcept;
-    virtual uint32_t GetDisplay() const noexcept;
-    virtual bool CheckDisplay(uint32_t id) const noexcept;
+    [[nodiscard]] virtual std::u16string_view GetICDPath(ICDTypes type) const noexcept;
+    [[nodiscard]] virtual std::u16string_view GetDevicePath() const noexcept;
+    [[nodiscard]] virtual uint32_t GetDisplay() const noexcept;
+    [[nodiscard]] virtual bool CheckDisplay(uint32_t id) const noexcept;
+    XCOMPBASAPI void FormatWith(common::str::FormatterHost& host, common::str::FormatterContext& context, const common::str::FormatSpec* spec) const;
 };
 struct CommonDeviceContainer
 {
@@ -224,16 +226,16 @@ struct XCOMPBASAPI RangeHolder
 private:
     struct Range;
     std::weak_ptr<Range> CurrentRange;
-    virtual std::shared_ptr<const RangeHolder> BeginRange(std::u16string_view msg) const noexcept = 0;
+    [[nodiscard]] virtual std::shared_ptr<const RangeHolder> BeginRange(std::u16string_view msg) const noexcept = 0;
     virtual void EndRange() const noexcept = 0;
 protected:
-    bool CheckRangeEmpty() const noexcept
+    [[nodiscard]] bool CheckRangeEmpty() const noexcept
     {
         return CurrentRange.expired();
     }
     virtual ~RangeHolder();
 public:
-    std::shared_ptr<void> DeclareRange(std::u16string_view msg);
+    [[nodiscard]] std::shared_ptr<void> DeclareRange(std::u16string_view msg);
     virtual void AddMarker(std::u16string_view name) const noexcept = 0;
 };
 

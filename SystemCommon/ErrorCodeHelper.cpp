@@ -25,18 +25,18 @@ namespace common
 
 #if COMMON_OS_WIN
 
-void HResultHolder::FormatWith(str::FormatterExecutor& executor, str::FormatterExecutor::Context& context, const str::FormatSpec* spec) const
+void HResultHolder::FormatWith(str::FormatterHost& host, str::FormatterContext& context, const str::FormatSpec* spec) const
 {
     _com_error err(Value);
-    executor.PutString(context, err.ErrorMessage(), nullptr);
+    host.PutString(context, err.ErrorMessage(), nullptr);
     if (spec && spec->AlterForm)
     {
-        executor.PutString(context, "(", nullptr);
-        executor.PutInteger(context, static_cast<uint32_t>(Value), true, nullptr);
-        executor.PutString(context, ")", nullptr);
+        host.PutString(context, "(", nullptr);
+        host.PutInteger(context, static_cast<uint32_t>(Value), true, nullptr);
+        host.PutString(context, ")", nullptr);
     }
 }
-std::u16string HResultHolder::FormatHr(long hresult)
+std::u16string HResultHolder::FormatHr(long hresult) noexcept
 {
     _com_error err(hresult);
     return reinterpret_cast<const char16_t*>(err.ErrorMessage());
@@ -51,21 +51,21 @@ static const wchar_t* FormatWin32Error(unsigned long err)
         tmp, 2000, NULL);
     return tmp;
 }
-void Win32ErrorHolder::FormatWith(str::FormatterExecutor& executor, str::FormatterExecutor::Context& context, const str::FormatSpec* spec) const
+void Win32ErrorHolder::FormatWith(str::FormatterHost& host, str::FormatterContext& context, const str::FormatSpec* spec) const
 {
-    executor.PutString(context, FormatWin32Error(Value), nullptr);
+    host.PutString(context, FormatWin32Error(Value), nullptr);
     if (spec && spec->AlterForm)
     {
-        executor.PutString(context, "(", nullptr);
-        executor.PutInteger(context, static_cast<uint32_t>(Value), false, nullptr);
-        executor.PutString(context, ")", nullptr);
+        host.PutString(context, "(", nullptr);
+        host.PutInteger(context, static_cast<uint32_t>(Value), false, nullptr);
+        host.PutString(context, ")", nullptr);
     }
 }
-std::u16string Win32ErrorHolder::FormatError(unsigned long err)
+std::u16string Win32ErrorHolder::FormatError(unsigned long err) noexcept
 {
     return reinterpret_cast<const char16_t*>(FormatWin32Error(err));
 }
-Win32ErrorHolder Win32ErrorHolder::GetLastError()
+Win32ErrorHolder Win32ErrorHolder::GetLastError() noexcept
 {
     return Win32ErrorHolder{ ::GetLastError() };
 }
@@ -93,17 +93,17 @@ std::string_view ErrnoText(int32_t err)
         return tmp;
 }
 #endif
-void ErrnoHolder::FormatWith(str::FormatterExecutor& executor, str::FormatterExecutor::Context& context, const str::FormatSpec* spec) const
+void ErrnoHolder::FormatWith(str::FormatterHost& host, str::FormatterContext& context, const str::FormatSpec* spec) const
 {
-    executor.PutString(context, ErrnoText(Value), nullptr);
+    host.PutString(context, ErrnoText(Value), nullptr);
     if (spec && spec->AlterForm)
     {
-        executor.PutString(context, "(", nullptr);
-        executor.PutInteger(context, static_cast<uint32_t>(Value), true, nullptr);
-        executor.PutString(context, ")", nullptr);
+        host.PutString(context, "(", nullptr);
+        host.PutInteger(context, static_cast<uint32_t>(Value), true, nullptr);
+        host.PutString(context, ")", nullptr);
     }
 }
-std::u16string ErrnoHolder::FormatErrno(int32_t err)
+std::u16string ErrnoHolder::FormatErrno(int32_t err) noexcept
 {
 #if COMMON_OS_WIN
     return reinterpret_cast<const char16_t*>(ErrnoText(err));
@@ -111,7 +111,7 @@ std::u16string ErrnoHolder::FormatErrno(int32_t err)
     return str::to_u16string(ErrnoText(err));
 #endif
 }
-ErrnoHolder ErrnoHolder::GetCurError()
+ErrnoHolder ErrnoHolder::GetCurError() noexcept
 {
     return errno;
 }

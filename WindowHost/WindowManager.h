@@ -353,12 +353,12 @@ protected:
         constexpr RectBase() noexcept : Width(0), Height(0) {}
         constexpr RectBase(T w, T h) noexcept : Width(w), Height(h) {}
         constexpr RectBase(const WindowHost_& wd) noexcept : Width(static_cast<T>(wd.Width)), Height(static_cast<T>(wd.Height)) {}
-        void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec* spec) const
+        void FormatWith(common::str::FormatterHost& host, common::str::FormatterContext& context, const common::str::FormatSpec* spec) const
         {
             using U = std::make_unsigned_t<T>;
-            executor.PutInteger(context, static_cast<U>(Width), std::is_signed_v<T>, spec);
-            executor.PutString(context, "x", nullptr);
-            executor.PutInteger(context, static_cast<U>(Height), std::is_signed_v<T>, spec);
+            host.PutInteger(context, static_cast<U>(Width), std::is_signed_v<T>, spec);
+            host.PutString(context, "x", nullptr);
+            host.PutInteger(context, static_cast<U>(Height), std::is_signed_v<T>, spec);
         }
         constexpr bool operator==(const RectBase<T>& rhs) const noexcept { return Width == rhs.Width && Height == rhs.Height; }
         constexpr bool operator!=(const RectBase<T>& rhs) const noexcept { return Width != rhs.Width || Height != rhs.Height; }

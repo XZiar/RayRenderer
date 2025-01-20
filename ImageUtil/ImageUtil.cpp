@@ -17,13 +17,13 @@ using common::io::RandomOutputStream;
 using common::io::BufferedRandomInputStream;
 
 
-static auto& AcuireSupportLock()
+static auto& AcuireSupportLock() noexcept
 {
     static common::RWSpinLock Lock;
     return Lock;
 }
 
-static vector<std::shared_ptr<ImgSupport>>& SUPPORT_MAP()
+static vector<std::shared_ptr<ImgSupport>>& SUPPORT_MAP() noexcept
 {
     static vector<std::shared_ptr<ImgSupport>> supports;
     return supports;
@@ -49,7 +49,7 @@ bool UnRegistImageSupport(const std::shared_ptr<ImgSupport>& support) noexcept
 }
 
 
-static vector<std::shared_ptr<const ImgSupport>> GenerateSupportList(std::u16string_view ext, const ImgDType dataType, const bool isRead, const bool allowDisMatch)
+static vector<std::shared_ptr<const ImgSupport>> GenerateSupportList(std::u16string_view ext, const ImgDType dataType, const bool isRead, const bool allowDisMatch) noexcept
 {
     const auto lock = AcuireSupportLock().ReadScope();
     return common::linq::FromIterable(SUPPORT_MAP())
@@ -63,6 +63,17 @@ std::vector<std::shared_ptr<const ImgSupport>> GetImageSupport(std::u16string_vi
 {
     return GenerateSupportList(ext, dataType, isRead, false);
 }
+std::shared_ptr<const ImgSupport> GetImageSupport(const std::type_info& type) noexcept
+{
+    const auto lock = AcuireSupportLock().ReadScope();
+    for (const auto& support : SUPPORT_MAP())
+    {
+        if (typeid(*support) == type)
+            return support;
+    }
+    return {};
+}
+
 
 
 static u16string GetExtName(const common::fs::path& path)

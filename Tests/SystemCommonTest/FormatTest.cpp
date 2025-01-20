@@ -992,9 +992,9 @@ struct TypeB
 {};
 struct TypeC
 {
-    void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& context, const common::str::FormatSpec*) const
+    void FormatWith(common::str::FormatterHost& host, common::str::FormatterContext& context, const common::str::FormatSpec*) const
     {
-        executor.PutString(context, "5"sv, nullptr);
+        host.PutString(context, "5"sv, nullptr);
     }
 };
 struct TypeD
@@ -1002,9 +1002,9 @@ struct TypeD
 namespace common::str
 {
 template<> inline auto FormatAs<TypeB>(const TypeB&) { return 3.5f; }
-template<> inline auto FormatWith<TypeD>(const TypeD&, FormatterExecutor& executor, FormatterExecutor::Context& context, const FormatSpec*)
+template<> inline auto FormatWith<TypeD>(const TypeD&, FormatterHost& host, FormatterContext& context, const FormatSpec*)
 { 
-    executor.PutString(context, "7.5"sv, nullptr);
+    host.PutString(context, "7.5"sv, nullptr);
 }
 }
 
@@ -1361,30 +1361,34 @@ TEST(Format, Perf)
     const uint64_t datU64[4] = { 996, 510, UINT32_MAX, 0 };
     common::span<const uint64_t> spanU64(datU64);
 
-    std::string ref[4];
-    std::string csf[3];
-
-    const auto fmtdef = [&]() 
+    std::string ref[5];
+    const auto fmtdef = [&]()
     {
         ref[0].clear();
         fmt::format_to(std::back_inserter(ref[0]), FMT_STRING("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}"),
             "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
     };
-    const auto fmtcpl = [&]()
+    const auto fmtdir = [&]()
     {
         ref[1].clear();
-        fmt::format_to(std::back_inserter(ref[1]), FMT_COMPILE("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}"),
+        fmt::format_to(std::back_inserter(ref[1]), "123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}",
+            "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
+    };
+    const auto fmtcpl = [&]()
+    {
+        ref[2].clear();
+        fmt::format_to(std::back_inserter(ref[2]), FMT_COMPILE("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}"),
             "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
     };
     const auto fmtrt = [&]()
     {
-        ref[2].clear();
-        fmt::format_to(std::back_inserter(ref[2]), fmt::runtime("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}"),
+        ref[3].clear();
+        fmt::format_to(std::back_inserter(ref[3]), fmt::runtime("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}"),
             "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
     };
     const auto fmtdyn = [&]()
     {
-        ref[3].clear();
+        ref[4].clear();
         fmt::dynamic_format_arg_store<fmt::buffered_context<char>> store;
         store.push_back("hello");
         store.push_back(0.0);
@@ -1397,9 +1401,10 @@ TEST(Format, Perf)
         store.push_back(392.65);
         store.push_back(uint64_t(765));
         store.push_back(spanU64);
-        fmt::vformat_to(std::back_inserter(ref[3]), "123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}", store);
+        fmt::vformat_to(std::back_inserter(ref[4]), "123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}", store);
     };
 
+    std::string csf[5];
     const auto csfdyn = [&]()
     {
         csf[0].clear();
@@ -1421,24 +1426,51 @@ TEST(Format, Perf)
         csf[2].clear();
         cachedFmter.Format(csf[2], "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
     };
-
+    const auto csfexe = [&]()
+    {
+        csf[3].clear();
+        BasicExecutor<char> executor;
+        executor.FormatToStatic(csf[3], FmtString("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}"),
+            "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), spanU64);
+    };
+    struct TestHolder
+    {
+        common::span<const uint64_t> SpanU64;
+        inline void FormatWith(FormatterHost& host, FormatterContext& context, const FormatSpec*) const
+        {
+            common::str::FormatterBase::NestedFormat(host, context, FmtString("123{},456{},{},{:b},{:#X},{:09o},12345678901234567890{:g},{:f},{:+010.4g}abcdefg{:_^9}{}"),
+                "hello", 0.0, 42, uint8_t(64), int64_t(65535), -70000, 4.9014e6, -392.5f, 392.65, uint64_t(765), SpanU64);
+        }
+    };
+    const auto csfnest = [&]()
+    {
+        csf[4].clear();
+        common::str::Formatter<char>{}.DirectFormatTo(csf[4], TestHolder{ datU64 }, nullptr);
+    };
+    
     tester.ManaulTest(
         "fmt-def", fmtdef,
+        "fmt-dir", fmtdir,
         "fmt-cpl", fmtcpl,
         "fmt-rt ", fmtrt,
         "fmt-dyn", fmtdyn,
         "csf-dyn", csfdyn,
         "csf-sta", csfsta,
-        "csf-cah", csfcah
+        "csf-cah", csfcah,
+        "csf-exe", csfexe,
+        "csf-nst", csfnest
     );
     
     EXPECT_EQ(ref[1], ref[0]);
     EXPECT_EQ(ref[2], ref[0]);
     EXPECT_EQ(ref[3], ref[0]);
+    EXPECT_EQ(ref[4], ref[0]);
     EXPECT_EQ(csf[0], ref[0]);
     EXPECT_EQ(csf[1], csf[0]);
     EXPECT_EQ(csf[2], csf[0]);
-
-    // PerfTester("FormatPerf", 1, 3000).ManaulTest("csf-dyn", csfdyn);
+    EXPECT_EQ(csf[3], csf[0]);
+    EXPECT_EQ(csf[4], csf[0]);
+    
+    //PerfTester("FormatPerf", 1, 3000).ManaulTest("csf-exe", csfexe);
 }
 #endif

@@ -94,7 +94,7 @@ private:
                     std::array<std::byte, 8> luid = { std::byte(0) };
                     memcpy_s(luid.data(), luid.size(), &openFromHdc.AdapterLuid, sizeof(openFromHdc.AdapterLuid));
                     XCompDevice = xcomp::ProbeDevice().LocateExactDevice(&luid, nullptr, nullptr, {});
-                    //oglLog().Verbose(u"KMTAdapter-LUID[{}] for HDC[{}].\n", common::MiscIntrin.HexToStr(luid), hdc_);
+                    oglLog().Verbose(u"KMTAdapter-LUID[{}] for HDC[{:p}].\n", common::MiscIntrin.HexToStr(luid), dc);
                 }
             }
             SupportDesktop = true;

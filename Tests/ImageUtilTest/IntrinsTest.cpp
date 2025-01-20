@@ -31,25 +31,25 @@ struct HexVal
         return (Vals.size() == other.Vals.size()) && memcmp(Vals.data(), other.Vals.data(), Vals.size_bytes()) == 0;
     }
 
-    void FormatWith(common::str::FormatterExecutor& executor, common::str::FormatterExecutor::Context& ctx, const common::str::FormatSpec*) const noexcept
+    void FormatWith(common::str::FormatterHost& host, common::str::FormatterContext& ctx, const common::str::FormatSpec*) const noexcept
     {
         for (uint32_t i = 0; i < Vals.size(); ++i)
         {
             if (i > 0)
-                executor.PutString(ctx, " ", nullptr);
+                host.PutString(ctx, " ", nullptr);
             using U = std::conditional_t<(sizeof(T) > sizeof(uint32_t)), uint64_t, uint32_t>;
             if constexpr (std::is_floating_point_v<T>)
             {
-                executor.PutFloat(ctx, Vals[i], nullptr);
-                executor.PutString(ctx, "(", nullptr);
+                host.PutFloat(ctx, Vals[i], nullptr);
+                host.PutString(ctx, "(", nullptr);
                 U intVal;
                 memcpy_s(&intVal, sizeof(U), &Vals[i], sizeof(T));
-                executor.PutInteger(ctx, intVal, false, &SpecIntHex);
-                executor.PutString(ctx, ")", nullptr);
+                host.PutInteger(ctx, intVal, false, &SpecIntHex);
+                host.PutString(ctx, ")", nullptr);
             }
             else
             {
-                executor.PutInteger(ctx, static_cast<U>(Vals[i]), false, &SpecIntHex);
+                host.PutInteger(ctx, static_cast<U>(Vals[i]), false, &SpecIntHex);
             }
         }
     }
