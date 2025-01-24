@@ -57,17 +57,15 @@ The minimal unit in the pack is 2byte, so some arg may not be fully aligned. **U
 
 Pack stores slot index at the begining and arg data is followed.
 
+#### formatter
+Formatter does actual formation to string, which is usually just wrap of `fmt`.
+
 #### executor
 Formatter metadata, arg info, arg pack are stored in context. lib iterate the bytecodes and proxy the real action to executor with context.
 
 Executor is typed-erased so that maximun flexibility can be provided. Arg locating are done by executor so it's possible to bypass arg-copy with custom executor.
 
-StaticExecutor is provided and internally inlined to provide performance in usual cases.
-
-#### formatter
-Executor calls formatter to do actual formation, where formatter is usually just wrap of `fmt`.
-
-Custom formatter can hook up format call to record actions or arg. E.g, with `LoggerFormatter`(MiniLogger.h), color info will be manually stored and then it can be used with any target that supports color-segement-based text.
+Custom executor can hook up format call to record actions or arg. E.g, with `LoggerFormatter`(MiniLogger.h), color info will be manually stored and then it can be used with any target that supports color-segement-based text.
 
 ## [fmt](StringFormt.h)
 
@@ -79,7 +77,7 @@ StringUtil also exposes the embedded [fmt](../3rdParty/fmt), with dynamic-linkin
 
   [MPL 1.1 License](./3rdParty/uchardet/COPYING)
 
-* [fmt](http://fmtlib.net) `submodule` 10.1.0
+* [fmt](http://fmtlib.net) `submodule` 11.1.2
 
   [MIT License](./3rdParty/fmt/LICENSE.rst)
 

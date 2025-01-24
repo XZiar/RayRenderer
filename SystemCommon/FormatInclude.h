@@ -47,13 +47,13 @@ struct FormatSpec
     uint32_t Precision  = 0;
     uint16_t Width      = 0;
     uint16_t FmtOffset  = 0;
-    uint16_t FmtLen     = 0;
+    uint8_t FmtLen      = 0;
     uint8_t TypeExtra   = 0;
     Align Alignment     : 2;
     Sign SignFlag       : 2;
-    bool AlterForm      : 2;
-    bool ZeroPad        : 2;
-    constexpr FormatSpec() noexcept : 
+    bool AlterForm      : 1;
+    bool ZeroPad        : 1;
+    forceinline constexpr FormatSpec() noexcept : 
         Alignment(Align::None), SignFlag(Sign::None), AlterForm(false), ZeroPad(false) {}
 };
 

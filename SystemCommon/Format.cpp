@@ -8,8 +8,14 @@
 #include "StackTrace.h"
 #define HALF_ENABLE_F16C_INTRINSICS 0 // avoid platform compatibility
 #include "3rdParty/half/half.hpp"
+#include "3rdParty/fmt/include/fmt/compile.h"
 #include "3rdParty/fmt/src/format.cc"
 #pragma message("Compiling SystemCommon with fmt[" STRINGIZE(FMT_VERSION) "]" )
+
+
+#if !COMMON_SIMD_HAS_128
+#   error need SIMD128
+#endif
 
 
 #if COMMON_COMPILER_MSVC
@@ -135,7 +141,7 @@ NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<Char>& strInfo, const
     {
         const auto namedRet = ArgChecker::GetNamedArgMismatch(
             strInfo.NamedTypes.data(), strInfo.FormatString, strNamedArgCount,
-            argInfo.NamedTypes, argInfo.Names, argInfo.NamedArgCount);
+            argInfo.NamedTypes, argInfo.NamePtrs, argInfo.NameLens, argInfo.NamedArgCount);
         if (namedRet.AskIndex)
         {
             const auto& namedArg = strInfo.NamedTypes[*namedRet.AskIndex];
@@ -1065,59 +1071,55 @@ static constexpr auto ShortLenMap = []()
     }
     return ret;
 }();
-[[nodiscard]] static forceinline constexpr uint32_t EnsureSpecSize(const uint8_t* spec) noexcept
+[[nodiscard]] forceinline static constexpr uint32_t EnsureSpecSize(const uint8_t* spec) noexcept
 {
     if (spec)
     {
         const auto val0 = spec[0];
         const auto val1 = spec[1];
         uint32_t size = 2;
-        if (val1 & 0b11111100)
+        const auto varLenField = val1 & 0b111111u;
+        if (varLenField)
         {
-            size += ShortLenMap[val1 >> 2];
+            size += ShortLenMap[varLenField];
         }
-        const bool hasExtraFmt = val0 & 0b10000;
+        const bool hasExtraFmt = val0 & 0x10u;
         IF_UNLIKELY(hasExtraFmt)
         {
             size += val0 & 0x80 ? 2 : 1;
-            size += val0 & 0x40 ? 2 : 1;
+            size += 1;
         }
         return size;
     }
     return 0;
 }
-struct SpecReader::Checker
-{
 #if defined(DEBUG) || defined(_DEBUG)
-    static constexpr uint32_t SpecReaderCheckResult = []() -> uint32_t
+static constexpr uint32_t SpecReaderCheckResult = []() -> uint32_t
+{
+    uint8_t Dummy[32] = { 0 };
+    FormatSpec dummy;
+    for (uint16_t i = 0; i < 0xff; i += 0b10000)
     {
-        uint8_t Dummy[32] = { 0 };
-        SpecReader reader;
-        for (uint16_t i = 0; i < 0xff; i += 0b10000)
+        for (uint16_t j = 0; j < 0xff; j += 0b100)
         {
-            for (uint16_t j = 0; j < 0xff; j += 0b100)
-            {
-                Dummy[0] = static_cast<uint8_t>(i);
-                Dummy[1] = static_cast<uint8_t>(j);
-                const auto quickSize = EnsureSpecSize(Dummy);
-                reader.Reset(Dummy);
-                [[maybe_unused]] const auto dummy = reader.ReadSpec();
-                if (quickSize != reader.SpecSize)
-                    return i * 256 + j;
-            }
+            Dummy[0] = static_cast<uint8_t>(i);
+            Dummy[1] = static_cast<uint8_t>(j);
+            const auto quickSize = EnsureSpecSize(Dummy);
+            const auto readSize = SpecReader::ReadSpec(dummy, Dummy);
+            if (quickSize != readSize)
+                return i * 256 + j;
         }
-        return UINT32_MAX;
-    }();
-    static_assert(SpecReaderCheckResult == UINT32_MAX);
+    }
+    return UINT32_MAX;
+}();
+static_assert(SpecReaderCheckResult == UINT32_MAX);
 #endif
-};
 
 
 template<typename T, typename C>
 static forceinline uint32_t FormatExecute(span<const uint8_t>& opcodes, T& executor, C& context, uint32_t instCount = UINT32_MAX)
 {
     uint32_t icnt = 0; 
-    SpecReader reader; // outside of loop for reuse
     auto ptr = &opcodes.front(); 
     for (const auto opEnd = &opcodes.back(); icnt < instCount && ptr <= opEnd; icnt++)
     {
@@ -1134,12 +1136,33 @@ static forceinline uint32_t FormatExecute(span<const uint8_t>& opcodes, T& execu
             case FormatterParser::BuiltinOp::FieldFmtStr:
             {
                 static_assert(common::detail::is_little_endian);
-                const bool isOffset16 = opdata & FormatterParser::BuiltinOp::DataOffset16;
-                const bool isLength16 = opdata & FormatterParser::BuiltinOp::DataLength16;
-                const uint32_t offset = isOffset16 ? *reinterpret_cast<const uint16_t*>(ptr) : *ptr;
-                ptr += isOffset16 ? 2 : 1;
-                const uint32_t length = isLength16 ? *reinterpret_cast<const uint16_t*>(ptr) : *ptr;
-                ptr += isLength16 ? 2 : 1;
+                uint32_t offset = 0, length = 0;
+                const auto val0 = *reinterpret_cast<const uint16_t*>(ptr);
+                IF_LIKELY(opdata == 0) // !isOffset16 && !isLength16
+                {
+                    offset = val0 & 0xffu;
+                    length = val0 >> 8;
+                    ptr += 2;
+                }
+                else
+                {
+                    ABORT_CHECK((opdata& (FormatterParser::BuiltinOp::DataOffset16 | FormatterParser::BuiltinOp::DataLength16)) != 0);
+                    const bool isOffset16 = opdata & FormatterParser::BuiltinOp::DataOffset16;
+                    if (!isOffset16)
+                    {
+                        offset = val0 & 0xffu;
+                        length = *reinterpret_cast<const uint16_t*>(ptr + 1);
+                        ptr += 3;
+                    }
+                    else
+                    {
+                        offset = val0;
+                        ptr += 2;
+                        const bool isLength16 = opdata & FormatterParser::BuiltinOp::DataLength16;
+                        length = isLength16 ? *reinterpret_cast<const uint16_t*>(ptr) : *ptr;
+                        ptr += isLength16 ? 2 : 1;
+                    }
+                }
                 executor.OnFmtStr(context, offset, length);
             } break;
             case FormatterParser::BuiltinOp::FieldBrace:
@@ -1272,7 +1295,7 @@ forceinline std::chrono::time_point<std::chrono::system_clock, std::chrono::micr
     return systime;
 }
 
-static void FillTime(const date::time_zone* timezone, uint64_t encodedUs, DateStructure& date) noexcept
+forceinline static void FillTime(const date::time_zone* timezone, uint64_t encodedUs, DateStructure& date) noexcept
 {
     constexpr auto MonthDaysAcc = []()
         {
@@ -1349,7 +1372,7 @@ static_assert(enum_cast(RealSizeInfo::Byte1) == enum_cast(StringType::UTF8));
 static_assert(enum_cast(RealSizeInfo::Byte2) == enum_cast(StringType::UTF16));
 static_assert(enum_cast(RealSizeInfo::Byte4) == enum_cast(StringType::UTF32));
 
-static DateStructure GetDate(ArgRealType argType, const uint16_t* argPtr) noexcept
+forceinline static DateStructure GetDate(ArgRealType argType, const uint16_t* argPtr) noexcept
 {
     DateStructure date;
     if (HAS_FIELD(argType, ArgRealType::DateDeltaBit))
@@ -1377,28 +1400,41 @@ static DateStructure GetDate(ArgRealType argType, const uint16_t* argPtr) noexce
     }
     return date;
 }
+template<typename Char>
+forcenoinline static void PutDate(Formatter<Char>& fmter, std::basic_string<Char>& dst, std::basic_string_view<Char> fmtStr, ArgRealType argType, const uint16_t* argPtr)
+{
+    fmter.PutDate(dst, fmtStr, GetDate(argType, argPtr));
+}
+template<typename Char, typename Ctx>
+forcenoinline static void PutDate(FormatterHost& host, Ctx& ctx, std::basic_string_view<Char> fmtStr, ArgRealType argType, const uint16_t* argPtr)
+{
+    host.PutDate(ctx, fmtStr, GetDate(argType, argPtr));
+}
+
 
 template<typename Char, typename Ctx, typename Host, typename Spec>
-forceinline static void UniversalOnArg(Host& host, Ctx& ctx, const Spec& spec, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, const uint16_t* argStore, const NamedMapper& mapping, const uint8_t argIdx, const bool isNamed)
+inline static void UniversalOnArg(const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, const uint16_t* argStore, const NamedMapper& mapping, Host& host, Ctx& ctx, const Spec& spec_, const uint8_t argIdx, const bool isNamed)
 {
     ArgDispType fmtType = ArgDispType::Any;
-    const uint16_t* argPtr = nullptr;
     ArgRealType argType = ArgRealType::Error;
+    uint32_t argSlot = 0;
     IF_UNLIKELY(isNamed)
     {
         fmtType = strInfo.NamedTypes[argIdx].Type;
         const auto mapIdx = mapping[argIdx];
         argType = argInfo.NamedTypes[mapIdx];
-        const auto argSlot = mapIdx + argInfo.IdxArgCount;
-        argPtr = argStore + argStore[argSlot];
+        argSlot = mapIdx + argInfo.IdxArgCount;
     }
     else
     {
         fmtType = strInfo.IndexTypes[argIdx];
         argType = argInfo.IndexTypes[argIdx];
-        const auto argSlot = argIdx;
-        argPtr = argStore + argStore[argSlot];
+        argSlot = argIdx;
     }
+    const auto argPtr = argStore + argStore[argSlot];
+    constexpr bool IsOpaqueSpec = std::is_same_v<Spec, OpaqueFormatSpec>;
+    using TSpec = std::conditional_t<IsOpaqueSpec, const OpaqueFormatSpec&, SpecHolder>;
+    TSpec spec = spec_;
     try
     {
         const auto realType = argType & ArgRealType::BaseTypeMask;
@@ -1489,20 +1525,20 @@ forceinline static void UniversalOnArg(Host& host, Ctx& ctx, const Spec& spec, c
             host.PutPointer(ctx, val, spec);
         } return;
         case ArgRealType::Date:
-            if constexpr (std::is_same_v<Spec, const FormatSpec*>)
+            if constexpr (!IsOpaqueSpec)
             {
                 ABORT_CHECK(fmtType == ArgDispType::Date || fmtType == ArgDispType::Any);
                 std::basic_string_view<Char> fmtStr{};
                 if (spec && spec->FmtLen)
                     fmtStr = strInfo.FormatString.substr(spec->FmtOffset, spec->FmtLen);
-                host.PutDate(ctx, fmtStr, GetDate(argType, argPtr));
+                PutDate(host, ctx, fmtStr, argType, argPtr);
             }
             else
             {
                 Expects(false);
             } return;
         case ArgRealType::Color:
-            if constexpr (std::is_same_v<Spec, const FormatSpec*>)
+            if constexpr (!IsOpaqueSpec)
             {
                 ABORT_CHECK(fmtType == ArgDispType::Color || fmtType == ArgDispType::Any);
                 const auto color = intSize == RealSizeInfo::Byte4 ? *reinterpret_cast<const ScreenColor*>(argPtr) : ScreenColor{ false, *reinterpret_cast<const CommonColor*>(argPtr) };
@@ -1520,7 +1556,7 @@ forceinline static void UniversalOnArg(Host& host, Ctx& ctx, const Spec& spec, c
                 Expects(false);
             } return;
         case ArgRealType::Custom:
-            if constexpr (std::is_same_v<Spec, const FormatSpec*>)
+            if constexpr (!IsOpaqueSpec)
             {
                 const auto& pair = *reinterpret_cast<const detail::FmtWithPair*>(argPtr);
                 if constexpr (std::is_base_of_v<Formatter<Char>, std::decay_t<Host>>)
@@ -1587,13 +1623,14 @@ forceinline static void UniversalOnArg(Host& host, Ctx& ctx, const Spec& spec, c
         std::u16string argName;
         if (isNamed)
         {
-            const auto& info = strInfo.NamedTypes[argIdx];
-            argName = to_u16string(strInfo.FormatString.substr(info.Offset, info.Length));
+            const auto mapIdx = mapping[argIdx];
+            const auto nameptr = argInfo.NamePtrs[mapIdx];
+            const auto namelen = argInfo.NameLens[mapIdx];
+            argName.assign(nameptr, nameptr + namelen);
         }
         else
         {
-            const auto idxtxt = std::to_string(argIdx);
-            argName.assign(idxtxt.begin(), idxtxt.end());
+            fmt::format_to(std::back_inserter(argName), FMT_COMPILE(u"{}"), argIdx);
         }
         std::u16string msg = u"Error when formatting [" + argName + u"]: ";
         const auto fmtMsg = err.what();
@@ -1609,8 +1646,7 @@ template<typename Char>
 void BasicExecutor<Char>::OnArg(FormatterContext& ctx, uint8_t argIdx, bool isNamed, const uint8_t* spec)
 {
     auto& context = static_cast<Context&>(ctx);
-    SpecReader reader(spec);
-    UniversalOnArg<Char>(*this, ctx, reader.ReadSpec(), context.StrInfo, context.TheArgInfo, context.ArgStore.data(), context.Mapping, argIdx, isNamed);
+    UniversalOnArg<Char>(context.StrInfo, context.TheArgInfo, context.ArgStore.data(), context.Mapping, *this, ctx, spec, argIdx, isNamed);
 }
 template SYSCOMMONTPL void BasicExecutor<char>    ::OnArg(FormatterContext& context, uint8_t argIdx, bool isNamed, const uint8_t* spec);
 template SYSCOMMONTPL void BasicExecutor<wchar_t> ::OnArg(FormatterContext& context, uint8_t argIdx, bool isNamed, const uint8_t* spec);
@@ -1643,8 +1679,8 @@ bool FormatSpecCacher::Cache(const StrArgInfo& strInfo, const ArgInfo& argInfo, 
                 const auto bitIndex = (isNamed ? StrInfo.NamedTypes.size() : 0) + argIdx;
                 auto& target = isNamed ? Cache.NamedSpec : Cache.IndexSpec;
                 target.resize(std::max<size_t>(target.size(), argIdx + 1));
-                SpecReader reader(spec);
-                Cache.CachedBitMap.Set(bitIndex, FormatterHost::ConvertSpec(target[argIdx], reader.ReadSpec(), realType, dispType));
+                SpecHolder reader(spec);
+                Cache.CachedBitMap.Set(bitIndex, FormatterHost::ConvertSpec(target[argIdx], reader, realType, dispType));
             }
         }
 
@@ -1691,15 +1727,15 @@ void FormatSpecCacherCh<Char>::FormatTo(std::basic_string<Char>& dst, span<const
         forceinline void OnArg(Context& context, uint8_t argIdx, bool isNamed, const uint8_t* spec)
         {
             const auto bitIndex = (isNamed ? Cache.StrInfo.NamedTypes.size() : 0) + argIdx;
+            auto& self = *static_cast<Formatter<Char>*>(this);
             if (Cache.CachedBitMap.Get(bitIndex))
             {
                 auto& target = isNamed ? Cache.NamedSpec : Cache.IndexSpec;
-                UniversalOnArg<Char>(*this, context.Dst, target[argIdx], Cache.StrInfo, Cache.TheArgInfo, context.ArgStore.data(), Cache.Mapping, argIdx, isNamed);
+                UniversalOnArg<Char>(Cache.StrInfo, Cache.TheArgInfo, context.ArgStore.data(), Cache.Mapping, self, context.Dst, target[argIdx], argIdx, isNamed);
             }
             else
             {
-                SpecReader reader(spec);
-                UniversalOnArg<Char>(*this, context.Dst, reader.ReadSpec(), Cache.StrInfo, Cache.TheArgInfo, context.ArgStore.data(), Cache.Mapping, argIdx, isNamed);
+                UniversalOnArg<Char>(Cache.StrInfo, Cache.TheArgInfo, context.ArgStore.data(), Cache.Mapping, self, context.Dst, spec, argIdx, isNamed);
             }
         }
 
@@ -1747,8 +1783,7 @@ void FormatterBase::NestedExecute(FormatterHost& host, FormatterContext& context
         }
         forceinline void OnArg(Context& ctx, uint8_t argIdx, bool isNamed, const uint8_t* spec) final
         {
-            SpecReader reader(spec);
-            UniversalOnArg<Char>(Host, ctx, reader.ReadSpec(), StrInfo, TheArgInfo, ArgStore.data(), Mapping, argIdx, isNamed);
+            UniversalOnArg<Char>(StrInfo, TheArgInfo, ArgStore.data(), Mapping, Host, ctx, spec, argIdx, isNamed);
         }
         using FormatterOpExecutor::Execute;
     };
@@ -1778,7 +1813,6 @@ void Formatter<Char>::FormatTo(std::basic_string<Char>& ret, const StrArgInfoCh<
             span<const uint16_t> ArgStore;
             NamedMapper Mapping;
         };
-        using Fmter = Formatter<Char>;
         forceinline void OnFmtStr(Context& context, uint32_t offset, uint32_t length)
         {
             context.Dst.append(context.StrInfo.FormatString.data() + offset, length);
@@ -1789,13 +1823,12 @@ void Formatter<Char>::FormatTo(std::basic_string<Char>& ret, const StrArgInfoCh<
         }
         forceinline void OnColor(Context& context, ScreenColor color)
         {
-            Fmter::PutColor(context.Dst, color);
+            Formatter<Char>::PutColor(context.Dst, color);
         }
         forceinline void OnArg(Context& context, uint8_t argIdx, bool isNamed, const uint8_t* spec)
         {
-            SpecReader reader(spec);
-            Fmter fmter{};
-            UniversalOnArg<Char>(fmter, context.Dst, reader.ReadSpec(), context.StrInfo, context.TheArgInfo, context.ArgStore.data(), context.Mapping, argIdx, isNamed);
+            Formatter<Char> fmter{};
+            UniversalOnArg<Char>(context.StrInfo, context.TheArgInfo, context.ArgStore.data(), context.Mapping, fmter, context.Dst, spec, argIdx, isNamed);
         }
     };
 

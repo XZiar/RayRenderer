@@ -40,7 +40,8 @@ struct ParseResultBase
         InvalidColor, MissingColorFGBG, InvalidCommonColor, Invalid8BitColor, Invalid24BitColor,
         InvalidArgIdx, ArgIdxTooLarge, InvalidArgName, ArgNameTooLong,
         FillNotSingleCP, FillWithoutAlign, WidthTooLarge, InvalidPrecision, PrecisionTooLarge, InvalidCodepoint,
-        InvalidType, ExtraFmtSpec, IncompDateSpec, IncompTimeSpec, IncompColorSpec, IncompNumSpec, IncompType, InvalidFmt
+        InvalidType, ExtraFmtSpec, ExtraFmtTooLong, 
+        IncompDateSpec, IncompTimeSpec, IncompColorSpec, IncompNumSpec, IncompType, InvalidFmt
     };
 #define SCSTR_HANDLE_PARSE_ERROR(handler)\
     handler(FmtTooLong,         "Format string too long"); \
@@ -67,6 +68,7 @@ struct ParseResultBase
     handler(InvalidCodepoint,   "Invalid codepoint"); \
     handler(InvalidType,        "Invalid type specified for arg"); \
     handler(ExtraFmtSpec,       "Unknown extra format spec left at the end"); \
+    handler(ExtraFmtTooLong,    "Extra format string too long"); \
     handler(IncompDateSpec,     "Extra spec applied on date type"); \
     handler(IncompTimeSpec,     "Extra spec applied on time type"); \
     handler(IncompColorSpec,    "Extra spec applied on color type"); \
@@ -251,7 +253,7 @@ struct FormatterParser
         uint32_t Precision  = 0;
         uint16_t Width      = 0;
         uint16_t FmtOffset  = 0;
-        uint16_t FmtLen     = 0;
+        uint8_t FmtLen      = 0;
         TypeIdentifier Type;
         Align Alignment     = Align::None;
         Sign SignFlag       = Sign::None;
@@ -269,23 +271,47 @@ struct FormatterParser
         static constexpr uint8_t DataOffset16 = 0x01;
         static constexpr uint8_t DataLength16 = 0x02;
         template<typename T>
-        static forceinline constexpr bool EmitFmtStr(T& result, size_t offset, size_t length) noexcept
+        static forceinline constexpr bool EmitFmtStr(T& result, uint32_t offset, uint32_t length) noexcept
         {
             const auto isOffset16 = offset >= UINT8_MAX;
             const auto isLength16 = length >= UINT8_MAX;
-            const auto opcnt = 1 + 1 + 1 + (isOffset16 ? 1 : 0) + (isLength16 ? 1 : 0);
+            const auto opcnt = 1 + (isOffset16 ? 2 : 1) + (isLength16 ? 2 : 1);
             auto space = result.ReserveSpace(offset, opcnt);
             IF_UNLIKELY(!space) return false;
             auto opval = Op | FieldFmtStr;
             if (isOffset16) opval |= DataOffset16;
             if (isLength16) opval |= DataLength16;
             *space++ = static_cast<uint8_t>(opval);
-            *space++ = static_cast<uint8_t>(offset);
-            if (isOffset16)
-                *space++ = static_cast<uint8_t>(offset >> 8);
-            *space++ = static_cast<uint8_t>(length);
-            if (isLength16)
-                *space++ = static_cast<uint8_t>(length >> 8);
+            if (common::is_constant_evaluated(true))
+            {
+                *space++ = static_cast<uint8_t>(offset);
+                if (isOffset16)
+                    *space++ = static_cast<uint8_t>(offset >> 8);
+                *space++ = static_cast<uint8_t>(length);
+                if (isLength16)
+                    *space++ = static_cast<uint8_t>(length >> 8);
+            }
+            else
+            {
+                // Little Endian can simply copy, unused region remains 0, at lease 2B available initially
+                *reinterpret_cast<uint16_t*>(space) = static_cast<uint16_t>(offset);
+                IF_UNLIKELY(isOffset16)
+                {
+                    space += 2;
+                }
+                else
+                {
+                    space += 1;
+                }
+                IF_UNLIKELY(isLength16)
+                {
+                    *reinterpret_cast<uint16_t*>(space) = static_cast<uint16_t>(length);
+                }
+                else
+                {
+                    *space = static_cast<uint8_t>(length);
+                }
+            }
             return true;
         }
         template<typename T>
@@ -349,8 +375,8 @@ struct FormatterParser
     };
     struct ArgOp
     {
-        static constexpr uint8_t SpecLength[2] = { 2,16 };
-        static constexpr uint8_t Length[2] = { 2,18 };
+        static constexpr uint8_t SpecLength[2] = { 2,15 };
+        static constexpr uint8_t Length[2] = { 2,17 };
         static constexpr uint8_t Op = 0x80;
         static constexpr uint8_t FieldIndexed = 0x00;
         static constexpr uint8_t FieldNamed   = 0x20;
@@ -415,6 +441,10 @@ struct FormatterParser
                 bool AlterForm = false;//1
                 bool ZeroPad = false;//1
             };*/
+            // spec0: 7.......5|...4....|3...2|1..0|
+            // spec0: TypeExtra|ExtraFmt|Align|Sign|
+            // spec1: ..7..|...6...|5.....4|3.....2|1......0|
+            // spec1: Alter|ZeroPad|FillLen|PrecLen|WidthLen|
             CM_ASSUME(static_cast<uint8_t>(spec.Alignment) < 4);
             CM_ASSUME(static_cast<uint8_t>(spec.SignFlag) < 4);
             spec0 |= static_cast<uint8_t>(spec.Type.Extra << 5);
@@ -424,19 +454,19 @@ struct FormatterParser
             IF_UNLIKELY(spec.Fill != ' ') // + 0~4
             {
                 const auto val = EncodeValLenTo(spec.Fill, output, idx);
-                spec1 |= static_cast<uint8_t>(val << 6);
+                spec1 |= static_cast<uint8_t>(val << 4);
             }
             IF_UNLIKELY(spec.Precision != 0) // + 0~4
             {
                 const auto val = EncodeValLenTo(spec.Precision, output, idx);
-                spec1 |= static_cast<uint8_t>(val << 4);
+                spec1 |= static_cast<uint8_t>(val << 2);
             }
             IF_UNLIKELY(spec.Width != 0) // + 0~2
             {
                 const auto val = EncodeValLenTo(spec.Width, output, idx);
-                spec1 |= static_cast<uint8_t>(val << 2);
+                spec1 |= val;
             }
-            IF_UNLIKELY(spec.FmtLen > 0) // + 0~4
+            IF_UNLIKELY(spec.FmtLen > 0) // + 0~3
             {
                 spec0 |= static_cast<uint8_t>(0x10u);
                 if (common::is_constant_evaluated(true))
@@ -448,11 +478,6 @@ struct FormatterParser
                         spec0 |= static_cast<uint8_t>(0x80u);
                     }
                     output[idx++] = static_cast<uint8_t>(spec.FmtLen);
-                    if (spec.FmtLen > UINT8_MAX)
-                    {
-                        output[idx++] = static_cast<uint8_t>(spec.FmtLen >> 8);
-                        spec0 |= static_cast<uint8_t>(0x40u);
-                    }
                 }
                 else
                 {
@@ -467,22 +492,13 @@ struct FormatterParser
                     {
                         idx += 1;
                     }
-                    *reinterpret_cast<uint16_t*>(&output[idx]) = spec.FmtLen;
-                    IF_UNLIKELY(spec.FmtLen > UINT8_MAX)
-                    {
-                        idx += 2;
-                        spec0 |= static_cast<uint8_t>(0x40u);
-                    }
-                    else
-                    {
-                        idx += 1;
-                    }
+                    output[idx++] = spec.FmtLen;
                 }
             }
             if (spec.AlterForm) 
-                spec1 |= 0b10;
+                spec1 |= 0x80;
             if (spec.ZeroPad)
-                spec1 |= 0b01;
+                spec1 |= 0x40;
             output[0] = spec0;
             output[1] = spec1;
             return idx;
@@ -1207,7 +1223,13 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
                     IF_LIKELY(type.Type == ArgDispType::Date || type.Type == ArgDispType::Custom)
                     {
                         fmtSpec.FmtOffset = static_cast<uint16_t>(offset + idx);
-                        fmtSpec.FmtLen = static_cast<uint16_t>(len - idx);
+                        const auto fmtLen = len - idx;
+                        IF_UNLIKELY(fmtLen >= UINT8_MAX)
+                        {
+                            result.SetError(offset + idx, ParseResultBase::ErrorCode::ExtraFmtTooLong);
+                            return false;
+                        }
+                        fmtSpec.FmtLen = static_cast<uint8_t>(fmtLen);
                     }
                     else
                     {
@@ -2007,7 +2029,8 @@ struct FmtWithPair
 
 struct ArgInfo
 {
-    std::string_view Names[ParseResultCommon::NamedArgSlots] = {};
+    const char* NamePtrs[ParseResultCommon::NamedArgSlots] = { nullptr };
+    uint8_t NameLens[ParseResultCommon::NamedArgSlots] = { 0 };
     ArgRealType NamedTypes[ParseResultCommon::NamedArgSlots] = { ArgRealType::Error };
     ArgRealType IndexTypes[ParseResultCommon::IdxArgSlots] = { ArgRealType::Error };
     uint8_t NamedArgCount = 0, IdxArgCount = 0;
@@ -2139,7 +2162,9 @@ struct ArgInfo
             {
                 constexpr typename T::NameType Name {};
                 static_assert(!Name.Name.empty(), "Arg name should not be empty");
-                result.Names[result.NamedArgCount] = Name.Name;
+                static_assert(Name.Name.size() <= UINT8_MAX, "Arg name length should not exceed UINT8_MAX");
+                result.NamePtrs[result.NamedArgCount] = Name.Name.data();
+                result.NameLens[result.NamedArgCount] = static_cast<uint8_t>(Name.Name.size());
             }
             result.NamedArgCount++;
         }
@@ -2333,22 +2358,25 @@ struct ArgChecker
     }
     template<typename Char>
     static constexpr NamedCheckResult GetNamedArgMismatch(const ParseResultCommon::NamedArgType* ask, const std::basic_string_view<Char> fmtStr, uint8_t askCount,
-        const ArgRealType* give, const std::string_view* giveNames, uint8_t giveCount) noexcept
+        const ArgRealType* give, const char* const* giveNamePtrs, const uint8_t* giveNameLens, uint8_t giveCount) noexcept
     {
         NamedCheckResult ret;
         for (uint8_t i = 0; i < askCount; ++i)
         {
             //CM_ASSUME(ask[i].Offset + ask[i].Length < fmtStr.size());
-            const auto askName = fmtStr.substr(ask[i].Offset, ask[i].Length);
+            const auto askName = &fmtStr[ask[i].Offset];
+            const auto askNameLen = ask[i].Length;
+            //const auto askName = fmtStr.substr(ask[i].Offset, ask[i].Length);
             bool found = false, match = false;
             uint8_t j = 0;
             for (; j < giveCount; ++j)
             {
-                const auto& giveName = giveNames[j];
-                if (giveName.size() == askName.size())
+                const auto giveNameLen = giveNameLens[j];
+                if (giveNameLen == askNameLen)
                 {
+                    const auto giveName = giveNamePtrs[j];
                     bool fullMatch = true;
-                    for (size_t k = 0; k < giveName.size(); ++k)
+                    for (uint32_t k = 0; k < giveNameLen; ++k)
                     {
                         if (static_cast<Char>(giveName[k]) != askName[k])
                         {
@@ -2422,7 +2450,7 @@ struct ArgChecker
         if constexpr (StrInfo.NamedArgCount > 0)
         {
             constexpr auto NamedRet = GetNamedArgMismatch(StrInfo.NamedTypes.data(), StrInfo.GetNameSource(), StrInfo.NamedArgCount,
-                ArgsInfo.NamedTypes, ArgsInfo.Names, ArgsInfo.NamedArgCount);
+                ArgsInfo.NamedTypes, ArgsInfo.NamePtrs, ArgsInfo.NameLens, ArgsInfo.NamedArgCount);
             CheckNamedArgMismatch<NamedRet.AskIndex ? *NamedRet.AskIndex : ParseResultCommon::NamedArgSlots,
                 NamedRet.GiveIndex ? *NamedRet.GiveIndex : ParseResultCommon::NamedArgSlots>();
             return NamedRet.Mapper;
@@ -2460,29 +2488,16 @@ public:
 
 struct SpecReader
 {
-    friend FormatterBase;
-private:
-    struct Checker;
-    const uint8_t* Ptr;
-    FormatSpec Spec;
-    uint32_t SpecSize = 0;
-    forceinline constexpr void Reset(const uint8_t* ptr) noexcept
-    {
-        Ptr = ptr;
-        SpecSize = 0;
-    }
 public:
-    constexpr SpecReader() noexcept : Ptr(nullptr) {}
-    explicit constexpr SpecReader(const uint8_t* ptr) noexcept : Ptr(ptr) {}
-    [[nodiscard]] forceinline constexpr uint32_t ReadLengthedVal(uint32_t lenval, uint32_t val) noexcept
+    [[nodiscard]] forceinline static constexpr uint32_t ReadLengthedVal(const uint8_t* ptr, uint32_t& size, uint32_t lenval, uint32_t val) noexcept
     {
         if (common::is_constant_evaluated(true))
         {
             switch (lenval & 0b11u)
             {
-            case 1:  val = Ptr[SpecSize]; SpecSize += 1; break;
-            case 2:  val = Ptr[SpecSize + 0] | (Ptr[SpecSize + 1] << 8); SpecSize += 2; break;
-            case 3:  val = Ptr[SpecSize + 0] | (Ptr[SpecSize + 1] << 8) | (Ptr[SpecSize + 2] << 16) | (Ptr[SpecSize + 3] << 24); SpecSize += 4; break;
+            case 1:  val = ptr[size]; size += 1; break;
+            case 2:  val = ptr[size + 0] | (ptr[size + 1] << 8); size += 2; break;
+            case 3:  val = ptr[size + 0] | (ptr[size + 1] << 8) | (ptr[size + 2] << 16) | (ptr[size + 3] << 24); size += 4; break;
             case 0:
             default: break;
             }
@@ -2491,53 +2506,54 @@ public:
         {
             switch (lenval & 0b11u)
             {
-            case 1:  val = Ptr[SpecSize]; SpecSize += 1; break;
-            case 2:  val = *reinterpret_cast<const uint16_t*>(&Ptr[SpecSize]); SpecSize += 2; break;
-            case 3:  val = *reinterpret_cast<const uint32_t*>(&Ptr[SpecSize]); SpecSize += 4; break;
+            case 1:  val = ptr[size]; size += 1; break;
+            case 2:  val = *reinterpret_cast<const uint16_t*>(&ptr[size]); size += 2; break;
+            case 3:  val = *reinterpret_cast<const uint32_t*>(&ptr[size]); size += 4; break;
             case 0:
             default: break;
             }
         }
         return val;
     };
-    [[nodiscard]] forceinline constexpr const FormatSpec* ReadSpec() noexcept
+    forceinline static constexpr uint32_t ReadSpec(FormatSpec& spec, const uint8_t* ptr) noexcept
     {
-        if (!Ptr)
-            return nullptr;
-        if (!SpecSize)
+        if (!ptr)
+            return 0;
+        uint32_t size = 0;
+        const auto val0 = ptr[size++];
+        const auto val1 = ptr[size++];
+        spec.TypeExtra = static_cast<uint8_t>(val0 >> 5);
+        spec.Alignment = static_cast<FormatSpec::Align>((val0 >> 2) & 0b11);
+        spec.SignFlag  = static_cast<FormatSpec::Sign> ((val0 >> 0) & 0b11);
+        spec.AlterForm = val1 & 0x80;
+        spec.ZeroPad   = val1 & 0x40;
+        IF_UNLIKELY(val1 & 0b111111u)
         {
-            const auto val0 = Ptr[SpecSize++];
-            const auto val1 = Ptr[SpecSize++];
-            const bool hasExtraFmt = val0 & 0b10000;
-            Spec.TypeExtra = static_cast<uint8_t>(val0 >> 5);
-            Spec.Alignment = static_cast<FormatSpec::Align>((val0 >> 2) & 0b11);
-            Spec.SignFlag  = static_cast<FormatSpec::Sign> ((val0 >> 0) & 0b11);
-            Spec.AlterForm = val1 & 0b10;
-            Spec.ZeroPad   = val1 & 0b01;
-            IF_UNLIKELY(val1 & 0b11111100)
-            {
-                Spec.Fill       = ReadLengthedVal(val1 >> 6, ' ');
-                Spec.Precision  = ReadLengthedVal(val1 >> 4, UINT32_MAX);
-                Spec.Width      = static_cast<uint16_t>(ReadLengthedVal(val1 >> 2, 0));
-            }
-            else
-            {
-                Spec.Fill = ' ';
-                Spec.Precision = UINT32_MAX;
-                Spec.Width = 0;
-            }
-            IF_UNLIKELY(hasExtraFmt)
-            {
-                Spec.TypeExtra &= static_cast<uint8_t>(0x1u);
-                Spec.FmtOffset  = static_cast<uint16_t>(ReadLengthedVal(val0 & 0x80 ? 2 : 1, 0));
-                Spec.FmtLen     = static_cast<uint16_t>(ReadLengthedVal(val0 & 0x40 ? 2 : 1, 0));
-            }
-            else
-                Spec.FmtOffset = Spec.FmtLen = 0;
+            spec.Fill       = ReadLengthedVal(ptr, size, val1 >> 4, ' ');
+            spec.Precision  = ReadLengthedVal(ptr, size, val1 >> 2, UINT32_MAX);
+            spec.Width      = static_cast<uint16_t>(ReadLengthedVal(ptr, size, val1, 0));
         }
-        return &Spec;
+        else
+        {
+            spec.Fill = ' ';
+            spec.Precision = UINT32_MAX;
+            spec.Width = 0;
+        }
+        const bool hasExtraFmt = val0 & 0x10;
+        IF_UNLIKELY(hasExtraFmt)
+        {
+            spec.TypeExtra &= static_cast<uint8_t>(0x1u);
+            spec.FmtOffset  = static_cast<uint16_t>(ReadLengthedVal(ptr, size, val0 & 0x80 ? 2 : 1, 0));
+            spec.FmtLen     = ptr[size++];
+        }
+        else
+        {
+            spec.FmtOffset = spec.FmtLen = 0;
+        }
+        return size;
     }
 };
+
 
 template<typename Char>
 struct Formatter : public DateFormatter<Formatter<Char>, std::basic_string<Char>>

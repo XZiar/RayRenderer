@@ -549,8 +549,8 @@ struct NailangFormatExecutor final : public common::str::DirectExecutor<char32_t
     void OnArg(CTX& ctx, uint8_t argIdx, bool isNamed, const uint8_t* specPtr) final
     {
         Expects(!isNamed);
-        common::str::SpecReader reader(specPtr);
-        const auto spec = reader.ReadSpec();
+        common::str::SpecHolder spec_(specPtr);
+        const common::str::FormatSpec* spec = spec_;
         auto& context = static_cast<Context&>(ctx);
         const auto& arg = context.Args[argIdx];
         switch (arg.TypeData)

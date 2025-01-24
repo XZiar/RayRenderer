@@ -27,8 +27,8 @@ static void TestValLen(const uint32_t val, const uint32_t encodeSize, const uint
     EXPECT_EQ(idx, encodeSize);
     EXPECT_EQ(lenVal, encodeLen);
     EXPECT_THAT(tmp, testing::ElementsAre(byte0, byte1, byte2, byte3));
-    SpecReader reader(tmp);
-    const auto readVal = reader.ReadLengthedVal(lenVal, 0xabadbeefu);
+    uint32_t dummy = 0;
+    const auto readVal = SpecReader::ReadLengthedVal(tmp, dummy, lenVal, 0xabadbeefu);
     EXPECT_EQ(readVal, val);
     // EXPECT_EQ(reader.SpecSize, encodeSize);
 }
@@ -751,6 +751,19 @@ TEST(Format, ParseString)
         CheckOpFinish();
     }
     {
+        constexpr auto fmtStr = "01234567890123456789012345678901234567890123456789" "01234567890123456789012345678901234567890123456789" 
+            "01234567890123456789012345678901234567890123456789" "01234567890123456789012345678901234567890123456789"
+            "01234567890123456789012345678901234567890123456789" "01234567890123456789012345678901234567890123456789"
+            "{{" "01234567890123456789012345678901234567890123456789"sv;
+        const auto ret = FormatterParser::ParseString(fmtStr);
+        CheckSuc();
+        CheckIdxArgCount(ret, 0, 0);
+        uint16_t idx = 0;
+        CheckOp(FmtStr, fmtStr, 0, 301, fmtStr.substr(0, 301));
+        CheckOp(FmtStr, fmtStr, 302, 50, fmtStr.substr(0, 50));
+        CheckOpFinish();
+    }
+    {
         constexpr auto fmtStr = "Hello{{"sv;
         const auto ret = FormatterParser::ParseString(fmtStr);
         CheckSuc();
@@ -971,7 +984,10 @@ void CheckIdxArg_(const ArgInfo& ret, uint8_t idx, std::string_view tname, ArgRe
 }
 void CheckNamedArg_(const ArgInfo& ret, uint8_t idx, std::string_view tname, ArgRealType type, uint8_t extra, std::string_view argName)
 {
-    EXPECT_EQ(ret.Names[idx], argName);
+    std::string_view name;
+    if (ret.NameLens[idx] > 0 && ret.NamePtrs[idx])
+        name = { ret.NamePtrs[idx], ret.NameLens[idx] };
+    EXPECT_EQ(name, argName);
     CheckAnArgType(tname, ret.NamedTypes[idx], type, extra);
 }
 
@@ -1357,7 +1373,7 @@ TEST(Format, MultiFormat)
 #if CM_DEBUG == 0
 TEST(Format, Perf)
 {
-    [[maybe_unused]] PerfTester tester("FormatPerf");
+    [[maybe_unused]] PerfTester tester("FormatPerf", 1, 200, 0.6f);
     const uint64_t datU64[4] = { 996, 510, UINT32_MAX, 0 };
     common::span<const uint64_t> spanU64(datU64);
 
@@ -1471,6 +1487,6 @@ TEST(Format, Perf)
     EXPECT_EQ(csf[3], csf[0]);
     EXPECT_EQ(csf[4], csf[0]);
     
-    //PerfTester("FormatPerf", 1, 3000).ManaulTest("csf-exe", csfexe);
+    //PerfTester("FormatPerf", 1, 2000).ManaulTest("csf-exe", csfexe);
 }
 #endif

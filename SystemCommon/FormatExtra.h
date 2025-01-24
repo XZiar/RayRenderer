@@ -71,6 +71,24 @@ public:
 };
 
 
+struct SpecHolder
+{
+    char Data[sizeof(FormatSpec)] = { 0 };
+    bool HasSpec = false;
+    forceinline SpecHolder(const uint8_t* ptr) noexcept
+    {
+        if (ptr)
+        {
+            HasSpec = true;
+            auto& spec = *std::launder(reinterpret_cast<FormatSpec*>(Data));
+            SpecReader::ReadSpec(spec, ptr);
+        }
+    }
+    forceinline operator const FormatSpec* () const noexcept { return HasSpec ? reinterpret_cast<const FormatSpec*>(Data) : nullptr; }
+    forceinline const FormatSpec* operator->() const noexcept { return HasSpec ? reinterpret_cast<const FormatSpec*>(Data) : nullptr; }
+};
+
+
 class COMMON_EMPTY_BASES DynamicTrimedResult : public FixedLenRefHolder<DynamicTrimedResult, uint32_t>
 {
     friend RefHolder<DynamicTrimedResult>;

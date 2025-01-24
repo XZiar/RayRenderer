@@ -363,7 +363,7 @@ void PerfTester::PreSelectIndex(size_t idx)
 void PerfTester::PostProcess(size_t partIdx, std::string_view itemVar)
 {
     std::sort(TimeRecords.begin(), TimeRecords.end());
-    const auto keepCount = std::max<size_t>(static_cast<size_t>(TimeRecords.size() * 0.9), 1u);
+    const auto keepCount = std::max<size_t>(static_cast<size_t>(TimeRecords.size() * KeepRatio), 1u);
     TimeRecords.resize(keepCount);
     const auto totalNs = static_cast<double>(std::accumulate(TimeRecords.begin(), TimeRecords.end(), uint64_t(0)));
     const auto nsPerRun = totalNs / keepCount;
