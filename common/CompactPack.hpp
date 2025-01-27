@@ -59,9 +59,24 @@ struct BitsPack
         }
         else
         {
+#if defined(COMMON_SIMD_LV) && COMMON_ARCH_X86 && (COMMON_COMPILER_MSVC || defined(__BMI__)) // enforce BMI support
+            if (!is_constant_evaluated(true))
+            {
+                const uint32_t control = (index * Bits) + (Bits << 8);
+                if constexpr (sizeof(S) > sizeof(uint32_t))
+                    return static_cast<T>(_bextr2_u64(Storage, control));
+                else
+                    return static_cast<T>(_bextr2_u32(Storage, control));
+            }
+#endif
             const auto val = Storage >> (index * Bits);
             return static_cast<T>(val & KeepMask);
         }
+    }
+    [[nodiscard]] forceinline constexpr S GetWithoutMask(uint32_t index) const noexcept
+    {
+        const auto val = Storage >> (index * Bits);
+        return static_cast<S>(val);
     }
 };
 

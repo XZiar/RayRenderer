@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "common/simd/SIMD.hpp"
 #include "SystemCommon/StrEncoding.hpp"
 
 using namespace common::str;
@@ -40,20 +41,22 @@ static auto ToByteSpan(T&& str) noexcept
 }
 
 template<typename T>
-static void CompareSpans(const common::span<T> l, const common::span<T> r) noexcept
+static void CompareSpans(const common::span<const T> src, const common::span<const T> ref) noexcept
 {
-    EXPECT_EQ(l.size(), r.size());
-    for (size_t i = 0; i < l.size(); ++i)
-        EXPECT_EQ(l[i], r[i]) << "element [" << i << "], mismatch with [" << l[i] << "] and [" << r[i] << "].\n";
+    EXPECT_EQ(src.size(), ref.size());
+    for (size_t i = 0; i < src.size(); ++i)
+    {
+        IF_LIKELY(src[i] == ref[i]) continue;
+        EXPECT_EQ(src[i], ref[i]) << "element [" << i << "], mismatch with [" << src[i] << "] and [" << ref[i] << "].\n";
+        break;
+    }
 }
 
-#define CHK_STR_BYTE_EQ(src, ref) CompareSpans(ToByteSpan(src), ToByteSpan(ref))
-#define CHK_STR_UNIT_EQ(src, ref) CompareSpans( ToIntSpan(src),  ToIntSpan(ref))
+#define CHK_STR_BYTE_EQ(src, ref, scope) do { SCOPED_TRACE(scope); CompareSpans(ToByteSpan(src), ToByteSpan(ref)); } while(0)
+#define CHK_STR_UNIT_EQ(src, ref, scope) do { SCOPED_TRACE(scope); CompareSpans( ToIntSpan(src),  ToIntSpan(ref)); } while(0)
 
 
 
-inline namespace
-{
 template<typename From, typename To, typename CharIn>
 static constexpr auto CTConv0(std::basic_string_view<CharIn> input) noexcept
 {
@@ -102,15 +105,15 @@ constexpr bool CTCheck(const std::array<Char, N> src, const std::basic_string_vi
             return false;
     return true;
 }
-}
 #define CTSource(str) []() constexpr { return str; };
 
-//constexpr auto u8s = CTSource(u"hello"sv);
+//constexpr auto u8s = CTSource(u8"hello"sv);
 //constexpr auto u8a = u8s();
-//constexpr auto u8b = CTConv0<detail::UTF16, detail::UTF8>(u8a);
-//constexpr auto u8c = CTConv1<detail::UTF16, detail::UTF8, decltype(u8s)>();
-//constexpr auto u8d = CTConv2<detail::UTF16, detail::UTF8, decltype(u8s)>();
-//constexpr auto u8e = CTCheck(u8d, u8"hello"sv);
+//constexpr auto u8b = CTConv0<charset::detail::UTF8, charset::detail::UTF16>(u8a);
+//constexpr auto u8c = CTConv1<charset::detail::UTF8, charset::detail::UTF16, decltype(u8s)>();
+//constexpr auto u8d = CTConv2<charset::detail::UTF8, charset::detail::UTF16, decltype(u8s)>();
+//constexpr auto u8e = CTCheck(u8d, u"hello"sv);
+
 
 #define CTConvCheck(From, To, Src, Dst, str) []() constexpr                 \
 {                                                                           \
@@ -118,7 +121,8 @@ constexpr bool CTCheck(const std::array<Char, N> src, const std::basic_string_vi
     constexpr auto dststr = CTConv2<                                        \
         charset::detail::From, charset::detail::To, decltype(srcstr)>();    \
     return CTCheck(dststr, Dst ## str ## sv);                               \
-}()                                                                         \
+}()
+
 
 
 TEST(StrChset, CompileTime)
@@ -133,6 +137,299 @@ TEST(StrChset, CompileTime)
     static_assert(CTConvCheck(UTF16, UTF32,  u,  U, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf16->utf32");
     static_assert(CTConvCheck(UTF32, UTF32,  U,  U, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf32->utf32");
 
+}
+
+
+static constexpr uint32_t UTF32Max = 0x0010FFFFu;
+static constexpr uint32_t UTF32SurrogateHi = 0xD800u;
+static constexpr uint32_t UTF32SurrogateLo = 0xDC00u;
+static constexpr uint32_t UTF32SurrogateEnd = 0xDFFFu;
+
+template<typename F>
+static forceinline constexpr auto EachUnicode(F&& func) noexcept -> std::invoke_result_t<F, char32_t>
+{
+    for (uint32_t i = 0; i < UTF32SurrogateHi; ++i)
+    {
+        const auto ret = func(static_cast<char32_t>(i));
+        IF_UNLIKELY(ret)
+            return ret;
+    }
+    for (uint32_t i = UTF32SurrogateEnd + 1; i <= UTF32Max; ++i)
+    {
+        const auto ret = func(static_cast<char32_t>(i));
+        IF_UNLIKELY(ret)
+            return ret;
+    }
+    return {};
+}
+template<typename F>
+static forceinline constexpr auto EachInvalidUnicode(F&& func) noexcept -> std::invoke_result_t<F, char32_t>
+{
+    for (uint32_t i = UTF32SurrogateHi; i <= UTF32SurrogateEnd; ++i)
+    {
+        const auto ret = func(static_cast<char32_t>(i));
+        IF_UNLIKELY(ret)
+            return ret;
+    }
+    return {};
+}
+
+static const auto AllUnicode = []()
+{
+    std::vector<char32_t> ret;
+    ret.reserve(UTF32Max + 1);
+    EachUnicode([&](char32_t ch) { ret.push_back(ch); return false; });
+    return ret;
+}();
+
+template<typename Conv, typename LE, typename BE, uint32_t IVTBase, uint32_t IVTShift, typename F>
+static void TestConvert(F&& reffunc)
+{
+    using Char = typename Conv::ElementType;
+    using U = std::make_unsigned_t<Char>;
+    constexpr uint32_t N = Conv::MaxOutputUnit;
+    constexpr size_t TotalSize = N * sizeof(Char);
+    static_assert(TotalSize == 4);
+    using T = std::conditional_t<TotalSize == 4, uint32_t, uint64_t>;
+    std::vector<T> validSets[N];
+
+    constexpr auto Masks = []() 
+    {
+        std::array<T, N> masks = { 0 };
+        for (uint32_t i = 0; i < N; ++i)
+        {
+            masks[i] = static_cast<T>(std::numeric_limits<U>::max()) << (i * sizeof(U) * 8);
+        }
+        for (uint32_t i = 1; i < N; ++i)
+        {
+            masks[i] += masks[i - 1];
+        }
+        return masks;
+    }();
+    
+    const auto mismatch = EachUnicode([&](char32_t ch) -> std::optional<std::pair<char32_t, uint32_t>>
+    {
+        std::array<Char, N> tmp = { 0 }, ref = { 0 };
+        reffunc(ch, ref);
+
+        const auto cnt0 = Conv::To(ch, tmp.size(), tmp.data());
+        IF_UNLIKELY(!cnt0)
+            return std::pair{ ch, 0u };
+        IF_UNLIKELY(tmp != ref)
+            return std::pair{ ch, 1u };
+
+        const auto [outch, cnt1] = Conv::From(tmp.data(), cnt0);
+        IF_UNLIKELY(!cnt1)
+            return std::pair{ ch, 2u };
+        IF_UNLIKELY(cnt1 != cnt0)
+            return std::pair{ ch, 3u };
+        IF_UNLIKELY(outch != ch)
+            return std::pair{ ch, 4u };
+
+        [[maybe_unused]] std::array<uint8_t, TotalSize> tmp2 = { 0 }, tmp3 = { 0 };
+        static_assert(sizeof(tmp) == sizeof(tmp2));
+        const auto cnt2 = LE::ToBytes(ch, tmp2.size(), tmp2.data());
+        IF_UNLIKELY(!cnt2)
+            return std::pair{ ch, 5u };
+        IF_UNLIKELY(cnt2 != cnt0 * sizeof(Char))
+            return std::pair{ ch, 6u };
+        IF_UNLIKELY(memcmp(ref.data(), tmp2.data(), tmp2.size()))
+            return std::pair{ ch, 7u };
+
+        const auto [lech, cnt4] = LE::FromBytes(std::launder(reinterpret_cast<const uint8_t*>(ref.data())), TotalSize);
+        IF_UNLIKELY(!cnt4)
+            return std::pair{ ch, 8u };
+        IF_UNLIKELY(cnt4 != cnt0 * sizeof(Char))
+            return std::pair{ ch, 9u };
+        IF_UNLIKELY(lech != ch)
+            return std::pair{ ch, 10u };
+
+        if constexpr (sizeof(Char) > 1)
+        {
+            std::array<Char, N> refBE = { 0 };
+            for (uint32_t i = 0; i < tmp.size(); ++i)
+                refBE[i] = common::ByteSwap(ref[i]);
+
+            const auto cnt3 = BE::ToBytes(ch, tmp3.size(), tmp3.data());
+            IF_UNLIKELY(!cnt3)
+                return std::pair{ ch, 11u };
+            IF_UNLIKELY(cnt3 != cnt0 * sizeof(Char))
+                return std::pair{ ch, 12u };
+            IF_UNLIKELY(memcmp(refBE.data(), tmp3.data(), tmp3.size()))
+                return std::pair{ ch, 13u };
+
+            const auto [bech, cnt5] = BE::FromBytes(std::launder(reinterpret_cast<const uint8_t*>(refBE.data())), TotalSize);
+            IF_UNLIKELY(!cnt5)
+                return std::pair{ ch, 14u };
+            IF_UNLIKELY(cnt5 != cnt0 * sizeof(Char))
+                return std::pair{ ch, 15u };
+            IF_UNLIKELY(bech != ch)
+                return std::pair{ ch, 16u };
+        }
+
+        validSets[cnt0 - 1].push_back(*reinterpret_cast<const T*>(ref.data()));
+        return {};
+    });
+    EXPECT_FALSE(mismatch) << "when convert [" << static_cast<uint32_t>(mismatch->first) << "] at stage " << mismatch->second;
+
+    {
+        TestCout out;
+        out << "valid count: ";
+        for (auto& vec : validSets)
+        {
+            out << vec.size() << " ";
+            std::sort(vec.begin(), vec.end());
+        }
+        out << "\n";
+    }
+
+    constexpr auto Check = [](const T val)
+    {
+        bool sucLE = true, sucBE = true;
+        const auto [lech, cnt0] = LE::FromBytes(reinterpret_cast<const uint8_t*>(&val), TotalSize);
+        sucLE = (cnt0 == 0);
+        if constexpr (sizeof(Char) > 1)
+        {
+            std::array<U, N> beval = { 0 };
+            memcpy(beval.data(), &val, TotalSize);
+            for (uint32_t i = 0; i < N; ++i)
+                beval[i] = common::ByteSwap(beval[i]);
+            const auto [bech, cnt1] = BE::FromBytes(reinterpret_cast<const uint8_t*>(beval.data()), TotalSize);
+            sucBE = (cnt1 == 0);
+        }
+        return std::pair{ sucLE, sucBE };
+    };
+    uint32_t invalidTestCount = 0;
+#if CM_DEBUG
+    std::mt19937 gen(0);
+    constexpr uint32_t invalidTestFull = 0x1000000u;
+    for (uint32_t i = 0; i < invalidTestFull; ++i)
+    {
+        const auto val = gen();
+#else
+    constexpr uint32_t invalidTestFull = (UINT32_MAX >> 5) + 1;
+    for (uint32_t i = 0; i < invalidTestFull; ++i)
+    {
+        const auto val = IVTBase + (i << IVTShift);
+#endif
+        bool isValid = false;
+        for (uint32_t idx = 0; idx < N; ++idx)
+        {
+            const auto testVal = val & Masks[idx];
+            if (std::binary_search(validSets[idx].begin(), validSets[idx].end(), testVal))
+            {
+                isValid = true;
+                break;
+            }
+        }
+        if (isValid)
+            continue;
+        invalidTestCount++;
+        const auto ret = Check(val);
+        constexpr auto suc = std::pair{ true, true };
+        EXPECT_EQ(ret, suc) << "when convert [" << val << "]";
+        if (!ret.first || !ret.second)
+            break;
+    }
+    TestCout() << "Invalid Test tried [" << invalidTestCount << "/" << invalidTestFull << "]\n";
+}
+
+TEST(StrChset, AllUTF32)
+{
+    using Conv = charset::detail::UTF32;
+    using LE = charset::detail::UTF32LE;
+    using BE = charset::detail::UTF32BE;
+    const auto validtest = EachUnicode([&](char32_t ch) -> std::optional<char32_t>
+    {
+        IF_LIKELY(charset::detail::ConvertCPBase::CheckCPValid(ch))
+            return {};
+        else
+            return ch;
+    });
+    EXPECT_EQ(validtest, std::optional<char32_t>{});
+    const auto invalidtest = EachInvalidUnicode([&](char32_t ch) -> std::optional<char32_t>
+    {
+        IF_LIKELY(charset::detail::ConvertCPBase::CheckCPValid(ch))
+            return ch;
+        else
+            return {};
+    });
+    EXPECT_EQ(invalidtest, std::optional<char32_t>{});
+    TestConvert<Conv, LE, BE, 0, 5>([](char32_t ch, std::array<Conv::ElementType, Conv::MaxOutputUnit>& out)
+    {
+        out[0] = ch;
+    });
+}
+
+TEST(StrChset, AllUTF16)
+{
+    using Conv = charset::detail::UTF16;
+    using LE = charset::detail::UTF16LE;
+    using BE = charset::detail::UTF16BE;
+    TestConvert<Conv, LE, BE, 0, 5>([](char32_t ch, std::array<Conv::ElementType, Conv::MaxOutputUnit>& out)
+    {
+        if (ch <= 0xffffu)
+        {
+            Expects(!(ch >= UTF32SurrogateHi && ch <= UTF32SurrogateEnd));
+            out[0] = static_cast<char16_t>(ch);
+        }
+        else
+        {
+            const uint32_t val = ch - 0x10000u;
+            out[0] = static_cast<char16_t>((val >> 10) + UTF32SurrogateHi);
+            out[1] = static_cast<char16_t>((val & 0x3ffu) + UTF32SurrogateLo);
+        }
+    });
+
+    const auto allutf16 = to_u16string(AllUnicode, common::str::Encoding::UTF32);
+    const auto allutf32 = to_u32string(allutf16, common::str::Encoding::UTF16);
+    CHK_STR_UNIT_EQ(allutf32, AllUnicode, "AllUnicode To UTF16");
+}
+
+TEST(StrChset, AllUTF8)
+{
+    using Conv = charset::detail::UTF8;
+    static constexpr std::array<uint8_t, 7> ByteMasks = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC };
+    // shift 0 to ensure byte0 get all permutation
+    TestConvert<Conv, Conv, Conv, 0x80000000u, 1>([](char32_t ch, std::array<Conv::ElementType, Conv::MaxOutputUnit>& out)
+    {
+        uint32_t val = ch;
+        uint32_t bytes = 0;
+        if (ch < 0x80)
+            bytes = 1;
+        else if (ch < 0x800)
+            bytes = 2;
+        else if (ch < 0x10000)
+            bytes = 3;
+        else
+            bytes = 4;
+        switch (bytes)
+        {
+        case 4:
+            out[3] = static_cast<Conv::ElementType>((val | 0x80u) & 0xBFu);
+            val >>= 6;
+            [[fallthrough]];
+        case 3:
+            out[2] = static_cast<Conv::ElementType>((val | 0x80u) & 0xBFu);
+            val >>= 6;
+            [[fallthrough]];
+        case 2:
+            out[1] = static_cast<Conv::ElementType>((val | 0x80u) & 0xBFu);
+            val >>= 6;
+            [[fallthrough]];
+        case 1:
+            out[0] = static_cast<Conv::ElementType>(val | ByteMasks[bytes]);
+            val >>= 6;
+            break;
+        default:
+            CM_UNREACHABLE();
+            break;
+        }
+    });
+
+    const auto allutf8 = to_u8string(AllUnicode, common::str::Encoding::UTF32);
+    const auto allutf32 = to_u32string(allutf8, common::str::Encoding::UTF8);
+    CHK_STR_UNIT_EQ(allutf32, AllUnicode, "AllUnicode To UTF8");
 }
 
 
@@ -164,9 +461,9 @@ TEST(StrChset, utf16)
 
 TEST(StrChset, utf8)
 {
-    CHK_STR_UNIT_EQ(to_u8string ("A0"), "A0");
-    CHK_STR_UNIT_EQ(to_u8string (U32Str, Encoding::UTF32LE),  U8Str);
-    CHK_STR_UNIT_EQ(to_u32string(U8Str , Encoding::UTF8   ), U32Str);
+    CHK_STR_UNIT_EQ(to_u8string ("A0"), "A0", "utf8");
+    CHK_STR_UNIT_EQ(to_u8string (U32Str, Encoding::UTF32LE),  U8Str, "utf8");
+    CHK_STR_UNIT_EQ(to_u32string(U8Str , Encoding::UTF8   ), U32Str, "utf8");
 }
 
 

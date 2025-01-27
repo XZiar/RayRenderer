@@ -143,16 +143,16 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, AlignedBuf
     case PixFormat::XX88:
     {
         Ensures(dataType.ChannelCount() < 3);
-        auto bufptr = rowbuffer.GetRawPtr<uint16_t>();
+        uint16_t* __restrict const bufptr = rowbuffer.GetRawPtr<uint16_t>();
         for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
         {
             stream.Read(frowsize, bufptr);
             if (needAlpha)
             {
-                const auto destPtr = image.GetRawPtr<uint16_t>(needFlip ? j : i);
+                std::byte* __restrict const destPtr = image.GetRawPtr(needFlip ? j : i);
                 if (needSwizzle)
                     for (uint32_t k = 0; k < width; ++k)
-                        destPtr[k] = common::MiscIntrin.ByteSwap(bufptr[k]);
+                        common::simd::EndianWriter<!common::detail::is_little_endian>(destPtr + k * sizeof(uint16_t), bufptr[k]);
                 else
                     memcpy_s(destPtr, irowsize, bufptr, frowsize);
             }
@@ -237,14 +237,15 @@ bool BmpReader::Validate()
         return false;
     if (header.Sig[0] != 'B' || header.Sig[1] != 'M' || header.Reserved != 0)
         return false;
-    const auto size = util::ParseDWordLE(header.Size);
+    const auto size = common::simd::EndianReader<uint32_t, true>(header.Size);
     const auto fsize = Stream.GetSize();
     if (size > 0 && size != Stream.GetSize())
         return false;
-    if (util::ParseDWordLE(header.Offset) >= fsize)
+    const auto offset = common::simd::EndianReader<uint32_t, true>(header.Offset);
+    if (offset >= fsize)
         return false;
 
-    return ValidateNoHeader(util::ParseDWordLE(header.Offset));
+    return ValidateNoHeader(offset);
 }
 
 bool BmpReader::ValidateNoHeader(uint32_t pixOffset)
@@ -258,7 +259,9 @@ bool BmpReader::ValidateNoHeader(uint32_t pixOffset)
     // allow colorful only
     if (Info.BitCount != 8 && Info.BitCount != 16 && Info.BitCount != 24 && Info.BitCount != 32)
         return false;
-    if (util::ParseDWordLE(Info.Width) <= 0 || util::ParseDWordLE(Info.Height) == 0)
+    const auto width  = common::simd::EndianReader<int32_t, true>(Info.Width);
+    const auto height = common::simd::EndianReader<int32_t, true>(Info.Height);
+    if (width <= 0 || height == 0)
         return false;
     switch (Info.Size)
     {
@@ -355,10 +358,12 @@ Image BmpReader::Read(ImgDType dataType)
     
     Image image(dataType);
     
-    const int32_t h = util::ParseDWordLE(Info.Height);
+
+
+    const auto h = common::simd::EndianReader<int32_t, true>(Info.Height);
     const bool needFlip = h > 0;
+    const auto width = common::simd::EndianReader<uint32_t, true>(Info.Width);
     const uint32_t height = std::abs(h);
-    const uint32_t width = util::ParseDWordLE(Info.Width);
     image.SetSize(width, height);
 
     const size_t frowsize = ((Info.BitCount * width + 31) / 32) * 4;
@@ -440,11 +445,12 @@ void BmpWriter::Write(ImageView image, const uint8_t)
 
     detail::BmpHeader header{};
     header.Sig[0] = 'B', header.Sig[1] = 'M';
-    util::DWordToLE(header.Offset, BMP_HEADER_SIZE + BMP_INFO_SIZE);
+
+    common::simd::EndianWriter<true, uint32_t>(header.Offset, BMP_HEADER_SIZE + BMP_INFO_SIZE);
     auto info = util::EmptyStruct<detail::BmpInfo>();
     info.Size = static_cast<uint32_t>(BMP_INFO_SIZE);
-    util::DWordToLE(info.Width, image.GetWidth());
-    util::DWordToLE(info.Height, -static_cast<int32_t>(image.GetHeight()));
+    common::simd::EndianWriter<true>(info.Width, image.GetWidth());
+    common::simd::EndianWriter<true>(info.Height, -static_cast<int32_t>(image.GetHeight()));
     info.Planes = 1;
     info.BitCount = image.GetElementSize() * 8;
     info.Compression = 0;

@@ -1,7 +1,7 @@
 #pragma once
 #include "SystemCommonRely.h"
-#include "SystemCommon/StringConvert.h"
-#include "SystemCommon/Exceptions.h"
+#include "StringConvert.h"
+#include "Exceptions.h"
 #include "common/FileBase.hpp"
 #include "common/MemoryStream.hpp"
 #include "common/Stream.hpp"

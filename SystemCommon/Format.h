@@ -3,6 +3,7 @@
 #include "SystemCommonRely.h"
 #include "FormatInclude.h"
 #include "Date.h"
+#include "StrEncodingBase.hpp"
 #include "common/StrBase.hpp"
 #include "common/CompactPack.hpp"
 #include "common/RefHolder.hpp"
@@ -161,23 +162,7 @@ struct FormatterParser
     static constexpr uint8_t OpDataMask = 0b00001111;
 
     static constexpr ASCIIChecker<true> NameArgTailChecker0 = std::string_view("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
-    // [7...0] for bits [4,6]
-    static constexpr auto UTF8MultiLenPack = BitsPackFrom<2>(
-        0, // 1000
-        0, // 1001
-        0, // 1010
-        0, // 1011
-        1, // 1100
-        1, // 1101
-        2, // 1110
-        3  // 1111
-    );
-    static constexpr auto UTF8MultiFirstMaskPack = BitsPackFrom<8>(
-        0x7f, // 0yyyzzzz
-        0x1f, // 110xxxyy
-        0xf,  // 1110wwww
-        0x7   // 11110uvv
-    );
+
     static constexpr std::string_view AllowedFirstChar = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_";
     static constexpr auto AllowedFirstCharChecker = common::BitsPackFromIndexesArray<64>(AllowedFirstChar.data(), AllowedFirstChar.size(), -'A');
 
@@ -865,89 +850,72 @@ struct FormatterParserCh : public FormatterParser, public ParseLiterals<Char>
         if constexpr (sizeof(Char) == 1) // utf8
         {
             const uint8_t ch0 = str[idx++];
-            IF_LIKELY(ch0 < 0x80u)
-            {
+            IF_LIKELY(ch0 < 0x80u) // 1 byte
                 return { ch0, true };
-            }
-            else
+
+            const auto leftBytes = charset::detail::UTF8::UTF8MultiLenPack.Get<uint8_t>(ch0 >> 4);
+            IF_UNLIKELY(leftBytes == 0 || idx + leftBytes > len)
+                return { idx - 1, false };
+
+            const auto ch0kept = charset::detail::UTF8::UTF8MultiFirstMaskPack.GetWithoutMask(leftBytes) & ch0; // ch0 is uint8, already ensure mask keep only 8bit
+            const uint8_t ch1 = str[idx++];
+            const auto tmp1 = ch1 ^ 0b10000000u; // flip highest and keep following, valid will be 00xxxxxx, larger is invalid
+            IF_UNLIKELY(tmp1 > 0b00111111u)
+                return { idx - 1, false };
+
+            const auto first2 = (ch0kept << 6) + tmp1;
+            IF_UNLIKELY(first2 < static_cast<uint8_t>(charset::detail::UTF8::UTF8MultiSecondCheckPack.GetWithoutMask(leftBytes))) // overlong encodings
+                return { idx - 1, false };
+
+            IF_LIKELY(leftBytes == 1)
+                return { first2, true };
+
+            const uint8_t ch2 = str[idx++];
+            const auto tmp2 = ch2 ^ 0b10000000u; // flip highest and keep following, valid will be 00xxxxxx, larger is invalid
+            IF_UNLIKELY(tmp2 > 0b00111111u)
+                return { idx - 1, false };
+
+            IF_LIKELY(leftBytes == 2) // 0x0800~0xffff
             {
-                const auto byte0 = ch0 - 0x80u;
-                const auto leftBytes = UTF8MultiLenPack.Get<uint16_t>(byte0 >> 4);
-                IF_UNLIKELY(leftBytes == 0 || idx + leftBytes > len)
-                {
+                const auto tmp = first2 ^ (charset::detail::ConvertCPBase::UTF32SurrogateHi >> 6);
+                IF_LIKELY(tmp >= (0x0800u >> 6)) // not within [d800,dfff]
+                    return { (first2 << 6) + tmp2, true };
+                return { idx - 1, false };
+            }
+            else // 3, 0x010000~0x10ffff
+            {
+                IF_UNLIKELY(first2 > (charset::detail::ConvertCPBase::UTF32Max >> 12))
                     return { idx - 1, false };
-                }
-                
-                auto val = static_cast<uint32_t>(UTF8MultiFirstMaskPack.Get<uint8_t>(leftBytes) & ch0) << static_cast<uint8_t>(leftBytes * 6);
-                switch (leftBytes)
-                {
-                case 3:
-                {
-                    const uint32_t ch = static_cast<uint8_t>(str[idx]);
-                    const auto tmp = ch ^ 0b10000000u; // flip highest and keep following, valid will be 00xxxxxx, larger is invalid
-                    IF_UNLIKELY(tmp > 0b00111111u)
-                    {
-                        return { idx, false };
-                    }
-                    idx++;
-                    val |= tmp << 12;
-                } [[fallthrough]];
-                case 2:
-                {
-                    const uint32_t ch = static_cast<uint8_t>(str[idx]);
-                    const auto tmp = ch ^ 0b10000000u; // flip highest and keep following, valid will be 00xxxxxx, larger is invalid
-                    IF_UNLIKELY(tmp > 0b00111111u)
-                    {
-                        return { idx, false };
-                    }
-                    idx++;
-                    val |= tmp << 6;
-                } [[fallthrough]];
-                case 1:
-                {
-                    const uint32_t ch = static_cast<uint8_t>(str[idx]);
-                    const auto tmp = ch ^ 0b10000000u; // flip highest and keep following, valid will be 00xxxxxx, larger is invalid
-                    IF_UNLIKELY(tmp > 0b00111111u)
-                    {
-                        return { idx, false };
-                    }
-                    idx++;
-                    val |= tmp;
-                } break;
-                default: CM_UNREACHABLE(); break;
-                }
-                return { val, true };
+
+                const uint8_t ch3 = str[idx++];
+                const auto tmp3 = ch3 ^ 0b10000000u; // flip highest and keep following, valid will be 00xxxxxx, larger is invalid
+                IF_UNLIKELY(tmp3 > 0b00111111u)
+                    return { idx - 1, false };
+                return { (first2 << 12) + (tmp2 << 6) + tmp3, true };
             }
         }
         else if constexpr (sizeof(Char) == 2) // utf16
         {
-            const uint16_t first = str[idx++];
-            IF_UNLIKELY(first >= 0xd800u && first <= 0xdfffu) // surrogates
+            const uint16_t ch0 = str[idx++];
+            const uint32_t y = ch0 ^ charset::detail::ConvertCPBase::UTF32SurrogateHi;
+            IF_LIKELY(y >= 0x0800u) // not within [d800,dfff], 1 unit
+                return { ch0, true };
+            IF_LIKELY(idx < len && ch0 < charset::detail::ConvertCPBase::UTF32SurrogateLo) // can be 2 unit
             {
-                IF_UNLIKELY(first >= 0xdc00u || idx == len)
-                {
-                    return { idx - 1, false };
-                }
-                const uint16_t second = str[idx];
-                IF_LIKELY(second >= 0xdc00u && second <= 0xdfffu)
-                {
-                    ++idx;
-                    uint32_t val = (((first & 0x3ffu) << 10) | (second & 0x3ffu)) + 0x10000u;
-                    return { val, true };
-                }
-                else
-                {
-                    return { idx, false };
-                }
+                const uint16_t ch1 = str[idx++];
+                const uint32_t x = ch1 ^ charset::detail::ConvertCPBase::UTF32SurrogateLo;
+                IF_LIKELY(x < 0x0400) // within [dc00,dfff], 2 unit
+                    return { (y << 10) + x + 0x10000u, true };
             }
-            else
-            {
-                return { first, true };
-            }
+            return { idx - 1, false };
         }
         else if constexpr (sizeof(Char) == 4) // utf32
         {
-            return { str[idx++], true };
+            const auto ch = str[idx++];
+            const auto tmp = ch ^ charset::detail::ConvertCPBase::UTF32SurrogateHi;
+            IF_LIKELY(tmp >= 0x0800u && static_cast<uint32_t>(ch) <= charset::detail::ConvertCPBase::UTF32Max) // not within [d800,dfff]
+                return { ch, true };
+            return { idx - 1, false };
         }
         else
             static_assert(!AlwaysTrue<Char>);

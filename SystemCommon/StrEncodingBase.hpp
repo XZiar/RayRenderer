@@ -2,13 +2,18 @@
 
 #include "common/CommonRely.hpp"
 #include "common/StrBase.hpp"
+#include "common/CompactPack.hpp"
 
 
 namespace common::str::charset::detail
 {
 
+static_assert(common::detail::is_little_endian, "Need Little Endian");
+
 inline constexpr auto InvalidChar = static_cast<char32_t>(-1);
 inline constexpr auto InvalidCharPair = std::pair<char32_t, uint32_t>{ InvalidChar, 0 };
+
+// `FromXXX` ensures CP correctness, `ToXXX` expects CP correctness
 
 //struct ConvertCPBase
 //{
@@ -34,44 +39,79 @@ inline constexpr auto InvalidCharPair = std::pair<char32_t, uint32_t>{ InvalidCh
 //    }
 //};
 
+template<typename T, bool IsLE, typename U>
+[[nodiscard]] forceinline constexpr T EndianReader(const U* __restrict const src) noexcept
+{
+#if defined(COMMON_SIMD_LV)
+    return ::common::simd::EndianReader<T, IsLE>(src);
+#else
+    return ::common::EndianReader<T, IsLE>(src);
+#endif
+}
+template<bool IsLE, typename U, typename T>
+forceinline constexpr void EndianWriter(U* __restrict const dst, const T val) noexcept
+{
+#if defined(COMMON_SIMD_LV)
+    ::common::simd::EndianWriter<IsLE>(dst, val);
+#else
+    ::common::EndianWriter<IsLE>(dst, val);
+#endif
+}
+
+
 struct ConvertCPBase 
-{ };
+{
+    static inline constexpr uint32_t UTF32Max = 0x0010FFFFu;
+    static inline constexpr uint32_t UTF32SurrogateHi = 0xD800u;
+    static inline constexpr uint32_t UTF32SurrogateLo = 0xDC00u;
+    static inline constexpr uint32_t UTF32SurrogateEnd = 0xDFFFu;
+    [[nodiscard]] forceinline static constexpr bool CheckCPValid(char32_t cp) noexcept
+    {
+        const auto tmp = cp ^ UTF32SurrogateHi;
+        return tmp >= 0x0800u && cp <= UTF32Max; // not within [d800,dfff]
+    }
+};
 struct ConvertByteBase 
 { };
 
 struct UTF7 : public ConvertCPBase, public ConvertByteBase
 {
     using ElementType = char;
-    static constexpr size_t MaxOutputUnit = 1;
-    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const ElementType* __restrict const src, const size_t size) noexcept
+    static inline constexpr size_t MinBytes = 1;
+    static inline constexpr size_t MaxOutputUnit = 1;
+    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const ElementType* __restrict const src, [[maybe_unused]] const size_t size) noexcept
     {
-        if (size >= 1 && src[0] > 0)
+        IF_LIKELY(src[0] > 0)
             return { src[0], 1 };
-        return InvalidCharPair;
+        else
+            return InvalidCharPair;
     }
-    [[nodiscard]] forceinline static constexpr uint8_t To(const char32_t src, const size_t size, ElementType* __restrict const dest) noexcept
+    [[nodiscard]] forceinline static constexpr uint8_t To(const char32_t src, [[maybe_unused]] const size_t size, ElementType* __restrict const dest) noexcept
     {
-        if (size >= 1 && src < 128)
+        IF_LIKELY(src < 128)
         {
-            dest[0] = char(src);
+            dest[0] = static_cast<char>(src);
             return 1;
         }
-        return 0;
+        else
+            return 0;
     }
-    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, const size_t size) noexcept
+    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, [[maybe_unused]] const size_t size) noexcept
     {
-        if (size >= 1 && src[0] > 0)
+        IF_LIKELY(src[0] > 0)
             return { src[0], 1 };
-        return InvalidCharPair;
+        else
+            return InvalidCharPair;
     }
-    [[nodiscard]] forceinline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
+    [[nodiscard]] forceinline static constexpr uint8_t ToBytes(const char32_t src, [[maybe_unused]] const size_t size, uint8_t* __restrict const dest) noexcept
     {
-        if (size >= 1 && src < 128)
+        IF_LIKELY(src < 128)
         {
-            dest[0] = uint8_t(src);
+            dest[0] = static_cast<uint8_t>(src);
             return 1;
         }
-        return 0;
+        else
+            return 0;
     }
 };
 
@@ -79,140 +119,165 @@ struct UTF7 : public ConvertCPBase, public ConvertByteBase
 struct UTF32 : public ConvertCPBase
 {
     using ElementType = char32_t;
-    static constexpr size_t MaxOutputUnit = 1;
-    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const ElementType* __restrict const src, const size_t size) noexcept
+    static inline constexpr size_t MinBytes = 4;
+    static inline constexpr size_t MaxOutputUnit = 1;
+    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const ElementType* __restrict const src, [[maybe_unused]] const size_t size) noexcept
     {
-        if (size >= 1u && src[0] < 0x200000u)
-        {
-            return { src[0], 1 };
-        }
+        const auto ch = src[0];
+        IF_LIKELY(CheckCPValid(ch))
+            return { ch, 1 };
         return InvalidCharPair;
     }
-    [[nodiscard]] forceinline static constexpr uint8_t To(const char32_t src, const size_t size, ElementType* __restrict const dest) noexcept
+    [[nodiscard]] forceinline static constexpr uint8_t To(const char32_t src, [[maybe_unused]] const size_t size, ElementType* __restrict const dest) noexcept
     {
-        if (size >= 1u && src < 0x200000u)
-        {
-            dest[0] = src;
-            return 1;
-        }
-        return 0;
+        dest[0] = src;
+        return 1;
     }
 };
 struct UTF32LE : public UTF32, public ConvertByteBase
 {
-    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, const size_t size) noexcept
+    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, [[maybe_unused]] const size_t size) noexcept
     {
-        if (size >= 4u)
-        {
-            const uint32_t ch = src[0] | (src[1] << 8) | (src[2] << 16) | (src[3] << 24);
-            if (ch < 0x200000u)
-                return { ch, 4 };
-        }
+        const auto ch = EndianReader<uint32_t, true>(src);
+        IF_LIKELY(CheckCPValid(ch))
+            return { ch, 4 };
         return InvalidCharPair;
     }
-    [[nodiscard]] forceinline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
+    [[nodiscard]] forceinline static constexpr uint8_t ToBytes(const char32_t src, [[maybe_unused]] const size_t size, uint8_t* __restrict const dest) noexcept
     {
-        if (size >= 4u && src < 0x200000u)
-        {
-            dest[0] = static_cast<uint8_t>(src);       dest[1] = static_cast<uint8_t>(src >> 8);
-            dest[2] = static_cast<uint8_t>(src >> 16); dest[3] = static_cast<uint8_t>(src >> 24);
-            return 4;
-        }
-        return 0;
+        EndianWriter<true>(dest, src);
+        return 4;
     }
 };
 struct UTF32BE : public UTF32, public ConvertByteBase
 {
-    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, const size_t size) noexcept
+    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, [[maybe_unused]] const size_t size) noexcept
     {
-        if (size >= 4u)
-        {
-            const uint32_t ch = src[3] | (src[2] << 8) | (src[1] << 16) | (src[0] << 24);
-            if (ch < 0x200000u)
-                return { ch, 4 };
-        }
+        const auto ch = EndianReader<uint32_t, false>(src);
+        IF_LIKELY(CheckCPValid(ch))
+            return { ch, 4 };
         return InvalidCharPair;
     }
-    [[nodiscard]] forceinline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
+    [[nodiscard]] forceinline static constexpr uint8_t ToBytes(const char32_t src, [[maybe_unused]] const size_t size, uint8_t* __restrict const dest) noexcept
     {
-        if (size >= 4u && src < 0x200000u)
-        {
-            dest[3] = static_cast<uint8_t>(src);       dest[2] = static_cast<uint8_t>(src >> 8);
-            dest[1] = static_cast<uint8_t>(src >> 16); dest[0] = static_cast<uint8_t>(src >> 24);
-            return 4;
-        }
-        return 0;
+        EndianWriter<false>(dest, src);
+        return 4;
     }
 };
 
 struct UTF8 : public ConvertCPBase, public ConvertByteBase
 {
-private:
+    // [0..15] for bits [4,7]
+    static inline constexpr auto UTF8MultiLenPack = BitsPackFrom<2>(
+        0,0,0,0,0,0,0,0, // 0xxx
+        0, // 1000
+        0, // 1001
+        0, // 1010
+        0, // 1011
+        1, // 1100
+        1, // 1101
+        2, // 1110
+        3  // 1111
+    );
+    static inline constexpr auto UTF8MultiFirstMaskPack = BitsPackFrom<8>(
+        0x7f, // 0yyyzzzz
+        0x1f, // 110xxxyy
+        0xf,  // 1110wwww
+        0xf   // 11110uvv, keep 0uvv to make sure msb is 0
+    );
+    static inline constexpr auto UTF8MultiSecondCheckPack = BitsPackFrom<8>(
+        0, // invalid
+        0x80 >> 0,
+        0x800u >> 6,
+        0x10000u >> 12
+    );
+
     template<typename T>
     [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> InnerFrom(const T* __restrict const src, const size_t size) noexcept
     {
-        if (size == 0)
+        const auto ch0 = static_cast<uint8_t>(src[0]);
+        IF_LIKELY(ch0 < 0x80u) // 1 byte
+            return { ch0, 1 };
+
+        const auto leftBytes = UTF8MultiLenPack.Get<uint8_t>(ch0 >> 4);
+        IF_UNLIKELY(leftBytes == 0 || (1u + leftBytes > size))
             return InvalidCharPair;
-        if ((uint32_t)src[0] < 0x80u)//1 byte
-            return { src[0], 1 };
-        else if ((src[0] & 0xe0u) == 0xc0u)//2 byte
+
+        const auto ch0kept = UTF8MultiFirstMaskPack.GetWithoutMask(leftBytes) & ch0; // ch0 is uint8, already ensure mask keep only 8bit
+        const auto ch1 = static_cast<uint8_t>(src[1]);
+        const auto tmp1 = ch1 ^ 0b10000000u; // flip highest and keep following, valid will be 00xxxxxx, larger is invalid
+        IF_UNLIKELY(tmp1 > 0b00111111u)
+            return InvalidCharPair;
+
+        const auto first2 = (ch0kept << 6) + tmp1;
+        IF_UNLIKELY(first2 < static_cast<uint8_t>(UTF8MultiSecondCheckPack.GetWithoutMask(leftBytes))) // overlong encodings
+            return InvalidCharPair;
+
+        IF_LIKELY(leftBytes == 1)
+            return { static_cast<char32_t>(first2), 2 };
+
+        const auto ch2 = static_cast<uint8_t>(src[2]);
+        const auto tmp2 = ch2 ^ 0b10000000u; // flip highest and keep following, valid will be 00xxxxxx, larger is invalid
+        IF_UNLIKELY(tmp2 > 0b00111111u)
+            return InvalidCharPair;
+
+        IF_LIKELY(leftBytes == 2) // 0x0800~0xffff
         {
-            if (size >= 2 && (src[1] & 0xc0u) == 0x80u)
-                return { ((src[0] & 0x1fu) << 6) | (src[1] & 0x3fu), 2 };
+            const auto tmp = first2 ^ (0xd800u >> 6);
+            IF_LIKELY(tmp >= (0x0800u >> 6)) // not within [d800,dfff]
+                return { static_cast<char32_t>((first2 << 6) + tmp2), 3 };
+            return InvalidCharPair;
         }
-        else if ((src[0] & 0xf0u) == 0xe0u)//3 byte
+        else // 3, 0x010000~0x10ffff
         {
-            if (size >= 3 && ((src[1] & 0xc0u) == 0x80u) && ((src[2] & 0xc0u) == 0x80u))
-                return { ((src[0] & 0x0fu) << 12) | ((src[1] & 0x3fu) << 6) | (src[2] & 0x3fu), 3 };
+            IF_UNLIKELY(first2 > (UTF32Max >> 12))
+                return InvalidCharPair;
+
+            const auto ch3 = static_cast<uint8_t>(src[3]);
+            const auto tmp3 = ch3 ^ 0b10000000u; // flip highest and keep following, valid will be 00xxxxxx, larger is invalid
+            IF_UNLIKELY(tmp3 > 0b00111111u)
+                return InvalidCharPair;
+            return { static_cast<char32_t>((first2 << 12) + (tmp2 << 6) + tmp3), 4 };
         }
-        else if ((src[0] & 0xf8u) == 0xf0u)//4 byte
-        {
-            if (size >= 4 && ((src[1] & 0xc0u) == 0x80u) && ((src[2] & 0xc0u) == 0x80u) && ((src[3] & 0xc0u) == 0x80u))
-                return { ((src[0] & 0x0fu) << 18) | ((src[1] & 0x3fu) << 12) | ((src[2] & 0x3fu) << 6) | (src[3] & 0x3fu), 4 };
-        }
-        return InvalidCharPair;
     }
     template<typename T>
     [[nodiscard]] forceinline static constexpr uint8_t InnerTo(const char32_t src, const size_t size, T* __restrict const dest) noexcept
     {
-        if (src < 0x80)//1 byte
+        IF_LIKELY(src < 0x80) // 1 byte
         {
-            if (size >= 1)
-            {
-                dest[0] = (T)(src & 0x7f);
-                return 1;
-            }
+            dest[0] = static_cast<T>(src & 0x7f);
+            return 1;
         }
-        else if (src < 0x800)//2 byte
+        else if (src < 0x800) // 2 byte
         {
-            if (size >= 2)
+            IF_LIKELY(size >= 2)
             {
-                dest[0] = T(0b11000000 | ((src >> 6) & 0x3f)), dest[1] = T(0x80 | (src & 0x3f));
+                dest[0] = static_cast<T>(0b11000000 | ((src >> 6) & 0x3f)), dest[1] = static_cast<T>(0x80 | (src & 0x3f));
                 return 2;
             }
         }
-        else if (src < 0x10000)//3 byte
+        else if (src < 0x10000) // 3 byte
         {
-            if (size >= 3)
+            IF_LIKELY(size >= 3)
             {
-                dest[0] = T(0b11100000 | (src >> 12)), dest[1] = T(0x80 | ((src >> 6) & 0x3f)), dest[2] = T(0x80 | (src & 0x3f));
+                dest[0] = static_cast<T>(0b11100000 | (src >> 12)), dest[1] = static_cast<T>(0x80 | ((src >> 6) & 0x3f)), dest[2] = static_cast<T>(0x80 | (src & 0x3f));
                 return 3;
             }
         }
-        else if (src < 0x200000)//4 byte
+        else // 4 byte, no need for max check
         {
-            if (size >= 4)
+            IF_LIKELY(size >= 4)
             {
-                dest[0] = T(0b11110000 | (src >> 18)), dest[1] = T(0x80 | ((src >> 12) & 0x3f));
-                dest[2] = T(0x80 | ((src >> 6) & 0x3f)), dest[3] = T(0x80 | (src & 0x3f));
+                dest[0] = static_cast<T>(0b11110000 | (src >> 18)), dest[1] = static_cast<T>(0x80 | ((src >> 12) & 0x3f));
+                dest[2] = static_cast<T>(0x80 | ((src >> 6) & 0x3f)), dest[3] = static_cast<T>(0x80 | (src & 0x3f));
                 return 4;
             }
         }
         return 0;
     }
-public:
     using ElementType = u8ch_t;
-    static constexpr size_t MaxOutputUnit = 4;
+    static inline constexpr size_t MinBytes = 1;
+    static inline constexpr size_t MaxOutputUnit = 4;
     [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const ElementType* __restrict const src, const size_t size) noexcept
     {
         return InnerFrom(src, size);
@@ -244,8 +309,6 @@ private:
     template<typename T>
     [[nodiscard]] inline static constexpr std::pair<char32_t, uint32_t> InnerFrom(const T* __restrict const src, const size_t size) noexcept
     {
-        if (size == 0)
-            return InvalidCharPair;
         const auto ch0 = static_cast<uint8_t>(src[0]);
         if (ch0 >= 0x80u || ch0 <= 0x20u) // should be encoded
             return InvalidCharPair;
@@ -316,11 +379,8 @@ private:
         {
             if (src > 0x20u && src != '%') // direct output
             {
-                if (size >= 1)
-                {
-                    dest[0] = (T)(src & 0x7f);
-                    return 1;
-                }
+                dest[0] = (T)(src & 0x7f);
+                return 1;
             }
             else // 1 byte
             {
@@ -352,7 +412,7 @@ private:
                 return 9;
             }
         }
-        else if (src < 0x200000) // 4 byte
+        else // 4 byte, no need to check max
         {
             if (size >= 12)
             {
@@ -369,7 +429,8 @@ private:
     }
 public:
     using ElementType = char;
-    static constexpr size_t MaxOutputUnit = 12;
+    static inline constexpr size_t MinBytes = 1;
+    static inline constexpr size_t MaxOutputUnit = 12;
     [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const ElementType* __restrict const src, const size_t size) noexcept
     {
         return InnerFrom(src, size);
@@ -390,83 +451,43 @@ public:
 
 struct UTF16 : public ConvertCPBase
 {
+    // d800 = 1101 10yy yyyy yyyy
+    // dc00 = 1101 11xx xxxx xxxx
+    // 1101 1... .... .... = d800
+    // 0010 0... .... .... = 27ff
     using ElementType = char16_t;
-    static constexpr size_t MaxOutputUnit = 2;
+    static inline constexpr size_t MinBytes = 2;
+    static inline constexpr size_t MaxOutputUnit = 2;
     [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const char16_t* __restrict const src, const size_t size) noexcept
     {
-        if (size == 0)
-            return InvalidCharPair;
-        if (src[0] < 0xd800 || src[0] >= 0xe000)//1 unit
-            return { src[0], 1 };
-        if (src[0] <= 0xdbff)//2 unit
+        const auto ch0 = src[0];
+        const uint32_t y = ch0 ^ 0xd800;
+        IF_LIKELY(y >= 0x0800u) // not within [d800,dfff], 1 unit
+            return { ch0, 1 };
+        IF_LIKELY(size >= 2 && ch0 < 0xdc00) // can be 2 unit
         {
-            if (size >= 2 && src[1] >= 0xdc00 && src[1] <= 0xdfff)
-                return { (((src[0] & 0x3ff) << 10) | (src[1] & 0x3ff)) + 0x10000, 2 };
+            const auto ch1 = src[1];
+            const uint32_t x = ch1 ^ 0xdc00;
+            IF_LIKELY(x < 0x0400) // within [dc00,dfff], 2 unit
+                return { (y << 10) + x + 0x10000u, 2 };
         }
         return InvalidCharPair;
     }
     [[nodiscard]] forceinline static constexpr uint8_t To(const char32_t src, const size_t size, char16_t* __restrict const dest) noexcept
     {
-        if (src < 0xd800)
+        IF_LIKELY(src < 0x10000u)
         {
-            dest[0] = (char16_t)src;
+            dest[0] = static_cast<char16_t>(src);
             return 1;
         }
-        if (src < 0xe000)
-            return 0;
-        if (src < 0x10000)
+        else
         {
-            dest[0] = (char16_t)src;
-            return 1;
-        }
-        if (size >= 2 && src < 0x200000u)
-        {
-            const auto tmp = src - 0x10000;
-            dest[0] = char16_t(0xd800 | (tmp >> 10)), dest[1] = char16_t(0xdc00 | (tmp & 0x3ff));
-            return 2;
-        }
-        return 0;
-    }
-};
-struct UTF16BE : public UTF16, public ConvertByteBase
-{
-    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, const size_t size) noexcept
-    {
-        if (size < 2)
-            return InvalidCharPair;
-        if (src[0] < 0xd8 || src[0] >= 0xe0)//1 unit
-            return { (src[0] << 8) | src[1], 2 };
-        if (src[0] < 0xdc)//2 unit
-        {
-            if (size >= 4 && src[2] >= 0xdc && src[2] <= 0xdf)
-                return { (((src[0] & 0x3) << 18) | (src[1] << 10) | ((src[2] & 0x3) << 8) | src[3]) + 0x10000, 4 };
-        }
-        return InvalidCharPair;
-    }
-    [[nodiscard]] forceinline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
-    {
-        if (size < 2)
-            return 0;
-        if (src < 0xd800)
-        {
-            dest[0] = uint8_t(src >> 8);
-            dest[1] = src & 0xff;
-            return 2;
-        }
-        if (src < 0xe000)
-            return 0;
-        if (src < 0x10000)
-        {
-            dest[0] = uint8_t(src >> 8);
-            dest[1] = src & 0xff;
-            return 2;
-        }
-        if (size >= 4 && src < 0x200000u)
-        {
-            const auto tmp = src - 0x10000;
-            dest[0] = uint8_t(0xd8 | (tmp >> 18)), dest[1] = ((tmp >> 10) & 0xff);
-            dest[2] = 0xdc | ((tmp >> 8) & 0x3), dest[3] = tmp & 0xff;
-            return 4;
+            IF_LIKELY(size >= 2)
+            {
+                const auto tmp2 = src - 0x10000u;
+                dest[0] = static_cast<char16_t>(0xd800 | (tmp2 >> 10)), dest[1] = static_cast<char16_t>(0xdc00 | (tmp2 & 0x3ff));
+                return 2;
+            }
         }
         return 0;
     }
@@ -475,41 +496,72 @@ struct UTF16LE : public UTF16, public ConvertByteBase
 {
     [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, const size_t size) noexcept
     {
-        if (size < 2)
-            return InvalidCharPair;
-        if (src[1] < 0xd8 || src[1] >= 0xe0)//1 unit
-            return { (src[1] << 8) | src[0], 2 };
-        if (src[1] < 0xdc)//2 unit
+        const auto ch0 = EndianReader<uint16_t, true>(src);
+        const uint32_t y = ch0 ^ 0xd800;
+        IF_LIKELY(y >= 0x0800u) // not within [d800,dfff], 1 unit
+            return { ch0, 2 };
+        IF_LIKELY(size >= 4 && ch0 < 0xdc00) // can be 2 unit
         {
-            if (size >= 4 && src[3] >= 0xdc && src[3] <= 0xdf)
-                return { (((src[1] & 0x3) << 18) | (src[0] << 10) | ((src[3] & 0x3) << 8) | src[2]) + 0x10000, 4 };
+            const auto ch1 = EndianReader<uint16_t, true>(src + 2);
+            const uint32_t x = ch1 ^ 0xdc00;
+            IF_LIKELY(x < 0x0400) // within [dc00,dfff], 2 unit
+                return { (y << 10) + x + 0x10000u, 4 };
         }
         return InvalidCharPair;
     }
     [[nodiscard]] forceinline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
     {
-        if (size < 2)
-            return 0;
-        if (src < 0xd800)
+        IF_LIKELY(src < 0x10000u)
         {
-            dest[1] = uint8_t(src >> 8);
-            dest[0] = src & 0xff;
+            EndianWriter<true>(dest, static_cast<char16_t>(src));
             return 2;
         }
-        if (src < 0xe000)
-            return 0;
-        if (src < 0x10000)
+        else
         {
-            dest[1] = uint8_t(src >> 8);
-            dest[0] = src & 0xff;
+            IF_LIKELY(size >= 4)
+            {
+                const auto tmp2 = src - 0x10000u;
+                EndianWriter<true>(dest + 0, static_cast<char16_t>(0xd800 | (tmp2 >> 10)));
+                EndianWriter<true>(dest + 2, static_cast<char16_t>(0xdc00 | (tmp2 & 0x3ff)));
+                return 4;
+            }
+        }
+        return 0;
+    }
+};
+struct UTF16BE : public UTF16, public ConvertByteBase
+{
+    [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, const size_t size) noexcept
+    {
+        const auto ch0 = EndianReader<uint16_t, false>(src);
+        const uint32_t y = ch0 ^ 0xd800;
+        IF_LIKELY(y >= 0x0800u) // not within [d800,dfff], 1 unit
+            return { ch0, 2 };
+        IF_LIKELY(size >= 4 && ch0 < 0xdc00) // can be 2 unit
+        {
+            const auto ch1 = EndianReader<uint16_t, false>(src + 2);
+            const uint32_t x = ch1 ^ 0xdc00;
+            IF_LIKELY(x < 0x0400) // within [dc00,dfff], 2 unit
+                return { (y << 10) + x + 0x10000u, 4 };
+        }
+        return InvalidCharPair;
+    }
+    [[nodiscard]] forceinline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
+    {
+        IF_LIKELY(src < 0x10000u)
+        {
+            EndianWriter<false>(dest, static_cast<char16_t>(src));
             return 2;
         }
-        if (size >= 4 && src < 0x200000u)
+        else
         {
-            const auto tmp = src - 0x10000;
-            dest[1] = uint8_t(0xd8 | (tmp >> 18)), dest[0] = ((tmp >> 10) & 0xff);
-            dest[3] = 0xdc | ((tmp >> 8) & 0x3), dest[2] = tmp & 0xff;
-            return 4;
+            IF_LIKELY(size >= 4)
+            {
+                const auto tmp2 = src - 0x10000u;
+                EndianWriter<false>(dest + 0, static_cast<char16_t>(0xd800 | (tmp2 >> 10)));
+                EndianWriter<false>(dest + 2, static_cast<char16_t>(0xdc00 | (tmp2 & 0x3ff)));
+                return 4;
+            }
         }
         return 0;
     }

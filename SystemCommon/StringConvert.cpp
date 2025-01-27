@@ -17,31 +17,33 @@ namespace detail
 {
 
 template<typename Char, typename Conv>
-[[nodiscard]] forceinline std::basic_string<Char> ConvertString(const common::span<const std::byte> data, const Encoding inchset)
+[[nodiscard]] static forcenoinline std::basic_string<Char> ConvertString(const common::span<const std::byte> data, const Encoding inchset)
 {
     using namespace common::str::charset::detail;
     const std::basic_string_view<uint8_t> str(reinterpret_cast<const uint8_t*>(data.data()), data.size());
+    std::basic_string<Char> ret;
     switch (inchset)
     {
     case Encoding::ASCII:
-        return Transform(GetDecoder<UTF7>   (str), GetEncoder<Conv, Char>());
+        Transform(GetDecoder<UTF7>   (str), GetEncoder<Conv, Char>(ret)); break;
     case Encoding::UTF8:
-        return Transform(GetDecoder<UTF8>   (str), GetEncoder<Conv, Char>());
+        Transform(GetDecoder<UTF8>   (str), GetEncoder<Conv, Char>(ret)); break;
     case Encoding::URI:
-        return Transform(GetDecoder<URI>    (str), GetEncoder<Conv, Char>());
+        Transform(GetDecoder<URI>    (str), GetEncoder<Conv, Char>(ret)); break;
     case Encoding::UTF16LE:
-        return Transform(GetDecoder<UTF16LE>(str), GetEncoder<Conv, Char>());
+        Transform(GetDecoder<UTF16LE>(str), GetEncoder<Conv, Char>(ret)); break;
     case Encoding::UTF16BE:
-        return Transform(GetDecoder<UTF16BE>(str), GetEncoder<Conv, Char>());
+        Transform(GetDecoder<UTF16BE>(str), GetEncoder<Conv, Char>(ret)); break;
     case Encoding::UTF32LE:
-        return Transform(GetDecoder<UTF32LE>(str), GetEncoder<Conv, Char>());
+        Transform(GetDecoder<UTF32LE>(str), GetEncoder<Conv, Char>(ret)); break;
     case Encoding::UTF32BE:
-        return Transform(GetDecoder<UTF32BE>(str), GetEncoder<Conv, Char>());
+        Transform(GetDecoder<UTF32BE>(str), GetEncoder<Conv, Char>(ret)); break;
     case Encoding::GB18030:
-        return Transform(GetDecoder<GB18030>(str), GetEncoder<Conv, Char>());
+        Transform(GetDecoder<GB18030>(str), GetEncoder<Conv, Char>(ret)); break;
     default: // should not enter, to please compiler
         COMMON_THROW(BaseException, u"unknown charset");
     }
+    return ret;
 }
 
 std::string to_string(const common::span<const std::byte> data, const Encoding outchset, const Encoding inchset)

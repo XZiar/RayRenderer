@@ -270,6 +270,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <cstdlib>
 #include <numeric>
 #include <limits>
 #include <string>
@@ -514,6 +515,20 @@ static_assert(is_big_endian != is_little_endian);
 
 
 
+/* basic support */
+
+namespace common
+{
+
+template<typename T>
+inline constexpr bool AlwaysTrue = true;
+template<auto T>
+inline constexpr bool AlwaysTrue2 = true;
+
+}
+
+
+
 /* bitcast fix */
 
 #if defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
@@ -541,6 +556,148 @@ forceinline std::enable_if_t<
 }
 }
 #endif
+
+
+
+/* endian read */
+
+namespace common
+{
+
+namespace detail
+{
+#if COMMON_COMPILER_MSVC
+[[nodiscard]] forceinline uint16_t ByteSwap16(const uint16_t num) noexcept
+{
+    return _byteswap_ushort(num);
+}
+[[nodiscard]] forceinline uint32_t ByteSwap32(const uint32_t num) noexcept
+{
+    return _byteswap_ulong(num);
+}
+[[nodiscard]] forceinline uint64_t ByteSwap64(const uint64_t num) noexcept
+{
+    return _byteswap_uint64(num);
+}
+#elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
+[[nodiscard]] forceinline uint16_t ByteSwap16(const uint16_t num) noexcept
+{
+    return __builtin_bswap16(num);
+}
+[[nodiscard]] forceinline uint32_t ByteSwap32(const uint32_t num) noexcept
+{
+    return __builtin_bswap32(num);
+}
+[[nodiscard]] forceinline uint64_t ByteSwap64(const uint64_t num) noexcept
+{
+    return __builtin_bswap64(num);
+}
+#else
+#endif
+}
+
+template<typename T>
+[[nodiscard]] forceinline T ByteSwap(const T num) noexcept
+{
+    if constexpr (sizeof(T) == 2)
+        return static_cast<T>(detail::ByteSwap16(static_cast<uint16_t>(num)));
+    else if constexpr (sizeof(T) == 4)
+        return static_cast<T>(detail::ByteSwap32(static_cast<uint32_t>(num)));
+    else if constexpr (sizeof(T) == 8)
+        return static_cast<T>(detail::ByteSwap64(static_cast<uint64_t>(num)));
+    else
+        static_assert(!AlwaysTrue<T>, "datatype larger than 64 bit is not supported");
+}
+
+template<typename T, bool IsLE, typename U>
+[[nodiscard]] forceinline constexpr T EndianReader(const U* __restrict const src) noexcept
+{
+    static_assert(sizeof(U) == 1);
+    if (!is_constant_evaluated(true))
+    {
+        if constexpr (detail::is_little_endian == IsLE)
+            return *reinterpret_cast<const T*>(src);
+        else
+            return ByteSwap(*reinterpret_cast<const T*>(src));
+    }
+    if constexpr (sizeof(T) == 2)
+    {
+        const auto byte0 = static_cast<uint8_t>(src[0]), byte1 = static_cast<uint8_t>(src[1]);
+        if constexpr (IsLE)
+            return static_cast<T>(static_cast<uint16_t>(byte0) | static_cast<uint16_t>(byte1 << 8));
+        else
+            return static_cast<T>(static_cast<uint16_t>(byte1) | static_cast<uint16_t>(byte0 << 8));
+    }
+    else if constexpr (sizeof(T) == 4)
+    {
+        const auto byte0 = static_cast<uint8_t>(src[0]), byte1 = static_cast<uint8_t>(src[1]), 
+            byte2 = static_cast<uint8_t>(src[2]), byte3 = static_cast<uint8_t>(src[3]);
+        if constexpr (IsLE)
+            return static_cast<T>(static_cast<uint32_t>(byte0) | (static_cast<uint32_t>(byte1) << 8) | (static_cast<uint32_t>(byte2) << 16) | (static_cast<uint32_t>(byte3) << 24));
+        else
+            return static_cast<T>(static_cast<uint32_t>(byte3) | (static_cast<uint32_t>(byte2) << 8) | (static_cast<uint32_t>(byte1) << 16) | (static_cast<uint32_t>(byte0) << 24));
+    }
+    else if constexpr (sizeof(T) == 8)
+    {
+        const auto byte0 = static_cast<uint8_t>(src[0]), byte1 = static_cast<uint8_t>(src[1]),
+            byte2 = static_cast<uint8_t>(src[2]), byte3 = static_cast<uint8_t>(src[3]),
+            byte4 = static_cast<uint8_t>(src[4]), byte5 = static_cast<uint8_t>(src[5]),
+            byte6 = static_cast<uint8_t>(src[6]), byte7 = static_cast<uint8_t>(src[7]);
+        if constexpr (IsLE)
+            return static_cast<T>(static_cast<uint64_t>(byte0) | (static_cast<uint64_t>(byte1) << 8) | (static_cast<uint64_t>(byte2) << 16) | (static_cast<uint64_t>(byte3) << 24) |
+                (static_cast<uint64_t>(byte4) << 32) | (static_cast<uint64_t>(byte5) << 40) | (static_cast<uint64_t>(byte6) << 48) | (static_cast<uint64_t>(byte7) << 56));
+        else
+            return static_cast<T>(static_cast<uint64_t>(byte7) | (static_cast<uint64_t>(byte6) << 8) | (static_cast<uint64_t>(byte5) << 16) | (static_cast<uint64_t>(byte4) << 24) |
+                (static_cast<uint64_t>(byte3) << 32) | (static_cast<uint64_t>(byte2) << 40) | (static_cast<uint64_t>(byte1) << 48) | (static_cast<uint64_t>(byte0) << 56));
+    }
+    else
+        static_assert(!AlwaysTrue<T>, "only 2/4/8 Byte");
+}
+
+template<bool IsLE, typename T, typename U>
+forceinline constexpr void EndianWriter(U* __restrict const dst, const T val) noexcept
+{
+    static_assert(sizeof(U) == 1);
+    if (!is_constant_evaluated(true))
+    {
+        if constexpr (detail::is_little_endian == IsLE)
+            *std::launder(reinterpret_cast<T*>(dst)) = val;
+        else
+            *std::launder(reinterpret_cast<T*>(dst)) = ByteSwap(val);
+        return;
+    }
+    if constexpr (sizeof(T) == 2)
+    {
+        const auto byte0 = static_cast<U>(static_cast<uint8_t>(val)), byte1 = static_cast<U>(static_cast<uint8_t>(val >> 8));
+        if constexpr (IsLE)
+            dst[0] = byte0, dst[1] = byte1;
+        else
+            dst[0] = byte1, dst[1] = byte0;
+    }
+    else if constexpr (sizeof(T) == 4)
+    {
+        const auto byte0 = static_cast<U>(static_cast<uint8_t>(val)), byte1 = static_cast<U>(static_cast<uint8_t>(val >> 8)),
+            byte2 = static_cast<U>(static_cast<uint8_t>(val >> 16)), byte3 = static_cast<U>(static_cast<uint8_t>(val >> 24));
+        if constexpr (IsLE)
+            dst[0] = byte0, dst[1] = byte1, dst[2] = byte2, dst[3] = byte3;
+        else
+            dst[0] = byte3, dst[1] = byte2, dst[2] = byte1, dst[3] = byte0;
+    }
+    else if constexpr (sizeof(T) == 8)
+    {
+        const auto byte0 = static_cast<U>(static_cast<uint8_t>(val)), byte1 = static_cast<U>(static_cast<uint8_t>(val >> 8)),
+            byte2 = static_cast<U>(static_cast<uint8_t>(val >> 16)), byte3 = static_cast<U>(static_cast<uint8_t>(val >> 24)),
+            byte4 = static_cast<U>(static_cast<uint8_t>(val >> 32)), byte5 = static_cast<U>(static_cast<uint8_t>(val >> 40)),
+            byte6 = static_cast<U>(static_cast<uint8_t>(val >> 48)), byte7 = static_cast<U>(static_cast<uint8_t>(val >> 56));
+        if constexpr (IsLE)
+            dst[0] = byte0, dst[1] = byte1, dst[2] = byte2, dst[3] = byte3, dst[4] = byte4, dst[5] = byte5, dst[6] = byte6, dst[7] = byte7;
+        else
+            dst[0] = byte7, dst[1] = byte6, dst[2] = byte5, dst[3] = byte4, dst[4] = byte3, dst[5] = byte2, dst[6] = byte1, dst[7] = byte0;
+    }
+    else
+        static_assert(!AlwaysTrue<T>, "only 2/4/8 Byte");
+}
+}
 
 
 
@@ -629,17 +786,8 @@ struct clz::make_enabler : public clz           \
 namespace common
 {
 
-
 template<typename T>
 using remove_cvref_t = typename std::remove_cv_t<std::remove_reference_t<T>>;
-
-
-template<typename T>
-inline constexpr bool AlwaysTrue = true;
-//constexpr inline bool AlwaysTrue() noexcept { return true; }
-template<auto T>
-inline constexpr bool AlwaysTrue2 = true;
-//constexpr inline bool AlwaysTrue2() noexcept { return true; }
 
 
 template<typename T, typename... Args>

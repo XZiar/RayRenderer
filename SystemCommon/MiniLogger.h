@@ -1,5 +1,6 @@
 #pragma once
 #include "SystemCommonRely.h"
+#include "common/simd/SIMD.hpp"
 #include "Format.h"
 #include "FormatExtra.h"
 #include "StringConvert.h"

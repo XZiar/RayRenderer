@@ -29,8 +29,8 @@ struct ColorMapInfo
     uint8_t ColorDepth;
     ColorMapInfo(const detail::TgaHeader& header)
     {
-        Offset = util::ParseWordLE(header.ColorMapData.ColorMapOffset);
-        Size = util::ParseWordLE(header.ColorMapData.ColorMapCount);
+        Offset = common::simd::EndianReader<uint16_t, true>(header.ColorMapData.ColorMapOffset);
+        Size = common::simd::EndianReader<uint16_t, true>(header.ColorMapData.ColorMapCount);
         ColorDepth = header.ColorMapData.ColorEntryDepth;
     }
 };
@@ -607,8 +607,8 @@ bool TgaReader::Validate()
     Stream.SetPos(0);
     if (!Stream.Read(Header))
         return false;
-    Width = (int16_t)util::ParseWordLE(Header.Width);
-    Height = (int16_t)util::ParseWordLE(Header.Height);
+    Width  = common::simd::EndianReader<int16_t, true>(Header.Width);
+    Height = common::simd::EndianReader<int16_t, true>(Header.Height);
     if (Width < 1 || Height < 1)
         return false;
     const auto type = static_cast<TGAImgType>(Header.ImageType);
@@ -724,10 +724,10 @@ void TgaWriter::Write(ImageView image, const uint8_t)
     header.ColorMapType = 0;
     header.ImageType = common::enum_cast(TGAImgType::RLE_MASK | (image.IsGray() ? TGAImgType::GRAY : TGAImgType::COLOR));
     memset(&header.ColorMapData, 0x0, 5);//5 bytes for color map spec
-    util::WordToLE(header.OriginHorizontal, 0);
-    util::WordToLE(header.OriginVertical, 0);
-    util::WordToLE(header.Width, (uint16_t)image.GetWidth());
-    util::WordToLE(header.Height, (uint16_t)image.GetHeight());
+    common::simd::EndianWriter<true>(header.OriginHorizontal, uint16_t(0));
+    common::simd::EndianWriter<true>(header.OriginVertical,   uint16_t(0));
+    common::simd::EndianWriter<true>(header.Width,  static_cast<uint16_t>(image.GetWidth()));
+    common::simd::EndianWriter<true>(header.Height, static_cast<uint16_t>(image.GetHeight()));
     header.PixelDepth = image.GetElementSize() * 8;
     header.ImageDescriptor = dstDType.HasAlpha() ? 0x28 : 0x20;
     

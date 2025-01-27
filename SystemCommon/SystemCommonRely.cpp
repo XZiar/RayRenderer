@@ -1,6 +1,6 @@
 #include "SystemCommonPch.h"
 #include "Exceptions.h"
-#include "Format.h"
+#include "StringFormat.h"
 #include "ConsoleEx.h"
 #include "SpinLock.h"
 #include "common/simd/SIMD.hpp"
@@ -175,36 +175,36 @@ forceinline std::array<uint32_t, 3> SplitVer3(uint32_t ver) noexcept
 }
 void PrintSystemVersion() noexcept
 {
-    str::Formatter<char16_t> fmter;
     std::u16string txt;
+    auto ins = std::back_inserter(txt);
 #if COMMON_OS_WIN
-    fmter.FormatToStatic(txt, FmtString(u"Running on Windows build [{}]\n"), GetWinBuildNumber());
+    fmt::format_to(ins, FMT_COMPILE(u"Running on Windows build [{}]\n"), GetWinBuildNumber());
 #elif COMMON_OS_ANDROID
     const auto kerVer = SplitVer3<100, 1000>(GetLinuxKernelVersion());
-    fmter.FormatToStatic(txt, FmtString(u"Running on Android API [{}], Linux [{}.{}.{}]\n"), GetAndroidAPIVersion(), kerVer[0], kerVer[1], kerVer[2]);
+    fmt::format_to(ins, FMT_COMPILE(u"Running on Android API [{}], Linux [{}.{}.{}]\n"), GetAndroidAPIVersion(), kerVer[0], kerVer[1], kerVer[2]);
 #elif COMMON_OS_DARWIN
     const auto ver = SplitVer3(GetDarwinOSVersion());
     const auto kerVer = SplitVer3<100, 1000>(GetUnixKernelVersion());
-    printf(u"Running on %s [%u.%u.%u], Darwin [%u.%u.%u]\n",
+    fmt::format_to(ins, FMT_COMPILE(u"Running on %s [{}.{}.{}], Darwin [{}.{}.{}]\n"),
 # if COMMON_OS_MACOS
-        "macOS",
+        u"macOS",
 # elif COMMON_OS_IOS
-        "iOS",
+        u"iOS",
 # else
-        "Unknown",
+        u"Unknown",
 # endif
         ver[0], ver[1], ver[2], kerVer[0], kerVer[1], kerVer[2]);
 #elif COMMON_OS_UNIX
 #   if COMMON_OS_LINUX
-    std::string_view target = "Linux";
+    std::u16string_view target = u"Linux";
 #   else
-    std::string_view target = "Unix";
+    std::u16string_view target = u"Unix";
 #   endif
     const auto kerVer = SplitVer3<100, 1000>(GetUnixKernelVersion());
-    fmter.FormatToStatic(txt, FmtString(u"Running on {} [{}.{}.{}]"), target, kerVer[0], kerVer[1], kerVer[2]);
+    fmt::format_to(ins, FMT_COMPILE(u"Running on {} [{}.{}.{}]"), target, kerVer[0], kerVer[1], kerVer[2]);
     const auto glibcver = GetGlibcVersion();
     if (glibcver.has_value())
-        fmter.FormatToStatic(txt, FmtString(u" glibc [{}.{}]"), (*glibcver) / 100, (*glibcver) % 100);
+        fmt::format_to(ins, FMT_COMPILE(u" glibc [{}.{}]"), (*glibcver) / 100, (*glibcver) % 100);
     txt.push_back(u'\n');
 #endif
     console::ConsoleEx::Get().Print(txt);

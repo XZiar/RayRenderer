@@ -13,6 +13,9 @@
 #   if COMMON_CLANG_VER < 30801
 #     define CMSIMD_WA_LOADUSI64    1 // https://reviews.llvm.org/D21504
 #   endif
+#   if COMMON_CLANG_VER < 110000
+#     define CMSIMD_WA_BEXTR2       1 // https://reviews.llvm.org/D75894
+#   endif
 # elif COMMON_COMPILER_ICC
 #   if COMMON_ICC_VER < 130000
 #     error ICC version too low to use this header, at least icc 13.0
@@ -49,6 +52,7 @@
 #   if COMMON_GCC_VER < 110300 || (COMMON_GCC_VER >= 120000 && COMMON_GCC_VER < 120100)
 #     define CMSIMD_FIX_LOADUSI     1 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=99754
 #   endif
+#     define CMSIMD_WA_BEXTR2       1
 # elif COMMON_COMPILER_MSVC
 #   if COMMON_MSVC_VER < 120000
 #     error MSVC version too low to use this header, at least msvc 12.0 (VS6.0)
@@ -66,6 +70,10 @@
 #  error Unknown compiler, not supported by this header
 # endif
 // workrounds
+# ifdef CMSIMD_WA_BEXTR2
+#   define _bextr2_u64 __bextr_u64
+#   define _bextr2_u32 __bextr_u32
+# endif
 # ifdef CMSIMD_WA_SET128
 #   undef CMSIMD_WA_SET128
 #   define _mm256_set_m128(/* __m128 */ hi, /* __m128 */ lo)  _mm256_insertf128_ps(_mm256_castps128_ps256(lo), (hi), 0x1)
@@ -344,6 +352,7 @@ forceinline constexpr auto GetSIMDIntrin() noexcept
     return STRINGIZE(COMMON_SIMD_INTRIN);
 }
 
+
 // undefined value when val == 0
 template<typename T>
 forceinline uint32_t CountTralingZero(const T& val) noexcept
@@ -365,6 +374,54 @@ forceinline uint32_t CountTralingZero(const T& val) noexcept
 #endif
 }
 
+
+// enforce MOVBE support
+template<typename T, bool IsLE, typename U>
+[[nodiscard]] forceinline constexpr T EndianReader(const U* __restrict const src) noexcept
+{
+    static_assert(sizeof(U) == 1);
+#if COMMON_ARCH_X86 && !COMMON_COMPILER_GCC
+    if (!is_constant_evaluated(true))
+    {
+        if constexpr (detail::is_little_endian == IsLE)
+            return *reinterpret_cast<const T*>(src);
+        else if constexpr (sizeof(T) == 2)
+            return static_cast<T>(_loadbe_i16(src));
+        else if constexpr (sizeof(T) == 4)
+            return static_cast<T>(_loadbe_i32(src));
+        else if constexpr (sizeof(T) == 8)
+            return static_cast<T>(_loadbe_i64(src));
+        else
+            static_assert(!AlwaysTrue<T>, "only 2/4/8 Byte");
+    }
+#endif
+    return ::common::EndianReader<T, IsLE>(src);
+}
+
+template<bool IsLE, typename T, typename U>
+forceinline constexpr void EndianWriter(U* __restrict const dst, const T val) noexcept
+{
+    static_assert(sizeof(U) == 1);
+#if COMMON_ARCH_X86 && !COMMON_COMPILER_GCC
+    if (!is_constant_evaluated(true))
+    {
+        if constexpr (detail::is_little_endian == IsLE)
+            *std::launder(reinterpret_cast<T*>(dst)) = val;
+        else if constexpr (sizeof(T) == 2)
+            _storebe_i16(dst, static_cast<int16_t>(val));
+        else if constexpr (sizeof(T) == 4)
+            _storebe_i32(dst, static_cast<int32_t>(val));
+        else if constexpr (sizeof(T) == 8)
+            _storebe_i64(dst, static_cast<int64_t>(val));
+        else
+            static_assert(!AlwaysTrue<T>, "only 2/4/8 Byte");
+        return;
+    }
+#endif
+    return ::common::EndianWriter<IsLE>(dst, val);
+}
+
+
 #if COMMON_COMPILER_GCC
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wpedantic"
@@ -375,7 +432,7 @@ forceinline uint64_t Shift128Left(const uint64_t hi, const uint64_t lo, uint8_t 
     CM_ASSUME(count < 64);
 #if COMMON_COMPILER_MSVC && COMMON_ARCH_X86 && COMMON_OSBIT == 64
     return __shiftleft128(lo, hi, count);
-#elif COMMON_COMPILER_GCC | COMMON_COMPILER_CLANG
+#elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
     const auto val = (static_cast<unsigned __int128>(hi) << 64) | static_cast<unsigned __int128>(lo);
     return static_cast<uint64_t>((val << count) >> 64);
 #else
@@ -387,7 +444,7 @@ forceinline uint64_t Shift128Right(const uint64_t hi, const uint64_t lo, uint8_t
     CM_ASSUME(count < 64);
 #if COMMON_COMPILER_MSVC && COMMON_ARCH_X86 && COMMON_OSBIT == 64
     return __shiftright128(lo, hi, count);
-#elif COMMON_COMPILER_GCC | COMMON_COMPILER_CLANG
+#elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
     const auto val = (static_cast<unsigned __int128>(hi) << 64) | static_cast<unsigned __int128>(lo);
     return static_cast<uint64_t>(val >> count);
 #else
@@ -397,6 +454,20 @@ forceinline uint64_t Shift128Right(const uint64_t hi, const uint64_t lo, uint8_t
 #if COMMON_COMPILER_GCC
 #   pragma GCC diagnostic pop
 #endif
+
+
+#if COMMON_ARCH_X86
+template<uint8_t Bits, typename T>
+forceinline T ExtractBits(const T src, uint32_t start) noexcept
+{
+    const uint32_t control = start + (Bits << 8);
+    if constexpr (sizeof(T) > sizeof(uint32_t))
+        return static_cast<T>(_bextr2_u64(src, control));
+    else
+        return static_cast<T>(_bextr2_u32(src, control));
+}
+#endif
+
 
 struct VecDataInfo
 {

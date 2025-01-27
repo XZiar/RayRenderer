@@ -19,34 +19,6 @@ private:
     uint32_t(*PopCounts )(const std::byte* data, size_t count) noexcept = nullptr;
     std::string(*Hex2Str)(const uint8_t* data, size_t size, bool isCapital) noexcept = nullptr;
     bool(*PauseCycles)(uint32_t) noexcept = nullptr;
-#if COMMON_COMPILER_MSVC
-    [[nodiscard]] static forceinline uint16_t ByteSwap16(const uint16_t num) noexcept
-    { 
-        return _byteswap_ushort(num);
-    }
-    [[nodiscard]] static forceinline uint32_t ByteSwap32(const uint32_t num) noexcept
-    { 
-        return _byteswap_ulong(num);
-    }
-    [[nodiscard]] static forceinline uint64_t ByteSwap64(const uint64_t num) noexcept
-    { 
-        return _byteswap_uint64(num);
-    }
-#elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
-    [[nodiscard]] static forceinline uint16_t ByteSwap16(const uint16_t num) noexcept
-    { 
-        return __builtin_bswap16(num);
-    }
-    [[nodiscard]] static forceinline uint32_t ByteSwap32(const uint32_t num) noexcept
-    { 
-        return __builtin_bswap32(num);
-    }
-    [[nodiscard]] static forceinline uint64_t ByteSwap64(const uint64_t num) noexcept
-    { 
-        return __builtin_bswap64(num);
-    }
-#else
-#endif
 public:
     SYSCOMMONAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
     SYSCOMMONAPI MiscIntrins(common::span<const VarItem> requests = {}) noexcept;
@@ -109,18 +81,6 @@ public:
             return PopCount32(*reinterpret_cast<const uint32_t*>(space.data()));
         else
             return PopCounts(reinterpret_cast<const std::byte*>(space.data()), byteCount);
-    }
-    template<typename T>
-    [[nodiscard]] static forceinline T ByteSwap(const T num) noexcept
-    {
-        if constexpr (sizeof(T) == 2)
-            return ByteSwap16(static_cast<uint16_t>(num));
-        else if constexpr (sizeof(T) == 4)
-            return ByteSwap32(static_cast<uint32_t>(num));
-        else if constexpr (sizeof(T) == 8)
-            return ByteSwap64(static_cast<uint64_t>(num));
-        else
-            static_assert(!AlwaysTrue<T>, "datatype larger than 64 bit is not supported");
     }
     [[nodiscard]] forceinline std::string HexToStr(const void* data, const size_t size, bool isCapital = false) const noexcept
     {

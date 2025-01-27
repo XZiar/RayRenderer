@@ -20,6 +20,7 @@
 #include "3rdParty/fmt/include/fmt/ranges.h"
 #include "3rdParty/fmt/include/fmt/chrono.h"
 #include "3rdParty/fmt/include/fmt/format.h"
+#include "3rdParty/fmt/include/fmt/compile.h"
 
 #if COMMON_COMPILER_MSVC
 #   pragma warning(pop)

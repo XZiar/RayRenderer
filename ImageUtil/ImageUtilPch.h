@@ -2,6 +2,8 @@
 #include "ImageUtilRely.h"
 #include "ColorConvert.h"
 
+#include "common/simd/SIMD.hpp"
+
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/FormatExtra.h"
 #include "SystemCommon/FileEx.h"
