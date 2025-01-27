@@ -64,9 +64,8 @@ struct FormatSpec
 #endif
 struct alignas(4) OpaqueFormatSpecReal
 {
-    uint8_t Data[8] = { 0 };
+    uint8_t Data[4] = { 0 };
     uint8_t Fill[4] = { 0 };
-    uint8_t Padding[4] = { 0 };
     uint8_t Extra[8] = { 0 };
 };
 struct alignas(4) OpaqueFormatSpec

@@ -25,6 +25,7 @@ namespace common
     void* ptr = nullptr;
     if (const auto ret = posix_memalign(&ptr, align >= minAlign ? align : minAlign, size); ret)
         return nullptr;
+    CM_ASSUME(ptr != nullptr);
     return ptr;
 }
 forceinline void free_align(void* ptr) noexcept

@@ -68,7 +68,7 @@ std::shared_ptr<const ImgSupport> GetImageSupport(const std::type_info& type) no
     const auto lock = AcuireSupportLock().ReadScope();
     for (const auto& support : SUPPORT_MAP())
     {
-        if (typeid(*support) == type)
+        if (typeid(*support.get()) == type)
             return support;
     }
     return {};

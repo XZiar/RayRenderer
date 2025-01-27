@@ -16,73 +16,86 @@ namespace common::str
 namespace detail
 {
 
-template<typename Char, typename Conv>
-[[nodiscard]] static forcenoinline std::basic_string<Char> ConvertString(const common::span<const std::byte> data, const Encoding inchset)
+template<typename Conv, typename Char>
+[[nodiscard]] static forcenoinline bool ConvertString(const common::span<const std::byte> data, const Encoding inchset, std::basic_string<Char>& dst) noexcept
 {
     using namespace common::str::charset::detail;
-    const std::basic_string_view<uint8_t> str(reinterpret_cast<const uint8_t*>(data.data()), data.size());
-    std::basic_string<Char> ret;
+    const auto srcptr = reinterpret_cast<const uint8_t*>(data.data());
+    const size_t count = data.size();
     switch (inchset)
     {
     case Encoding::ASCII:
-        Transform(GetDecoder<UTF7>   (str), GetEncoder<Conv, Char>(ret)); break;
+        Transform2<UTF7,    Conv>(srcptr, count, dst); break;
     case Encoding::UTF8:
-        Transform(GetDecoder<UTF8>   (str), GetEncoder<Conv, Char>(ret)); break;
+        Transform2<UTF8,    Conv>(srcptr, count, dst); break;
     case Encoding::URI:
-        Transform(GetDecoder<URI>    (str), GetEncoder<Conv, Char>(ret)); break;
+        Transform2<URI,     Conv>(srcptr, count, dst); break;
     case Encoding::UTF16LE:
-        Transform(GetDecoder<UTF16LE>(str), GetEncoder<Conv, Char>(ret)); break;
+        Transform2<UTF16LE, Conv>(srcptr, count, dst); break;
     case Encoding::UTF16BE:
-        Transform(GetDecoder<UTF16BE>(str), GetEncoder<Conv, Char>(ret)); break;
+        Transform2<UTF16BE, Conv>(srcptr, count, dst); break;
     case Encoding::UTF32LE:
-        Transform(GetDecoder<UTF32LE>(str), GetEncoder<Conv, Char>(ret)); break;
+        Transform2<UTF32LE, Conv>(srcptr, count, dst); break;
     case Encoding::UTF32BE:
-        Transform(GetDecoder<UTF32BE>(str), GetEncoder<Conv, Char>(ret)); break;
+        Transform2<UTF32BE, Conv>(srcptr, count, dst); break;
     case Encoding::GB18030:
-        Transform(GetDecoder<GB18030>(str), GetEncoder<Conv, Char>(ret)); break;
-    default: // should not enter, to please compiler
-        COMMON_THROW(BaseException, u"unknown charset");
+        Transform2<GB18030, Conv>(srcptr, count, dst); break;
+    default:
+        return false;
     }
-    return ret;
+    return true;
 }
 
 std::string to_string(const common::span<const std::byte> data, const Encoding outchset, const Encoding inchset)
 {
     using namespace common::str::charset::detail;
+    std::basic_string<char> ret;
+    bool valid = false;
     switch (outchset)
     {
     case Encoding::ASCII:
-        return ConvertString<char, UTF7   >(data, inchset);
+        valid = ConvertString<UTF7   >(data, inchset, ret); break;
     case Encoding::UTF8:
-        return ConvertString<char, UTF8   >(data, inchset);
+        valid = ConvertString<UTF8   >(data, inchset, ret); break;
     case Encoding::URI:
-        return ConvertString<char, URI    >(data, inchset);
+        valid = ConvertString<URI    >(data, inchset, ret); break;
     case Encoding::UTF16LE:
-        return ConvertString<char, UTF16LE>(data, inchset);
+        valid = ConvertString<UTF16LE>(data, inchset, ret); break;
     case Encoding::UTF16BE:
-        return ConvertString<char, UTF16BE>(data, inchset);
+        valid = ConvertString<UTF16BE>(data, inchset, ret); break;
     case Encoding::UTF32LE:
-        return ConvertString<char, UTF32LE>(data, inchset);
+        valid = ConvertString<UTF32LE>(data, inchset, ret); break;
     case Encoding::UTF32BE:
-        return ConvertString<char, UTF32BE>(data, inchset);
+        valid = ConvertString<UTF32BE>(data, inchset, ret); break;
     case Encoding::GB18030:
-        return ConvertString<char, GB18030>(data, inchset);
-    default:
-        COMMON_THROW(BaseException, u"unknown charset");
+        valid = ConvertString<GB18030>(data, inchset, ret); break;
+    default: break;
     }
+    if (!valid)
+        COMMON_THROW(BaseException, u"unknown charset");
+    return ret;
 }
 
 std::u32string  to_u32string(const common::span<const std::byte> data, const Encoding inchset)
 {
-    return ConvertString<char32_t, common::str::charset::detail::UTF32LE>(data, inchset);
+    std::basic_string<char32_t> ret;
+    if (!ConvertString<common::str::charset::detail::UTF32LE>(data, inchset, ret))
+        COMMON_THROW(BaseException, u"unknown charset");
+    return ret;
 }
 std::u16string  to_u16string(const common::span<const std::byte> data, const Encoding inchset)
 {
-    return ConvertString<char16_t, common::str::charset::detail::UTF16LE>(data, inchset);
+    std::basic_string<char16_t> ret;
+    if (!ConvertString<common::str::charset::detail::UTF16LE>(data, inchset, ret))
+        COMMON_THROW(BaseException, u"unknown charset");
+    return ret;
 }
 str::u8string   to_u8string (const common::span<const std::byte> data, const Encoding inchset)
 {
-    return ConvertString<u8ch_t  , common::str::charset::detail::UTF8   >(data, inchset);
+    std::basic_string<u8ch_t> ret;
+    if (!ConvertString<common::str::charset::detail::UTF8   >(data, inchset, ret))
+        COMMON_THROW(BaseException, u"unknown charset");
+    return ret;
 }
 
 

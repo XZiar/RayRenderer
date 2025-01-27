@@ -26,8 +26,8 @@
 #   pragma warning(pop)
 #endif
 
-#if FMT_VERSION < 110101
-#   error("Require fmt 11.1.1")
+#if FMT_VERSION < 110103
+#   error("Require fmt 11.1.3")
 #endif
 
 namespace common::str::detail

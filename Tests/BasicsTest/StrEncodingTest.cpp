@@ -6,10 +6,106 @@ using namespace common::str;
 using namespace std::string_view_literals;
 using charset::ToLowerEng;
 using charset::ToUpperEng;
-using charset::to_string;
-using charset::to_u8string;
-using charset::to_u16string;
-using charset::to_u32string;
+using charset::detail::UTF7;
+using charset::detail::UTF8;
+using charset::detail::UTF16LE;
+using charset::detail::UTF16BE;
+using charset::detail::UTF32LE;
+using charset::detail::UTF32BE;
+using charset::detail::GB18030;
+
+
+template<typename Char>
+[[nodiscard]] inline std::u32string to_u32string(const Char* str, size_t size, const Encoding inchset)
+{
+    std::u32string ret;
+    switch (inchset)
+    {
+    case Encoding::ASCII:
+        charset::detail::Transform2<UTF7, UTF32LE>(str, size, ret); break;
+    case Encoding::UTF8:
+        charset::detail::Transform2<UTF8, UTF32LE>(str, size, ret); break;
+    case Encoding::UTF16LE:
+        charset::detail::Transform2<UTF16LE, UTF32LE>(str, size, ret); break;
+    case Encoding::UTF16BE:
+        charset::detail::Transform2<UTF16BE, UTF32LE>(str, size, ret); break;
+    case Encoding::UTF32LE:
+        Ensures(false);
+    case Encoding::UTF32BE:
+        charset::detail::Transform2<UTF32BE, UTF32LE>(str, size, ret); break;
+    case Encoding::GB18030:
+        charset::detail::Transform2<GB18030, UTF32LE>(str, size, ret); break;
+    default: CM_UNREACHABLE(); break;
+    }
+    return ret;
+}
+template<typename Char>
+[[nodiscard]] inline std::u32string to_u32string(std::basic_string_view<Char> str, const Encoding inchset)
+{
+    return to_u32string(str.data(), str.size(), inchset);
+}
+
+
+template<typename Char>
+[[nodiscard]] inline std::u16string to_u16string(const Char* str, size_t size, const Encoding inchset)
+{
+    std::u16string ret;
+    switch (inchset)
+    {
+    case Encoding::ASCII:
+        charset::detail::Transform2<UTF7, UTF16LE>(str, size, ret); break;
+    case Encoding::UTF8:
+        charset::detail::Transform2<UTF8, UTF16LE>(str, size, ret); break;
+    case Encoding::UTF16LE:
+        Ensures(false);
+    case Encoding::UTF16BE:
+        charset::detail::Transform2<UTF16BE, UTF16LE>(str, size, ret); break;
+    case Encoding::UTF32LE:
+        charset::detail::Transform2<UTF32LE, UTF16LE>(str, size, ret); break;
+    case Encoding::UTF32BE:
+        charset::detail::Transform2<UTF32BE, UTF16LE>(str, size, ret); break;
+    case Encoding::GB18030:
+        charset::detail::Transform2<GB18030, UTF16LE>(str, size, ret); break;
+    default: CM_UNREACHABLE(); break;
+    }
+    return ret;
+}
+template<typename Char>
+[[nodiscard]] inline std::u16string to_u16string(std::basic_string_view<Char> str, const Encoding inchset)
+{
+    return to_u16string(str.data(), str.size(), inchset);
+}
+
+
+template<typename Char>
+[[nodiscard]] inline std::u8string to_u8string(const Char* str, size_t size, const Encoding inchset)
+{
+    std::u8string ret;
+    switch (inchset)
+    {
+    case Encoding::ASCII:
+    case Encoding::UTF8:
+        Ensures(false);
+    case Encoding::UTF16LE:
+        charset::detail::Transform2<UTF16LE, UTF8>(str, size, ret); break;
+    case Encoding::UTF16BE:
+        charset::detail::Transform2<UTF16BE, UTF8>(str, size, ret); break;
+    case Encoding::UTF32LE:
+        charset::detail::Transform2<UTF32LE, UTF8>(str, size, ret); break;
+    case Encoding::UTF32BE:
+        charset::detail::Transform2<UTF32BE, UTF8>(str, size, ret); break;
+    case Encoding::GB18030:
+        charset::detail::Transform2<GB18030, UTF8>(str, size, ret); break;
+    default: CM_UNREACHABLE(); break;
+    }
+    return ret;
+}
+template<typename Char>
+[[nodiscard]] inline std::u8string to_u8string(std::basic_string_view<Char> str, const Encoding inchset)
+{
+    return to_u8string(str.data(), str.size(), inchset);
+}
+
 
 
 static constexpr auto U8Str  =       u8string_view(u8"aBcD1\U00000707\U0000A5EE\U00010086");
@@ -381,8 +477,8 @@ TEST(StrChset, AllUTF16)
         }
     });
 
-    const auto allutf16 = to_u16string(AllUnicode, common::str::Encoding::UTF32);
-    const auto allutf32 = to_u32string(allutf16, common::str::Encoding::UTF16);
+    const auto allutf16 = to_u16string(AllUnicode.data(), AllUnicode.size(), Encoding::UTF32);
+    const auto allutf32 = to_u32string(allutf16.data(), allutf16.size(), Encoding::UTF16);
     CHK_STR_UNIT_EQ(allutf32, AllUnicode, "AllUnicode To UTF16");
 }
 
@@ -427,8 +523,8 @@ TEST(StrChset, AllUTF8)
         }
     });
 
-    const auto allutf8 = to_u8string(AllUnicode, common::str::Encoding::UTF32);
-    const auto allutf32 = to_u32string(allutf8, common::str::Encoding::UTF8);
+    const auto allutf8 = to_u8string(AllUnicode.data(), AllUnicode.size(), Encoding::UTF32);
+    const auto allutf32 = to_u32string(allutf8.data(), allutf8.size(), Encoding::UTF8);
     CHK_STR_UNIT_EQ(allutf32, AllUnicode, "AllUnicode To UTF8");
 }
 
@@ -450,10 +546,11 @@ TEST(StrChset, Lower)
     EXPECT_EQ(ToLowerEng(U"aBcD1\0/\u0444", Encoding::UTF32LE), U"abcd1\0/\u0444");
 }
 
+constexpr std::string_view StrA0 = "A0"sv;
 
 TEST(StrChset, utf16)
 {
-    EXPECT_EQ(to_u16string("A0"), u"A0");
+    EXPECT_EQ(to_u16string(StrA0, Encoding::UTF7), u"A0");
     EXPECT_EQ(to_u16string(U32Str, Encoding::UTF32LE), U16Str);
     EXPECT_EQ(to_u32string(U16Str, Encoding::UTF16LE), U32Str);
 }
@@ -461,16 +558,18 @@ TEST(StrChset, utf16)
 
 TEST(StrChset, utf8)
 {
-    CHK_STR_UNIT_EQ(to_u8string ("A0"), "A0", "utf8");
+    CHK_STR_UNIT_EQ(to_u8string (StrA0, Encoding::UTF7), "A0", "utf8");
     CHK_STR_UNIT_EQ(to_u8string (U32Str, Encoding::UTF32LE),  U8Str, "utf8");
-    CHK_STR_UNIT_EQ(to_u32string(U8Str , Encoding::UTF8   ), U32Str, "utf8");
+    CHK_STR_UNIT_EQ(to_u32string(U8Str, Encoding::UTF8), U32Str, "utf8");
 }
 
 
 TEST(StrChset, utf32)
 {
-    EXPECT_EQ(to_u32string("A0"), U"A0");
-    EXPECT_EQ(to_string(U32Str, Encoding::ASCII, Encoding::UTF32LE), "aBcD1");
+    EXPECT_EQ(to_u32string(StrA0, Encoding::UTF7), U"A0");
+    std::string utf7str;
+    charset::detail::Transform2<UTF32LE, UTF7>(U32Str.data(), U32Str.size(), utf7str);
+    EXPECT_EQ(utf7str, "aBcD1");
 }
 
 

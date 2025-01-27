@@ -116,134 +116,68 @@ public:
 
 
 
-template<typename Conv, typename T>
-struct CommonDecoder
+template<typename Dec, typename Enc, typename DChar, typename EChar>
+forceinline void Transform(const DChar* __restrict srcPtr, size_t count, std::basic_string<EChar>& dst) noexcept
 {
-    static_assert(std::is_base_of_v<ConvertByteBase, Conv>, "Conv should be of ConvertByteBase");
-    static constexpr inline bool UseByte = std::is_same_v<uint8_t, T>;
-protected:
-    const T* __restrict Ptr;
-    size_t Count;
-    [[nodiscard]] forceinline constexpr std::pair<char32_t, uint32_t> DecodeOnce() noexcept
-    {
-        if constexpr (!UseByte)
-            return Conv::From(Ptr, Count);
-        else
-            return Conv::FromBytes(Ptr, Count);
-    }
-public:
-    forceinline constexpr CommonDecoder(const T* ptr, size_t count) noexcept : Ptr(ptr), Count(count)
-    { }
+    static_assert(std::is_base_of_v<ConvertByteBase, Dec>, "Conv should be of ConvertByteBase");
+    static_assert(std::is_base_of_v<ConvertByteBase, Enc>, "Conv should be of ConvertByteBase");
+    constexpr bool DecUseCP = std::is_same_v<typename Dec::ElementType, DChar>;
+    constexpr bool EncUseCP = std::is_same_v<typename Enc::ElementType, EChar>;
+    static_assert(DecUseCP || sizeof(DChar) == 1);
+    static_assert(EncUseCP || sizeof(EChar) == 1);
 
-    [[nodiscard]] forceinline constexpr char32_t Decode() noexcept
+    EChar temp[EncUseCP ? Enc::MaxOutputUnit : Enc::MaxOutputUnit * sizeof(typename Enc::ElementType)] = { 0 };
+    while (true)
     {
-        while (Count >= (UseByte ? Conv::MinBytes : 1u))
+        char32_t cp = InvalidChar;
+        while (count >= (DecUseCP ? 1u : Dec::MinBytes))
         {
-            const auto [cp, cnt] = DecodeOnce();
+            uint32_t cnt = 0;
+            if constexpr (DecUseCP)
+                std::tie(cp, cnt) = Dec::From(srcPtr, count);
+            else
+                std::tie(cp, cnt) = Dec::FromBytes(srcPtr, count);
             IF_LIKELY(cnt)
             {
-                Ptr += cnt;
-                Count -= cnt;
-                return cp;
+                srcPtr += cnt;
+                count -= cnt;
+                CM_ASSUME(cp != InvalidChar);
+                break;
             }
             else
             {
-                Ptr += 1;
-                Count -= 1;
+                CM_ASSUME(cp == InvalidChar);
+                srcPtr += 1;
+                count -= 1;
             }
         }
-        return InvalidChar;
-    }
-};
-template<typename Conv, typename Char>
-[[nodiscard]] forceinline constexpr auto GetDecoder(std::basic_string_view<Char> src) noexcept
-{
-    if constexpr (std::is_same_v<typename Conv::ElementType, Char> && std::is_base_of_v<ConvertCPBase, Conv>)
-    {
-        return CommonDecoder<Conv, Char>(src.data(), src.size());
-    }
-    else
-    {
-        static_assert(std::is_base_of_v<ConvertByteBase, Conv>, "Conv should be of ConvertByteBase");
-        return CommonDecoder<Conv, uint8_t>(reinterpret_cast<const uint8_t*>(src.data()), src.size() * sizeof(Char));
-    }
-}
+        IF_UNLIKELY(cp == InvalidChar)
+            break;
 
-
-
-template<typename Conv, typename Char>
-struct CommonEncoder
-{
-    static_assert(std::is_base_of_v<ConvertByteBase, Conv>, "Conv should be of ConvertByteBase");
-public:
-    std::basic_string<Char>& Result;
-private:
-    Char Temp[Conv::MaxOutputUnit * sizeof(typename Conv::ElementType) / sizeof(Char)] = { 0 };
-    [[nodiscard]] forceinline constexpr size_t EncodeOnce(const char32_t cp) noexcept
-    {
-        if constexpr (std::is_same_v<typename Conv::ElementType, Char>)
-            return Conv::To(cp, Conv::MaxOutputUnit, Temp);
+        uint32_t cnt = 0;
+        if constexpr (EncUseCP)
+            cnt = Enc::To(cp, Enc::MaxOutputUnit, temp);
         else
+            cnt = Enc::ToBytes(cp, sizeof(temp), std::launder(reinterpret_cast<uint8_t*>(temp)));
+        IF_LIKELY(cnt)
         {
-            const auto bytes = Conv::ToBytes(cp, sizeof(Temp), reinterpret_cast<uint8_t*>(Temp));
-            return bytes / sizeof(Char);
+            dst.append(temp, cnt);
         }
     }
-public:
-    forceinline CommonEncoder(std::basic_string<Char>& dst, const size_t hint) noexcept : Result(dst)
-    {
-        Result.reserve(hint);
-    }
+    return;
+}
 
-    forceinline constexpr void Encode(const char32_t cp) noexcept
-    {
-        const auto cnt = EncodeOnce(cp);
-        if (cnt > 0)
-        {
-            Result.append(Temp, cnt);
-        }
-    }
-};
-template<typename Conv, typename Char>
-[[nodiscard]] forceinline constexpr auto GetEncoder(std::basic_string<Char>& dst, const size_t hint = 0) noexcept
+template<typename Dec, typename Enc, typename DChar, typename EChar>
+forceinline void Transform2(const DChar* __restrict srcPtr, size_t count, std::basic_string<EChar>& dst) noexcept
 {
-    if constexpr (std::is_same_v<typename Conv::ElementType, Char> && std::is_base_of_v<ConvertCPBase, Conv>)
+    constexpr bool DecUseCP = std::is_same_v<typename Dec::ElementType, DChar>;
+    if constexpr (DecUseCP)
     {
-        return CommonEncoder<Conv, Char>(dst, hint);
+        Transform<Dec, Enc>(srcPtr, count, dst);
     }
     else
     {
-        static_assert(std::is_base_of_v<ConvertByteBase, Conv>, "Conv should be of ConvertByteBase");
-        static_assert(sizeof(typename Conv::ElementType) % sizeof(Char) == 0, "Conv's minimal output should be multiple of Char type");
-        return CommonEncoder<Conv, Char>(dst, hint);
-    }
-}
-
-
-template<typename Dec, typename Enc>
-forceinline void Transform(Dec decoder, Enc encoder) noexcept
-{
-    while (true)
-    {
-        const auto codepoint = decoder.Decode();
-        IF_UNLIKELY(codepoint == InvalidChar) 
-            break;
-        encoder.Encode(codepoint);
-    }
-}
-template<typename Dec, typename Enc, typename TransFunc>
-forceinline void Transform(Dec decoder, Enc encoder, TransFunc trans) noexcept
-{
-    static_assert(std::is_invocable_r_v<char32_t, TransFunc, char32_t>, "TransFunc should accept an char32_t and return another");
-    while (true)
-    {
-        auto codepoint = decoder.Decode();
-        if (codepoint == InvalidChar)
-            break;
-        codepoint = trans(codepoint);
-        if (codepoint == InvalidChar)
-            break; 
-        encoder.Encode(codepoint);
+        Transform<Dec, Enc>(std::launder(reinterpret_cast<const uint8_t*>(srcPtr)), count * sizeof(DChar), dst);
     }
 }
 
@@ -276,231 +210,7 @@ forceinline void DirectCopyStr(const std::basic_string_view<Src> str, std::basic
     dst.assign(ptr, ptr + cnt);
 }
 
-
-template<typename Char>
-[[nodiscard]] inline u8string to_u8string_impl(const std::basic_string_view<Char> str, const Encoding inchset)
-{
-    u8string ret;
-    switch (inchset)
-    {
-    case Encoding::ASCII:
-    case Encoding::UTF8:
-        DirectCopyStr(str, ret); break;
-    case Encoding::UTF16LE:
-        Transform(GetDecoder<UTF16LE>(str), GetEncoder<UTF8, u8ch_t>(ret)); break;
-    case Encoding::UTF16BE:
-        Transform(GetDecoder<UTF16BE>(str), GetEncoder<UTF8, u8ch_t>(ret)); break;
-    case Encoding::UTF32LE:
-        Transform(GetDecoder<UTF32LE>(str), GetEncoder<UTF8, u8ch_t>(ret)); break;
-    case Encoding::UTF32BE:
-        Transform(GetDecoder<UTF32BE>(str), GetEncoder<UTF8, u8ch_t>(ret)); break;
-    case Encoding::GB18030:
-        Transform(GetDecoder<GB18030>(str), GetEncoder<UTF8, u8ch_t>(ret)); break;
-    default: CM_UNREACHABLE(); break;
-    }
-    return ret;
 }
-
-
-template<typename Char>
-[[nodiscard]] inline std::u16string to_u16string_impl(const std::basic_string_view<Char> str, const Encoding inchset)
-{
-    std::u16string ret;
-    switch (inchset)
-    {
-    case Encoding::ASCII:
-        Transform(GetDecoder<UTF7>   (str), GetEncoder<UTF16LE, char16_t>(ret)); break;
-    case Encoding::UTF8:
-        Transform(GetDecoder<UTF8>   (str), GetEncoder<UTF16LE, char16_t>(ret)); break;
-    case Encoding::UTF16LE:
-        DirectCopyStr(str, ret); break;
-    case Encoding::UTF16BE:
-        Transform(GetDecoder<UTF16BE>(str), GetEncoder<UTF16LE, char16_t>(ret)); break;
-    case Encoding::UTF32LE:
-        Transform(GetDecoder<UTF32LE>(str), GetEncoder<UTF16LE, char16_t>(ret)); break;
-    case Encoding::UTF32BE:
-        Transform(GetDecoder<UTF32BE>(str), GetEncoder<UTF16LE, char16_t>(ret)); break;
-    case Encoding::GB18030:
-        Transform(GetDecoder<GB18030>(str), GetEncoder<UTF16LE, char16_t>(ret)); break;
-    default: CM_UNREACHABLE(); break;
-    }
-    return ret;
-}
-
-
-template<typename Char>
-[[nodiscard]] inline std::u32string to_u32string_impl(const std::basic_string_view<Char> str, const Encoding inchset)
-{
-    std::u32string ret;
-    switch (inchset)
-    {
-    case Encoding::ASCII:
-        Transform(GetDecoder<UTF7>   (str), GetEncoder<UTF32LE, char32_t>(ret)); break;
-    case Encoding::UTF8:
-        Transform(GetDecoder<UTF8>   (str), GetEncoder<UTF32LE, char32_t>(ret)); break;
-    case Encoding::UTF16LE:
-        Transform(GetDecoder<UTF16LE>(str), GetEncoder<UTF32LE, char32_t>(ret)); break;
-    case Encoding::UTF16BE:
-        Transform(GetDecoder<UTF16BE>(str), GetEncoder<UTF32LE, char32_t>(ret)); break;
-    case Encoding::UTF32LE:
-        DirectCopyStr(str, ret); break;
-    case Encoding::UTF32BE:
-        Transform(GetDecoder<UTF32BE>(str), GetEncoder<UTF32LE, char32_t>(ret)); break;
-    case Encoding::GB18030:
-        Transform(GetDecoder<GB18030>(str), GetEncoder<UTF32LE, char32_t>(ret)); break;
-    default: CM_UNREACHABLE(); break;
-    }
-    return ret;
-}
-
-
-template<typename Decoder>
-forcenoinline void to_string_impl(Decoder decoder, const Encoding outchset, std::string& ret)
-{
-    switch (outchset)
-    {
-    case Encoding::ASCII:
-        Transform(decoder, GetEncoder<UTF7,    char>(ret)); break;
-    case Encoding::UTF8:
-        Transform(decoder, GetEncoder<UTF8,    char>(ret)); break;
-    case Encoding::UTF16LE:
-        Transform(decoder, GetEncoder<UTF16LE, char>(ret)); break;
-    case Encoding::UTF16BE:
-        Transform(decoder, GetEncoder<UTF16BE, char>(ret)); break;
-    case Encoding::UTF32LE:
-        Transform(decoder, GetEncoder<UTF32LE, char>(ret)); break;
-    case Encoding::UTF32BE:
-        Transform(decoder, GetEncoder<UTF32BE, char>(ret)); break;
-    case Encoding::GB18030:
-        Transform(decoder, GetEncoder<GB18030, char>(ret)); break;
-    default: CM_UNREACHABLE(); break;
-    }
-}
-template<typename Char>
-[[nodiscard]] inline std::string to_string_impl(const std::basic_string_view<Char> str, const Encoding inchset, const Encoding outchset)
-{
-    std::string ret;
-    if (inchset == outchset)
-        DirectCopyStr(str, ret);
-    else
-    {
-        switch (inchset)
-        {
-        case Encoding::ASCII:
-            to_string_impl(GetDecoder<UTF7   >(str), outchset, ret); break;
-        case Encoding::UTF8:
-            to_string_impl(GetDecoder<UTF8   >(str), outchset, ret); break;
-        case Encoding::UTF16LE:
-            to_string_impl(GetDecoder<UTF16LE>(str), outchset, ret); break;
-        case Encoding::UTF16BE:
-            to_string_impl(GetDecoder<UTF16BE>(str), outchset, ret); break;
-        case Encoding::UTF32LE:
-            to_string_impl(GetDecoder<UTF32LE>(str), outchset, ret); break;
-        case Encoding::UTF32BE:
-            to_string_impl(GetDecoder<UTF32BE>(str), outchset, ret); break;
-        case Encoding::GB18030:
-            to_string_impl(GetDecoder<GB18030>(str), outchset, ret); break;
-        default: CM_UNREACHABLE(); break;
-        }
-    }
-    return ret;
-}
-
-
-}
-
-
-template<typename T>
-[[nodiscard]] forceinline std::string to_string(const T& str_, const Encoding outchset = Encoding::ASCII, const Encoding inchset = Encoding::ASCII)
-{
-    if constexpr (common::is_specialization<T, std::basic_string_view>::value)
-    {
-        using Char = typename T::value_type;
-        return detail::to_string_impl<Char>(str_, inchset, outchset);
-
-    }
-    else
-    {
-        const auto str = ToStringView(str_);
-        using Char = typename decltype(str)::value_type;
-        return detail::to_string_impl<Char>(str, inchset, outchset);
-    }
-}
-
-
-template<typename T>
-[[nodiscard]] forceinline u8string to_u8string(const T& str_, const Encoding inchset = Encoding::ASCII)
-{
-    if constexpr (common::is_specialization<T, std::basic_string_view>::value)
-    {
-        using Char = typename T::value_type;
-        return detail::to_u8string_impl<Char>(str_, inchset);
-
-    }
-    else
-    {
-        const auto str = ToStringView(str_);
-        using Char = typename decltype(str)::value_type;
-        return detail::to_u8string_impl<Char>(str, inchset);
-    }
-}
-
-
-template<typename T>
-[[nodiscard]] forceinline std::u16string to_u16string(const T& str_, const Encoding inchset = Encoding::ASCII)
-{
-    if constexpr (common::is_specialization<T, std::basic_string_view>::value)
-    {
-        using Char = typename T::value_type;
-        return detail::to_u16string_impl<Char>(str_, inchset);
-
-    }
-    else
-    {
-        const auto str = ToStringView(str_);
-        using Char = typename decltype(str)::value_type;
-        return detail::to_u16string_impl<Char>(str, inchset);
-    }
-}
-
-
-template<typename T>
-[[nodiscard]] forceinline std::u32string to_u32string(const T& str_, const Encoding inchset = Encoding::ASCII)
-{
-    if constexpr (common::is_specialization<T, std::basic_string_view>::value)
-    {
-        using Char = typename T::value_type;
-        return detail::to_u32string_impl<Char>(str_, inchset);
-
-    }
-    else
-    {
-        const auto str = ToStringView(str_);
-        using Char = typename decltype(str)::value_type;
-        return detail::to_u32string_impl<Char>(str, inchset);
-    }
-}
-
-
-template<typename T>
-[[nodiscard]] forceinline std::wstring to_wstring(const T& str_, const Encoding inchset = Encoding::ASCII)
-{
-    if constexpr (sizeof(wchar_t) == sizeof(char16_t))
-    {
-        auto ret = to_u16string(str_, inchset);
-        return *reinterpret_cast<std::wstring*>(&ret);
-    }
-    else if constexpr (sizeof(wchar_t) == sizeof(char32_t))
-    {
-        auto ret = to_u32string(str_, inchset);
-        return *reinterpret_cast<std::wstring*>(&ret);
-    }
-    else
-    {
-        static_assert(!common::AlwaysTrue<T>, "wchar_t size unrecognized");
-    }
-}
-
 
 
 template<typename T>
@@ -759,26 +469,58 @@ template<typename T>
 
 namespace detail
 {
-template<typename Decoder>
-[[nodiscard]] inline constexpr bool CaseInsensitiveCompare(Decoder str, Decoder prefix) noexcept
+
+template<typename Conv, typename Char>
+[[nodiscard]] inline constexpr bool CaseInsensitiveCompare(const Char* str, size_t size1, const Char* prefix, size_t size2) noexcept
 {
-    while (true)
+    static_assert(std::is_base_of_v<ConvertByteBase, Conv>, "Conv should be of ConvertByteBase");
+    constexpr bool UseCP = std::is_same_v<typename Conv::ElementType, Char>;
+    static_assert(UseCP || sizeof(Char) == 1);
+    if (size1 < size2) return false;
+    while (size2 >= (UseCP ? 1u : Conv::MinBytes))
     {
-        const auto strCp    =    str.Decode();
-        const auto prefixCp = prefix.Decode();
-        if (prefixCp == InvalidChar) // prefix finish
-            break;
-        if (strCp == InvalidChar) // str finish before prefix
-            return false;
-        if (strCp != prefixCp) // may need convert
+        char32_t cp1 = InvalidChar, cp2 = InvalidChar;
+        uint32_t cnt1 = 0, cnt2 = 0;
+        if constexpr (UseCP)
         {
-            const auto ch1 = (strCp    >= U'a' && strCp    <= U'z') ? (strCp    - U'a' + U'A') : strCp;
-            const auto ch2 = (prefixCp >= U'a' && prefixCp <= U'z') ? (prefixCp - U'a' + U'A') : prefixCp;
+            std::tie(cp1, cnt1) = Conv::From(str, size1);
+            std::tie(cp2, cnt2) = Conv::From(prefix, size2);
+        }
+        else
+        {
+            std::tie(cp1, cnt1) = Conv::FromBytes(str, size1);
+            std::tie(cp2, cnt2) = Conv::FromBytes(prefix, size2);
+        }
+        if (cnt1 != cnt2 || !cnt2)
+            return false;
+        CM_ASSUME(cp1 != InvalidChar);
+        CM_ASSUME(cp2 != InvalidChar);
+        if (cp1 != cp2)
+        {
+            const auto ch1 = (cp1 >= U'a' && cp1 <= U'z') ? (cp1 - U'a' + U'A') : cp1;
+            const auto ch2 = (cp2 >= U'a' && cp2 <= U'z') ? (cp2 - U'a' + U'A') : cp2;
             if (ch1 != ch2) // not the same, fast return
                 return false;
         }
+        str += cnt2;
+        prefix += cnt2;
+        size2 -= cnt2;
     }
-    return true;
+    return size2 == 0; // prefix finished then success
+}
+template<typename Conv, typename Char>
+[[nodiscard]] inline constexpr bool CaseInsensitiveCompare2(const Char* str, size_t size1, const Char* prefix, size_t size2) noexcept
+{
+    constexpr bool UseCP = std::is_same_v<typename Conv::ElementType, Char>;
+    if constexpr (UseCP)
+    {
+        return CaseInsensitiveCompare<Conv>(str, size1, prefix, size2);
+    }
+    else
+    {
+        return CaseInsensitiveCompare<Conv>(std::launder(reinterpret_cast<const uint8_t*>(str)), size1 * sizeof(Char),
+            std::launder(reinterpret_cast<const uint8_t*>(prefix)), size2 * sizeof(Char));
+    }
 }
 
 
@@ -787,20 +529,13 @@ template<typename Char>
 {
     switch (strchset)
     {
-    case Encoding::ASCII:
-        return CaseInsensitiveCompare(GetDecoder<UTF7>   (str), GetDecoder<UTF7>   (prefix));
-    case Encoding::UTF8:
-        return CaseInsensitiveCompare(GetDecoder<UTF8>   (str), GetDecoder<UTF8>   (prefix));
-    case Encoding::UTF16LE:
-        return CaseInsensitiveCompare(GetDecoder<UTF16LE>(str), GetDecoder<UTF16LE>(prefix));
-    case Encoding::UTF16BE:
-        return CaseInsensitiveCompare(GetDecoder<UTF16BE>(str), GetDecoder<UTF16BE>(prefix));
-    case Encoding::UTF32LE:
-        return CaseInsensitiveCompare(GetDecoder<UTF32LE>(str), GetDecoder<UTF32LE>(prefix));
-    case Encoding::UTF32BE:
-        return CaseInsensitiveCompare(GetDecoder<UTF32BE>(str), GetDecoder<UTF32BE>(prefix));
-    case Encoding::GB18030:
-        return CaseInsensitiveCompare(GetDecoder<GB18030>(str), GetDecoder<GB18030>(prefix));
+    case Encoding::ASCII:   return CaseInsensitiveCompare2<UTF7   >(str.data(), str.size(), prefix.data(), prefix.size());
+    case Encoding::UTF8:    return CaseInsensitiveCompare2<UTF8   >(str.data(), str.size(), prefix.data(), prefix.size());
+    case Encoding::UTF16LE: return CaseInsensitiveCompare2<UTF16LE>(str.data(), str.size(), prefix.data(), prefix.size());
+    case Encoding::UTF16BE: return CaseInsensitiveCompare2<UTF16BE>(str.data(), str.size(), prefix.data(), prefix.size());
+    case Encoding::UTF32LE: return CaseInsensitiveCompare2<UTF32LE>(str.data(), str.size(), prefix.data(), prefix.size());
+    case Encoding::UTF32BE: return CaseInsensitiveCompare2<UTF32BE>(str.data(), str.size(), prefix.data(), prefix.size());
+    case Encoding::GB18030: return CaseInsensitiveCompare2<GB18030>(str.data(), str.size(), prefix.data(), prefix.size());
     default: // should not enter, to please compiler
         Expects(false);
         return false;

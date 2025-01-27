@@ -77,7 +77,7 @@ StringUtil also exposes the embedded [fmt](../3rdParty/fmt), with dynamic-linkin
 
   [MPL 1.1 License](./3rdParty/uchardet/COPYING)
 
-* [fmt](http://fmtlib.net) `submodule` 11.1.2
+* [fmt](http://fmtlib.net) `submodule` 11.1.3
 
   [MIT License](./3rdParty/fmt/LICENSE.rst)
 

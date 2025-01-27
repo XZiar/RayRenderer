@@ -610,8 +610,7 @@ static auto DUMMY = []()
     }
     catch (const BaseException& be)
     {
-        common::mlog::LogInitMessage(common::mlog::LogLevel::Warning, "ImageWIC",
-            common::str::Formatter<char>{}.FormatStatic(FmtString("{}: {}.\n"), be.Message(), be.GetDetailMessage()));
+        common::mlog::LogInitMessage(common::mlog::LogLevel::Warning, "ImageWIC", common::str::Formatter<char>{}.FormatStatic(FmtString("{}.\n"), be));
     }
     return std::shared_ptr<WicSupport>{};
 }();
