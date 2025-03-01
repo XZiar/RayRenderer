@@ -85,11 +85,11 @@ python3 xzbuild buildall UtilTest
 
 ## Dependency
 
-* [gsl](https://github.com/microsoft/GSL) `submodule` 4.1.0
+* [gsl](https://github.com/microsoft/GSL) `submodule` 4.2.0
   
   [MIT License](https://github.com/microsoft/GSL/blob/main/LICENSE)
 
-* [Google Test](https://github.com/google/googletest) `submodule` 1.15.2
+* [Google Test](https://github.com/google/googletest) `submodule` 1.16.0
 
   [BSD 3-Clause License](https://github.com/google/googletest/blob/master/LICENSE)
 
@@ -97,7 +97,7 @@ python3 xzbuild buildall UtilTest
 
   [Boost Software License](./License/boost.txt)
 
-* [fmt](https://fmt.dev/) `submodule` 11.1.3
+* [fmt](https://fmt.dev/) `submodule` 11.1.4
 
   [MIT License](https://github.com/fmtlib/fmt/blob/master/LICENSE.rst)
 
