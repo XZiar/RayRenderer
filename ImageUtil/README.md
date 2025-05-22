@@ -78,7 +78,7 @@ It's bitfield arrangement is listed below
 
   [zlib License](../3rdParty/zlib-ng/LICENSE.md)
 
-* [libpng](http://www.libpng.org/pub/png/libpng.html) `submodule` 1.6.45
+* [libpng](http://www.libpng.org/pub/png/libpng.html) `submodule` 1.6.48
 
   [libpng License](../3rdParty/libpng/LICENSE)
 
