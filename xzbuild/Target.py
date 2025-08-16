@@ -139,6 +139,8 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
             self.flags += ["-Wno-newline-eof"]
             if env["clangVer"] >= 190000: # added P1774R8
                 self.flags += ["-Wno-c++23-attribute-extensions"]
+            if env["clangVer"] >= 180000: # https://wg21.link/CWG2521
+                self.flags += ["-Wno-deprecated-literal-operator"]
             if env["clangVer"] >= 140000: # added diagnostics, see https://releases.llvm.org/14.0.0/tools/clang/docs/ReleaseNotes.html#improvements-to-clang-s-diagnostics
                 self.flags += ["-Wno-c++20-attribute-extensions"]
         if env["target"] == "Release":

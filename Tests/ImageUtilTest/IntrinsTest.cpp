@@ -1246,10 +1246,20 @@ INTRIN_TEST(ColorCvt, G16ToG8)
     VarLenTest<uint16_t, uint8_t, 1, 1>(GetFillArray<uint16_t>(), func, reff, fulltest);
 }
 
+static const auto AllUint16 = []() 
+{
+    std::vector<uint16_t> ret;
+    for (uint32_t i = 0; i <= UINT16_MAX; ++i)
+        ret.push_back(static_cast<uint16_t>(i));
+    return ret;
+}();
+
 template<bool isRGB>
 void Test555ToRGB(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
 {
-    const auto src = GetRandVals();
+    const common::span<const std::byte> src{ reinterpret_cast<const std::byte*>(AllUint16.data()), AllUint16.size() * sizeof(uint16_t) };
+    std::vector<size_t> testSizes(std::begin(TestSizes), std::end(TestSizes));
+    testSizes.push_back(AllUint16.size());
     VarLenTest<uint16_t, uint8_t, 1, 3>(src, [&](uint8_t* dst, const uint16_t* src, size_t count)
     {
         if constexpr(isRGB) intrin->RGB555ToRGB(dst, src, count);
@@ -1270,7 +1280,7 @@ void Test555ToRGB(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
             *dst++ = isRGB ? b : r;
             count--;
         }
-    });
+    }, testSizes);
 }
 
 INTRIN_TEST(ColorCvt, RGB555ToRGB8)
@@ -1288,7 +1298,9 @@ INTRIN_TEST(ColorCvt, BGR555ToRGB8)
 template<bool isRGB, bool hasAlpha>
 void Test555ToRGBA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
 {
-    const auto src = GetRandVals();
+    const common::span<const std::byte> src{ reinterpret_cast<const std::byte*>(AllUint16.data()), AllUint16.size() * sizeof(uint16_t) };
+    std::vector<size_t> testSizes(std::begin(TestSizes), std::end(TestSizes));
+    testSizes.push_back(AllUint16.size());
     VarLenTest<uint16_t, uint32_t, 1, 1>(src, [&](uint32_t* dst, const uint16_t* src, size_t count)
     {
         if constexpr(isRGB) intrin->RGB555ToRGBA(dst, src, count, hasAlpha);
@@ -1312,7 +1324,7 @@ void Test555ToRGBA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
             else *dst++ = 0xff;
             count--;
         }
-    });
+    }, testSizes);
 }
 
 INTRIN_TEST(ColorCvt, RGB555ToRGBA8)
@@ -1343,7 +1355,9 @@ INTRIN_TEST(ColorCvt, BGR5551ToRGBA8)
 template<bool isRGB>
 void Test565ToRGB(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
 {
-    const auto src = GetRandVals();
+    const common::span<const std::byte> src{ reinterpret_cast<const std::byte*>(AllUint16.data()), AllUint16.size() * sizeof(uint16_t) };
+    std::vector<size_t> testSizes(std::begin(TestSizes), std::end(TestSizes));
+    testSizes.push_back(AllUint16.size());
     VarLenTest<uint16_t, uint8_t, 1, 3>(src, [&](uint8_t* dst, const uint16_t* src, size_t count)
     {
         if constexpr (isRGB) intrin->RGB565ToRGB(dst, src, count);
@@ -1364,7 +1378,7 @@ void Test565ToRGB(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
             *dst++ = isRGB ? b : r;
             count--;
         }
-    });
+    }, testSizes);
 }
 
 INTRIN_TEST(ColorCvt, RGB565ToRGB8)
@@ -1382,7 +1396,9 @@ INTRIN_TEST(ColorCvt, BGR565ToRGB8)
 template<bool isRGB>
 void Test565ToRGBA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
 {
-    const auto src = GetRandVals();
+    const common::span<const std::byte> src{ reinterpret_cast<const std::byte*>(AllUint16.data()), AllUint16.size() * sizeof(uint16_t) };
+    std::vector<size_t> testSizes(std::begin(TestSizes), std::end(TestSizes));
+    testSizes.push_back(AllUint16.size());
     VarLenTest<uint16_t, uint32_t, 1, 1>(src, [&](uint32_t* dst, const uint16_t* src, size_t count)
     {
         if constexpr (isRGB) intrin->RGB565ToRGBA(dst, src, count);
@@ -1405,7 +1421,7 @@ void Test565ToRGBA(const std::unique_ptr<xziar::img::ColorConvertor>& intrin)
             *dst++ = 0xff;
             count--;
         }
-    });
+    }, testSizes);
 }
 
 INTRIN_TEST(ColorCvt, RGB565ToRGBA8)

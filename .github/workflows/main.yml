@@ -176,7 +176,7 @@ jobs:
             env_clang: false
             pkg: "g++-14"
           - cxx: clang10
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             env_cc: "clang-10"
             env_asm: "clang++-10"
             env_cpp: "clang++-10"
@@ -188,7 +188,7 @@ jobs:
             env_clang_ver: 10
             pkg: "clang-10 lld-10 llvm-10"
           - cxx: clang11
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             env_cc: "clang-11"
             env_asm: "clang++-11"
             env_cpp: "clang++-11"
@@ -200,7 +200,7 @@ jobs:
             env_clang_ver: 11
             pkg: "clang-11 lld-11 llvm-11"
           - cxx: clang12
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             env_cc: "clang-12"
             env_asm: "clang++-12"
             env_cpp: "clang++-12"

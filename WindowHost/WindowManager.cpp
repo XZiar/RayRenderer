@@ -1417,7 +1417,7 @@ public:
         }
         catch (BaseException& be)
         {
-            xziar::gui::detail::wdLog().Warning(FmtString(u"{}\n"), be);
+            xziar::gui::detail::wdLog().Warning(u"{}\n", be);
         }
         catch(...) {}
         return false;

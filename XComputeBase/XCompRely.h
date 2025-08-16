@@ -117,7 +117,7 @@ struct VTypeInfo
     {
         return DimUnPackMap[Dims >> 4];
     }
-    [[nodiscard]] forceinline constexpr void SetDims(uint8_t dim0, uint8_t dim1) noexcept
+    forceinline constexpr void SetDims(uint8_t dim0, uint8_t dim1) noexcept
     {
         Dims = PackDims(dim0, dim1);
     }

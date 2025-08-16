@@ -7,6 +7,8 @@ using ::common::CheckCPUFeature;
 
 
 struct LOOP : ::common::fastpath::FuncVarBase {};
+struct LOOP2 : ::common::fastpath::FuncVarBase {};
+struct LOOP3 : ::common::fastpath::FuncVarBase {};
 struct SSE2
 {
     static bool RuntimeCheck() noexcept
@@ -106,16 +108,11 @@ struct AVX2
 #endif
     }
 };
-struct AVX22
+struct AVX22 : public AVX2
 {
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("avx2");
-#else
-        return false;
-#endif
-    }
+};
+struct AVX23 : public AVX2
+{
 };
 struct AVX512BW
 {
@@ -150,16 +147,8 @@ struct AVX512VBMI
 #endif
     }
 };
-struct AVX512VBMI_2
+struct AVX512VBMI_2 : public AVX512VBMI
 {
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("avx512f") && CheckCPUFeature("avx512bw") && CheckCPUFeature("avx512vbmi");
-#else
-        return false;
-#endif
-    }
 };
 struct AVX512VBMI2
 {
