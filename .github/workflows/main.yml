@@ -118,7 +118,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cxx: [gcc10, gcc11, gcc12, gcc13, gcc14, clang10, clang11, clang12, clang13, clang14, clang15, clang16, clang17]
+        cxx: [gcc10, gcc11, gcc12, gcc13, gcc14, clang11, clang12, clang13, clang14, clang15, clang16, clang17, clang18]
         include:
           - cxx: gcc10
             os: ubuntu-22.04
@@ -175,18 +175,6 @@ jobs:
             env_module: "all"
             env_clang: false
             pkg: "g++-14"
-          - cxx: clang10
-            os: ubuntu-22.04
-            env_cc: "clang-10"
-            env_asm: "clang++-10"
-            env_cpp: "clang++-10"
-            env_stalink: "llvm-ar-10"
-            env_dynlink: "clang++-10"
-            env_applink: "clang++-10"
-            env_module: "all"
-            env_clang: true
-            env_clang_ver: 10
-            pkg: "clang-10 lld-10 llvm-10"
           - cxx: clang11
             os: ubuntu-22.04
             env_cc: "clang-11"
@@ -271,6 +259,18 @@ jobs:
             env_clang: true
             env_clang_ver: 17
             pkg: "clang-17 lld-17 llvm-17"
+          - cxx: clang18
+            os: ubuntu-24.04
+            env_cc: "clang-18"
+            env_asm: "clang++-18"
+            env_cpp: "clang++-18"
+            env_stalink: "llvm-ar-18"
+            env_dynlink: "clang++-18"
+            env_applink: "clang++-18"
+            env_module: "all"
+            env_clang: true
+            env_clang_ver: 18
+            pkg: "clang-18 lld-18 llvm-18"
     
     steps:
       - name: Get basic information
@@ -336,10 +336,9 @@ jobs:
         run: | 
           sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt update -q
-          [[ $(echo "$ubt_release >= 19.10" | bc -l) = 0 ]] && lrlver="7" || lrlver="8"
           [[ $(echo "$ubt_release >= 22.04" | bc -l) = 0 ]] && ldecor="" || ldecor="libdecor-0-dev"
           sudo apt install util-linux nasm unzip pkgconf python3 python3-pip python3-chardet ${{matrix.pkg}}
-          sudo apt install libreadline$lrlver libreadline-dev libx11-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libgl1-mesa-dev libglu1-mesa-dev libxi-dev libxxf86vm-dev libdrm-dev libdbus-1-dev libxcb-shm0-dev libwayland-dev wayland-protocols $ldecor
+          sudo apt install libreadline8 libreadline-dev libx11-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libgl1-mesa-dev libglu1-mesa-dev libxi-dev libxxf86vm-dev libdrm-dev libdbus-1-dev libxcb-shm0-dev libwayland-dev wayland-protocols $ldecor
               
       - name: Setup environment
         id: setup

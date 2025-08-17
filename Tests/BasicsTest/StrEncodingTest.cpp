@@ -84,6 +84,7 @@ template<typename Char>
     switch (inchset)
     {
     case Encoding::ASCII:
+        charset::detail::Transform2<UTF7, UTF8>(str, size, ret); break;
     case Encoding::UTF8:
         Ensures(false);
     case Encoding::UTF16LE:

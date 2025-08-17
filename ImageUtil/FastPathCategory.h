@@ -42,6 +42,9 @@ struct NEON
 #endif
     }
 };
+struct NEON2 : public NEON
+{
+};
 struct NEONA64
 {
     static bool RuntimeCheck() noexcept

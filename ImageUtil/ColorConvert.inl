@@ -3666,11 +3666,10 @@ struct RGB5x5ToRGB8_NEON : RGB5x5ToRGB8_128Base<Is555>
     static constexpr size_t M = 16, N = 48, K = 16;
     forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
     {
-        const auto dat0 = U16x8(src + 0); // 01234567
-        const auto dat1 = U16x8(src + 8); // 89abcdef
+        const auto dat = vld1q_u16_x2(src);
 
-        const auto [midR0, midG0, midB0] = this->RGB5x5ToRGB8Hi(dat0);
-        const auto [midR1, midG1, midB1] = this->RGB5x5ToRGB8Hi(dat1);
+        const auto [midR0, midG0, midB0] = this->RGB5x5ToRGB8Hi(dat.val[0]);
+        const auto [midR1, midG1, midB1] = this->RGB5x5ToRGB8Hi(dat.val[1]);
 
 # if COMMON_SIMD_LV >= 200
         const auto outR = vuzp2q_u8(midR0.template As<U8x16>(), midR1.template As<U8x16>());
@@ -3691,12 +3690,12 @@ struct RGB5x5ToRGB8_NEON : RGB5x5ToRGB8_128Base<Is555>
 template<bool IsRGB, bool HasAlpha, bool Is555>
 struct RGB5x5ToRGBA8_NEON : RGB5x5ToRGB8_128Base<Is555>
 {
-    static_assert(Is555 || !Is555);
+    static_assert(Is555 || !HasAlpha);
     static constexpr size_t M = 16, N = 16, K = 16;
     forceinline void operator()(uint32_t* __restrict dst, const uint16_t* __restrict src) const noexcept
     {
-        const auto dat0 = U16x8(src + 0); // 01234567
-        const auto dat1 = U16x8(src + 8); // 89abcdef
+        const auto dat = vld1q_u16_x2(src);
+        const U16x8 dat0 = dat.val[0], dat1 = dat.val[1];
 
         const auto [midR0, midG0, midB0] = this->RGB5x5ToRGB8Hi(dat0);
         const auto [midR1, midG1, midB1] = this->RGB5x5ToRGB8Hi(dat1);
@@ -3721,7 +3720,112 @@ struct RGB5x5ToRGBA8_NEON : RGB5x5ToRGB8_128Base<Is555>
 # else
             const U8x16 datHi = vuzpq_u8(dat0.As<U8x16>(), dat1.As<U8x16>()).val[1];
 # endif
-            out4.val[3] = datHi.As<I8x16>().ShiftRightArith<7>().As<U8x16>();
+            out4.val[3] = vtstq_u8(datHi, vdupq_n_u8(0x80));
+            // out4.val[3] = datHi.As<I8x16>().ShiftRightArith<7>().As<U8x16>();
+        }
+        else
+        {
+            out4.val[3] = vdupq_n_u8(0xff);
+        }
+        vst4q_u8(reinterpret_cast<uint8_t*>(dst), out4);
+    }
+};
+template<bool IsRGB, bool Is555>
+struct RGB5x5ToRGB8_NeonLUTBase
+{
+    forceinline static std::array<U8x16, 3> RGB5x5ToRGB8(const U16x8& dat0, const U16x8& dat1) noexcept
+    {
+        const U16x8 maskRB(Is555 ? 0x7c1fu : 0xf81fu);
+        const auto dat0_ = dat0.And(maskRB), dat1_ = dat1.And(maskRB);
+        const auto dat01LH = vuzpq_u8(dat0_.As<U8x16>(), dat1_.As<U8x16>());
+
+# if COMMON_SIMD_LV >= 200
+        const auto val01G_ = vshrn_high_n_u16(vshrn_n_u16(dat0, 5), dat1, 5);
+        const auto val01G = U8x16(val01G_).And(U8x16(Is555 ? 0x1f : 0x3f));
+
+        const auto lut5 = vld1q_u8_x2(LUT5Bit.data());
+        const U8x16 midLo = vqtbl2q_u8(lut5, dat01LH.val[0]);
+        const U8x16 midHi = vqtbl2q_u8(lut5, vshrq_n_u8(dat01LH.val[1], Is555 ? 2 : 3));
+        U8x16 midG;
+        if constexpr (Is555)
+        {
+            midG = vqtbl2q_u8(lut5, val01G);
+        }
+        else
+        {
+            const auto lut6 = vld1q_u8_x4(LUT6Bit.data());
+            midG = vqtbl4q_u8(lut6, val01G);
+        }
+# else
+        const auto val01G_ = vcombine_u8(vshrn_n_u16(dat0, 5), vshrn_n_u16(dat1, 5));
+        const auto val01G = U8x16(val01G_).And(U8x16(Is555 ? 0x1f : 0x3f));
+        const auto val0Lo = vget_low_u8(dat01LH.val[0]), val1Lo = vget_high_u8(dat01LH.val[0]);
+        const auto val0Hi = vget_low_u8(dat01LH.val[1]), val1Hi = vget_high_u8(dat01LH.val[1]);
+        const auto val0G  = vget_low_u8(val01G), val1G = vget_high_u8(val01G);
+
+        const auto lut5 = vld1_u8_x4(LUT5Bit.data());
+        const auto mid0Lo = vtbl4_u8(lut5, val0Lo), mid1Lo = vtbl4_u8(lut5, val1Lo);
+        const auto mid0Hi = vtbl4_u8(lut5, val0Hi), mid1Hi = vtbl4_u8(lut5, val1Hi);
+        uint8x8_t mid0G, mid1G;
+        if constexpr (Is555)
+        {
+            mid0G = vtbl4_u8(lut5, val0G), mid1G = vtbl4_u8(lut5, val1G);
+        }
+        else
+        {
+            const auto lut6lo = vld1_u8_x4(LUT6Bit.data()), lut6hi = vld1_u8_x4(LUT6Bit.data() + 32);
+            mid0G = vtbl4_u8(lut6lo, val0G), mid1G = vtbl4_u8(lut6lo, val1G);
+            const auto val01H = val01G.Xor(U8x16(0x20));
+            const auto val0H = vget_low_u8(val01H), val1H = vget_high_u8(val01H);
+            mid0G = vtbx4_u8(mid0G, lut6lo, val0H), mid1G = vtbx4_u8(mid1G, lut6lo, val1H);
+        }
+        const U8x16 midLo = vcombine_u8(mid0Lo, mid1Lo);
+        const U8x16 midHi = vcombine_u8(mid0Hi, mid1Hi);
+        const U8x16 midG  = vcombine_u8(mid0G, mid1G);
+# endif
+        return { IsRGB ? midLo : midHi, midG, IsRGB ? midHi : midLo };
+    }
+};
+template<bool IsRGB, bool Is555>
+struct RGB5x5ToRGB8_LUT_NEON : RGB5x5ToRGB8_NeonLUTBase<IsRGB, Is555>
+{
+    static constexpr size_t M = 16, N = 48, K = 16;
+    forceinline void operator()(uint8_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat = vld1q_u16_x2(src);
+
+        const auto [midR, midG, midB] = this->RGB5x5ToRGB8(dat.val[0], dat.val[1]);
+
+        uint8x16x3_t out3;
+        out3.val[0] = midR;
+        out3.val[1] = midG;
+        out3.val[2] = midB;
+        vst3q_u8(dst, out3);
+    }
+};
+template<bool IsRGB, bool HasAlpha, bool Is555>
+struct RGB5x5ToRGBA8_LUT_NEON : RGB5x5ToRGB8_NeonLUTBase<IsRGB, Is555>
+{
+    static_assert(Is555 || !HasAlpha);
+    static constexpr size_t M = 16, N = 16, K = 16;
+    forceinline void operator()(uint32_t* __restrict dst, const uint16_t* __restrict src) const noexcept
+    {
+        const auto dat = vld1q_u16_x2(src);
+        const U16x8 dat0 = dat.val[0], dat1 = dat.val[1];
+        const auto [midR, midG, midB] = this->RGB5x5ToRGB8(dat0, dat1);
+
+        uint8x16x4_t out4;
+        out4.val[0] = midR;
+        out4.val[1] = midG;
+        out4.val[2] = midB;
+        if constexpr (HasAlpha)
+        {
+# if COMMON_SIMD_LV >= 200
+            const U8x16 datHi = vuzp2q_u8(dat0.As<U8x16>(), dat1.As<U8x16>());
+# else
+            const U8x16 datHi = vuzpq_u8(dat0.As<U8x16>(), dat1.As<U8x16>()).val[1];
+# endif
+            out4.val[3] = vtstq_u8(datHi, vdupq_n_u8(0x80));
         }
         else
         {
@@ -4081,6 +4185,22 @@ DEFINE_FASTPATH_METHOD(BGR565ToRGB8, NEON)
 {
     ProcessLOOP4<RGB5x5ToRGB8_NEON<false, false>, &Func<LOOP>>(dest, src, count);
 }
+DEFINE_FASTPATH_METHOD(RGB555ToRGB8, NEON2)
+{
+    ProcessLOOP4<RGB5x5ToRGB8_LUT_NEON<true, true>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(BGR555ToRGB8, NEON2)
+{
+    ProcessLOOP4<RGB5x5ToRGB8_LUT_NEON<false, true>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGB565ToRGB8, NEON2)
+{
+    ProcessLOOP4<RGB5x5ToRGB8_LUT_NEON<true, false>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(BGR565ToRGB8, NEON2)
+{
+    ProcessLOOP4<RGB5x5ToRGB8_LUT_NEON<false, false>, &Func<LOOP>>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(RGB555ToRGBA8, NEON)
 {
     ProcessLOOP4<RGB5x5ToRGBA8_NEON<true, false, true>, &Func<LOOP>>(dest, src, count);
@@ -4104,6 +4224,30 @@ DEFINE_FASTPATH_METHOD(RGB565ToRGBA8, NEON)
 DEFINE_FASTPATH_METHOD(BGR565ToRGBA8, NEON)
 {
     ProcessLOOP4<RGB5x5ToRGBA8_NEON<false, false, false>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGB555ToRGBA8, NEON2)
+{
+    ProcessLOOP4<RGB5x5ToRGBA8_LUT_NEON<true, false, true>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(BGR555ToRGBA8, NEON2)
+{
+    ProcessLOOP4<RGB5x5ToRGBA8_LUT_NEON<false, false, true>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGB5551ToRGBA8, NEON2)
+{
+    ProcessLOOP4<RGB5x5ToRGBA8_LUT_NEON<true, true, true>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(BGR5551ToRGBA8, NEON2)
+{
+    ProcessLOOP4<RGB5x5ToRGBA8_LUT_NEON<false, true, true>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(RGB565ToRGBA8, NEON2)
+{
+    ProcessLOOP4<RGB5x5ToRGBA8_LUT_NEON<true, false, false>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(BGR565ToRGBA8, NEON2)
+{
+    ProcessLOOP4<RGB5x5ToRGBA8_LUT_NEON<false, false, false>, &Func<LOOP>>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(RGB10ToRGBf, NEON)
 {
@@ -8311,29 +8455,9 @@ struct RGB5x5ToRGB8_512VBMI : RGB5x5ToRGB8_512Base<Is555>
         _mm512_storeu_epi8(dst + 128, out2);
     }
 };
-struct RGB5x5ToRGB8_512VBMI_LUT
-{
-    static constexpr std::array<uint8_t, 32> LUT5 = []()
-    {
-        std::array<uint8_t, 32> lut = { 0 };
-        for (uint32_t i = 0; i < 32; i++)
-        {
-            lut[i] = static_cast<uint8_t>((i * 527 + 23) >> 6);
-        }
-        return lut;
-    }();
-    static constexpr std::array<uint8_t, 64> LUT6 = []()
-    {
-        std::array<uint8_t, 64> lut = { 0 };
-        for (uint32_t i = 0; i < 64; i++)
-        {
-            lut[i] = static_cast<uint8_t>((i * 259 + 33) >> 6);
-        }
-        return lut;
-    }();
-};
+
 template<bool IsRGB, bool Is555>
-struct RGB5x5ToRGB8_512LUTBase : public RGB5x5ToRGB8_512VBMI_LUT
+struct RGB5x5ToRGB8_512LUTBase
 {
     forceinline static std::array<__m512i, 3> RGB5x5ToRGB8(const __m512i& dat0, const __m512i& dat1) noexcept
     {
@@ -8366,7 +8490,7 @@ struct RGB5x5ToRGB8_512LUTBase : public RGB5x5ToRGB8_512VBMI_LUT
         const auto val1G = _mm512_slli_epi16(dat1, 3);
         const auto valG = _mm512_and_si512(_mm512_mask_blend_epi8(maskHi, val0G, val1G), Is555 ? mask5bit : mask6bit);
 
-        const auto lut5 = _mm512_zextsi256_si512(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(LUT5.data())));
+        const auto lut5 = _mm512_zextsi256_si512(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(LUT5Bit.data())));
         const auto mid0RB = _mm512_permutexvar_epi8(val0RB, lut5);
         const auto mid1RB = _mm512_permutexvar_epi8(val1RB, lut5);
 
@@ -8377,7 +8501,7 @@ struct RGB5x5ToRGB8_512LUTBase : public RGB5x5ToRGB8_512VBMI_LUT
         }
         else
         {
-            const auto lut6 = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(LUT6.data()));
+            const auto lut6 = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(LUT6Bit.data()));
             midG = _mm512_permutexvar_epi8(valG, lut6);
         }
 

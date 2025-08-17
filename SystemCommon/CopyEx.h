@@ -64,7 +64,8 @@ public:
         {
             const size_t diff = ptrA > ptrB ? ptrA - ptrB : ptrB - ptrA;
             if (diff < bytes) return false;
-            if ((ptrA + bytes < ptrA) || (ptrB + bytes < ptrB)) return false;
+            // pointer overflow is UB, nevermind
+            // if ((ptrA + bytes < ptrA) || (ptrB + bytes < ptrB)) return false;
         }
         SwapRegion(ptrA, ptrB, bytes);
         if constexpr (Check)

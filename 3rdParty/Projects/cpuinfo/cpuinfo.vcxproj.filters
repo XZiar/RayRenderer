@@ -59,6 +59,9 @@
     <ClCompile Include="$(RealSourceDir)\src\x86\windows\init.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\arm\uarch.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\src\arm\windows\init.c">
       <Filter>源文件</Filter>
     </ClCompile>
