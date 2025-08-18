@@ -53,7 +53,7 @@ To use `xzbuild`, python3.7+ is required.
 
 ## Build
 
-To build C++ parts, a C++20 compiler is needed. CI Tests are on gcc(10\~14) and clang(10\~17).
+To build C++ parts, a C++20 compiler is needed. CI Tests are on gcc(10\~14) and clang(11\~18).
 
 For Windows, project uses `VisualStudio2022`, VS2022(>`17.6`) is needed for the vcproj version.
 
@@ -93,7 +93,7 @@ python3 xzbuild buildall UtilTest
 
   [BSD 3-Clause License](https://github.com/google/googletest/blob/master/LICENSE)
 
-* [boost](http://www.boost.org/)  1.88.0 (not included in this repo)
+* [boost](http://www.boost.org/)  1.89.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 
