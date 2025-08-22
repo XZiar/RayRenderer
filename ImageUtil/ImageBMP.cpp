@@ -15,6 +15,14 @@ using common::io::RandomInputStream;
 using common::io::RandomOutputStream;
 
 
+
+forceinline constexpr void FixAlpha(size_t count, uint32_t* __restrict destPtr) noexcept
+{
+    while (count--)
+        (*destPtr++) |= 0xff000000u;
+}
+
+
 enum class PixFormat : uint8_t
 {
     Category = 0xf0, Detail = 0x0f, RGB = 0x00, BGR = 0x08, NoAlpha = 0x00, HasAlpha = 0x04, IsGray = 0x80,
@@ -56,7 +64,7 @@ static void ReadUncompressed(Image& image, RandomInputStream& stream, AlignedBuf
                 else
                     memcpy_s(imgrow, irowsize, bufptr, frowsize);
                 if (!hasAlpha)
-                    util::FixAlpha(image.GetWidth(), imgrow);
+                    FixAlpha(image.GetWidth(), imgrow);
             }
             else
             {
@@ -389,7 +397,7 @@ Image BmpReader::Read(ImgDType dataType)
         {
             if (needSwizzle)
                 cvter.RGBAToBGRA(pltptr, pltptr, paletteCount);
-            util::FixAlpha(paletteCount, pltptr);
+            FixAlpha(paletteCount, pltptr);
             for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
             {
                 Stream.Read(frowsize, bufptr);
@@ -447,7 +455,8 @@ void BmpWriter::Write(ImageView image, const uint8_t)
     header.Sig[0] = 'B', header.Sig[1] = 'M';
 
     common::simd::EndianWriter<true, uint32_t>(header.Offset, BMP_HEADER_SIZE + BMP_INFO_SIZE);
-    auto info = util::EmptyStruct<detail::BmpInfo>();
+    detail::BmpInfo info{};
+    common::ZeroRegion(&info, sizeof(info));
     info.Size = static_cast<uint32_t>(BMP_INFO_SIZE);
     common::simd::EndianWriter<true>(info.Width, image.GetWidth());
     common::simd::EndianWriter<true>(info.Height, -static_cast<int32_t>(image.GetHeight()));

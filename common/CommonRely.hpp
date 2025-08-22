@@ -525,6 +525,13 @@ inline constexpr bool AlwaysTrue = true;
 template<auto T>
 inline constexpr bool AlwaysTrue2 = true;
 
+template<typename T>
+[[nodiscard]] inline constexpr std::enable_if_t<std::is_enum_v<T>, std::underlying_type_t<T>>
+enum_cast(const T val) noexcept
+{
+    return static_cast<std::underlying_type_t<T>>(val);
+}
+
 }
 
 
@@ -961,6 +968,39 @@ forceinline void ZeroRegion(void* ptr, size_t size)
 #endif
 }
 
+}
+
+
+
+/* cfenv control */
+
+#include <cfenv>
+namespace common
+{
+enum class RoundMode : int32_t
+{
+    ToNearest = FE_TONEAREST, ToZero = FE_TOWARDZERO, ToPosInf = FE_UPWARD, ToNegInf = FE_DOWNWARD
+};
+class RegionRounding
+{
+    int32_t Mode = -1;
+public:
+    RegionRounding(RoundMode mode) noexcept
+    {
+        const auto curMode = std::fegetround();
+        const auto targetMode = enum_cast(mode);
+        if (curMode != targetMode)
+        {
+            Mode = curMode;
+            std::fesetround(targetMode);
+        }
+    }
+    ~RegionRounding()
+    {
+        if (Mode != -1)
+            std::fesetround(Mode);
+    }
+};
 }
 
 

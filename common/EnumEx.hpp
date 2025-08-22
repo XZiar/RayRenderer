@@ -71,13 +71,6 @@ namespace common
 {
 
 template<typename T>
-[[nodiscard]] inline constexpr std::enable_if_t<std::is_enum_v<T>, std::underlying_type_t<T>>
-enum_cast(const T val) noexcept
-{
-    return static_cast<std::underlying_type_t<T>>(val);
-}
-
-template<typename T>
 struct EnumWrapper
 {
     static_assert(std::is_enum_v<T>);

@@ -2,8 +2,14 @@
 #include "ImageUtil/ImageUtilRely.h"
 #include "ImageUtil/ColorConvert.h"
 #include "SystemCommon/Format.h"
+#include "common/TimeUtil.hpp"
 #include <algorithm>
 #include <random>
+#include <cmath>
+
+#if COMMON_COMPILER_MSVC
+#   pragma intrinsic(abs) // force opt
+#endif
 
 
 INTRIN_TESTSUITE(ColorCvt, xziar::img::ColorConvertor, xziar::img::ColorConvertor::Get());
@@ -84,8 +90,8 @@ struct HexTest
 };
 
 
-template<typename Src, typename Dst, size_t M, size_t N, typename F, typename R>
-static void VarLenTest(common::span<const std::byte> source, F&& func, R&& reff, common::span<const size_t> testSizes = TestSizes)
+template<typename Src, typename Dst, size_t M, size_t N, typename V, typename F, typename R>
+static void VarLenTest_(common::span<const std::byte> source, F&& func, R&& reff, V&& veri, common::span<const size_t> testSizes = TestSizes)
 {
     constexpr bool TryInplace = std::is_same_v<Src, Dst> && M == N;
     const auto src = reinterpret_cast<const Src*>(source.data());
@@ -120,13 +126,21 @@ static void VarLenTest(common::span<const std::byte> source, F&& func, R&& reff,
                 else
                     test.SetOut(common::span<const Dst>{ dst.data() + i * N, N }, common::span<const Dst>{ ref.data() + i * N, N });
 
-                EXPECT_EQ(test.Dst, test.Ref) << test << cond;
-                isSuc = isSuc && (test.Dst == test.Ref);
+                isSuc = isSuc && veri(test, cond);
             }
             cond = " [inplace]"; // only used when > 1
         }
         if (total <= size || !isSuc) break;
     }
+}
+template<typename Src, typename Dst, size_t M, size_t N, typename F, typename R>
+static void VarLenTest(common::span<const std::byte> source, F&& func, R&& reff, common::span<const size_t> testSizes = TestSizes)
+{
+    VarLenTest_<Src, Dst, M, N>(source, std::forward<F>(func), std::forward<R>(reff), [](const HexTest<Src, Dst>& test, std::string_view cond)
+    {
+        EXPECT_EQ(test.Dst, test.Ref) << test << cond;
+        return test.Dst == test.Ref;
+    }, testSizes);
 }
 
 
@@ -1519,6 +1533,195 @@ INTRIN_TEST(ColorCvt, BGR10A2ToRGBAf)
 }
 
 
+INTRIN_TESTSUITE(YCCCvt, xziar::img::YCCConvertor, xziar::img::YCCConvertor::Get());
+
+
+#if COMMON_COMPILER_MSVC
+#   pragma optimize("t", on) // /Og /Oi /Ot /Oy /Ob2 /GF /Gy
+#   define FORCE_OPT
+#else
+#   define FORCE_OPT __attribute__((optimize("O2")))
+#endif
+
+using ::xziar::img::RGB2YCCBase;
+using xziar::img::YCCMatrix;
+FORCE_OPT static forceinline constexpr std::tuple<uint32_t, uint32_t, uint32_t> GetRGBRange(bool isFull) noexcept
+{
+    if (isFull) return { 0, 255, 256u * 256u * 256u };
+    else return { 16, 235, 220u * 220u * 220u };
+}
+FORCE_OPT static forceinline constexpr std::tuple<int32_t, int32_t, int32_t, int32_t> GetYCCRange(bool isFull) noexcept
+{
+    if (isFull) return { 0, 255, 0, 255 };
+    else return { 16, 235, 16, 240 };
+}
+FORCE_OPT static forceinline constexpr int32_t Clamp(int32_t val, int32_t vmin, int32_t vmax) noexcept
+{
+    return val < vmin ? vmin : (val > vmax ? vmax : val);
+}
+static constexpr std::string_view YCCMatrixName(YCCMatrix matrix) noexcept
+{
+    switch (matrix & YCCMatrix::TypeMask)
+    {
+    case YCCMatrix::BT601:  return "bt.601";
+    case YCCMatrix::BT709:  return "bt.709";
+    case YCCMatrix::BT2020: return "bt.2020";
+    default: return "error";
+    }
+}
+
+FORCE_OPT static auto CalcFullYCC8Output(YCCMatrix matrix) noexcept
+{
+    const bool isRGBFull = HAS_FIELD(matrix, YCCMatrix::RGBFull);
+    const bool isYCCFull = HAS_FIELD(matrix, YCCMatrix::YCCFull);
+    const auto [rgbMin, rgbMax, rgbCnt] = GetRGBRange(isRGBFull);
+    const auto [yMin, yMax, cMin, cMax] = GetYCCRange(isYCCFull);
+    const auto cRange = (cMax - cMin + 1u) & 0xfffffffeu; // round up to make chroma symmetric
+    const auto coeffIdx = common::enum_cast(matrix & YCCMatrix::TypeMask);
+    const auto& coeff = RGB2YCCBase[coeffIdx];
+    const auto d2aRGB = 1.0 * (rgbMax - rgbMin);
+    const auto pbCoeff = 2 * (1.0 - coeff[2]), prCoeff = 2 * (1.0 - coeff[0]);
+    const double a2dY = yMax - yMin, a2dC = cRange;
+
+    std::vector<uint8_t> output;
+    output.resize(rgbCnt * 3);
+    for (uint32_t r_ = rgbMin, i = 0; r_ <= rgbMax; ++r_)
+    {
+        const double r = (r_ - rgbMin) / d2aRGB;
+        for (uint32_t g_ = rgbMin; g_ <= rgbMax; ++g_)
+        {
+            const double g = (g_ - rgbMin) / d2aRGB;
+            for (uint32_t b_ = rgbMin; b_ <= rgbMax; ++b_)
+            {
+                const double b = (b_ - rgbMin) / d2aRGB;
+                const auto y = r * coeff[0] + g * coeff[1] + b * coeff[2];
+                const auto pb = (b - y) / pbCoeff, pr = (r - y) / prCoeff;
+                const auto y_  = static_cast<int32_t>(std::nearbyint(y * a2dY)) + yMin;
+                const auto cb_ = static_cast<int32_t>(std::nearbyint((pb + 0.5) * a2dC)) + cMin;
+                const auto cr_ = static_cast<int32_t>(std::nearbyint((pr + 0.5) * a2dC)) + cMin;
+                output[i++] = static_cast<uint8_t>(y_);
+                output[i++] = static_cast<uint8_t>(Clamp(cb_, cMin, cMax));
+                output[i++] = static_cast<uint8_t>(Clamp(cr_, cMin, cMax));
+            }
+        }
+    }
+    return output;
+}
+static const std::vector<uint8_t>& GetFullYUV8Output(YCCMatrix matrix) noexcept
+{
+    static const auto refs = []() 
+    {
+        common::RegionRounding rd(common::RoundMode::ToNearest);
+        common::SimpleTimer timer;
+        timer.Start();
+        std::map<uint8_t, std::vector<uint8_t>> ret;
+#define Gen(mat, rgb, ycc) do { const auto mval = xziar::img::EncodeYCCM(YCCMatrix::mat, rgb, ycc); ret[common::enum_cast(mval)] = CalcFullYCC8Output(mval); } while(0)
+        Gen(BT601,  false, false);
+        Gen(BT601,  true,  false);
+        Gen(BT601,  false, true);
+        Gen(BT601,  true,  true);
+        Gen(BT709,  false, false);
+        Gen(BT709,  true,  false);
+        Gen(BT709,  false, true);
+        Gen(BT709,  true,  true);
+        Gen(BT2020, false, false);
+        Gen(BT2020, true,  false);
+        Gen(BT2020, false, true);
+        Gen(BT2020, true,  true);
+#undef Gen
+        timer.Stop();
+        TestCout() << "Calc FullYCC8 in [" << timer.ElapseMs() << "]ms\n";
+        return ret;
+    }();
+    return refs.find(common::enum_cast(matrix))->second;
+}
+FORCE_OPT static const std::vector<uint8_t>& GetFullRGB8(bool isFull) noexcept
+{
+    static const auto rgb8 = []() 
+    {
+        std::array<std::vector<uint8_t>, 2> ret;
+        for (const auto isFull : std::array<bool, 2>{true, false})
+        {
+            const auto [rgbMin, rgbMax, rgbCnt] = GetRGBRange(isFull);
+            ret[isFull].reserve(rgbCnt * 3);
+            for (uint32_t r = rgbMin; r <= rgbMax; ++r)
+                for (uint32_t g = rgbMin; g <= rgbMax; ++g)
+                    for (uint32_t b = rgbMin; b <= rgbMax; ++b)
+                    {
+                        ret[isFull].push_back(static_cast<uint8_t>(r));
+                        ret[isFull].push_back(static_cast<uint8_t>(g));
+                        ret[isFull].push_back(static_cast<uint8_t>(b));
+                    }
+        }
+        return ret;
+    }();
+    return rgb8[isFull];
+}
+
+MATCHER_P2(WrapRef, ref, res, "")
+{
+    [[maybe_unused]] const auto& tmp0 = arg;
+    [[maybe_unused]] const auto& tmp1 = result_listener;
+    return res;
+}
+
+#if COMMON_COMPILER_MSVC
+#   pragma optimize("", on)
+#endif
+
+void TestRGBToYCC(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, const YCCMatrix matrix, const bool isRGBFull, const bool isYCCFull)
+{
+    std::string situation(YCCMatrixName(matrix));
+    situation.append(isRGBFull ? " rFull " : " rLimit").append(isYCCFull ? " yFull " : " yLimit");
+    std::string name = "YCCCvt::RGB8ToYCbCr8";
+    // if (fast) name.append("Fast");
+    name.append(", ").append(situation);
+    const ::testing::ScopedTrace scope(__FILE__, __LINE__, name);
+
+    const uint32_t RGB24Cnt = std::get<2>(GetRGBRange(isRGBFull));
+    const auto& refOutput = GetFullYUV8Output(xziar::img::EncodeYCCM(matrix, isRGBFull, isYCCFull));
+    const auto src = common::as_bytes(common::to_span(GetFullRGB8(isRGBFull)));
+    std::vector<size_t> testSizes(std::begin(TestSizes), std::end(TestSizes));
+    testSizes.push_back(RGB24Cnt);
+    std::array<uint32_t, 3> mismatches = { 0,0,0 };
+    VarLenTest_<uint8_t, uint8_t, 3, 3>(src, [&](uint8_t* dst, const uint8_t* src, size_t count)
+    {
+        intrin->RGBToYCC(dst, src, count, matrix, isRGBFull, isYCCFull);
+    }, [&](uint8_t* dst, const uint8_t*, size_t count)
+    {
+        memcpy(dst, refOutput.data(), count * 3);
+    }, [&](const HexTest<uint8_t, uint8_t>& test, std::string_view cond)
+    {
+        const uint32_t absY = std::abs(test.Dst.Vals[0] - test.Ref.Vals[0]),
+            absCb = std::abs(test.Dst.Vals[1] - test.Ref.Vals[1]),
+            absCr = std::abs(test.Dst.Vals[2] - test.Ref.Vals[2]);
+        const auto suc = (absY | absCb | absCr) <= 1; // only 0 or 1 allowed
+        if (test.Count == RGB24Cnt)
+            mismatches[0] += absY, mismatches[1] += absCb, mismatches[2] += absCr;
+        EXPECT_THAT(test.Dst, WrapRef(test.Ref, suc)) << test << cond;
+        return suc;
+    }, testSizes);
+
+    // consider in-place, hald the mismatch count
+    TestCout() << common::str::Formatter<char>{}.FormatStatic(FmtString("[{}] error rate: Y[{:.3f}%] Cb[{:.3f}%] Cr[{:.3f}%]\n"),
+        situation, mismatches[0] * 50.0 / RGB24Cnt, mismatches[1] * 50.0 / RGB24Cnt, mismatches[2] * 50.0 / RGB24Cnt);
+}
+void TestRGBToYUV(const std::unique_ptr<xziar::img::YCCConvertor>& intrin)
+{
+    TestRGBToYCC(intrin, YCCMatrix::BT601, false, false);
+    TestRGBToYCC(intrin, YCCMatrix::BT601,  true, false);
+    TestRGBToYCC(intrin, YCCMatrix::BT601,  true,  true);
+    TestRGBToYCC(intrin, YCCMatrix::BT709, false, false);
+    TestRGBToYCC(intrin, YCCMatrix::BT709,  true, false);
+    TestRGBToYCC(intrin, YCCMatrix::BT709,  true,  true);
+}
+
+INTRIN_TEST(YCCCvt, RGB8ToYCbCr8)
+{
+    TestRGBToYUV(Intrin);
+}
+
+
 #if CM_DEBUG == 0
 
 
@@ -2047,6 +2250,18 @@ TEST(IntrinPerf, RGB10ToRGBA)
         dstRGB.data(), src.data(), Size, 1.0f);
     PerfTester::DoFastPath(&ColorConvertor::BGR10A2ToRGB, "BGR10ToRGBf", Size, 100,
         dstRGB.data(), src.data(), Size, 1.0f);
+}
+
+TEST(IntrinPerf, RGB8ToYCbCr8)
+{
+    constexpr uint32_t Size = 1024 * 1024;
+    std::vector<uint8_t> src(Size * 3);
+    std::vector<uint8_t> dst(Size * 3);
+    PerfTester tester("RGB8ToYCbCr8", Size, 100);
+    tester.FastPathTest<xziar::img::YCCConvertor>([&](const xziar::img::YCCConvertor& host)
+    {
+        host.RGBToYCC(dst.data(), src.data(), Size, YCCMatrix::BT601);
+    });
 }
 
 #endif

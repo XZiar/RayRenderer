@@ -598,8 +598,9 @@ public:
 };
 
 
-TgaReader::TgaReader(RandomInputStream& stream) : Stream(stream), Header{ util::EmptyStruct<detail::TgaHeader>() }
+TgaReader::TgaReader(RandomInputStream& stream) : Stream(stream), Header{}
 {
+    common::ZeroRegion(&Header, sizeof(Header));
 }
 
 bool TgaReader::Validate()

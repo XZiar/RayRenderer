@@ -9,6 +9,8 @@ using ::common::CheckCPUFeature;
 struct LOOP : ::common::fastpath::FuncVarBase {};
 struct LOOP2 : ::common::fastpath::FuncVarBase {};
 struct LOOP3 : ::common::fastpath::FuncVarBase {};
+struct LOOP_F32 : public LOOP {};
+struct LOOP_I16 : public LOOP {};
 struct SSE2
 {
     static bool RuntimeCheck() noexcept
@@ -78,6 +80,10 @@ struct SSE41
 #endif
     }
 };
+struct SSE41_F32 : public SSE41 {};
+struct SSE41_I16 : public SSE41 {};
+struct SSE41_I16_2 : public SSE41 {};
+struct SSE41_I8 : public SSE41 {};
 struct BMI2
 {
     static bool RuntimeCheck() noexcept
