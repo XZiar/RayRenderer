@@ -1690,7 +1690,7 @@ void TestRGBToYCC(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, const
     }, [&](uint8_t* dst, const uint8_t*, size_t count)
     {
         memcpy(dst, refOutput.data(), count * 3);
-    }, [&](const HexTest<uint8_t, uint8_t>& test, std::string_view cond)
+    }, [&](const HexTest<uint8_t, uint8_t>& test, std::string_view cond) noexcept
     {
         const uint32_t absY = std::abs(test.Dst.Vals[0] - test.Ref.Vals[0]),
             absCb = std::abs(test.Dst.Vals[1] - test.Ref.Vals[1]),
@@ -1698,7 +1698,8 @@ void TestRGBToYCC(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, const
         const auto suc = (absY | absCb | absCr) <= 1; // only 0 or 1 allowed
         if (test.Count == RGB24Cnt)
             mismatches[0] += absY, mismatches[1] += absCb, mismatches[2] += absCr;
-        EXPECT_THAT(test.Dst, WrapRef(test.Ref, suc)) << test << cond;
+        if (!suc)
+            EXPECT_THAT(test.Dst, test.Ref) << test << cond;
         return suc;
     }, testSizes);
 
@@ -1708,12 +1709,15 @@ void TestRGBToYCC(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, const
 }
 void TestRGBToYUV(const std::unique_ptr<xziar::img::YCCConvertor>& intrin)
 {
-    TestRGBToYCC(intrin, YCCMatrix::BT601, false, false);
-    TestRGBToYCC(intrin, YCCMatrix::BT601,  true, false);
-    TestRGBToYCC(intrin, YCCMatrix::BT601,  true,  true);
-    TestRGBToYCC(intrin, YCCMatrix::BT709, false, false);
-    TestRGBToYCC(intrin, YCCMatrix::BT709,  true, false);
-    TestRGBToYCC(intrin, YCCMatrix::BT709,  true,  true);
+    TestRGBToYCC(intrin, YCCMatrix::BT601,  false, false);
+    TestRGBToYCC(intrin, YCCMatrix::BT601,   true, false);
+    TestRGBToYCC(intrin, YCCMatrix::BT601,   true,  true);
+    TestRGBToYCC(intrin, YCCMatrix::BT709,  false, false);
+    TestRGBToYCC(intrin, YCCMatrix::BT709,   true, false);
+    TestRGBToYCC(intrin, YCCMatrix::BT709,   true,  true);
+    TestRGBToYCC(intrin, YCCMatrix::BT2020, false, false);
+    TestRGBToYCC(intrin, YCCMatrix::BT2020,  true, false);
+    TestRGBToYCC(intrin, YCCMatrix::BT2020,  true,  true);
 }
 
 INTRIN_TEST(YCCCvt, RGB8ToYCbCr8)

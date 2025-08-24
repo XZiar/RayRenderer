@@ -563,10 +563,10 @@ static void TestRnd(const T*)
     {
         T src;
         src.Load(Data + i);
-        src.template Round<RoundMode::ToEven>()  .Save(out[0].data() + i);
-        src.template Round<RoundMode::ToZero>()  .Save(out[1].data() + i);
-        src.template Round<RoundMode::ToPosInf>().Save(out[2].data() + i);
-        src.template Round<RoundMode::ToNegInf>().Save(out[3].data() + i);
+        src.template Round<simd::RoundMode::ToEven  >().Save(out[0].data() + i);
+        src.template Round<simd::RoundMode::ToZero  >().Save(out[1].data() + i);
+        src.template Round<simd::RoundMode::ToPosInf>().Save(out[2].data() + i);
+        src.template Round<simd::RoundMode::ToNegInf>().Save(out[3].data() + i);
     }
     EXPECT_THAT(out[0], testing::ElementsAreArray(ToEven)) << "when testing Round-ToEven";
     EXPECT_THAT(out[1], testing::ElementsAreArray(ToZero)) << "when testing Round-ToZero";

@@ -117,12 +117,10 @@ struct AVX2
 #endif
     }
 };
-struct AVX22 : public AVX2
-{
-};
-struct AVX23 : public AVX2
-{
-};
+struct AVX22 : public AVX2 {};
+struct AVX23 : public AVX2 {};
+struct AVX2_I16 : public AVX2 {};
+struct AVX2_I8  : public AVX2 {};
 struct AVX512BW
 {
     static bool RuntimeCheck() noexcept
@@ -156,9 +154,9 @@ struct AVX512VBMI
 #endif
     }
 };
-struct AVX512VBMI_2 : public AVX512VBMI
-{
-};
+struct AVX512VBMI_2 : public AVX512VBMI {};
+struct AVX512VBMI_I16 : public AVX512VBMI {};
+struct AVX512VBMI_I8  : public AVX512VBMI {};
 struct AVX512VBMI2
 {
     static bool RuntimeCheck() noexcept

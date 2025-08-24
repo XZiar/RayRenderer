@@ -50,7 +50,7 @@ MiniLogger<false>& ImgLog()
 }
 
 template<typename T>
-static inline constexpr auto ComputeRGB2YCCMatrix8(YCCMatrix mat, [[maybe_unused]] T scale) noexcept
+static inline auto ComputeRGB2YCCMatrix8(YCCMatrix mat, [[maybe_unused]] T scale) noexcept
 {
     using U = std::conditional_t<std::is_floating_point_v<T>, T, double>;
     auto tmp = ComputeRGB2YCCMatrix8F<U>(mat);

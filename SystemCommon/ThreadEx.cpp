@@ -924,6 +924,9 @@ struct CPUFeature
         CHECK_FEATURE(avx,              avx);
         CHECK_FEATURE(fma3,             fma);
         CHECK_FEATURE(avx2,             avx2);
+        CHECK_FEATURE(avxvnni,          avxvnni);
+        CHECK_FEATURE(avx_vnni_int8,    avxvnnii8);
+        CHECK_FEATURE(avx_vnni_int16,   avxvnnii16);
         CHECK_FEATURE(avx512f,          avx512f);
         CHECK_FEATURE(avx512dq,         avx512dq);
         CHECK_FEATURE(avx512pf,         avx512pf);
