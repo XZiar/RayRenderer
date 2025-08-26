@@ -50,7 +50,7 @@ MiniLogger<false>& ImgLog()
 }
 
 template<typename T>
-static inline auto ComputeRGB2YCCMatrix8(YCCMatrix mat, [[maybe_unused]] T scale) noexcept
+static inline auto ComputeRGB2YCCMatrix8(YCCMatrix mat, [[maybe_unused]] double scale) noexcept
 {
     using U = std::conditional_t<std::is_floating_point_v<T>, T, double>;
     auto tmp = ComputeRGB2YCCMatrix8F<U>(mat);
@@ -63,42 +63,16 @@ static inline auto ComputeRGB2YCCMatrix8(YCCMatrix mat, [[maybe_unused]] T scale
     {
         static_assert(std::is_integral_v<T>, "need INT");
         common::RegionRounding rd(common::RoundMode::ToNearest);
-        if constexpr (std::is_same_v<T, int8_t>)
-        {
-            std::array<int32_t, 8> mid{};
-            for (uint32_t i = 0; i < 8; ++i)
-                mid[i] = static_cast<int32_t>(std::nearbyint(tmp[i] * 256));
-            std::array<int8_t, 12> ret{};
-            // y: RGGB, G > R > B, ensure G0 + R <= 0.5
-            ret[0] = static_cast<int8_t>(mid[0]);
-            ret[1] = static_cast<int8_t>(128 - mid[0]); // max 0.5
-            ret[2] = static_cast<int8_t>(mid[1] - ret[1]);
-            ret[3] = static_cast<int8_t>(mid[2]);
-            // cb: RBGB, B > G > R, B/2 ~ (0.25, 0.5), G ~ (-0.5, -0.25)
-            ret[4] = static_cast<int8_t>(mid[3]);
-            ret[5] = static_cast<int8_t>(mid[5] / 2);
-            ret[6] = static_cast<int8_t>(mid[4]);
-            ret[7] = static_cast<int8_t>(mid[5] - ret[5]);
-            // cr: RGRB, R > G > B, R/2 ~ (0.25, 0.5), G ~ (-0.5, -0.25)
-            ret[ 8] = static_cast<int8_t>(mid[5] / 2);
-            ret[ 9] = static_cast<int8_t>(mid[6]);
-            ret[10] = static_cast<int8_t>(mid[5] - ret[8]);
-            ret[11] = static_cast<int8_t>(mid[7]);
-            return ret;
-        }
-        else
-        {
-            std::array<T, 9> ret{};
-            for (uint32_t i = 0; i < 9; ++i)
-                ret[i] = static_cast<T>(std::nearbyint(tmp[i] * scale));
-            return ret;
-        }
+        std::array<T, 9> ret{};
+        for (uint32_t i = 0; i < 9; ++i)
+            ret[i] = static_cast<T>(std::nearbyint(tmp[i] * scale));
+        return ret;
     }
 }
 template<typename T>
-static constexpr auto GenYCC8LUT(T scale = 1) noexcept
+static constexpr auto GenYCC8LUT(double scale = 1) noexcept
 {
-    constexpr uint32_t N = std::is_same_v<T, int8_t> ? 12 : 9;
+    constexpr uint32_t N = std::is_same_v<T, int8_t> ? 16 : 9;
     std::array<std::array<T, N>, 16> ret = {};
 #define Gen(mat, rgb, ycc) do { const auto mval = EncodeYCCM(YCCMatrix::mat, rgb, ycc); ret[common::enum_cast(mval)] = ComputeRGB2YCCMatrix8<T>(mval, scale); } while(0)
     Gen(BT601,  false, false);
@@ -114,6 +88,89 @@ static constexpr auto GenYCC8LUT(T scale = 1) noexcept
     Gen(BT2020, false, true);
     Gen(BT2020, true,  true);
 #undef Gen
+    return ret;
+}
+template<typename F>
+static constexpr auto GenYCC8LUT2(F&& func) noexcept
+{
+    using T = decltype(func(YCCMatrix::BT601));
+    std::array<T, 16> ret = {};
+#define Gen(mat, rgb, ycc) do { const auto mval = EncodeYCCM(YCCMatrix::mat, rgb, ycc); ret[common::enum_cast(mval)] = func(mval); } while(0)
+    Gen(BT601,  false, false);
+    Gen(BT601,  true,  false);
+    Gen(BT601,  false, true);
+    Gen(BT601,  true,  true);
+    Gen(BT709,  false, false);
+    Gen(BT709,  true,  false);
+    Gen(BT709,  false, true);
+    Gen(BT709,  true,  true);
+    Gen(BT2020, false, false);
+    Gen(BT2020, true,  false);
+    Gen(BT2020, false, true);
+    Gen(BT2020, true,  true);
+#undef Gen
+    return ret;
+}
+
+static inline auto ComputeRGB2YCCMatrixI8x4(YCCMatrix mat) noexcept
+{
+    auto tmp = ComputeRGB2YCCMatrix8F<double>(mat);
+    // compress
+    tmp[6] = tmp[7];
+    tmp[7] = tmp[8];
+    common::RegionRounding rd(common::RoundMode::ToNearest);
+    std::array<int32_t, 8> mid{};
+    for (uint32_t i = 0; i < 8; ++i)
+        mid[i] = static_cast<int32_t>(std::nearbyint(tmp[i] * 256));
+    std::array<int8_t, 16> ret{};
+    // y: RGGB, G > R > B, ensure G0 + R <= 0.5
+    ret[0] = static_cast<int8_t>(mid[0]);
+    ret[1] = static_cast<int8_t>(128 - mid[0]); // max 0.5
+    ret[2] = static_cast<int8_t>(mid[1] - ret[1]);
+    ret[3] = static_cast<int8_t>(mid[2]);
+    // cb: RBGB, B > G > R, B/2 ~ (0.25, 0.5), G ~ (-0.5, -0.25)
+    ret[4] = static_cast<int8_t>(mid[3]);
+    ret[5] = static_cast<int8_t>(mid[5] / 2);
+    ret[6] = static_cast<int8_t>(mid[4]);
+    ret[7] = static_cast<int8_t>(mid[5] - ret[5]);
+    // cr: RGRB, R > G > B, R/2 ~ (0.25, 0.5), G ~ (-0.5, -0.25)
+    ret[ 8] = static_cast<int8_t>(mid[5] / 2);
+    ret[ 9] = static_cast<int8_t>(mid[6]);
+    ret[10] = static_cast<int8_t>(mid[5] - ret[8]);
+    ret[11] = static_cast<int8_t>(mid[7]);
+    return ret;
+}
+static inline auto ComputeRGB2YCCMatrixU8x4(YCCMatrix mat) noexcept
+{
+    auto tmp = ComputeRGB2YCCMatrix8F<double>(mat);
+    // compress
+    tmp[6] = tmp[7];
+    tmp[7] = tmp[8];
+    common::RegionRounding rd(common::RoundMode::ToNearest);
+    std::array<int32_t, 8> mid{};
+    for (uint32_t i = 0; i < 3; ++i)
+        mid[i] = static_cast<int32_t>(std::nearbyint(tmp[i] * 512));
+    for (uint32_t i = 3; i < 8; ++i)
+        mid[i] = static_cast<int32_t>(std::nearbyint(tmp[i] * 256 + 128));
+    mid[5] = static_cast<int32_t>(std::nearbyint(tmp[5] * 256 + 256));
+    std::array<uint8_t, 16> ret{};
+    // y: RGGB, G > R > B, ensure G0 + R <= 0.5
+    ret[0] = static_cast<uint8_t>(mid[0]);
+    ret[1] = static_cast<uint8_t>(256 - mid[0]); // max 0.5
+    ret[2] = static_cast<uint8_t>(mid[1] - ret[1]);
+    ret[3] = static_cast<uint8_t>(mid[2]);
+    // cb: RBGB, B > G > R, B/2 ~ (0.25, 0.5), G ~ (-0.5, -0.25)
+    ret[4] = static_cast<uint8_t>(mid[3]);
+    ret[5] = static_cast<uint8_t>(mid[5] / 2);
+    ret[6] = static_cast<uint8_t>(mid[4]);
+    ret[7] = static_cast<uint8_t>(mid[5] - ret[5]);
+    // cr: RGRB, R > G > B, R/2 ~ (0.25, 0.5), G ~ (-0.5, -0.25)
+    ret[ 8] = static_cast<uint8_t>(mid[5] / 2);
+    ret[ 9] = static_cast<uint8_t>(mid[6]);
+    ret[10] = static_cast<uint8_t>(mid[5] - ret[8]);
+    ret[11] = static_cast<uint8_t>(mid[7]);
+    for (uint32_t i = 12; i < 16; ++i)
+        ret[i] = 128;
     return ret;
 }
 
@@ -143,7 +200,9 @@ static constexpr auto GenYCC8LUT(T scale = 1) noexcept
 
 std::array<std::array<  float,  9>, 16> RGB8ToYCC8LUTF32 = GenYCC8LUT<  float>();
 std::array<std::array<int16_t,  9>, 16> RGB8ToYCC8LUTI16 = GenYCC8LUT<int16_t>(16384);
-std::array<std::array< int8_t, 12>, 16> RGB8ToYCC8LUTI8x4 = GenYCC8LUT<int8_t>();
+//std::array<std::array<int16_t,  9>, 16> RGB8ToYCC8LUTI16_15 = GenYCC8LUT<int16_t>(32768);
+std::array<std::array< int8_t, 16>, 16> RGB8ToYCC8LUTI8x4 = GenYCC8LUT2(&ComputeRGB2YCCMatrixI8x4);
+std::array<std::array<uint8_t, 16>, 16> RGB8ToYCC8LUTU8x4 = GenYCC8LUT2(&ComputeRGB2YCCMatrixU8x4);
 
 
 DEFINE_FASTPATH_BASIC(ColorConvertor,

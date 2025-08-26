@@ -781,7 +781,7 @@ static void AssignMask(ThreadAffinity& affinity, uint32_t procId)
     affinity.Set(proc.linux_id, true);
 #endif
 }
-static void AssignPartition(CPUPartition& partition, span<const uint32_t> procIds)
+[[maybe_unused]] static void AssignPartition(CPUPartition& partition, span<const uint32_t> procIds)
 {
     for (const auto procId : procIds)
         AssignMask(partition.Affinity, procId);
@@ -953,12 +953,17 @@ struct CPUFeature
 #elif COMMON_ARCH_ARM
         cpuinfo_has_arm_sha2();
 # define CHECK_FEATURE(en, name) if (cpuinfo_has_arm_##en()) AppendFeature(#name""sv)
-        CHECK_FEATURE(neon,         asimd);
-        CHECK_FEATURE(aes,          aes);
-        CHECK_FEATURE(pmull,        pmull);
-        CHECK_FEATURE(sha1,         sha1);
-        CHECK_FEATURE(sha2,         sha2);
-        CHECK_FEATURE(crc32,        crc32);
+        CHECK_FEATURE(neon,             asimd);
+        CHECK_FEATURE(neon_fp16_arith,  asimdfp16);
+        CHECK_FEATURE(neon_rdm,         asimdrdm);
+        CHECK_FEATURE(neon_dot,         asimddot);
+        CHECK_FEATURE(i8mm,             asimdi8mm);
+        CHECK_FEATURE(aes,              aes);
+        CHECK_FEATURE(pmull,            pmull);
+        CHECK_FEATURE(sha1,             sha1);
+        CHECK_FEATURE(sha2,             sha2);
+        CHECK_FEATURE(crc32,            crc32);
+        CHECK_FEATURE(fp16_arith,       fp16);
 # undef CHECK_FEATURE
 #endif
         return;
@@ -974,8 +979,13 @@ struct CPUFeature
 # if COMMON_ARCH_ARM
 #   if defined(__aarch64__)
 #     define CAPNUM 1
-        CHECK_FEATURE(1, ASIMD, asimd);
+        CHECK_FEATURE(1,      ASIMD,    asimd);
+        CHECK_FEATURE(1,      ASIMDHP,  asimdfp16);
+        CHECK_FEATURE(1,      ASIMDRDM, asimdrdm);
+        CHECK_FEATURE(1,      ASIMDDP,  asimddot);
+        CHECK_FEATURE(2,      I8MM,     asimdi8mm);
         CHECK_FEATURE(CAPNUM, FP,       fp);
+        CHECK_FEATURE(CAPNUM, FPHP,     fp16);
 #   else
 #     define CAPNUM 2
         CHECK_FEATURE(1, NEON, asimd);

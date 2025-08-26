@@ -30,8 +30,8 @@ protected:
     }
     PromiseState WaitPms() noexcept override { return GetState(); }
     void ExecuteCallback() override { }
-    void AddCallback(std::function<void()> func) override { assert(false); }
-    void AddCallback(std::function<void(const PmsCore&)> func) override { assert(false); }
+    void AddCallback(std::function<void()>) override { assert(false); }
+    void AddCallback(std::function<void(const PmsCore&)>) override { assert(false); }
 public:
     AsyncSleeper(const uint32_t sleepTimeMs)
     {

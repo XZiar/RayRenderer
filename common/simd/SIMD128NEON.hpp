@@ -1659,7 +1659,7 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
 };
 
 
-struct alignas(16) F16x8 : public detail::Neon128Common<F16x8, float16x8_t, ::common::fp16_t, 8>, public detail::Shuffle32Common<F16x8, float16x8_t>
+struct alignas(16) F16x8 : public detail::Neon128Common<F16x8, float16x8_t, ::common::fp16_t, 8>
 {
     using Neon128Common<F16x8, float16x8_t, ::common::fp16_t, 8>::Neon128Common;
     forceinline explicit F16x8(const ::common::fp16_t* ptr) noexcept : Neon128Common(vld1q_f16(reinterpret_cast<const float16_t*>(ptr))) {}

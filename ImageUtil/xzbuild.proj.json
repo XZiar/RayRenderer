@@ -31,10 +31,10 @@
             "arch":
             [
                 {"file": "FastPathARMA32.cpp",  "+": "arch=armv8-a+crc+simd+crypto"},
-                {"file": "FastPathARMA64.cpp",  "+": "arch=armv8-a+crc+simd+crypto"},
+                {"file": "FastPathARMA64.cpp",  "+": "arch=armv8.1-a+crc+simd+crypto+fp16+fp16fml+dotprod+i8mm"},
                 {"file": "FastPathSSE42.cpp",   "+": "sse4.2,waitpkg,lzcnt,popcnt,sha,f16c"},
-                {"file": "FastPathAVX2.cpp",    "+": "avx2,fma,avx,bmi2,bmi,waitpkg,lzcnt,popcnt,sha,f16c"},
-                {"file": "FastPathAVX512.cpp",  "+": "avx512f,avx512vl,avx512bw,avx512dq,avx512vbmi2,avx512vbmi,avx2,fma,avx,bmi2,bmi,sse4.2,waitpkg,lzcnt,popcnt,sha,f16c"}
+                {"file": "FastPathAVX2.cpp",    "+": "avx2,avxvnni,fma,avx,bmi2,bmi,waitpkg,lzcnt,popcnt,sha,f16c"},
+                {"file": "FastPathAVX512.cpp",  "+": "avx512f,avx512vl,avx512bw,avx512dq,avx512vbmi2,avx512vbmi,avx512vnni,avx2,avxvnni,fma,avx,bmi2,bmi,sse4.2,waitpkg,lzcnt,popcnt,sha,f16c"}
             ],
             "flags": [{"ifeq": {"compiler": "gcc"}, "+": "-Wno-unused-but-set-variable"}],
             "incpath": ["$(SolutionDir)/3rdParty/Projects", "$(SolutionDir)/3rdParty/Projects/zlib-ng", "$(SolutionDir)/3rdParty/Projects/libpng", "$(SolutionDir)/3rdParty/Projects/libjpeg-turbo"]

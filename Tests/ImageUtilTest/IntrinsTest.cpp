@@ -1539,8 +1539,10 @@ INTRIN_TESTSUITE(YCCCvt, xziar::img::YCCConvertor, xziar::img::YCCConvertor::Get
 #if COMMON_COMPILER_MSVC
 #   pragma optimize("t", on) // /Og /Oi /Ot /Oy /Ob2 /GF /Gy
 #   define FORCE_OPT
-#else
+#elif COMMON_COMPILER_GCC
 #   define FORCE_OPT __attribute__((optimize("O2")))
+#else
+#   define FORCE_OPT
 #endif
 
 using ::xziar::img::RGB2YCCBase;
@@ -1668,6 +1670,7 @@ MATCHER_P2(WrapRef, ref, res, "")
 #if COMMON_COMPILER_MSVC
 #   pragma optimize("", on)
 #endif
+#undef FORCE_OPT
 
 void TestRGBToYCC(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, const YCCMatrix matrix, const bool isRGBFull, const bool isYCCFull)
 {
@@ -1699,7 +1702,9 @@ void TestRGBToYCC(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, const
         if (test.Count == RGB24Cnt)
             mismatches[0] += absY, mismatches[1] += absCb, mismatches[2] += absCr;
         if (!suc)
+        {
             EXPECT_THAT(test.Dst, test.Ref) << test << cond;
+        }
         return suc;
     }, testSizes);
 

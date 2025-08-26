@@ -44,8 +44,40 @@ struct NEON
 #endif
     }
 };
-struct NEON2 : public NEON
+struct NEON2 : public NEON {};
+struct NEON_F32 : public NEON {};
+struct NEON_I16
 {
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_ARM && COMMON_OSBIT == 64
+        return CheckCPUFeature("asimd") && CheckCPUFeature("asimdrdm");
+#else
+        return false;
+#endif
+    }
+};
+struct NEON_U8DP4A
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_ARM && COMMON_OSBIT == 64
+        return CheckCPUFeature("asimd") && CheckCPUFeature("asimddot");
+#else
+        return false;
+#endif
+    }
+};
+struct NEON_I8DP4A
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_ARM && COMMON_OSBIT == 64
+        return CheckCPUFeature("asimd") && CheckCPUFeature("asimdi8mm");
+#else
+        return false;
+#endif
+    }
 };
 struct NEONA64
 {
@@ -53,6 +85,17 @@ struct NEONA64
     {
 #if COMMON_ARCH_ARM && COMMON_OSBIT == 64
         return CheckCPUFeature("asimd");
+#else
+        return false;
+#endif
+    }
+};
+struct NEON_F16 
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_ARM && COMMON_OSBIT == 64
+        return CheckCPUFeature("asimd") && CheckCPUFeature("asimdfp16");
 #else
         return false;
 #endif
@@ -120,7 +163,18 @@ struct AVX2
 struct AVX22 : public AVX2 {};
 struct AVX23 : public AVX2 {};
 struct AVX2_I16 : public AVX2 {};
-struct AVX2_I8  : public AVX2 {};
+struct AVX2_I8 : public AVX2 {};
+struct AVX2_I8DP4A
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("avx2") && CheckCPUFeature("avxvnni");
+#else
+        return false;
+#endif
+    }
+};
 struct AVX512BW
 {
     static bool RuntimeCheck() noexcept
@@ -156,7 +210,19 @@ struct AVX512VBMI
 };
 struct AVX512VBMI_2 : public AVX512VBMI {};
 struct AVX512VBMI_I16 : public AVX512VBMI {};
-struct AVX512VBMI_I8  : public AVX512VBMI {};
+struct AVX512VBMI_I8 : public AVX512VBMI {};
+struct AVX512VBMI_I8DP4A
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("avx512f") && CheckCPUFeature("avx512bw") && CheckCPUFeature("avx512vbmi") && 
+            CheckCPUFeature("avx512vnni");
+#else
+        return false;
+#endif
+    }
+};
 struct AVX512VBMI2
 {
     static bool RuntimeCheck() noexcept

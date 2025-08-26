@@ -124,9 +124,11 @@
 
 namespace xziar::img
 {
-extern std::array<std::array<  float, 9>, 16> RGB8ToYCC8LUTF32;
-extern std::array<std::array<int16_t, 9>, 16> RGB8ToYCC8LUTI16;
-extern std::array<std::array<int8_t, 12>, 16> RGB8ToYCC8LUTI8x4;
+extern std::array<std::array<  float,  9>, 16> RGB8ToYCC8LUTF32;
+extern std::array<std::array<int16_t,  9>, 16> RGB8ToYCC8LUTI16;
+//extern std::array<std::array<int16_t, 9>, 16> RGB8ToYCC8LUTI16_15;
+extern std::array<std::array< int8_t, 16>, 16> RGB8ToYCC8LUTI8x4;
+extern std::array<std::array<uint8_t, 16>, 16> RGB8ToYCC8LUTU8x4;
 }
 
 template<uint8_t IdxR, uint8_t IdxG, uint8_t IdxB>
@@ -147,6 +149,7 @@ using ::xziar::img::YCCMatrix;
 using ::xziar::img::RGB8ToYCC8LUTF32;
 using ::xziar::img::RGB8ToYCC8LUTI16;
 using ::xziar::img::RGB8ToYCC8LUTI8x4;
+using ::xziar::img::RGB8ToYCC8LUTU8x4;
 
 
 DEFINE_FASTPATHS(STBResize, DoResize)
@@ -1040,14 +1043,20 @@ forceinline constexpr int32_t Clamp(int32_t val, int32_t vmin, int32_t vmax) noe
 {
     return val < vmin ? vmin : (val > vmax ? vmax : val);
 }
+forceinline constexpr std::tuple<bool, bool, bool> CheckYCCMatrix(uint8_t mval) noexcept
+{
+    const auto matrix = static_cast<YCCMatrix>(mval);
+    const bool isRGBFull = HAS_FIELD(matrix, YCCMatrix::RGBFull);
+    const bool isYCCFull = HAS_FIELD(matrix, YCCMatrix::YCCFull);
+    const bool needAddY = !isYCCFull && isRGBFull;
+    return { isRGBFull, isYCCFull, needAddY };
+}
 
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, LOOP_F32)
 {
-    const auto mat = static_cast<YCCMatrix>(mval);
     const auto& lut = RGB8ToYCC8LUTF32[mval];
-    [[maybe_unused]] const bool isRGBFull = HAS_FIELD(mat, YCCMatrix::RGBFull);
-    [[maybe_unused]] const bool isYCCFull = HAS_FIELD(mat, YCCMatrix::YCCFull);
-    [[maybe_unused]] const int32_t yAdd = (!isYCCFull && isRGBFull) ? 16 : 0;
+    [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+    [[maybe_unused]] const int32_t yAdd = needAddY ? 16 : 0;
     common::RegionRounding rd(common::RoundMode::ToNearest);
 
 #define LOOP_RGB_YUV do { const float r = src[0], g = src[1], b = src[2];           \
@@ -1066,12 +1075,9 @@ src += 3; } while (0)
 
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, LOOP_I16)
 {
-    const auto mat = static_cast<YCCMatrix>(mval);
     const auto& lut = RGB8ToYCC8LUTI16[mval];
-    [[maybe_unused]] const bool isRGBFull = HAS_FIELD(mat, YCCMatrix::RGBFull);
-    [[maybe_unused]] const bool isYCCFull = HAS_FIELD(mat, YCCMatrix::YCCFull);
-    [[maybe_unused]] const int32_t yAdd = (!isYCCFull && isRGBFull) ? 16 : 0;
-    //common::RegionRounding rd(common::RoundMode::ToNearest);
+    [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+    [[maybe_unused]] const int32_t yAdd = needAddY ? 16 : 0;
 
 #define LOOP_RGB_YUV do { const int16_t r = src[0], g = src[1], b = src[2]; \
 const auto y  = r * lut[0] + g * lut[1] + b * lut[2];                       \
@@ -2775,13 +2781,13 @@ struct RGB8ToYUV8_F32_SSE41
     template<uint8_t R, uint8_t G, uint8_t B>
     struct Shuffler
     {
-        static inline const __m128i Shuf = _mm_setr_epi8(R + 0, -1, -1, -1, G + 0, -1, -1, -1, B + 0, -1, -1, -1, -1, -1, -1, -1);
+        alignas(32) static inline const uint8_t Shuf[] = { R + 0, 255, 255, 255, G + 0, 255, 255, 255, B + 0, 255, 255, 255, 255, 255, 255, 255 };
     };
     __m128i U8ToI32x4Shuf;
     F32x4 LutY, LutCb, LutCr;
     template<uint8_t R, uint8_t G, uint8_t B>
     RGB8ToYUV8_F32_SSE41(const std::array<float, 9>& lut, RGBOrder<R, G, B>) noexcept :
-        U8ToI32x4Shuf(Shuffler<R, G, B>::Shuf), LutY(lut.data()), LutCb(lut.data() + 3), LutCr(lut.data() + 5)
+        U8ToI32x4Shuf(_mm_loadu_si128(reinterpret_cast<const __m128i*>(Shuffler<R, G, B>::Shuf))), LutY(lut.data()), LutCb(lut.data() + 3), LutCr(lut.data() + 5)
     { }
     static forceinline auto DP4(const F32x4& src0, const F32x4& src1, const F32x4& src2, const F32x4& src3, const F32x4& lut) noexcept
     {
@@ -2855,26 +2861,24 @@ struct RGB8ToYUV8_I16_SSE41_Base
     template<uint8_t R, uint8_t G, uint8_t B>
     struct Shuffler
     {
-        static inline const __m128i ShufRB = _mm_setr_epi8(R +  0, -1, B +  0, -1, R +  3, -1, B +  3, -1, R +  6, -1, B +  6, -1, R +  9, -1, B +  9, -1);
-        static inline const __m128i ShufG0 = _mm_setr_epi8(G +  0, -1, G +  3, -1, G +  6, -1, G +  9, -1, G + 12, -1, G + 15, -1, G + 18, -1, G + 21, -1);
-        static inline const __m128i ShufG1 = _mm_setr_epi8(G + 24, -1, G + 27, -1, G + 30, -1, G + 33, -1, G + 36, -1, G + 39, -1, G + 42, -1, G + 45, -1);
+        alignas(32) static inline const uint8_t ShufRB[] = { R +  0, 255, B +  0, 255, R +  3, 255, B +  3, 255, R +  6, 255, B +  6, 255, R +  9, 255, B +  9, 255 };
+        alignas(32) static inline const uint8_t ShufG0[] = { G +  0, 255, G +  3, 255, G +  6, 255, G +  9, 255, G + 12, 255, G + 15, 255, G + 18, 255, G + 21, 255 };
+        alignas(32) static inline const uint8_t ShufG1[] = { G + 24, 255, G + 27, 255, G + 30, 255, G + 33, 255, G + 36, 255, G + 39, 255, G + 42, 255, G + 45, 255 };
     };
-    static inline const __m128i Add128 = _mm_set1_epi16(128);
     __m128i U8ToRBShuf, U8ToGShuf0, U8ToGShuf1;
     __m128i LutYRB, LutYG, LutCbRB, LutCbG, LutCrRB, LutCrG;
     template<uint8_t R, uint8_t G, uint8_t B>
     RGB8ToYUV8_I16_SSE41_Base(const I16x8& lut, RGBOrder<R, G, B>) noexcept :
-        U8ToRBShuf(Shuffler<R, G, B>::ShufRB),
-        U8ToGShuf0(Shuffler<R, G, B>::ShufG0),
-        U8ToGShuf1(Shuffler<R, G, B>::ShufG1),
+        U8ToRBShuf(_mm_loadu_si128(reinterpret_cast<const __m128i*>(Shuffler<R, G, B>::ShufRB))),
+        U8ToGShuf0(_mm_loadu_si128(reinterpret_cast<const __m128i*>(Shuffler<R, G, B>::ShufG0))),
+        U8ToGShuf1(_mm_loadu_si128(reinterpret_cast<const __m128i*>(Shuffler<R, G, B>::ShufG1))),
         LutYRB (lut.Shuffle<0, 2, 0, 2, 0, 2, 0, 2>()),
         LutYG  (lut.Shuffle<1, 1, 1, 1, 1, 1, 1, 1>()),
         LutCbRB(lut.Shuffle<3, 5, 3, 5, 3, 5, 3, 5>()),
         LutCbG (lut.Shuffle<4, 4, 4, 4, 4, 4, 4, 4>()),
         LutCrRB(lut.Shuffle<5, 7, 5, 7, 5, 7, 5, 7>()),
         LutCrG (lut.Shuffle<6, 6, 6, 6, 6, 6, 6, 6>())
-    {
-    }
+    { }
 };
 struct RGB8ToYUV8_I16_SSE41 : public RGB8ToYUV8_I16_SSE41_Base
 {
@@ -2907,10 +2911,8 @@ struct RGB8ToYUV8_I16_SSE41 : public RGB8ToYUV8_I16_SSE41_Base
         U8x16 outY = _mm_packus_epi16(lumi0, lumi1);
         if (needAddY)
             outY = outY.Add(16);
-        
-        const auto cb0 = cb_0.Add(Add128), cb1 = cb_1.Add(Add128), cr0 = cr_0.Add(Add128), cr1 = cr_1.Add(Add128);
-        const U8x16 outCb = cb0.Cast<U8x16, CastMode::RangeSaturate>(cb1);
-        const U8x16 outCr = cr0.Cast<U8x16, CastMode::RangeSaturate>(cr1);
+        const U8x16 outCb = cb_0.Cast<I8x16, CastMode::RangeSaturate>(cb_1).As<U8x16>().Add(128);
+        const U8x16 outCr = cr_0.Cast<I8x16, CastMode::RangeSaturate>(cr_1).As<U8x16>().Add(128);
 
         Combine8x3_SSE41::DoStore(dst, outY, outCb, outCr);
     }
@@ -2947,10 +2949,8 @@ struct RGB8ToYUV8_I16_2_SSE41 : public RGB8ToYUV8_I16_SSE41_Base
         U8x16 outY = _mm_packus_epi16(lumi0, lumi1);
         if (needAddY)
             outY = outY.Add(16);
-        
-        const auto cb0 = cb_0.Add(Add128), cb1 = cb_1.Add(Add128), cr0 = cr_0.Add(Add128), cr1 = cr_1.Add(Add128);
-        const U8x16 outCb = cb0.Cast<U8x16, CastMode::RangeSaturate>(cb1);
-        const U8x16 outCr = cr0.Cast<U8x16, CastMode::RangeSaturate>(cr1);
+        const U8x16 outCb = cb_0.Cast<I8x16, CastMode::RangeSaturate>(cb_1).As<U8x16>().Add(128);
+        const U8x16 outCr = cr_0.Cast<I8x16, CastMode::RangeSaturate>(cr_1).As<U8x16>().Add(128);
 
         Combine8x3_SSE41::DoStore(dst, outY, outCb, outCr);
     }
@@ -2962,22 +2962,20 @@ struct RGB8ToYUV8_I8_SSE41
     struct Shuffler
     {
 #define PUT4(a,b,c,d,i) a + i, b + i, c + i, d + i 
-#define SHUF16(a,b,c,d)static inline const __m128i Shuf##a##b##c##d = _mm_setr_epi8(PUT4(a,b,c,d,0), PUT4(a,b,c,d,3), PUT4(a,b,c,d,6), PUT4(a,b,c,d,9))
+#define SHUF16(a,b,c,d) alignas(32) static inline const uint8_t Shuf##a##b##c##d [] = { PUT4(a,b,c,d,0), PUT4(a,b,c,d,3), PUT4(a,b,c,d,6), PUT4(a,b,c,d,9) }
         SHUF16(R, G, G, B);
         SHUF16(R, G, R, B);
         SHUF16(R, B, G, B);
 #undef SHUF16
 #undef PUT4
     };
-    static inline const __m128i Add128 = _mm_set1_epi16(128);
-    static inline const __m128i AddToU8 = _mm_set1_epi8(static_cast<int8_t>(128));
     __m128i ShufRGGB, ShufRGRB, ShufRBGB;
     __m128i LutY, LutCb, LutCr;
     template<uint8_t R, uint8_t G, uint8_t B>
     RGB8ToYUV8_I8_SSE41(const int8_t* lut, RGBOrder<R, G, B>) noexcept :
-        ShufRGGB(Shuffler<R, G, B>::ShufRGGB),
-        ShufRGRB(Shuffler<R, G, B>::ShufRGRB),
-        ShufRBGB(Shuffler<R, G, B>::ShufRBGB),
+        ShufRGGB(_mm_loadu_si128(reinterpret_cast<const __m128i*>(Shuffler<R, G, B>::ShufRGGB))),
+        ShufRGRB(_mm_loadu_si128(reinterpret_cast<const __m128i*>(Shuffler<R, G, B>::ShufRGRB))),
+        ShufRBGB(_mm_loadu_si128(reinterpret_cast<const __m128i*>(Shuffler<R, G, B>::ShufRBGB))),
         LutY (_mm_set1_epi32(reinterpret_cast<const int32_t*>(lut)[0])),
         LutCb(_mm_set1_epi32(reinterpret_cast<const int32_t*>(lut)[1])),
         LutCr(_mm_set1_epi32(reinterpret_cast<const int32_t*>(lut)[2]))
@@ -2988,9 +2986,9 @@ struct RGB8ToYUV8_I8_SSE41
         const auto mid0 = _mm_maddubs_epi16(rgb0, lut), mid1 = _mm_maddubs_epi16(rgb1, lut);
         const I16x8 sum = _mm_hadd_epi16(mid0, mid1);
         if constexpr (IsY)
-            return sum.As<U16x8>().Add(Add128).ShiftRightLogic<8>();
+            return sum.As<U16x8>().Add(128).ShiftRightLogic<8>();
         else
-            return sum.SatAdd(Add128).ShiftRightArith<8>();
+            return sum.SatAdd(128).ShiftRightArith<8>();
     }
     forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
     {
@@ -3005,10 +3003,8 @@ struct RGB8ToYUV8_I8_SSE41
         U8x16 outY = _mm_packus_epi16(lumi0, lumi1);
         if (needAddY)
             outY = outY.Add(16);
-
-        const U8x16 cb = _mm_packs_epi16(cb0, cb1), cr = _mm_packs_epi16(cr0, cr1);
-        const U8x16 outCb = cb.Add(AddToU8);
-        const U8x16 outCr = cr.Add(AddToU8);
+        const U8x16 outCb = cb0.Cast<I8x16, CastMode::RangeSaturate>(cb1).As<U8x16>().Add(128);
+        const U8x16 outCr = cr0.Cast<I8x16, CastMode::RangeSaturate>(cr1).As<U8x16>().Add(128);
 
         Combine8x3_SSE41::DoStore(dst, outY, outCb, outCr);
     }
@@ -3017,10 +3013,7 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_F32)
 {
     if (count >= RGB8ToYUV8_F32_SSE41::K)
     {
-        const auto matrix = static_cast<YCCMatrix>(mval);
-        const bool isRGBFull = HAS_FIELD(matrix, YCCMatrix::RGBFull);
-        const bool isYCCFull = HAS_FIELD(matrix, YCCMatrix::YCCFull);
-        const bool needAddY = !isYCCFull && isRGBFull;
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
         const RGB8ToYUV8_F32_SSE41 proc(RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
         common::RegionRounding rd(common::RoundMode::ToNearest);
         do
@@ -3039,10 +3032,7 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_I16)
 {
     if (count >= RGB8ToYUV8_I16_SSE41::K)
     {
-        const auto matrix = static_cast<YCCMatrix>(mval);
-        const bool isRGBFull = HAS_FIELD(matrix, YCCMatrix::RGBFull);
-        const bool isYCCFull = HAS_FIELD(matrix, YCCMatrix::YCCFull);
-        const bool needAddY = !isYCCFull && isRGBFull;
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
         const RGB8ToYUV8_I16_SSE41 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
         do
         {
@@ -3057,10 +3047,7 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_I16_2)
 {
     if (count >= RGB8ToYUV8_I16_2_SSE41::K)
     {
-        const auto matrix = static_cast<YCCMatrix>(mval);
-        const bool isRGBFull = HAS_FIELD(matrix, YCCMatrix::RGBFull);
-        const bool isYCCFull = HAS_FIELD(matrix, YCCMatrix::YCCFull);
-        const bool needAddY = !isYCCFull && isRGBFull;
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
         const RGB8ToYUV8_I16_2_SSE41 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
         do
         {
@@ -3075,10 +3062,7 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_I8)
 {
     if (count >= RGB8ToYUV8_I8_SSE41::K)
     {
-        const auto matrix = static_cast<YCCMatrix>(mval);
-        const bool isRGBFull = HAS_FIELD(matrix, YCCMatrix::RGBFull);
-        const bool isYCCFull = HAS_FIELD(matrix, YCCMatrix::YCCFull);
-        const bool needAddY = !isYCCFull && isRGBFull;
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
         const RGB8ToYUV8_I8_SSE41 proc(RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
         do
         {
@@ -4334,6 +4318,105 @@ struct RGB10ToRGBAf_NEON
         vst4q_f32(dst, out4);
     }
 };
+
+
+struct RGB8ToYUV8_F32_NEON
+{
+    static constexpr size_t M = 48, N = 48, K = 16;
+    F32x4 LutY, LutCb, LutCr;
+    template<uint8_t R, uint8_t G, uint8_t B>
+    RGB8ToYUV8_F32_NEON(const std::array<float, 9>& lut, RGBOrder<R, G, B>) noexcept : LutY(lut.data()), LutCb(lut.data() + 3), LutCr(lut.data() + 5)
+    {
+        LutY  = LutY .Shuffle<R, G, B, 3>();
+        LutCb = LutCb.Shuffle<R, G, B, 3>();
+        LutCr = LutCr.Shuffle<R, G, B, 3>();
+    }
+    forceinline static int16x8_t DP3(const float32x4_t& r, const float32x4_t& g, const float32x4_t& b, const F32x4& lut, const float base) noexcept
+    {
+        const auto adder  = vdupq_n_f32(base);
+        const auto midR   = vfmaq_laneq_f32(adder, r, lut, 0);
+        const auto midRG  = vfmaq_laneq_f32(midR,  g, lut, 1);
+        const auto midRGB = vfmaq_laneq_f32(midRG, b, lut, 2);
+# if COMMON_SIMD_LV >= 100
+        return vreinterpretq_s16_s32(vcvtnq_s32_f32(midRGB));
+# else
+        return vreinterpretq_s16_s32(vcvtq_s32_f32(midRGB)); // no way to round, leave it low prec
+# endif
+    }
+    template<bool ClampC>
+    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    {
+        const auto dat = vld3q_u8(src);
+        const auto z8 = vdupq_n_u8(0);
+        const auto z16 = vreinterpretq_u16_u8(z8);
+
+# define U8ToF32(x, i) const auto dat##x##_ = vzipq_u8(dat.val[i], z8);\
+        const auto dat##x##L_ = vzipq_u16(vreinterpretq_u16_u8(dat##x##_.val[0]), z16), dat##x##H_ = vzipq_u16(vreinterpretq_u16_u8(dat##x##_.val[1]), z16);\
+        const auto dat##x##0 = vcvtq_f32_s32(vreinterpretq_s32_u16(dat##x##L_.val[0]));\
+        const auto dat##x##1 = vcvtq_f32_s32(vreinterpretq_s32_u16(dat##x##L_.val[1]));\
+        const auto dat##x##2 = vcvtq_f32_s32(vreinterpretq_s32_u16(dat##x##H_.val[0]));\
+        const auto dat##x##3 = vcvtq_f32_s32(vreinterpretq_s32_u16(dat##x##H_.val[1]))
+        U8ToF32(R, 0);
+        U8ToF32(G, 1);
+        U8ToF32(B, 2);
+# undef U8ToF32
+
+#define DP3x4(out, lut, add) const auto out##0 = DP3(datR0, datG0, datB0, lut, add), out##1 = DP3(datR1, datG1, datB1, lut, add), \
+    out##2 = DP3(datR2, datG2, datB2, lut, add), out##3 = DP3(datR3, datG3, datB3, lut, add)
+        DP3x4(lumi4i,  LutY, needAddY ? 16.f : 0.f);
+        DP3x4(  cb4i, LutCb, 128.f);
+        DP3x4(  cr4i, LutCr, 128.f);
+#undef DP3x4
+        uint8x16x3_t out3;
+
+# if COMMON_SIMD_LV >= 200
+#   define I32ToU8(x) vuzp1q_u8(vreinterpretq_u8_s16(vuzp1q_s16(x##0, x##1)), vreinterpretq_u8_s16(vuzp1q_s16(x##2, x##3)))
+# else
+#   define I32ToU8(x) vuzpq_u8(vreinterpretq_u8_s16(vuzpq_s16(x##0, x##1).val[0]), vreinterpretq_u8_s16(vuzpq_s16(x##2, x##3).val[0])).val[0]
+# endif
+        // only lowest byte should be used
+        out3.val[0] = I32ToU8(lumi4i);
+        if constexpr (ClampC)
+        {
+# if COMMON_SIMD_LV >= 200
+            const auto cb0 = vuzp1q_s16(cb4i0, cb4i1), cb1 = vuzp1q_s16(cb4i2, cb4i3), cr0 = vuzp1q_s16(cr4i0, cr4i1), cr1 = vuzp1q_s16(cr4i2, cr4i3);
+            out3.val[1] = vqmovun_high_s16(vqmovun_s16(cb0), cb1);
+            out3.val[2] = vqmovun_high_s16(vqmovun_s16(cr0), cr1);
+# else
+            const auto cb0 = vuzpq_s16(cb4i0, cb4i1).val[0], cb1 = vuzpq_s16(cb4i2, cb4i3).val[0], cr0 = vuzpq_s16(cr4i0, cr4i1).val[0], cr1 = vuzpq_s16(cr4i2, cr4i3).val[0];
+            out3.val[1] = vcombine_u8(vqmovun_s16(cb0), vqmovun_s16(cb1));
+            out3.val[2] = vcombine_u8(vqmovun_s16(cr0), vqmovun_s16(cr1));
+# endif
+        }
+        else
+        {
+            out3.val[1] = I32ToU8(cb4i);
+            out3.val[2] = I32ToU8(cr4i);
+        }
+#undef I32ToU8
+        vst3q_u8(dst, out3);
+    }
+};
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, NEON_F32)
+{
+    if (count >= RGB8ToYUV8_F32_NEON::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGB8ToYUV8_F32_NEON proc(RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+        common::RegionRounding rd(common::RoundMode::ToNearest);
+        do
+        {
+            if (isYCCFull)
+                proc.Convert<true>(dest, src, needAddY);
+            else
+                proc.Convert<false>(dest, src, needAddY);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_F32>(dest, src, count, mval);
+}
+
 DEFINE_FASTPATH_METHOD(G8ToGA8, NEON)
 {
     ProcessLOOP4<G2GA8_NEON, &Func<LOOP>>(dest, src, count, alpha);
@@ -4813,6 +4896,258 @@ struct RGB5x5ToRGB8_NEONA64
         out2.Save(dst + 32);
     }
 };
+struct RGB8ToYUV8_F16_NEON_Base
+{
+    static constexpr size_t M = 48, N = 48, K = 16;
+    F16x8 Lut;
+    RGB8ToYUV8_F16_NEON_Base(const std::array<float, 9>& lut) noexcept
+    {
+        const auto lut32 = vld1q_f32_x2(lut.data());
+        Lut = vcvt_high_f16_f32(vcvt_f16_f32(lut32.val[0]), lut32.val[1]);
+    }
+};
+template<uint8_t R, uint8_t G, uint8_t B>
+struct RGB8ToYUV8_F16_NEON : public RGB8ToYUV8_F16_NEON_Base
+{
+    using RGB8ToYUV8_F16_NEON_Base::RGB8ToYUV8_F16_NEON_Base;
+    template<uint8_t Idx>
+    forceinline int16x8_t DP3(const float16x8_t& r, const float16x8_t& g, const float16x8_t& b, const uint16_t base) const noexcept
+    {
+        const auto adder  = vreinterpretq_f16_u16(vdupq_n_u16(base));
+        const auto midR   = vfmaq_laneq_f16(adder, r, Lut, Idx + R);
+        const auto midRG  = vfmaq_laneq_f16(midR,  g, Lut, Idx + G);
+        const auto midRGB = vfmaq_laneq_f16(midRG, b, Lut, Idx + B);
+        return vcvtnq_s16_f16(midRGB);
+    }
+    template<bool ClampC>
+    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    {
+        const auto dat = vld3q_u8(src);
+        const auto z8 = vdupq_n_u8(0);
+
+# define U8ToF16(x, i) const auto dat##x = vzipq_u8(dat.val[i], z8);                \
+        const auto dat##x##0 = vcvtq_f16_s16(vreinterpretq_s16_u8(dat##x.val[0]));  \
+        const auto dat##x##1 = vcvtq_f16_s16(vreinterpretq_s16_u8(dat##x.val[1]));
+        U8ToF16(R, 0);
+        U8ToF16(G, 1);
+        U8ToF16(B, 2);
+# undef U8ToF16
+
+#define DP3x2(out, idx, add) const auto out##0 = DP3<idx>(datR0, datG0, datB0, add), out##1 = DP3<idx>(datR1, datG1, datB1, add)
+        DP3x2(lumi2i, 0, needAddY ? 0x4c00u : 0x0u);
+        DP3x2(  cb2i, 3, 0x5800u);
+        DP3x2(  cr2i, 5, 0x5800u);
+#undef DP3x2
+        uint8x16x3_t out3;
+
+#define I16ToU8(x) vuzp1q_u8(vreinterpretq_u8_s16(x##0), vreinterpretq_u8_s16(x##1))
+        // only lowest byte should be used
+        out3.val[0] = I16ToU8(lumi2i);
+        if constexpr (ClampC)
+        {
+            out3.val[1] = vqmovun_high_s16(vqmovun_s16(cb2i0), cb2i1);
+            out3.val[2] = vqmovun_high_s16(vqmovun_s16(cr2i0), cr2i1);
+        }
+        else
+        {
+            out3.val[1] = I16ToU8(cb2i);
+            out3.val[2] = I16ToU8(cr2i);
+        }
+#undef I16ToU8
+        vst3q_u8(dst, out3);
+    }
+};
+struct RGB8ToYUV8_I16_NEON_Base
+{
+    static constexpr size_t M = 48, N = 48, K = 16;
+    I16x8 Lut;
+    RGB8ToYUV8_I16_NEON_Base(const std::array<int16_t, 9>& lut) noexcept : Lut(lut.data())
+    { }
+};
+template<uint8_t R, uint8_t G, uint8_t B>
+struct RGB8ToYUV8_I16_NEON : public RGB8ToYUV8_I16_NEON_Base
+{
+    using RGB8ToYUV8_I16_NEON_Base::RGB8ToYUV8_I16_NEON_Base;
+    template<uint8_t Idx>
+    forceinline int16x8_t DP3(const int16x8_t& r, const int16x8_t& g, const int16x8_t& b, const int16_t base) const noexcept
+    {
+        const auto midR   = vqrdmlahq_laneq_s16(vdupq_n_s16(base + 32), r, Lut, Idx + R); // pre add rounding
+        const auto midRG  = vqrdmlahq_laneq_s16(midR,  g, Lut, Idx + G);
+        const auto midRGB = vqrdmlahq_laneq_s16(midRG, b, Lut, Idx + B);
+        return midRGB;
+    }
+    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    {
+        const auto dat = vld3q_u8(src);
+
+# if COMMON_SIMD_LV >= 200
+#   define U8SL7(x, i) const auto dat##x##0 = vreinterpretq_s16_u16(vshll_n_u8(vget_low_u8(dat.val[i]), 7)), dat##x##1 = vreinterpretq_s16_u16(vshll_high_n_u8(dat.val[i], 7))
+# else
+#   define U8SL7(x, i) const auto dat##x##0 = vreinterpretq_s16_u16(vshll_n_u8(vget_low_u8(dat.val[i]), 7)), dat##x##1 = vreinterpretq_s16_u16(vshll_n_u8(vget_high_s32(dat.val[i]), 7))
+# endif
+        U8SL7(R, 0);
+        U8SL7(G, 1);
+        U8SL7(B, 2);
+# undef U8SL7
+
+#define DP3x2(out, idx, add) const auto out##0 = DP3<idx>(datR0, datG0, datB0, add), out##1 = DP3<idx>(datR1, datG1, datB1, add)
+        DP3x2(lumi2i, 0, needAddY ? (16 << 6) : 0);
+        DP3x2(  cb2i, 3, 128 << 6);
+        DP3x2(  cr2i, 5, 128 << 6);
+#undef DP3x2
+
+        uint8x16x3_t out3;
+# if COMMON_SIMD_LV >= 200
+#   define I16SRU8(x) vshrn_high_n_u16(vshrn_n_u16(vreinterpretq_u16_s16(x##0), 6), vreinterpretq_u16_s16(x##1), 6)
+#   define I16SatU8(x) vqshrun_high_n_s16(vqshrun_n_s16(x##0, 6), x##1, 6)
+# else
+#   define I16SRU8(x) vcombine_u8(vshrn_n_u16(vreinterpretq_u16_s16(x##0), 6), vshrn_n_u16(vreinterpretq_u16_s16(x##1), 6))
+#   define I16SatU8(x) vcombine_u8(vqshrun_n_s16(x##0, 6), vqshrun_n_s16(x##1, 6))
+# endif
+        // only lowest byte should be used
+        out3.val[0] = I16SRU8(lumi2i);
+        out3.val[1] = I16SatU8(cb2i);
+        out3.val[2] = I16SatU8(cr2i);
+#undef I16SRU8
+#undef I16SatU8
+        vst3q_u8(dst, out3);
+    }
+};
+struct RGB8ToYUV8_I8_NEON_Base
+{
+    static constexpr size_t M = 48, N = 48, K = 16;
+};
+template<uint8_t R, uint8_t G, uint8_t B, typename T>
+struct RGB8ToYUV8_I8_NEON : public RGB8ToYUV8_I8_NEON_Base
+{
+    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    {
+        const auto dat = vld3q_u8(src);
+        const auto datRG = vzipq_u8(dat.val[R], dat.val[G]);
+        const auto datGB = vzipq_u8(dat.val[G], dat.val[B]);
+        const auto datRB = vzipq_u8(dat.val[R], dat.val[B]);
+        const auto& self = *reinterpret_cast<const T*>(this);
+
+#define DP4x4(out, idx, sm0, sm1, base) const auto out##0 = self.template DP4<idx>(dat##sm0.val[0], dat##sm1.val[0], base), out##1 = self.template DP4<idx>(dat##sm0.val[1], dat##sm1.val[1], base)
+        DP4x4(lumi, 0, RG, GB, needAddY ? 16 : 0);
+        DP4x4(cb,   1, RB, GB, 128);
+        DP4x4(cr,   2, RG, RB, 128);
+#undef DP4x4
+        uint8x16x3_t out3;
+        out3.val[0] = vuzp2q_u8(lumi0, lumi1);
+        out3.val[1] = vuzp2q_u8(cb0,   cb1);
+        out3.val[2] = vuzp2q_u8(cr0,   cr1);
+        vst3q_u8(dst, out3);
+    }
+};
+template<uint8_t R, uint8_t G, uint8_t B>
+struct RGB8ToYUV8_U8DP4A_NEON : public RGB8ToYUV8_I8_NEON<R, G, B, RGB8ToYUV8_U8DP4A_NEON<R, G, B>>
+{
+    U8x16 Lut;
+    RGB8ToYUV8_U8DP4A_NEON(const std::array<uint8_t, 16>& lut) noexcept : Lut(lut.data()) {}
+    template<uint8_t Idx>
+    forceinline uint8x16_t DP4(const uint8x16_t& lo, const uint8x16_t& hi, const uint32_t base) const noexcept
+    {
+        const auto rgb = vzipq_u16(vreinterpretq_u16_u8(lo), vreinterpretq_u16_u8(hi));
+        const auto rgb0 = vreinterpretq_u8_u16(rgb.val[0]), rgb1 = vreinterpretq_u8_u16(rgb.val[1]);
+        const auto adder_ = (base << 8) + 128; // pre-add round
+        const auto adder = vdupq_n_u32(Idx == 0 ? (adder_ << 1) : adder_); // lumi use extra scale
+        const auto sum0 = vdotq_laneq_u32(adder, rgb0, Lut, Idx);
+        const auto sum1 = vdotq_laneq_u32(adder, rgb1, Lut, Idx);
+        if constexpr (Idx == 0) // Y(lumi), scaled to 512, need to >> 1
+            return vreinterpretq_u8_u16(vshrn_high_n_s32(vshrn_n_u32(sum0, 1), sum1, 1));
+        else // chroma, shifted(pre add 0.5)
+        {
+            const auto zero = vdupq_n_u32(0); // pre-add round
+            const auto shift0 = vdotq_laneq_u32(zero, rgb0, Lut, 3);
+            const auto shift1 = vdotq_laneq_u32(zero, rgb1, Lut, 3);
+            const auto ret0 = vreinterpretq_s32_u32(vsubq_u32(sum0, shift0)), ret1 = vreinterpretq_s32_u32(vsubq_u32(sum1, shift1));
+            return vreinterpretq_u8_u16(vqmovun_high_s32(vqmovun_s32(sum0), sum1));
+        }
+    }
+};
+template<uint8_t R, uint8_t G, uint8_t B>
+struct RGB8ToYUV8_I8DP4A_NEON : public RGB8ToYUV8_I8_NEON<R, G, B, RGB8ToYUV8_I8DP4A_NEON<R, G, B>>
+{
+    I8x16 Lut;
+    RGB8ToYUV8_I8DP4A_NEON(const std::array<int8_t, 16>& lut) noexcept : Lut(lut.data()) {}
+    template<uint8_t Idx>
+    forceinline uint8x16_t DP4(const uint8x16_t& lo, const uint8x16_t& hi, const int32_t base) const noexcept
+    {
+        const auto rgb = vzipq_u16(vreinterpretq_u16_u8(lo), vreinterpretq_u16_u8(hi));
+        const auto rgb0 = vreinterpretq_u8_u16(rgb.val[0]), rgb1 = vreinterpretq_u8_u16(rgb.val[1]);
+        const auto adder = vdupq_n_s32((base << 8) + 128); // pre-add round
+        const auto sum0 = vusdotq_laneq_s32(adder, rgb0, Lut, Idx);
+        const auto sum1 = vusdotq_laneq_s32(adder, rgb1, Lut, Idx);
+        if constexpr (Idx == 0) // Y(lumi)
+            return vreinterpretq_u8_u16(vuzp1q_u16(vreinterpretq_u16_s32(sum0), vreinterpretq_u16_s32(sum1)));
+        else
+            return vreinterpretq_u8_u16(vqmovun_high_s32(vqmovun_s32(sum0), sum1));
+    }
+};
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, NEON_F16)
+{
+    if (count >= RGB8ToYUV8_F16_NEON_Base::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGB8ToYUV8_F16_NEON<0, 1, 2> proc(RGB8ToYCC8LUTF32[mval]);
+        do
+        {
+            if (isYCCFull)
+                proc.Convert<true>(dest, src, needAddY);
+            else
+                proc.Convert<false>(dest, src, needAddY);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_I16>(dest, src, count, mval);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, NEON_I16)
+{
+    if (count >= RGB8ToYUV8_I16_NEON_Base::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGB8ToYUV8_I16_NEON<0, 1, 2> proc(RGB8ToYCC8LUTI16[mval]);
+        do
+        {
+            proc.Convert(dest, src, needAddY);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_I16>(dest, src, count, mval);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, NEON_U8DP4A)
+{
+    if (count >= RGB8ToYUV8_I8_NEON_Base::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGB8ToYUV8_U8DP4A_NEON<0, 1, 2> proc(RGB8ToYCC8LUTU8x4[mval]);
+        do
+        {
+            proc.Convert(dest, src, needAddY);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_I16>(dest, src, count, mval);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, NEON_I8DP4A)
+{
+    if (count >= RGB8ToYUV8_I8_NEON_Base::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGB8ToYUV8_I8DP4A_NEON<0, 1, 2> proc(RGB8ToYCC8LUTI8x4[mval]);
+        do
+        {
+            proc.Convert(dest, src, needAddY);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_I16>(dest, src, count, mval);
+}
 DEFINE_FASTPATH_METHOD(GfToRGBAf, NEONA64)
 {
     ProcessLOOP4<Gf2RGBAf_NEON64, &Func<LOOP>>(dest, src, count, alpha);
@@ -6580,7 +6915,6 @@ struct RGB8ToYUV8_I16_AVX2_Base
         alignas(32) static inline constexpr uint8_t ShufG1[] = { G + 24, 255, G + 27, 255, G + 30, 255, G + 33, 255, G + 36, 255, G + 39, 255, G + 42, 255, G + 45, 255,
             G + 24, 255, G + 27, 255, G + 30, 255, G + 33, 255, G + 36, 255, G + 39, 255, G + 42, 255, G + 45, 255 };
     };
-    static inline const __m256i Add128 = _mm256_set1_epi16(128);
     __m256i ShufRB, ShufG0, ShufG1;
     __m256i LutYRB, LutYG, LutCbRB, LutCbG, LutCrRB, LutCrG;
     template<uint8_t R, uint8_t G, uint8_t B>
@@ -6640,7 +6974,7 @@ struct RGB8ToYUV8_I16_AVX2 : public RGB8ToYUV8_I16_AVX2_Base
         Combine8x3_256::DoStore(dst, outY, outCb, outCr);
     }
 };
-struct RGB8ToYUV8_I8_AVX2
+struct RGB8ToYUV8_I8_AVX2_Base
 {
     static constexpr size_t M = 96, N = 96, K = 32;
     template<uint8_t R, uint8_t G, uint8_t B>
@@ -6654,12 +6988,10 @@ struct RGB8ToYUV8_I8_AVX2
 #undef SHUF32
 #undef PUT4
     };
-    static inline const __m256i Add128 = _mm256_set1_epi16(128);
-    static inline const __m256i AddC = _mm256_set1_epi16(128);
     __m256i ShufRGGB, ShufRGRB, ShufRBGB;
     __m256i LutY, LutCb, LutCr;
     template<uint8_t R, uint8_t G, uint8_t B>
-    RGB8ToYUV8_I8_AVX2(const int8_t* lut, RGBOrder<R, G, B>) noexcept :
+    RGB8ToYUV8_I8_AVX2_Base(const int8_t* lut, RGBOrder<R, G, B>) noexcept :
         ShufRGGB(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler<R, G, B>::ShufRGGB))),
         ShufRGRB(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler<R, G, B>::ShufRGRB))),
         ShufRBGB(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler<R, G, B>::ShufRBGB))),
@@ -6667,15 +6999,20 @@ struct RGB8ToYUV8_I8_AVX2
         LutCb(_mm256_set1_epi32(reinterpret_cast<const int32_t*>(lut)[1])),
         LutCr(_mm256_set1_epi32(reinterpret_cast<const int32_t*>(lut)[2]))
     { }
+};
+struct RGB8ToYUV8_I8_AVX2 : public RGB8ToYUV8_I8_AVX2_Base
+{
+    using RGB8ToYUV8_I8_AVX2_Base::RGB8ToYUV8_I8_AVX2_Base;
     template<bool IsY>
     static forceinline auto DP4(const U8x32& rgb04, const U8x32& rgb15, const __m256i& lut) noexcept
     {
         const auto mid04 = _mm256_maddubs_epi16(rgb04, lut), mid15 = _mm256_maddubs_epi16(rgb15, lut);
         const I16x16 sum0145 = _mm256_hadd_epi16(mid04, mid15);
+        const __m256i add128 = _mm256_set1_epi16(128);
         if constexpr (IsY)
-            return sum0145.As<U16x16>().Add(Add128).ShiftRightLogic<8>();
+            return sum0145.As<U16x16>().Add(add128).ShiftRightLogic<8>();
         else
-            return sum0145.SatAdd(Add128).ShiftRightArith<8>();
+            return sum0145.SatAdd(add128).ShiftRightArith<8>();
     }
     forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
     {
@@ -6699,14 +7036,40 @@ struct RGB8ToYUV8_I8_AVX2
         Combine8x3_256::DoStore(dst, outY, outCb, outCr);
     }
 };
+struct RGB8ToYUV8_I8DP4A_AVX2 : public RGB8ToYUV8_I8_AVX2_Base
+{
+    using RGB8ToYUV8_I8_AVX2_Base::RGB8ToYUV8_I8_AVX2_Base;
+    static forceinline auto DP4(const U8x32& rgb04, const U8x32& rgb15, const __m256i& lut, const int32_t base) noexcept
+    {
+        const auto adder = _mm256_set1_epi32((base << 8) + 128); // pre-add round
+        const auto mid04 = _mm256_dpbusd_avx_epi32(adder, rgb04, lut), mid15 = _mm256_dpbusd_avx_epi32(adder, rgb15, lut);
+        return _mm256_srli_epi16(_mm256_packus_epi32(mid04, mid15), 8);
+    }
+    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    {
+        const U8x32 dat0(src), dat1(src + 32), dat2(src + 64);
+        const auto dat03 = dat0.PermuteLane<0, 3>(dat1); // RGBRGBRGBRGBRGBR
+        const auto dat14 = dat0.PermuteLane<1, 2>(dat2); // GBRGBRGBRGBRGBRG, R=0, G=1, B=2
+        const auto dat25 = dat1.PermuteLane<0, 3>(dat2); // BRGBRGBRGBRGBRGB, R=2, G=0, B=1
+        const U8x32 part04 = dat03, part15 = dat03.MoveLaneToLoWith<12>(dat14), part26 = dat14.MoveLaneToLoWith< 8>(dat25), part37 = dat25.MoveLaneToLo<4>();
+
+#define DP4x4(out, sm, lut, base) const auto out##02 = DP4(_mm256_shuffle_epi8(part04, Shuf##sm), _mm256_shuffle_epi8(part15, Shuf##sm), lut, base), out##13 = DP4(_mm256_shuffle_epi8(part26, Shuf##sm), _mm256_shuffle_epi8(part37, Shuf##sm), lut, base)
+        DP4x4(lumi, RGGB, LutY, needAddY ? 16 : 0);
+        DP4x4(cb,   RBGB, LutCb, 128);
+        DP4x4(cr,   RGRB, LutCr, 128);
+#undef DP4x4
+        const U8x32 outY  = _mm256_packus_epi16(lumi02, lumi13);
+        const U8x32 outCb = _mm256_packus_epi16(  cb02,   cb13);
+        const U8x32 outCr = _mm256_packus_epi16(  cr02,   cr13);
+
+        Combine8x3_256::DoStore(dst, outY, outCb, outCr);
+    }
+};
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX2_I16)
 {
     if (count >= RGB8ToYUV8_I16_AVX2::K)
     {
-        const auto matrix = static_cast<YCCMatrix>(mval);
-        const bool isRGBFull = HAS_FIELD(matrix, YCCMatrix::RGBFull);
-        const bool isYCCFull = HAS_FIELD(matrix, YCCMatrix::YCCFull);
-        const bool needAddY = !isYCCFull && isRGBFull;
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
         const RGB8ToYUV8_I16_AVX2 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
         do
         {
@@ -6721,11 +7084,23 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX2_I8)
 {
     if (count >= RGB8ToYUV8_I8_AVX2::K)
     {
-        const auto matrix = static_cast<YCCMatrix>(mval);
-        const bool isRGBFull = HAS_FIELD(matrix, YCCMatrix::RGBFull);
-        const bool isYCCFull = HAS_FIELD(matrix, YCCMatrix::YCCFull);
-        const bool needAddY = !isYCCFull && isRGBFull;
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
         const RGB8ToYUV8_I8_AVX2 proc(RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+        do
+        {
+            proc.Convert(dest, src, needAddY);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<SSE41_I8>(dest, src, count, mval);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX2_I8DP4A)
+{
+    if (count >= RGB8ToYUV8_I8DP4A_AVX2::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGB8ToYUV8_I8DP4A_AVX2 proc(RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
         do
         {
             proc.Convert(dest, src, needAddY);
@@ -9329,7 +9704,7 @@ struct RGB8ToYUV8_I16_AVX512VBMI : public RGB8ToYUV8_I16_AVX512VBMI_Base
         _mm512_storeu_epi8(dst + 128, out2);
     }
 };
-struct RGB8ToYUV8_I8_AVX512VBMI
+struct RGB8ToYUV8_I8_AVX512VBMI_Base
 {
     static constexpr size_t M = 192, N = 192, K = 64;
     template<uint8_t R, uint8_t G, uint8_t B>
@@ -9345,12 +9720,18 @@ struct RGB8ToYUV8_I8_AVX512VBMI
 #undef PUT2x4
     };
     const __m512i ShufRG0, ShufRG1, ShufRB0, ShufRB1, ShufGB0, ShufGB1;
+    template<uint8_t R, uint8_t G, uint8_t B>
+    RGB8ToYUV8_I8_AVX512VBMI_Base(RGBOrder<R, G, B>) noexcept :
+#define LSHUF(a,b) Shuf##a##b##0(_mm512_loadu_si512(Shuffler<R, G, B>::Shuf##a##b)), Shuf##a##b##1(_mm512_loadu_si512(Shuffler<R, G, B>::Shuf##a##b + 64))
+        LSHUF(R, G), LSHUF(R, B), LSHUF(G, B)
+#undef LSHUF
+    { }
+};
+struct RGB8ToYUV8_I8_AVX512VBMI : public RGB8ToYUV8_I8_AVX512VBMI_Base
+{
     const __m512i LutYRG, LutYGB, LutCbRB, LutCbGB, LutCrRG, LutCrRB;
     template<uint8_t R, uint8_t G, uint8_t B>
-    RGB8ToYUV8_I8_AVX512VBMI(const int16_t* lut, RGBOrder<R, G, B>) noexcept :
-#define LSHUF(a,b) Shuf##a##b##0(_mm512_loadu_si512(Shuffler<R, G, B>::Shuf##a##b)), Shuf##a##b##1(_mm512_loadu_si512(Shuffler<R, G, B>::Shuf##a##b + 64))
-        LSHUF(R, G), LSHUF(R, B), LSHUF(G, B),
-#undef LSHUF
+    RGB8ToYUV8_I8_AVX512VBMI(const int16_t* lut, RGBOrder<R, G, B> order) noexcept : RGB8ToYUV8_I8_AVX512VBMI_Base(order),
 #define LLUT(x,i) Lut##x(_mm512_set1_epi16(lut[i]))
         LLUT(YRG, 0), LLUT(YGB, 1), LLUT(CbRB, 2), LLUT(CbGB, 3), LLUT(CrRG, 4), LLUT(CrRB, 5)
 #undef LLUT
@@ -9394,14 +9775,49 @@ struct RGB8ToYUV8_I8_AVX512VBMI
         Combine8x3_512VBMI::DoStore(dst, outY, outCb, outCr);
     }
 };
+struct RGB8ToYUV8_I8DP4A_AVX512VBMI : public RGB8ToYUV8_I8_AVX512VBMI_Base
+{
+    const __m512i LutY, LutCb, LutCr;
+    template<uint8_t R, uint8_t G, uint8_t B>
+    RGB8ToYUV8_I8DP4A_AVX512VBMI(const int32_t* lut, RGBOrder<R, G, B> order) noexcept : RGB8ToYUV8_I8_AVX512VBMI_Base(order),
+        LutY(_mm512_set1_epi32(lut[0])), LutCb(_mm512_set1_epi32(lut[1])), LutCr(_mm512_set1_epi32(lut[2]))
+    { }
+    static forceinline auto DP4(const __m512i& part0, const __m512i& part1, const __m512i& lut, const int32_t base) noexcept
+    {
+        const auto rgb0246 = _mm512_unpacklo_epi16(part0, part1), rgb1357 = _mm512_unpackhi_epi16(part0, part1);
+        const auto adder = _mm512_set1_epi32((base << 8) + 128); // pre-add round
+        const auto mid0246 = _mm512_dpbusd_epi32(adder, rgb0246, lut), mid1357 = _mm512_dpbusd_epi32(adder, rgb1357, lut);
+        return _mm512_packus_epi32(mid0246, mid1357);
+    }
+    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi8(src), dat1 = _mm512_loadu_epi8(src + 64), dat2 = _mm512_loadu_epi8(src + 128);
+        const auto midRG0 = _mm512_permutex2var_epi8(dat0, ShufRG0, dat1);
+        const auto midRG1 = _mm512_permutex2var_epi8(dat1, ShufRG1, dat2);
+        const auto midGB0 = _mm512_permutex2var_epi8(dat0, ShufGB0, dat1);
+        const auto midGB1 = _mm512_permutex2var_epi8(dat1, ShufGB1, dat2);
+        const auto midRB0 = _mm512_permutex2var_epi8(dat0, ShufRB0, dat1);
+        const auto midRB1 = _mm512_permutex2var_epi8(dat1, ShufRB1, dat2);
+
+#define DP4x4(out, a, b, lut, base) const auto out##0 = DP4(mid##a##0, mid##b##0, lut, base), out##1 = DP4(mid##a##1, mid##b##1, lut, base)
+        DP4x4(lumi, RG, GB, LutY, needAddY ? 16 : 0);
+        DP4x4(cb,   RB, GB, LutCb, 128);
+        DP4x4(cr,   RG, RB, LutCr, 128);
+#undef DP4x4
+#define EVEN16(x) x+31, x+29, x+27, x+25, x+23, x+21, x+19, x+17, x+15, x+13, x+11, x+9, x+7, x+5, x+3, x+1
+        const auto ShufHi = _mm512_set_epi8(EVEN16(96), EVEN16(64), EVEN16(32), EVEN16(0));
+#undef EVEN16
+        const auto outY = _mm512_permutex2var_epi8(lumi0, ShufHi, lumi1);
+        const auto outCb = _mm512_permutex2var_epi8(cb0, ShufHi, cb1);
+        const auto outCr = _mm512_permutex2var_epi8(cr0, ShufHi, cr1);
+        Combine8x3_512VBMI::DoStore(dst, outY, outCb, outCr);
+    }
+};
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX512VBMI_I16)
 {
     if (count >= RGB8ToYUV8_I16_AVX512VBMI::K)
     {
-        const auto matrix = static_cast<YCCMatrix>(mval);
-        const bool isRGBFull = HAS_FIELD(matrix, YCCMatrix::RGBFull);
-        const bool isYCCFull = HAS_FIELD(matrix, YCCMatrix::YCCFull);
-        const bool needAddY = !isYCCFull && isRGBFull;
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
         const RGB8ToYUV8_I16_AVX512VBMI proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
         do
         {
@@ -9416,11 +9832,23 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX512VBMI_I8)
 {
     if (count >= RGB8ToYUV8_I8_AVX512VBMI::K)
     {
-        const auto matrix = static_cast<YCCMatrix>(mval);
-        const bool isRGBFull = HAS_FIELD(matrix, YCCMatrix::RGBFull);
-        const bool isYCCFull = HAS_FIELD(matrix, YCCMatrix::YCCFull);
-        const bool needAddY = !isYCCFull && isRGBFull;
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
         const RGB8ToYUV8_I8_AVX512VBMI proc(reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+        do
+        {
+            proc.Convert(dest, src, needAddY);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<AVX2_I8>(dest, src, count, mval);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX512VBMI_I8DP4A)
+{
+    if (count >= RGB8ToYUV8_I8DP4A_AVX512VBMI::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGB8ToYUV8_I8DP4A_AVX512VBMI proc(reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
         do
         {
             proc.Convert(dest, src, needAddY);
