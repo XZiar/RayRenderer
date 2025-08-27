@@ -186,17 +186,9 @@ struct AVX512BW
 #endif
     }
 };
-struct AVX512BW2
-{
-    static bool RuntimeCheck() noexcept
-    {
-#if COMMON_ARCH_X86
-        return CheckCPUFeature("avx512f") && CheckCPUFeature("avx512bw");
-#else
-        return false;
-#endif
-    }
-};
+struct AVX512BW2 : public AVX512BW {};
+struct AVX512_I16 : public AVX512BW {};
+struct AVX512_I8 : public AVX512BW {};
 struct AVX512VBMI
 {
     static bool RuntimeCheck() noexcept

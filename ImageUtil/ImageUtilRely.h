@@ -67,4 +67,26 @@ inline constexpr std::array<T, 9> ComputeRGB2YCCMatrix8F(YCCMatrix mat) noexcept
         static_cast<T>(0.5 * scaleC), static_cast<T>(coeff[1] * -prCoeff * scaleC), static_cast<T>(coeff[2] * -prCoeff * scaleC) };
 }
 
+template<typename T = float>
+inline constexpr std::array<T, 9> ComputeYCC2RGBMatrix8F(YCCMatrix mat) noexcept
+{
+    static_assert(std::is_floating_point_v<T>, "need FP");
+    const bool isRGBFull = HAS_FIELD(mat, YCCMatrix::RGBFull);
+    const bool isYCCFull = HAS_FIELD(mat, YCCMatrix::YCCFull);
+    const double scaleY = isRGBFull ?
+        (isYCCFull ? 1.0 : (255 - 0 + 1) * 1.0 / (235 - 16 + 1)) :
+        (isYCCFull ? (235 - 16 + 1) * 1.0 / (255 - 0 + 1) : 1.0);
+    const double scaleC = isRGBFull ?
+        (isYCCFull ? 1.0 : (255 - 0 + 1) * 1.0 / (240 - 16 + 1)) :
+        (isYCCFull ? (235 - 16 + 1) * 1.0 / (255 - 0 + 1) : (235 - 16 + 1) * 1.0 / (240 - 16 + 1));
+    const auto& coeff = RGB2YCCBase[common::enum_cast(mat & YCCMatrix::TypeMask)];
+    const auto pbCoeff = 2.0 * (1.0 - coeff[2]), prCoeff = 2.0 * (1.0 - coeff[0]);
+    const auto pbGCoeff = pbCoeff * coeff[2] / coeff[1], prGCoeff = prCoeff * coeff[0] / coeff[1];
+
+    return std::array<T, 9>{
+        static_cast<T>(scaleY), T(0), static_cast<T>(prCoeff * scaleC),
+        static_cast<T>(scaleY), static_cast<T>(pbGCoeff * scaleC), static_cast<T>(prGCoeff * scaleC),
+        static_cast<T>(scaleY), static_cast<T>(pbCoeff * scaleC), T(0)};
+}
+
 }

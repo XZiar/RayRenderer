@@ -43,20 +43,24 @@ DECLARE_FASTPATH_PARTIALS(STBResize, A32)
 namespace xziar::img
 {
 using namespace common::mlog;
+using common::enum_cast;
 MiniLogger<false>& ImgLog()
 {
     static MiniLogger<false> imglog(u"ImageUtil", { GetConsoleBackend() });
     return imglog;
 }
 
-template<typename T>
-static inline auto ComputeRGB2YCCMatrix8(YCCMatrix mat, [[maybe_unused]] double scale) noexcept
+template<bool ToYCC, typename T>
+static inline auto ComputeYCCMatrix8(YCCMatrix mat, [[maybe_unused]] double scale) noexcept
 {
     using U = std::conditional_t<std::is_floating_point_v<T>, T, double>;
-    auto tmp = ComputeRGB2YCCMatrix8F<U>(mat);
+    auto tmp = ToYCC ? ComputeRGB2YCCMatrix8F<U>(mat) : ComputeYCC2RGBMatrix8F<U>(mat);
     // compress
-    tmp[6] = tmp[7];
-    tmp[7] = tmp[8];
+    if (ToYCC)
+    {
+        tmp[6] = tmp[7];
+        tmp[7] = tmp[8];
+    }
     if constexpr (std::is_floating_point_v<T>)
         return tmp;
     else
@@ -69,12 +73,12 @@ static inline auto ComputeRGB2YCCMatrix8(YCCMatrix mat, [[maybe_unused]] double 
         return ret;
     }
 }
-template<typename T>
+template<bool ToYCC, typename T>
 static constexpr auto GenYCC8LUT(double scale = 1) noexcept
 {
     constexpr uint32_t N = std::is_same_v<T, int8_t> ? 16 : 9;
     std::array<std::array<T, N>, 16> ret = {};
-#define Gen(mat, rgb, ycc) do { const auto mval = EncodeYCCM(YCCMatrix::mat, rgb, ycc); ret[common::enum_cast(mval)] = ComputeRGB2YCCMatrix8<T>(mval, scale); } while(0)
+#define Gen(mat, rgb, ycc) do { const auto mval = EncodeYCCM(YCCMatrix::mat, rgb, ycc); ret[enum_cast(mval)] = ComputeYCCMatrix8<ToYCC, T>(mval, scale); } while(0)
     Gen(BT601,  false, false);
     Gen(BT601,  true,  false);
     Gen(BT601,  false, true);
@@ -95,7 +99,7 @@ static constexpr auto GenYCC8LUT2(F&& func) noexcept
 {
     using T = decltype(func(YCCMatrix::BT601));
     std::array<T, 16> ret = {};
-#define Gen(mat, rgb, ycc) do { const auto mval = EncodeYCCM(YCCMatrix::mat, rgb, ycc); ret[common::enum_cast(mval)] = func(mval); } while(0)
+#define Gen(mat, rgb, ycc) do { const auto mval = EncodeYCCM(YCCMatrix::mat, rgb, ycc); ret[enum_cast(mval)] = func(mval); } while(0)
     Gen(BT601,  false, false);
     Gen(BT601,  true,  false);
     Gen(BT601,  false, true);
@@ -198,11 +202,13 @@ static inline auto ComputeRGB2YCCMatrixU8x4(YCCMatrix mat) noexcept
 //static const auto klp = GenC8LUT();
 
 
-std::array<std::array<  float,  9>, 16> RGB8ToYCC8LUTF32 = GenYCC8LUT<  float>();
-std::array<std::array<int16_t,  9>, 16> RGB8ToYCC8LUTI16 = GenYCC8LUT<int16_t>(16384);
+std::array<std::array<  float,  9>, 16> RGB8ToYCC8LUTF32 = GenYCC8LUT<true,   float>();
+std::array<std::array<int16_t,  9>, 16> RGB8ToYCC8LUTI16 = GenYCC8LUT<true, int16_t>(16384);
 //std::array<std::array<int16_t,  9>, 16> RGB8ToYCC8LUTI16_15 = GenYCC8LUT<int16_t>(32768);
 std::array<std::array< int8_t, 16>, 16> RGB8ToYCC8LUTI8x4 = GenYCC8LUT2(&ComputeRGB2YCCMatrixI8x4);
 std::array<std::array<uint8_t, 16>, 16> RGB8ToYCC8LUTU8x4 = GenYCC8LUT2(&ComputeRGB2YCCMatrixU8x4);
+std::array<std::array<  float,  9>, 16> YCC8ToRGB8LUTF32 = GenYCC8LUT<false,   float>();
+std::array<std::array<int16_t,  9>, 16> YCC8ToRGB8LUTI16 = GenYCC8LUT<false, int16_t>(8192);
 
 
 DEFINE_FASTPATH_BASIC(ColorConvertor,
@@ -224,7 +230,7 @@ const ColorConvertor& ColorConvertor::Get() noexcept
 }
 
 
-DEFINE_FASTPATH_BASIC(YCCConvertor, RGB8ToYCbCr8)
+DEFINE_FASTPATH_BASIC(YCCConvertor, RGB8ToYCbCr8, YCbCr8ToRGB8)
 
 const YCCConvertor& YCCConvertor::Get() noexcept
 {
