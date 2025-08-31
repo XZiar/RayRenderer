@@ -495,6 +495,7 @@ class YCCConvertor final : public common::RuntimeFastPath<YCCConvertor>
 {
     friend ::common::fastpath::PathHack;
 private:
+    void(*RGB8ToYCbCr8Fast)(uint8_t* __restrict dest, const uint8_t* __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
     void(*RGB8ToYCbCr8)(uint8_t* __restrict dest, const uint8_t* __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
     void(*YCbCr8ToRGB8)(uint8_t* __restrict dest, const uint8_t* __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
 public:
@@ -503,12 +504,12 @@ public:
     IMGUTILAPI ~YCCConvertor();
     IMGUTILAPI [[nodiscard]] bool IsComplete() const noexcept final;
 
-    forceinline void RGBToYCC(uint8_t* const dest, const uint8_t* src, const size_t count, YCCMatrix matrix, const bool rgbFull = true, const bool yccFull = false) const noexcept
+    forceinline void RGBToYCC(uint8_t* const dest, const uint8_t* src, const size_t count, YCCMatrix matrix, const bool rgbFull = true, const bool yccFull = false, const bool fast = false) const noexcept
     {
         Expects(common::enum_cast(matrix) < common::enum_cast(YCCMatrix::Invalid));
         if (rgbFull) matrix |= YCCMatrix::RGBFull;
         if (yccFull) matrix |= YCCMatrix::YCCFull;
-        RGB8ToYCbCr8(dest, src, count, common::enum_cast(matrix));
+        (fast ? RGB8ToYCbCr8Fast : RGB8ToYCbCr8)(dest, src, count, common::enum_cast(matrix));
     }
     forceinline void YCCToRGB(uint8_t* const dest, const uint8_t* src, const size_t count, YCCMatrix matrix, const bool rgbFull = true, const bool yccFull = false) const noexcept
     {

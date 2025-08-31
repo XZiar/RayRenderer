@@ -56,7 +56,7 @@ static inline auto ComputeYCCMatrix8(YCCMatrix mat, [[maybe_unused]] double scal
     using U = std::conditional_t<std::is_floating_point_v<T>, T, double>;
     auto tmp = ToYCC ? ComputeRGB2YCCMatrix8F<U>(mat) : ComputeYCC2RGBMatrix8F<U>(mat);
     // compress
-    if (ToYCC)
+    if constexpr (ToYCC)
     {
         tmp[6] = tmp[7];
         tmp[7] = tmp[8];
@@ -178,6 +178,24 @@ static inline auto ComputeRGB2YCCMatrixU8x4(YCCMatrix mat) noexcept
     return ret;
 }
 
+static inline auto ComputeYCC2RGBMatrixI16M(YCCMatrix mat) noexcept
+{
+    auto tmp = ComputeYCC2RGBMatrix8F<double>(mat);
+    common::RegionRounding rd(common::RoundMode::ToNearest);
+    std::array<int32_t, 9> mid{};
+    mid[0] = static_cast<int32_t>(std::nearbyint(tmp[0] * 16384));
+    for (uint32_t i = 1; i < 9; ++i)
+        mid[i] = static_cast<int32_t>(std::nearbyint(tmp[i] * 8192));
+    std::array<int16_t, 6> ret{};
+    ret[0] = static_cast<int16_t>(mid[0]); // y
+    ret[1] = 0;
+    ret[2] = static_cast<int16_t>(mid[7]); // B->cb
+    ret[3] = static_cast<int16_t>(mid[2]); // R->cr
+    ret[4] = static_cast<int16_t>(mid[4]); // G->cb
+    ret[5] = static_cast<int16_t>(mid[5]); // G->cr
+    return ret;
+}
+
 
 //static auto GenC8LUT() noexcept
 //{
@@ -208,7 +226,7 @@ std::array<std::array<int16_t,  9>, 16> RGB8ToYCC8LUTI16 = GenYCC8LUT<true, int1
 std::array<std::array< int8_t, 16>, 16> RGB8ToYCC8LUTI8x4 = GenYCC8LUT2(&ComputeRGB2YCCMatrixI8x4);
 std::array<std::array<uint8_t, 16>, 16> RGB8ToYCC8LUTU8x4 = GenYCC8LUT2(&ComputeRGB2YCCMatrixU8x4);
 std::array<std::array<  float,  9>, 16> YCC8ToRGB8LUTF32 = GenYCC8LUT<false,   float>();
-std::array<std::array<int16_t,  9>, 16> YCC8ToRGB8LUTI16 = GenYCC8LUT<false, int16_t>(8192);
+std::array<std::array<int16_t,  6>, 16> YCC8ToRGB8LUTI16 = GenYCC8LUT2(&ComputeYCC2RGBMatrixI16M);
 
 
 DEFINE_FASTPATH_BASIC(ColorConvertor,
@@ -230,7 +248,7 @@ const ColorConvertor& ColorConvertor::Get() noexcept
 }
 
 
-DEFINE_FASTPATH_BASIC(YCCConvertor, RGB8ToYCbCr8, YCbCr8ToRGB8)
+DEFINE_FASTPATH_BASIC(YCCConvertor, RGB8ToYCbCr8Fast, RGB8ToYCbCr8, YCbCr8ToRGB8)
 
 const YCCConvertor& YCCConvertor::Get() noexcept
 {
