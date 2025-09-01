@@ -132,7 +132,7 @@ extern std::array<std::array<int16_t,  9>, 16> RGB8ToYCC8LUTI16;
 extern std::array<std::array< int8_t, 16>, 16> RGB8ToYCC8LUTI8x4;
 extern std::array<std::array<uint8_t, 16>, 16> RGB8ToYCC8LUTU8x4;
 extern std::array<std::array<  float,  9>, 16> YCC8ToRGB8LUTF32;
-extern std::array<std::array<int16_t,  6>, 16> YCC8ToRGB8LUTI16; // Y,0,Bcb,Rcr,Gcb,Gcr
+extern std::array<std::array<int16_t,  8>, 16> YCC8ToRGB8LUTI16; // Y,0,Bcb,Rcr,Gcb,Gcr
 }
 
 template<uint8_t IdxR, uint8_t IdxG, uint8_t IdxB>
@@ -4711,6 +4711,126 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, NEON_F32)
         Func<LOOP_F32>(dest, src, count, mval);
 }
 
+struct YUV8ToRGB8_F32_NEON
+{
+    static constexpr size_t M = 48, N = 48, K = 16;
+    U8x16 U8_16;
+    F32x4 MulY;
+# if COMMON_SIMD_LV >= 200
+    F32x4 MulCbr;
+# else
+    F32x4 MulCb, MulCr, MulGCb, MulGCr;
+# endif
+    F32x4 SubR, AddG, SubB;
+    YUV8ToRGB8_F32_NEON(const std::array<float, 9>& lut) noexcept : U8_16(16), MulY(lut[0]),
+# if COMMON_SIMD_LV >= 200
+        MulCbr(lut[7], lut[2], lut[4], lut[5])
+# else
+        MulCb(lut[7]), MulCr(lut[2]), MulGCb(lut[4]), MulGCr(lut[5]),
+        SubR(MulCr.Mul(128.f)), AddG(MulGCb.Add(MulGCr).Mul(128.f)), SubB(MulCb.Mul(128.f))
+# endif
+    {
+# if COMMON_SIMD_LV >= 200
+        const auto mul128 = MulCbr.Mul(128.f);
+        SubR = mul128.Broadcast<1>();
+        SubB = mul128.Broadcast<0>();
+        AddG = vdupq_laneq_f32(vpaddq_f32(mul128, mul128), 1);
+# endif
+    }
+    forceinline std::tuple<I16x8, I16x8, I16x8> Calc(const F32x4& y, const F32x4& cb, const F32x4& cr) const noexcept
+    {
+# if COMMON_SIMD_LV >= 200
+        const auto r = cr.MulScalarAdd<1>(MulCbr, y).Sub(SubR);
+        const auto b = cb.MulScalarAdd<0>(MulCbr, y).Sub(SubB);
+        const auto g = cr.NMulScalarAdd<3>(MulCbr, cb.NMulScalarAdd<2>(MulCbr, y)).Add(AddG);
+        return { vreinterpretq_s16_s32(vcvtnq_s32_f32(r)), vreinterpretq_s16_s32(vcvtnq_s32_f32(g)), vreinterpretq_s16_s32(vcvtnq_s32_f32(b)) };
+# else
+        const auto r = cr.MulAdd(MulCr, y).Sub(SubR);
+        const auto b = cb.MulAdd(MulCb, y).Sub(SubB);
+        const auto g = cr.NMulAdd(MulGCr, cb.NMulAdd(MulGCb, y)).Add(AddG);
+        return { r.Cast<I32x4>().As<I16x8>(), g.Cast<I32x4>().As<I16x8>(), b.Cast<I32x4>().As<I16x8>() };
+# endif
+    }
+    static forceinline uint8x16_t I32ToU8(const I16x8& v0, const I16x8& v1, const I16x8& v2, const I16x8& v3) noexcept
+    {
+# if COMMON_SIMD_LV >= 200
+        const auto mid0 = vuzp1q_s16(v0, v1), mid1 = vuzp1q_s16(v2, v3);
+        return vqmovun_high_s16(vqmovun_s16(mid0), mid1);
+# else
+        const auto mid0 = vuzpq_s16(v0, v1).val[0], mid1 = vuzpq_s16(v2, v3).val[0];
+        return vcombine_u8(vqmovun_s16(mid0), vqmovun_s16(mid1));
+# endif
+    }
+    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool isRGBFull, bool isRGB) const noexcept
+    {
+        auto dat = vld3q_u8(src);
+        const auto z8 = vdupq_n_u8(0);
+        const auto z16 = vreinterpretq_u16_u8(z8);
+        if (needAddY)
+            dat.val[0] = vsubq_u8(dat.val[0], U8_16);
+
+# define U8ToF32(x, i) const auto dat##x##_ = vzipq_u8(dat.val[i], z8);\
+        const auto dat##x##L_ = vzipq_u16(vreinterpretq_u16_u8(dat##x##_.val[0]), z16), dat##x##H_ = vzipq_u16(vreinterpretq_u16_u8(dat##x##_.val[1]), z16);\
+        const F32x4 dat##x##0 = vcvtq_f32_s32(vreinterpretq_s32_u16(dat##x##L_.val[0]));\
+        const F32x4 dat##x##1 = vcvtq_f32_s32(vreinterpretq_s32_u16(dat##x##L_.val[1]));\
+        const F32x4 dat##x##2 = vcvtq_f32_s32(vreinterpretq_s32_u16(dat##x##H_.val[0]));\
+        const F32x4 dat##x##3 = vcvtq_f32_s32(vreinterpretq_s32_u16(dat##x##H_.val[1]))
+        U8ToF32(Y,  0);
+        U8ToF32(Cb, 1);
+        U8ToF32(Cr, 2);
+# undef U8ToF32
+        const auto y0 = datY0.Mul(MulY), y1 = datY1.Mul(MulY), y2 = datY2.Mul(MulY), y3 = datY3.Mul(MulY);
+
+#define CalcRGB(x) const auto [r##x, g##x, b##x] = Calc(y##x, datCb##x, datCr##x)
+        CalcRGB(0);
+        CalcRGB(1);
+        CalcRGB(2);
+        CalcRGB(3);
+#undef  CalcRGB
+
+        uint8x16x3_t out3;
+        out3.val[1] = I32ToU8(g0, g1, g2, g3);
+        if (isRGB)
+        {
+            out3.val[0] = I32ToU8(r0, r1, r2, r3);
+            out3.val[2] = I32ToU8(b0, b1, b2, b3);
+        }
+        else
+        {
+            out3.val[2] = I32ToU8(r0, r1, r2, r3);
+            out3.val[0] = I32ToU8(b0, b1, b2, b3);
+        }
+        if (!isRGBFull)
+        {
+            const auto u8_235 = vdupq_n_u8(235);
+            out3.val[0] = vminq_u8(vmaxq_u8(U8_16, out3.val[0]), u8_235);
+            out3.val[1] = vminq_u8(vmaxq_u8(U8_16, out3.val[1]), u8_235);
+            out3.val[2] = vminq_u8(vmaxq_u8(U8_16, out3.val[2]), u8_235);
+        }
+        vst3q_u8(dst, out3);
+    }
+};
+DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, NEON_F32)
+{
+    if (count >= YUV8ToRGB8_F32_NEON::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const YUV8ToRGB8_F32_NEON proc(YCC8ToRGB8LUTF32[mval]);
+        common::RegionRounding rd(common::RoundMode::ToNearest);
+        do
+        {
+            proc.Convert(dest, src, needAddY, isRGBFull, true);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_F32>(dest, src, count, mval);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, NEON_F32)
+{
+    RGB8ToYCbCr8FastPath::Func<NEON_F32>(dest, src, count, mval);
+}
+
 DEFINE_FASTPATH_METHOD(G8ToGA8, NEON)
 {
     ProcessLOOP4<G2GA8_NEON, &Func<LOOP>>(dest, src, count, alpha);
@@ -5356,7 +5476,7 @@ struct RGB8ToYUV8_U8DP4A_NEON : public RGB8ToYUV8_I8_NEON<R, G, B, RGB8ToYUV8_U8
             const auto shift0 = vdotq_laneq_u32(zero, rgb0, Lut, 3);
             const auto shift1 = vdotq_laneq_u32(zero, rgb1, Lut, 3);
             const auto ret0 = vreinterpretq_s32_u32(vsubq_u32(sum0, shift0)), ret1 = vreinterpretq_s32_u32(vsubq_u32(sum1, shift1));
-            return vreinterpretq_u8_u16(vqmovun_high_s32(vqmovun_s32(sum0), sum1));
+            return vreinterpretq_u8_u16(vqmovun_high_s32(vqmovun_s32(ret0), ret1));
         }
     }
 };
@@ -5412,6 +5532,10 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, NEON_I16)
     if (count)
         Func<LOOP_I16>(dest, src, count, mval);
 }
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, NEON_I16)
+{
+    RGB8ToYCbCr8FastPath::Func<NEON_I16>(dest, src, count, mval);
+}
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, NEON_U8DP4A)
 {
     if (count >= RGB8ToYUV8_I8_NEON_Base::K)
@@ -5442,6 +5566,170 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, NEON_I8DP4A)
     if (count)
         Func<LOOP_I16>(dest, src, count, mval);
 }
+
+struct YUV8ToRGB8_F16_NEON
+{
+    static constexpr size_t M = 48, N = 48, K = 16;
+    float16x8_t MulCbrY;
+    float16x8_t SubR, AddG, SubB;
+    U8x16 U8_16;
+    YUV8ToRGB8_F16_NEON(const std::array<float, 9>& lut) noexcept : U8_16(16)
+    {
+        const auto mulcbr = F32x4(lut[7], lut[2], lut[4], lut[5]);
+        const auto muly = F32x4(lut[0], 128.f, 128.f, 128.f);
+        MulCbrY = vcvt_high_f16_f32(vcvt_f16_f32(mulcbr), muly);
+        const auto mul128 = vmulq_laneq_f16(MulCbrY, MulCbrY, 7);
+        SubR = vdupq_laneq_f16(mul128, 1);
+        SubB = vdupq_laneq_f16(mul128, 0);
+        AddG = vdupq_laneq_f16(vpaddq_f16(mul128, mul128), 1);
+    }
+    forceinline std::tuple<I16x8, I16x8, I16x8> Calc(const float16x8_t& y, const float16x8_t& cb, const float16x8_t& cr) const noexcept
+    {
+        //return vfmaq_laneq_f32(adder.Data, Data, muler.Data, Idx);
+        const auto r = vsubq_f16(vfmaq_laneq_f16(y, cr, MulCbrY, 1), SubR);
+        const auto b = vsubq_f16(vfmaq_laneq_f16(y, cb, MulCbrY, 0), SubB);
+        const auto g = vaddq_f16(vfmsq_laneq_f16(vfmsq_laneq_f16(y, cr, MulCbrY, 3), cb, MulCbrY, 2), AddG);
+        return { vcvtnq_s16_f16(r), vcvtnq_s16_f16(g), vcvtnq_s16_f16(b) };
+    }
+    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool isRGBFull, bool isRGB) const noexcept
+    {
+        auto dat = vld3q_u8(src);
+        const auto z8 = vdupq_n_u8(0);
+        if (needAddY)
+            dat.val[0] = vsubq_u8(dat.val[0], U8_16);
+
+# define U8ToF16(x, i) const auto dat##x = vzipq_u8(dat.val[i], z8);                \
+        const auto dat##x##0 = vcvtq_f16_s16(vreinterpretq_s16_u8(dat##x.val[0]));  \
+        const auto dat##x##1 = vcvtq_f16_s16(vreinterpretq_s16_u8(dat##x.val[1]));
+        U8ToF16(Y,  0);
+        U8ToF16(Cb, 1);
+        U8ToF16(Cr, 2);
+# undef U8ToF16
+
+        const auto y0 = vmulq_laneq_f16(datY0, MulCbrY, 4), y1 = vmulq_laneq_f16(datY1, MulCbrY, 4);
+#define CalcRGB(x) const auto [r##x, g##x, b##x] = Calc(y##x, datCb##x, datCr##x)
+        CalcRGB(0);
+        CalcRGB(1);
+#undef  CalcRGB
+
+        uint8x16x3_t out3;
+        out3.val[1] = vqmovun_high_s16(vqmovun_s16(g0), g1);
+        if (isRGB)
+        {
+            out3.val[0] = vqmovun_high_s16(vqmovun_s16(r0), r1);
+            out3.val[2] = vqmovun_high_s16(vqmovun_s16(b0), b1);
+        }
+        else
+        {
+            out3.val[2] = vqmovun_high_s16(vqmovun_s16(r0), r1);
+            out3.val[0] = vqmovun_high_s16(vqmovun_s16(b0), b1);
+        }
+        if (!isRGBFull)
+        {
+            const auto u8_235 = vdupq_n_u8(235);
+            out3.val[0] = vminq_u8(vmaxq_u8(U8_16, out3.val[0]), u8_235);
+            out3.val[1] = vminq_u8(vmaxq_u8(U8_16, out3.val[1]), u8_235);
+            out3.val[2] = vminq_u8(vmaxq_u8(U8_16, out3.val[2]), u8_235);
+        }
+        vst3q_u8(dst, out3);
+    }
+};
+struct YUV8ToRGB8_I16_NEON
+{
+    static constexpr size_t M = 48, N = 48, K = 16;
+    I16x8 MulYCbr; // Y,0,Bcb,Rcr,Gcb,Gcr
+    U8x16 U8_16;
+    YUV8ToRGB8_I16_NEON(const std::array<int16_t, 8>& lut) noexcept : MulYCbr(lut.data()), U8_16(16)
+    { }
+    forceinline std::tuple<I16x8, I16x8, I16x8> Calc(const int16x8_t& y, const int16x8_t& cb, const int16x8_t& cr) const noexcept
+    {
+        const auto r = vqrdmlahq_laneq_s16(y, cr, MulYCbr, 3);
+        const auto b = vqrdmlahq_laneq_s16(y, cb, MulYCbr, 2);
+        const auto g = vqrdmlshq_laneq_s16(vqrdmlshq_laneq_s16(y, cr, MulYCbr, 5), cb, MulYCbr, 4);
+        return { r, g, b };
+    }
+    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool isRGBFull, bool isRGB) const noexcept
+    {
+        auto dat = vld3q_u8(src);
+        const auto z8 = vdupq_n_u8(0);
+        if (needAddY)
+            dat.val[0] = vsubq_u8(dat.val[0], U8_16);
+        const auto u8_128 = vdupq_n_u8(128);            
+        dat.val[1] = vsubq_u8(dat.val[1], u8_128);
+        dat.val[2] = vsubq_u8(dat.val[2], u8_128);
+
+        const auto datY0 = vreinterpretq_s16_u16(vshll_n_u8(vget_low_u8(dat.val[0]), 7)), datY1 = vreinterpretq_s16_u16(vshll_high_n_u8(dat.val[0], 7));
+        const auto s16_32 = vdupq_n_s16(32); // pre-add rounding
+        // (7 + x) - 15
+        const I16x8 y0 = vqrdmlahq_laneq_s16(s16_32, datY0, MulYCbr, 0);
+        const I16x8 y1 = vqrdmlahq_laneq_s16(s16_32, datY1, MulYCbr, 0);
+
+#define U8ToI16H(x, i) const auto dat##x = vzipq_u8(z8, dat.val[i]);\
+        const auto dat##x##0 = vreinterpretq_s16_u8(dat##x.val[0]); \
+        const auto dat##x##1 = vreinterpretq_s16_u8(dat##x.val[1]);
+        U8ToI16H(Cb, 1);
+        U8ToI16H(Cr, 2);
+#undef  U8ToI16
+
+#define CalcRGB(x) const auto [r##x, g##x, b##x] = Calc(y##x, datCb##x, datCr##x)
+        CalcRGB(0);
+        CalcRGB(1);
+#undef  CalcRGB
+
+        uint8x16x3_t out3;
+        out3.val[1] = vqshrun_high_n_s16(vqshrun_n_s16(g0, 6), g1, 6);
+        if (isRGB)
+        {
+            out3.val[0] = vqshrun_high_n_s16(vqshrun_n_s16(r0, 6), r1, 6);
+            out3.val[2] = vqshrun_high_n_s16(vqshrun_n_s16(b0, 6), b1, 6);
+        }
+        else
+        {
+            out3.val[2] = vqshrun_high_n_s16(vqshrun_n_s16(r0, 6), r1, 6);
+            out3.val[0] = vqshrun_high_n_s16(vqshrun_n_s16(b0, 6), b1, 6);
+        }
+        if (!isRGBFull)
+        {
+            const auto u8_235 = vdupq_n_u8(235);
+            out3.val[0] = vminq_u8(vmaxq_u8(U8_16, out3.val[0]), u8_235);
+            out3.val[1] = vminq_u8(vmaxq_u8(U8_16, out3.val[1]), u8_235);
+            out3.val[2] = vminq_u8(vmaxq_u8(U8_16, out3.val[2]), u8_235);
+        }
+        vst3q_u8(dst, out3);
+    }
+};
+DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, NEON_F16)
+{
+    if (count >= YUV8ToRGB8_F16_NEON::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const YUV8ToRGB8_F16_NEON proc(YCC8ToRGB8LUTF32[mval]);
+        common::RegionRounding rd(common::RoundMode::ToNearest);
+        do
+        {
+            proc.Convert(dest, src, needAddY, isRGBFull, true);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_F32>(dest, src, count, mval);
+}
+DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, NEON_I16)
+{
+    if (count >= YUV8ToRGB8_I16_NEON::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const YUV8ToRGB8_I16_NEON proc(YCC8ToRGB8LUTI16[mval]);
+        do
+        {
+            proc.Convert(dest, src, needAddY, isRGBFull, true);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_I16>(dest, src, count, mval);
+}
+
 DEFINE_FASTPATH_METHOD(GfToRGBAf, NEONA64)
 {
     ProcessLOOP4<Gf2RGBAf_NEON64, &Func<LOOP>>(dest, src, count, alpha);
