@@ -4,3 +4,4 @@
 #include "resource.h"
 
 common::span<const std::byte> GetRandVals() noexcept;
+bool IsSlimTest() noexcept;

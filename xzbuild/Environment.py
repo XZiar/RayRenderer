@@ -24,13 +24,18 @@ _intrinMap = \
     "__AVX2__":             "avx2",
     "__AVX512F__":          "avx512f",
     "__AVX512VL__":         "avx512vl",
+    "__AVX512VBMI__":       "avx512vbmi",
+    "__AVX512VBMI2__":      "avx512vbmi2",
+    "__AVX512VPOPCNTDQ__":  "avx512popcnt",
     "__AVX512VNNI__":       "avx512vnni",
+    "__AVXVNNI__":          "avxvnni",
     "__F16C__":             "f16c",
     "__BMI__":              "bmi1",
     "__BMI2__":             "bmi2",
     "__AES__":              "aes",
     "__SHA__":              "sha",
     "__PCLMUL__":           "pclmul",
+    "__VPCLMULQDQ__":       "vpclmulqdq",
     "__ARM_NEON":           "neon",
     "__ARM_FEATURE_CRC32":  "acle_crc"
 }

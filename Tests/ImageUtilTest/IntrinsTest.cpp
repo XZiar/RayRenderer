@@ -1728,6 +1728,24 @@ MATCHER_P2(WrapRef, ref, res, "")
 #endif
 #undef FORCE_OPT
 
+template<typename F, typename... Args>
+void TestRGBYUV(const F& func, const std::unique_ptr<xziar::img::YCCConvertor>& intrin, Args&&... args)
+{
+    static const auto isSlim = IsSlimTest();
+    func(intrin, YCCMatrix::BT601,  false, false, std::forward<Args>(args)...);
+    func(intrin, YCCMatrix::BT601,   true, false, std::forward<Args>(args)...);
+    func(intrin, YCCMatrix::BT601,   true,  true, std::forward<Args>(args)...);
+    if (!isSlim)
+    {
+        func(intrin, YCCMatrix::BT709,  false, false, std::forward<Args>(args)...);
+        func(intrin, YCCMatrix::BT709,   true, false, std::forward<Args>(args)...);
+        func(intrin, YCCMatrix::BT709,   true,  true, std::forward<Args>(args)...);
+        func(intrin, YCCMatrix::BT2020, false, false, std::forward<Args>(args)...);
+        func(intrin, YCCMatrix::BT2020,  true, false, std::forward<Args>(args)...);
+        func(intrin, YCCMatrix::BT2020,  true,  true, std::forward<Args>(args)...); 
+    }
+}
+
 void TestRGBToYCC(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, const YCCMatrix matrix, const bool isRGBFull, const bool isYCCFull, const bool isFast)
 {
     std::string situation(YCCMatrixName(matrix));
@@ -1767,27 +1785,48 @@ void TestRGBToYCC(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, const
     TestCout() << common::str::Formatter<char>{}.FormatStatic(FmtString("[{}] SAD: Y[{:.3f}%] Cb[{:.3f}%] Cr[{:.3f}%]\n"),
         situation, mismatches[0] * 50.0 / RGB24Cnt, mismatches[1] * 50.0 / RGB24Cnt, mismatches[2] * 50.0 / RGB24Cnt);
 }
-void TestRGBToYUV(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, bool isFast)
+void TestRGBAToYCC(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, const YCCMatrix matrix, const bool isRGBFull, const bool isYCCFull, const bool isFast)
 {
-    TestRGBToYCC(intrin, YCCMatrix::BT601,  false, false, isFast);
-    TestRGBToYCC(intrin, YCCMatrix::BT601,   true, false, isFast);
-    TestRGBToYCC(intrin, YCCMatrix::BT601,   true,  true, isFast);
-    TestRGBToYCC(intrin, YCCMatrix::BT709,  false, false, isFast);
-    TestRGBToYCC(intrin, YCCMatrix::BT709,   true, false, isFast);
-    TestRGBToYCC(intrin, YCCMatrix::BT709,   true,  true, isFast);
-    TestRGBToYCC(intrin, YCCMatrix::BT2020, false, false, isFast);
-    TestRGBToYCC(intrin, YCCMatrix::BT2020,  true, false, isFast);
-    TestRGBToYCC(intrin, YCCMatrix::BT2020,  true,  true, isFast);
-}
-INTRIN_TEST(YCCCvt, RGB8ToYCbCr8)
-{
-    TestRGBToYUV(Intrin, false);
-}
-INTRIN_TEST(YCCCvt, RGB8ToYCbCr8Fast)
-{
-    TestRGBToYUV(Intrin, true);
-}
+    std::string situation(YCCMatrixName(matrix));
+    situation.append(isRGBFull ? " rFull " : " rLimit").append(isYCCFull ? " yFull " : " yLimit");
+    std::string name = "YCCCvt::RGBA8ToYCbCr8";
+    name.append(", ").append(situation);
+    const ::testing::ScopedTrace scope(__FILE__, __LINE__, name);
 
+    const uint32_t RGB24Cnt = std::get<2>(GetRGBRange(isRGBFull));
+    const auto& refOutput = GetYCC8Output(EncodeYCCM(matrix, isRGBFull, isYCCFull), true);
+    const auto& src24 = GetFullComp8x3(isRGBFull ? 0 : 1);
+    std::vector<uint32_t> src_(src24.size() / 3);
+    xziar::img::ColorConvertor::Get().RGBToRGBA(src_.data(), src24.data(), src_.size());
+    const auto src = common::as_bytes(common::to_span(src_));
+    std::vector<size_t> testSizes(std::begin(TestSizes), std::end(TestSizes));
+    testSizes.push_back(RGB24Cnt);
+    std::array<uint32_t, 3> mismatches = { 0,0,0 };
+    VarLenTest_<uint32_t, uint8_t, 1, 3>(src, [&](uint8_t* dst, const uint32_t* src, size_t count)
+    {
+        intrin->RGBAToYCC(dst, src, count, matrix, isRGBFull, isYCCFull, isFast);
+    }, [&](uint8_t* dst, const uint32_t*, size_t count)
+    {
+        memcpy(dst, refOutput.data(), count * 3);
+    }, [&](const HexTest<uint32_t, uint8_t>& test, std::string_view cond) noexcept
+    {
+        const uint32_t absY = std::abs(test.Dst.Vals[0] - test.Ref.Vals[0]),
+            absCb = std::abs(test.Dst.Vals[1] - test.Ref.Vals[1]),
+            absCr = std::abs(test.Dst.Vals[2] - test.Ref.Vals[2]);
+        const auto suc = (absY | absCb | absCr) <= 1; // only 0 or 1 allowed
+        if (test.Count == RGB24Cnt)
+            mismatches[0] += absY, mismatches[1] += absCb, mismatches[2] += absCr;
+        if (!suc)
+        {
+            EXPECT_THAT(test.Dst, test.Ref) << test << cond;
+        }
+        return suc;
+    }, testSizes);
+
+    // consider in-place, hald the mismatch count
+    TestCout() << common::str::Formatter<char>{}.FormatStatic(FmtString("[{}] SAD: Y[{:.3f}%] Cb[{:.3f}%] Cr[{:.3f}%]\n"),
+        situation, mismatches[0] * 50.0 / RGB24Cnt, mismatches[1] * 50.0 / RGB24Cnt, mismatches[2] * 50.0 / RGB24Cnt);
+}
 void TestYCCToRGB(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, const YCCMatrix matrix, const bool isRGBFull, const bool isYCCFull)
 {
     std::string situation(YCCMatrixName(matrix));
@@ -1827,21 +1866,26 @@ void TestYCCToRGB(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, const
     TestCout() << common::str::Formatter<char>{}.FormatStatic(FmtString("[{}] SAD: Y[{:.3f}%] Cb[{:.3f}%] Cr[{:.3f}%]\n"),
         situation, mismatches[0] * 50.0 / YCC24Cnt, mismatches[1] * 50.0 / YCC24Cnt, mismatches[2] * 50.0 / YCC24Cnt);
 }
-void TestYUVTorGB(const std::unique_ptr<xziar::img::YCCConvertor>& intrin)
+
+INTRIN_TEST(YCCCvt, RGB8ToYCbCr8)
 {
-    TestYCCToRGB(intrin, YCCMatrix::BT601,  false, false);
-    TestYCCToRGB(intrin, YCCMatrix::BT601,   true, false);
-    TestYCCToRGB(intrin, YCCMatrix::BT601,   true,  true);
-    TestYCCToRGB(intrin, YCCMatrix::BT709,  false, false);
-    TestYCCToRGB(intrin, YCCMatrix::BT709,   true, false);
-    TestYCCToRGB(intrin, YCCMatrix::BT709,   true,  true);
-    TestYCCToRGB(intrin, YCCMatrix::BT2020, false, false);
-    TestYCCToRGB(intrin, YCCMatrix::BT2020,  true, false);
-    TestYCCToRGB(intrin, YCCMatrix::BT2020,  true,  true);
+    TestRGBYUV(&TestRGBToYCC, Intrin, false);
+}
+INTRIN_TEST(YCCCvt, RGB8ToYCbCr8Fast)
+{
+    TestRGBYUV(&TestRGBToYCC, Intrin, true);
+}
+INTRIN_TEST(YCCCvt, RGBA8ToYCbCr8)
+{
+    TestRGBYUV(&TestRGBAToYCC, Intrin, false);
+}
+INTRIN_TEST(YCCCvt, RGBA8ToYCbCr8Fast)
+{
+    TestRGBYUV(&TestRGBAToYCC, Intrin, true);
 }
 INTRIN_TEST(YCCCvt, YCbCr8ToRGB8)
 {
-    TestYUVTorGB(Intrin);
+    TestRGBYUV(&TestYCCToRGB, Intrin);
 }
 
 
@@ -2379,13 +2423,18 @@ TEST(IntrinPerf, RGB8ToYCbCr8)
 {
     using xziar::img::YCCConvertor;
     constexpr uint32_t Size = 1024 * 1024;
-    std::vector<uint8_t> src(Size * 3);
+    std::vector<uint8_t> src3(Size * 3);
+    std::vector<uint32_t> src4(Size);
     std::vector<uint8_t> dst(Size * 3);
 
     PerfTester::DoFastPath(&YCCConvertor::RGBToYCC, "RGB8ToYCbCr8", Size, 100,
-        dst.data(), src.data(), Size, YCCMatrix::BT601, true, true, false);
+        dst.data(), src3.data(), Size, YCCMatrix::BT601, true, true, false);
     PerfTester::DoFastPath(&YCCConvertor::RGBToYCC, "RGB8ToYCbCr8Fast", Size, 100,
-        dst.data(), src.data(), Size, YCCMatrix::BT601, true, true, true);
+        dst.data(), src3.data(), Size, YCCMatrix::BT601, true, true, true);
+    PerfTester::DoFastPath(&YCCConvertor::RGBAToYCC, "RGBA8ToYCbCr8", Size, 100,
+        dst.data(), src4.data(), Size, YCCMatrix::BT601, true, true, false);
+    PerfTester::DoFastPath(&YCCConvertor::RGBAToYCC, "RGBA8ToYCbCr8Fast", Size, 100,
+        dst.data(), src4.data(), Size, YCCMatrix::BT601, true, true, true);
 }
 
 TEST(IntrinPerf, YCbCr8ToRGB8)

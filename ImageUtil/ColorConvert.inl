@@ -119,9 +119,14 @@
 #define BGR10A2ToRGBAfInfo  (void)(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal)
 
 
-#define RGB8ToYCbCr8FastInfo    (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
-#define RGB8ToYCbCr8Info        (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
-#define YCbCr8ToRGB8Info        (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
+#define RGB8ToYCbCr8FastInfo        (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
+#define RGB8ToYCbCr8Info            (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
+#define RGBA8ToYCbCr8FastInfo       (void)(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval)
+#define RGBA8ToYCbCr8Info           (void)(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval)
+#define YCbCr8ToRGB8Info            (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
+#define RGB8ToYCbCr8PlanarFastInfo  (void)(uint8_t* const*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
+#define RGB8ToYCbCr8PlanarInfo      (void)(uint8_t* const*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
+#define YCbCr8ToRGB8PlanarInfo      (void)(uint8_t* const*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
 
 
 namespace xziar::img
@@ -158,6 +163,8 @@ using ::xziar::img::YCC8ToRGB8LUTF32;
 using ::xziar::img::YCC8ToRGB8LUTI16;
 
 
+#define ELEx4(n) n##0, n##1, n##2, n##3
+
 DEFINE_FASTPATHS(STBResize, DoResize)
 
 DEFINE_FASTPATHS(ColorConvertor, 
@@ -172,7 +179,7 @@ DEFINE_FASTPATHS(ColorConvertor,
     RGB565ToRGB8, BGR565ToRGB8, RGB565ToRGBA8, BGR565ToRGBA8,
     RGB10ToRGBf, BGR10ToRGBf, RGB10ToRGBAf, BGR10ToRGBAf, RGB10A2ToRGBAf, BGR10A2ToRGBAf)
 
-DEFINE_FASTPATHS(YCCConvertor, RGB8ToYCbCr8Fast, RGB8ToYCbCr8, YCbCr8ToRGB8)
+DEFINE_FASTPATHS(YCCConvertor, RGB8ToYCbCr8Fast, RGB8ToYCbCr8, RGBA8ToYCbCr8Fast, RGBA8ToYCbCr8, YCbCr8ToRGB8, RGB8ToYCbCr8PlanarFast, RGB8ToYCbCr8Planar, YCbCr8ToRGB8Planar)
 
 
 #ifdef IMGU_FASTPATH_STB
@@ -1102,6 +1109,53 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, LOOP_I16)
     RGB8ToYCbCr8FastPath::Func<LOOP_I16>(dest, src, count, mval);
 }
 
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, LOOP_F32)
+{
+    const auto& lut = RGB8ToYCC8LUTF32[mval];
+    [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+    [[maybe_unused]] const int32_t yAdd = needAddY ? 16 : 0;
+    common::RegionRounding rd(common::RoundMode::ToNearest);
+
+#define LOOP_RGB_YUV do { const auto rgb = *src++;                              \
+const auto r = static_cast<float>((rgb >>  0) & 0xffu);                         \
+const auto g = static_cast<float>((rgb >>  8) & 0xffu);                         \
+const auto b = static_cast<float>((rgb >> 16) & 0xffu);                         \
+const auto y  = r * lut[0] + g * lut[1] + b * lut[2];                           \
+const auto cb = r * lut[3] + g * lut[4] + b * lut[5];                           \
+const auto cr = r * lut[5] + g * lut[6] + b * lut[7];                           \
+*dest++ = static_cast<uint8_t>(static_cast<int32_t>(std::nearbyint( y)) + yAdd);\
+auto cb_ = static_cast<int32_t>(std::nearbyint(cb)) + 128;                      \
+auto cr_ = static_cast<int32_t>(std::nearbyint(cr)) + 128;                      \
+if (isYCCFull) { cb_ = Clamp(cb_, 0, 255); cr_ = Clamp(cr_, 0, 255); }          \
+*dest++ = static_cast<uint8_t>(cb_); *dest++ = static_cast<uint8_t>(cr_); } while (0)
+    LOOP4(LOOP_RGB_YUV)
+#undef LOOP_RGB_YUV
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, LOOP_I16)
+{
+    const auto& lut = RGB8ToYCC8LUTI16[mval];
+    [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+    [[maybe_unused]] const int32_t yAdd = needAddY ? 16 : 0;
+
+#define LOOP_RGB_YUV do { const auto rgb = *src++;                      \
+const auto r = static_cast<int32_t>((rgb >>  0) & 0xffu);               \
+const auto g = static_cast<int32_t>((rgb >>  8) & 0xffu);               \
+const auto b = static_cast<int32_t>((rgb >> 16) & 0xffu);               \
+const auto y  = r * lut[0] + g * lut[1] + b * lut[2];                   \
+const auto cb = r * lut[3] + g * lut[4] + b * lut[5];                   \
+const auto cr = r * lut[5] + g * lut[6] + b * lut[7];                   \
+*dest++ = static_cast<uint8_t>((( y + 8192) >> 14) + yAdd);             \
+auto cb_ = ((cb + 8192) >> 14) + 128;                                   \
+auto cr_ = ((cr + 8192) >> 14) + 128;                                   \
+if (isYCCFull) { cb_ = Clamp(cb_, 0, 255); cr_ = Clamp(cr_, 0, 255); }  \
+*dest++ = static_cast<uint8_t>(cb_); *dest++ = static_cast<uint8_t>(cr_); } while (0)
+    LOOP4(LOOP_RGB_YUV)
+#undef LOOP_RGB_YUV
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, LOOP_I16)
+{
+    RGBA8ToYCbCr8FastPath::Func<LOOP_I16>(dest, src, count, mval);
+}
 
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, LOOP_F32)
 {
@@ -1154,6 +1208,59 @@ src += 3; } while (0)
 #undef LOOP_YUV_RGB
 }
 
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, LOOP_F32)
+{
+    const auto& lut = RGB8ToYCC8LUTF32[mval];
+    [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+    [[maybe_unused]] const int32_t yAdd = needAddY ? 16 : 0;
+    uint8_t* __restrict destY  = dest[0];
+    uint8_t* __restrict destCb = dest[1];
+    uint8_t* __restrict destCr = dest[2];
+    const bool procY = destY, procC = destCb;
+    common::RegionRounding rd(common::RoundMode::ToNearest);
+
+#define LOOP_RGB_YUV do { const float r = src[0], g = src[1], b = src[2];           \
+if (procY) { const auto y  = r * lut[0] + g * lut[1] + b * lut[2];                  \
+*destY++  = static_cast<uint8_t>(static_cast<int32_t>(std::nearbyint(y)) + yAdd); } \
+if (procC) {                                                                        \
+const auto cb = r * lut[3] + g * lut[4] + b * lut[5];                               \
+const auto cr = r * lut[5] + g * lut[6] + b * lut[7];                               \
+auto cb_ = static_cast<int32_t>(std::nearbyint(cb)) + 128;                          \
+auto cr_ = static_cast<int32_t>(std::nearbyint(cr)) + 128;                          \
+if (isYCCFull) { cb_ = Clamp(cb_, 0, 255); cr_ = Clamp(cr_, 0, 255); }              \
+*destCb++ = static_cast<uint8_t>(cb_); *destCr++ = static_cast<uint8_t>(cr_); }     \
+src += 3; } while (0)
+    LOOP4(LOOP_RGB_YUV)
+#undef LOOP_RGB_YUV
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, LOOP_I16)
+{
+    const auto& lut = RGB8ToYCC8LUTI16[mval];
+    [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+    [[maybe_unused]] const int32_t yAdd = needAddY ? 16 : 0;
+    uint8_t* __restrict destY  = dest[0];
+    uint8_t* __restrict destCb = dest[1];
+    uint8_t* __restrict destCr = dest[2];
+    const bool procY = destY, procC = destCb;
+
+#define LOOP_RGB_YUV do { const int16_t r = src[0], g = src[1], b = src[2];     \
+if (procY) { const auto y  = r * lut[0] + g * lut[1] + b * lut[2];              \
+*destY++  = static_cast<uint8_t>((( y + 8192) >> 14) + yAdd); }                 \
+if (procC) {                                                                    \
+const auto cb = r * lut[3] + g * lut[4] + b * lut[5];                           \
+const auto cr = r * lut[5] + g * lut[6] + b * lut[7];                           \
+auto cb_ = ((cb + 8192) >> 14) + 128;                                           \
+auto cr_ = ((cr + 8192) >> 14) + 128;                                           \
+if (isYCCFull) { cb_ = Clamp(cb_, 0, 255); cr_ = Clamp(cr_, 0, 255); }          \
+*destCb++ = static_cast<uint8_t>(cb_); *destCr++ = static_cast<uint8_t>(cr_); } \
+src += 3; } while (0)
+    LOOP4(LOOP_RGB_YUV)
+#undef LOOP_RGB_YUV
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, LOOP_I16)
+{
+    RGB8ToYCbCr8PlanarFastPath::Func<LOOP_I16>(dest, src, count, mval);
+}
 
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100 && (defined(__BMI2__) || COMMON_COMPILER_MSVC) // BMI2 should be at least AVX
@@ -2842,9 +2949,8 @@ struct RGB10ToRGBAf_SSE41
     }
 };
 
-struct RGB8ToYUV8_F32_SSE41
+struct RGBx8ToYUV8_F32_SSE41_Base
 {
-    static constexpr size_t M = 48, N = 48, K = 16;
     template<uint8_t R, uint8_t G, uint8_t B>
     struct Shuffler
     {
@@ -2853,7 +2959,7 @@ struct RGB8ToYUV8_F32_SSE41
     __m128i U8ToI32x4Shuf;
     F32x4 LutY, LutCb, LutCr;
     template<uint8_t R, uint8_t G, uint8_t B>
-    RGB8ToYUV8_F32_SSE41(const std::array<float, 9>& lut, RGBOrder<R, G, B>) noexcept :
+    RGBx8ToYUV8_F32_SSE41_Base(const std::array<float, 9>& lut, RGBOrder<R, G, B>) noexcept :
         U8ToI32x4Shuf(_mm_loadu_si128(reinterpret_cast<const __m128i*>(Shuffler<R, G, B>::Shuf))), LutY(lut.data()), LutCb(lut.data() + 3), LutCr(lut.data() + 5)
     { }
     static forceinline auto DP4(const F32x4& src0, const F32x4& src1, const F32x4& src2, const F32x4& src3, const F32x4& lut) noexcept
@@ -2864,40 +2970,18 @@ struct RGB8ToYUV8_F32_SSE41
         const auto mid3 = src3.Dot<DotPos::XYZ, DotPos::W>(lut);
         return _mm_cvtps_epi32(mid0.Or(mid1).Or(mid2.Or(mid3)));
     }
-    template<bool ClampC>
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    static forceinline U8x16 ConvertY(bool needAddY, ELEx4(const U8x16& lumi4i)) noexcept
     {
-        const U8x16 dat0(src), dat1(src + 16), dat2(src + 32);
-        const F32x4 mid0  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat0,                U8ToI32x4Shuf));
-        const F32x4 mid1  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat0.MoveToLo< 3>(), U8ToI32x4Shuf));
-        const F32x4 mid2  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat0.MoveToLo< 6>(), U8ToI32x4Shuf));
-        const F32x4 mid3  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat0.MoveToLo< 9>(), U8ToI32x4Shuf));
-        const F32x4 mid4  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat0.MoveToLo<12>(), U8ToI32x4Shuf));
-        const F32x4 mid5  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat0.MoveToLoWith<15>(dat1), U8ToI32x4Shuf));
-        const F32x4 mid6  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat1.MoveToLo< 2>(), U8ToI32x4Shuf));
-        const F32x4 mid7  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat1.MoveToLo< 5>(), U8ToI32x4Shuf));
-        const F32x4 mid8  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat1.MoveToLo< 8>(), U8ToI32x4Shuf));
-        const F32x4 mid9  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat1.MoveToLo<11>(), U8ToI32x4Shuf));
-        const F32x4 mid10 = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat1.MoveToLoWith<14>(dat2), U8ToI32x4Shuf));
-        const F32x4 mid11 = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat2.MoveToLo< 1>(), U8ToI32x4Shuf));
-        const F32x4 mid12 = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat2.MoveToLo< 4>(), U8ToI32x4Shuf));
-        const F32x4 mid13 = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat2.MoveToLo< 7>(), U8ToI32x4Shuf));
-        const F32x4 mid14 = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat2.MoveToLo<10>(), U8ToI32x4Shuf));
-        const F32x4 mid15 = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat2.MoveToLo<13>(), U8ToI32x4Shuf));
-#define DP4x4(type, out, lut) const type out##0 = DP4(mid0, mid1, mid2, mid3, lut), out##1 = DP4(mid4, mid5, mid6, mid7, lut), \
-    out##2 = DP4(mid8, mid9, mid10, mid11, lut), out##3 = DP4(mid12, mid13, mid14, mid15, lut)
-        DP4x4(U8x16, lumi4i, LutY);
         // only lowest byte should be used
         U8x16 lumiAll = lumi4i0.Or(lumi4i1.MoveToHi<1>()).Or(lumi4i2.MoveToHi<2>().Or(lumi4i3.MoveToHi<3>()));
         if (needAddY)
             lumiAll = lumiAll.Add(16);
-        const auto outY = lumiAll.Shuffle<0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15>();
-
-        DP4x4(U16x8, cb4i, LutCb);
-        DP4x4(U16x8, cr4i, LutCr);
-#undef DP4x4
+        return lumiAll.Shuffle<0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15>();
+    }
+    static forceinline std::pair<U8x16, U8x16> ConvertC(bool clampC, ELEx4(const U16x8& cb4i), ELEx4(const U16x8& cr4i)) noexcept
+    {
         U8x16 outCb, outCr;
-        if constexpr (ClampC) // keep 16bit in case of overflow
+        if (clampC) // keep 16bit in case of overflow
         {
             I16x8 cAdd(128);
             I16x8 cbi0 = _mm_packs_epi32(cb4i0, cb4i1), cbi1 = _mm_packs_epi32(cb4i2, cb4i3);
@@ -2918,8 +3002,238 @@ struct RGB8ToYUV8_F32_SSE41
             outCb = cbAll.Shuffle<0, 4, 8, 12, 2, 6, 10, 14, 1, 5, 9, 13, 3, 7, 11, 15>();
             outCr = crAll.Shuffle<0, 4, 8, 12, 2, 6, 10, 14, 1, 5, 9, 13, 3, 7, 11, 15>();
         }
-
+        return  { outCb, outCr };
+    }
+    static forceinline void ConvertMid4(uint8_t* __restrict dst, bool needAddY, bool clampC, ELEx4(const U8x16& lumi4i), ELEx4(const U16x8& cb4i), ELEx4(const U16x8& cr4i)) noexcept
+    {
+        const auto outY = ConvertY(needAddY, ELEx4(lumi4i));
+        const auto [outCb, outCr] = ConvertC(clampC, ELEx4(cb4i), ELEx4(cr4i));
         Combine8x3_SSE41::DoStore(dst, outY, outCb, outCr);
+    }
+};
+struct RGB8ToYUV8_F32_SSE41 : public RGBx8ToYUV8_F32_SSE41_Base
+{
+    static constexpr size_t M = 48, N = 48, K = 16;
+    using RGBx8ToYUV8_F32_SSE41_Base::RGBx8ToYUV8_F32_SSE41_Base;
+    template<typename T>
+    forceinline void Convert(T* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool clampC) const noexcept
+    {
+        const U8x16 dat0(src), dat1(src + 16), dat2(src + 32);
+        const F32x4 mid0  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat0,                U8ToI32x4Shuf));
+        const F32x4 mid1  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat0.MoveToLo< 3>(), U8ToI32x4Shuf));
+        const F32x4 mid2  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat0.MoveToLo< 6>(), U8ToI32x4Shuf));
+        const F32x4 mid3  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat0.MoveToLo< 9>(), U8ToI32x4Shuf));
+        const F32x4 mid4  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat0.MoveToLo<12>(), U8ToI32x4Shuf));
+        const F32x4 mid5  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat0.MoveToLoWith<15>(dat1), U8ToI32x4Shuf));
+        const F32x4 mid6  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat1.MoveToLo< 2>(), U8ToI32x4Shuf));
+        const F32x4 mid7  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat1.MoveToLo< 5>(), U8ToI32x4Shuf));
+        const F32x4 mid8  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat1.MoveToLo< 8>(), U8ToI32x4Shuf));
+        const F32x4 mid9  = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat1.MoveToLo<11>(), U8ToI32x4Shuf));
+        const F32x4 mid10 = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat1.MoveToLoWith<14>(dat2), U8ToI32x4Shuf));
+        const F32x4 mid11 = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat2.MoveToLo< 1>(), U8ToI32x4Shuf));
+        const F32x4 mid12 = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat2.MoveToLo< 4>(), U8ToI32x4Shuf));
+        const F32x4 mid13 = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat2.MoveToLo< 7>(), U8ToI32x4Shuf));
+        const F32x4 mid14 = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat2.MoveToLo<10>(), U8ToI32x4Shuf));
+        const F32x4 mid15 = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat2.MoveToLo<13>(), U8ToI32x4Shuf));
+#define DP4x4(type, out, lut) const type out##0 = DP4(mid0, mid1, mid2, mid3, lut), out##1 = DP4(mid4, mid5, mid6, mid7, lut), \
+    out##2 = DP4(mid8, mid9, mid10, mid11, lut), out##3 = DP4(mid12, mid13, mid14, mid15, lut)
+        if constexpr (std::is_pointer_v<T>)
+        {
+            T& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP4x4(U8x16, lumi4i, LutY);
+                ConvertY(needAddY, ELEx4(lumi4i)).Save(dstY);
+            }
+            if (dstCb && dstCr)
+            {
+                DP4x4(U16x8, cb4i, LutCb);
+                DP4x4(U16x8, cr4i, LutCr);
+                const auto [outCb, outCr] = ConvertC(clampC, ELEx4(cb4i), ELEx4(cr4i));
+                outCb.Save(dstCb);
+                outCr.Save(dstCr);
+            }
+        }
+        else
+        {
+            DP4x4(U8x16, lumi4i, LutY);
+            DP4x4(U16x8, cb4i, LutCb);
+            DP4x4(U16x8, cr4i, LutCr);
+            ConvertMid4(dst, needAddY, clampC, ELEx4(lumi4i), ELEx4(cb4i), ELEx4(cr4i));
+        }
+#undef DP4x4
+    }
+};
+struct RGBA8ToYUV8_F32_SSE41 : public RGBx8ToYUV8_F32_SSE41_Base
+{
+    static constexpr size_t M = 16, N = 48, K = 16;
+    using RGBx8ToYUV8_F32_SSE41_Base::RGBx8ToYUV8_F32_SSE41_Base;
+
+    template<typename T>
+    forceinline void Convert(T* __restrict dst, const uint32_t* __restrict src, bool needAddY, bool clampC) const noexcept
+    {
+        const U32x4 dat0(src), dat1(src + 4), dat2(src + 8), dat3(src+12);
+#define CAST4(x,a,b,c,d) \
+    const F32x4 mid##a = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat##x,               U8ToI32x4Shuf));\
+    const F32x4 mid##b = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat##x.MoveToLo<1>(), U8ToI32x4Shuf));\
+    const F32x4 mid##c = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat##x.MoveToLo<2>(), U8ToI32x4Shuf));\
+    const F32x4 mid##d = _mm_cvtepi32_ps(_mm_shuffle_epi8(dat##x.MoveToLo<3>(), U8ToI32x4Shuf))
+        CAST4(0,  0,  1,  2,  3);
+        CAST4(1,  4,  5,  6,  7);
+        CAST4(2,  8,  9, 10, 11);
+        CAST4(3, 12, 13, 14, 15);
+#undef CAST4
+#define DP4x4(type, out, lut) const type out##0 = DP4(mid0, mid1, mid2, mid3, lut), out##1 = DP4(mid4, mid5, mid6, mid7, lut), \
+    out##2 = DP4(mid8, mid9, mid10, mid11, lut), out##3 = DP4(mid12, mid13, mid14, mid15, lut)
+        if constexpr (std::is_pointer_v<T>)
+        {
+            T& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP4x4(U8x16, lumi4i, LutY);
+                ConvertY(needAddY, ELEx4(lumi4i)).Save(dstY);
+                dstY += N / 3;
+            }
+            if (dstCb && dstCr)
+            {
+                DP4x4(U16x8, cb4i, LutCb);
+                DP4x4(U16x8, cr4i, LutCr);
+                const auto [outCb, outCr] = ConvertC(clampC, ELEx4(cb4i), ELEx4(cr4i));
+                outCb.Save(dstCb), outCr.Save(dstCr);
+                dstCb += N / 3, dstCr += N / 3;
+            }
+        }
+        else
+        {
+            DP4x4(U8x16, lumi4i, LutY);
+            DP4x4(U16x8, cb4i, LutCb);
+            DP4x4(U16x8, cr4i, LutCr);
+            ConvertMid4(dst, needAddY, clampC, ELEx4(lumi4i), ELEx4(cb4i), ELEx4(cr4i));
+        }
+#undef DP4x4
+    }
+};
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_F32)
+{
+    if (count >= RGB8ToYUV8_F32_SSE41::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGB8ToYUV8_F32_SSE41 proc(RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+        common::RegionRounding rd(common::RoundMode::ToNearest);
+        do
+        {
+            proc.Convert(dest, src, needAddY, isYCCFull);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_F32>(dest, src, count, mval);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, SSE41_F32)
+{
+    uint8_t* __restrict dests[3] = { dest[0], dest[1], dest[2] };
+    if (count >= RGB8ToYUV8_F32_SSE41::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGB8ToYUV8_F32_SSE41 proc(RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+        common::RegionRounding rd(common::RoundMode::ToNearest);
+        do
+        {
+            proc.Convert(dests, src, needAddY, isYCCFull);
+            src += proc.M; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_F32>(dests, src, count, mval);
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, SSE41_F32)
+{
+    if (count >= RGBA8ToYUV8_F32_SSE41::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGBA8ToYUV8_F32_SSE41 proc(RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+        common::RegionRounding rd(common::RoundMode::ToNearest);
+        do
+        {
+            proc.Convert(dest, src, needAddY, isYCCFull);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_F32>(dest, src, count, mval);
+}
+template<typename T>
+struct RGBx8ToYUV8_I16_SSE41_Base
+{
+    template<typename D>
+    forceinline void ConvertRB_G(D* __restrict dst, bool needAddY,
+        const I16x8& midRB0, const I16x8& midRB1, const I16x8& midRB2, const I16x8& midRB3, const I16x8& midG0, const I16x8& midG1) const noexcept
+    {
+        const auto& self = *static_cast<const T*>(this);
+#define DP3x4(out, lut) const auto out##0 = self.DP3(midRB0, midRB1, midG0, self.lut##RB, self.lut##G), out##1 = self.DP3(midRB2, midRB3, midG1, self.lut##RB, self.lut##G)
+        if constexpr (std::is_pointer_v<D>)
+        {
+            D& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP3x4(lumi, LutY);
+                U8x16 outY = _mm_packus_epi16(lumi0, lumi1);
+                if (needAddY)
+                    outY = outY.Add(16);
+                outY.Save(dstY);
+                dstY += T::N / 3;
+            }
+            if (dstCb && dstCr)
+            {
+                DP3x4(cb_, LutCb);
+                DP3x4(cr_, LutCr);
+                const U8x16 outCb = cb_0.Cast<I8x16, CastMode::RangeSaturate>(cb_1).As<U8x16>().Add(128);
+                const U8x16 outCr = cr_0.Cast<I8x16, CastMode::RangeSaturate>(cr_1).As<U8x16>().Add(128);
+                outCb.Save(dstCb), outCr.Save(dstCr);
+                dstCb += T::N / 3, dstCr += T::N / 3;
+            }
+        }
+        else
+        {
+            DP3x4(lumi, LutY);
+            DP3x4(cb_, LutCb);
+            DP3x4(cr_, LutCr);
+            U8x16 outY = _mm_packus_epi16(lumi0, lumi1);
+            if (needAddY)
+                outY = outY.Add(16);
+            const U8x16 outCb = cb_0.Cast<I8x16, CastMode::RangeSaturate>(cb_1).As<U8x16>().Add(128);
+            const U8x16 outCr = cr_0.Cast<I8x16, CastMode::RangeSaturate>(cr_1).As<U8x16>().Add(128);
+
+            Combine8x3_SSE41::DoStore(dst, outY, outCb, outCr);
+        }
+#undef DP3x4
+    }
+};
+template<typename T>
+struct RGBx8ToYUV8_I16_SSE41_MulHrs : public RGBx8ToYUV8_I16_SSE41_Base<T>
+{
+    static forceinline auto DP3(const I16x8& rbLo, const I16x8& rbHi, const I16x8& g, const __m128i& lutRB, const __m128i& lutG) noexcept
+    {
+        const auto midRB0 = _mm_mulhrs_epi16(rbLo, lutRB);
+        const auto midRB1 = _mm_mulhrs_epi16(rbHi, lutRB);
+        const I16x8 midG  = _mm_mulhrs_epi16(g,    lutG );
+        const I16x8 midRB = _mm_hadd_epi16(midRB0, midRB1);
+        const auto sum = midRB.Add(midG.Add(32)).ShiftRightArith<7 + 14 - 15>();
+        return sum;
+    }
+};
+template<typename T>
+struct RGBx8ToYUV8_I16_SSE41_MAddHrs : public RGBx8ToYUV8_I16_SSE41_Base<T>
+{
+    static forceinline auto DP3(const I16x8& rbLo, const I16x8& rbHi, const I16x8& g, const __m128i& lutRB, const __m128i& lutG) noexcept
+    {
+        const auto ShufMid16 = _mm_setr_epi8(1, 2, 5, 6, 9, 10, 13, 14, 1, 2, 5, 6, 9, 10, 13, 14);
+        const auto midRB0 = _mm_madd_epi16(rbLo, lutRB);
+        const auto midRB1 = _mm_madd_epi16(rbHi, lutRB);
+        const I16x8 midRB = _mm_blend_epi16(_mm_shuffle_epi8(midRB0, ShufMid16), _mm_shuffle_epi8(midRB1, ShufMid16), 0b11110000); // << (14 - 8)=6
+        const I16x8 midG  = _mm_mulhrs_epi16(g, lutG); // << (7 + 14 - 15)=6
+        const auto sum = midRB.Add(midG.Add(32)).ShiftRightArith<6>();
+        return sum;
     }
 };
 struct RGB8ToYUV8_I16_SSE41_Base
@@ -2947,19 +3261,11 @@ struct RGB8ToYUV8_I16_SSE41_Base
         LutCrG (lut.Shuffle<6, 6, 6, 6, 6, 6, 6, 6>())
     { }
 };
-struct RGB8ToYUV8_I16_SSE41 : public RGB8ToYUV8_I16_SSE41_Base
+struct RGB8ToYUV8_I16_SSE41 : public RGB8ToYUV8_I16_SSE41_Base, public RGBx8ToYUV8_I16_SSE41_MulHrs<RGB8ToYUV8_I16_SSE41>
 {
     using RGB8ToYUV8_I16_SSE41_Base::RGB8ToYUV8_I16_SSE41_Base;
-    static forceinline auto DP3(const I16x8& rbLo, const I16x8& rbHi, const I16x8& g, const __m128i& lutRB, const __m128i& lutG) noexcept
-    {
-        const auto midRB0 = _mm_mulhrs_epi16(rbLo, lutRB);
-        const auto midRB1 = _mm_mulhrs_epi16(rbHi, lutRB);
-        const I16x8 midG  = _mm_mulhrs_epi16(g,    lutG );
-        const I16x8 midRB = _mm_hadd_epi16(midRB0, midRB1);
-        const auto sum = midRB.Add(midG.Add(32)).ShiftRightArith<7 + 14 - 15>();
-        return sum;
-    }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    template<typename T>
+    forceinline void Convert(T* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
     {
         const U8x16 dat0(src), dat1(src + 16), dat2(src + 32);
         const I16x8 midRB0 = _mm_slli_epi16(_mm_shuffle_epi8(dat0, U8ToRBShuf), 7);
@@ -2970,34 +3276,14 @@ struct RGB8ToYUV8_I16_SSE41 : public RGB8ToYUV8_I16_SSE41_Base
         const I16x8 midG0 = _mm_slli_epi16(_mm_shuffle_epi8(datG, U8ToGShuf0), 7);
         const I16x8 midG1 = _mm_slli_epi16(_mm_shuffle_epi8(datG, U8ToGShuf1), 7);
 
-#define DP3x4(out, lut) const auto out##0 = DP3(midRB0, midRB1, midG0, lut##RB, lut##G), out##1 = DP3(midRB2, midRB3, midG1, lut##RB, lut##G)
-        DP3x4(lumi, LutY);
-        DP3x4(cb_, LutCb);
-        DP3x4(cr_, LutCr);
-#undef DP3x4
-        U8x16 outY = _mm_packus_epi16(lumi0, lumi1);
-        if (needAddY)
-            outY = outY.Add(16);
-        const U8x16 outCb = cb_0.Cast<I8x16, CastMode::RangeSaturate>(cb_1).As<U8x16>().Add(128);
-        const U8x16 outCr = cr_0.Cast<I8x16, CastMode::RangeSaturate>(cr_1).As<U8x16>().Add(128);
-
-        Combine8x3_SSE41::DoStore(dst, outY, outCb, outCr);
+        ConvertRB_G(dst, needAddY, ELEx4(midRB), midG0, midG1);
     }
 };
-struct RGB8ToYUV8_I16_2_SSE41 : public RGB8ToYUV8_I16_SSE41_Base
+struct RGB8ToYUV8_I16_2_SSE41 : public RGB8ToYUV8_I16_SSE41_Base, public RGBx8ToYUV8_I16_SSE41_MAddHrs<RGB8ToYUV8_I16_2_SSE41>
 {
     using RGB8ToYUV8_I16_SSE41_Base::RGB8ToYUV8_I16_SSE41_Base;
-    static forceinline auto DP3(const I16x8& rbLo, const I16x8& rbHi, const I16x8& g, const __m128i& lutRB, const __m128i& lutG) noexcept
-    {
-        const auto ShufMid16 = _mm_setr_epi8(1, 2, 5, 6, 9, 10, 13, 14, 1, 2, 5, 6, 9, 10, 13, 14);
-        const auto midRB0 = _mm_madd_epi16(rbLo, lutRB);
-        const auto midRB1 = _mm_madd_epi16(rbHi, lutRB);
-        const I16x8 midRB = _mm_blend_epi16(_mm_shuffle_epi8(midRB0, ShufMid16), _mm_shuffle_epi8(midRB1, ShufMid16), 0b11110000); // << (14 - 8)=6
-        const I16x8 midG  = _mm_mulhrs_epi16(g, lutG); // << (7 + 14 - 15)=6
-        const auto sum = midRB.Add(midG.Add(32)).ShiftRightArith<6>();
-        return sum;
-    }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    template<typename T>
+    forceinline void Convert(T* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
     {
         const U8x16 dat0(src), dat1(src + 16), dat2(src + 32);
         const I16x8 midRB0 = _mm_shuffle_epi8(dat0, U8ToRBShuf);
@@ -3008,93 +3294,73 @@ struct RGB8ToYUV8_I16_2_SSE41 : public RGB8ToYUV8_I16_SSE41_Base
         const I16x8 midG0 = _mm_slli_epi16(_mm_shuffle_epi8(datG, U8ToGShuf0), 7);
         const I16x8 midG1 = _mm_slli_epi16(_mm_shuffle_epi8(datG, U8ToGShuf1), 7);
 
-#define DP3x4(out, lut) const auto out##0 = DP3(midRB0, midRB1, midG0, lut##RB, lut##G), out##1 = DP3(midRB2, midRB3, midG1, lut##RB, lut##G)
-        DP3x4(lumi, LutY);
-        DP3x4(cb_, LutCb);
-        DP3x4(cr_, LutCr);
-#undef DP3x4
-        U8x16 outY = _mm_packus_epi16(lumi0, lumi1);
-        if (needAddY)
-            outY = outY.Add(16);
-        const U8x16 outCb = cb_0.Cast<I8x16, CastMode::RangeSaturate>(cb_1).As<U8x16>().Add(128);
-        const U8x16 outCr = cr_0.Cast<I8x16, CastMode::RangeSaturate>(cr_1).As<U8x16>().Add(128);
-
-        Combine8x3_SSE41::DoStore(dst, outY, outCb, outCr);
+        ConvertRB_G(dst, needAddY, ELEx4(midRB), midG0, midG1);
     }
 };
-struct RGB8ToYUV8_I8_SSE41
+struct RGBA8ToYUV8_I16_SSE41_Base
 {
-    static constexpr size_t M = 48, N = 48, K = 16;
+    static constexpr size_t M = 16, N = 48, K = 16;
+    __m128i LutYRB, LutYG, LutCbRB, LutCbG, LutCrRB, LutCrG;
     template<uint8_t R, uint8_t G, uint8_t B>
-    struct Shuffler
+    RGBA8ToYUV8_I16_SSE41_Base(const I16x8& lut, RGBOrder<R, G, B>) noexcept :
+        LutYG  (lut.Shuffle<1, 1, 1, 1, 1, 1, 1, 1>()),
+        LutCbG (lut.Shuffle<4, 4, 4, 4, 4, 4, 4, 4>()),
+        LutCrG (lut.Shuffle<6, 6, 6, 6, 6, 6, 6, 6>())
     {
-#define PUT4(a,b,c,d,i) a + i, b + i, c + i, d + i 
-#define SHUF16(a,b,c,d) alignas(32) static inline const uint8_t Shuf##a##b##c##d [] = { PUT4(a,b,c,d,0), PUT4(a,b,c,d,3), PUT4(a,b,c,d,6), PUT4(a,b,c,d,9) }
-        SHUF16(R, G, G, B);
-        SHUF16(R, G, R, B);
-        SHUF16(R, B, G, B);
-#undef SHUF16
-#undef PUT4
-    };
-    __m128i ShufRGGB, ShufRGRB, ShufRBGB;
-    __m128i LutY, LutCb, LutCr;
-    template<uint8_t R, uint8_t G, uint8_t B>
-    RGB8ToYUV8_I8_SSE41(const int8_t* lut, RGBOrder<R, G, B>) noexcept :
-        ShufRGGB(_mm_loadu_si128(reinterpret_cast<const __m128i*>(Shuffler<R, G, B>::ShufRGGB))),
-        ShufRGRB(_mm_loadu_si128(reinterpret_cast<const __m128i*>(Shuffler<R, G, B>::ShufRGRB))),
-        ShufRBGB(_mm_loadu_si128(reinterpret_cast<const __m128i*>(Shuffler<R, G, B>::ShufRBGB))),
-        LutY (_mm_set1_epi32(reinterpret_cast<const int32_t*>(lut)[0])),
-        LutCb(_mm_set1_epi32(reinterpret_cast<const int32_t*>(lut)[1])),
-        LutCr(_mm_set1_epi32(reinterpret_cast<const int32_t*>(lut)[2]))
-    { }
-    template<bool IsY>
-    static forceinline auto DP4(const U8x16& rgb0, const U8x16& rgb1, const __m128i& lut) noexcept
-    {
-        const auto mid0 = _mm_maddubs_epi16(rgb0, lut), mid1 = _mm_maddubs_epi16(rgb1, lut);
-        const I16x8 sum = _mm_hadd_epi16(mid0, mid1);
-        if constexpr (IsY)
-            return sum.As<U16x8>().Add(128).ShiftRightLogic<8>();
-        else
-            return sum.SatAdd(128).ShiftRightArith<8>();
-    }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
-    {
-        const U8x16 dat0(src), dat1(src + 16), dat2(src + 32);
-        const U8x16 part0 = dat0, part1 = dat0.MoveToLoWith<12>(dat1), part2 = dat1.MoveToLoWith< 8>(dat2), part3 = dat2.MoveToLo<4>();
-
-#define DP4x4(out, isy, sm, lut) const auto out##0 = DP4<isy>(part0.Shuffle(Shuf##sm), part1.Shuffle(Shuf##sm), lut), out##1 = DP4<isy>(part2.Shuffle(Shuf##sm), part3.Shuffle(Shuf##sm), lut)
-        DP4x4(lumi, true, RGGB, LutY);
-        DP4x4(cb,  false, RBGB, LutCb);
-        DP4x4(cr,  false, RGRB, LutCr);
-#undef DP4x4
-        U8x16 outY = _mm_packus_epi16(lumi0, lumi1);
-        if (needAddY)
-            outY = outY.Add(16);
-        const U8x16 outCb = cb0.Cast<I8x16, CastMode::RangeSaturate>(cb1).As<U8x16>().Add(128);
-        const U8x16 outCr = cr0.Cast<I8x16, CastMode::RangeSaturate>(cr1).As<U8x16>().Add(128);
-
-        Combine8x3_SSE41::DoStore(dst, outY, outCb, outCr);
-    }
-};
-DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_F32)
-{
-    if (count >= RGB8ToYUV8_F32_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_F32_SSE41 proc(RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
-        common::RegionRounding rd(common::RoundMode::ToNearest);
-        do
+        if constexpr (R < B)
         {
-            if (isYCCFull)
-                proc.Convert<true>(dest, src, needAddY);
-            else
-                proc.Convert<false>(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
+            LutYRB  = lut.Shuffle<0, 2, 0, 2, 0, 2, 0, 2>();
+            LutCbRB = lut.Shuffle<3, 5, 3, 5, 3, 5, 3, 5>();
+            LutCrRB = lut.Shuffle<5, 7, 5, 7, 5, 7, 5, 7>();
+        }
+        else
+        {
+            LutYRB  = lut.Shuffle<2, 0, 2, 0, 2, 0, 2, 0>();
+            LutCbRB = lut.Shuffle<5, 3, 5, 3, 5, 3, 5, 3>();
+            LutCrRB = lut.Shuffle<7, 5, 7, 5, 7, 5, 7, 5>();
+        }
     }
-    if (count)
-        Func<LOOP_F32>(dest, src, count, mval);
-}
+};
+struct RGBA8ToYUV8_I16_SSE41 : public RGBA8ToYUV8_I16_SSE41_Base, public RGBx8ToYUV8_I16_SSE41_MulHrs<RGBA8ToYUV8_I16_SSE41>
+{
+    using RGBA8ToYUV8_I16_SSE41_Base::RGBA8ToYUV8_I16_SSE41_Base;
+    forceinline void Convert(uint8_t* __restrict dst, const uint32_t* __restrict src, bool needAddY) const noexcept
+    {
+        const U32x4 MaskLo(0x00ff00ffu);
+        const U32x4 dat0(src), dat1(src + 4), dat2(src + 8), dat3(src + 12);
+        const I16x8 midRB0 = dat0.And(MaskLo).As<I16x8>().ShiftLeftLogic<7>();
+        const I16x8 midRB1 = dat1.And(MaskLo).As<I16x8>().ShiftLeftLogic<7>();
+        const I16x8 midRB2 = dat2.And(MaskLo).As<I16x8>().ShiftLeftLogic<7>();
+        const I16x8 midRB3 = dat3.And(MaskLo).As<I16x8>().ShiftLeftLogic<7>();
+        const auto shufG = _mm_setr_epi8(1, -1, 5, -1, 9, -1, 13, -1, 3, -1, 7, -1, 11, -1, 15, -1);
+        const auto datG01 = dat0.As<U16x8>().SelectWith<0b10101010>(dat1.ShiftLeftLogic<16>().As<U16x8>());
+        const auto datG23 = dat2.As<U16x8>().SelectWith<0b10101010>(dat3.ShiftLeftLogic<16>().As<U16x8>());
+        const I16x8 midG0 = _mm_slli_epi16(_mm_shuffle_epi8(datG01, shufG), 7);
+        const I16x8 midG1 = _mm_slli_epi16(_mm_shuffle_epi8(datG23, shufG), 7);
+        
+        ConvertRB_G(dst, needAddY, ELEx4(midRB), midG0, midG1);
+    }
+};
+struct RGBA8ToYUV8_I16_2_SSE41 : public RGBA8ToYUV8_I16_SSE41_Base, public RGBx8ToYUV8_I16_SSE41_MAddHrs<RGBA8ToYUV8_I16_2_SSE41>
+{
+    using RGBA8ToYUV8_I16_SSE41_Base::RGBA8ToYUV8_I16_SSE41_Base;
+    forceinline void Convert(uint8_t* __restrict dst, const uint32_t* __restrict src, bool needAddY) const noexcept
+    {
+        const U32x4 MaskLo(0x00ff00ffu);
+        const U32x4 dat0(src), dat1(src + 4), dat2(src + 8), dat3(src + 12);
+        const I16x8 midRB0 = dat0.And(MaskLo).As<I16x8>();
+        const I16x8 midRB1 = dat1.And(MaskLo).As<I16x8>();
+        const I16x8 midRB2 = dat2.And(MaskLo).As<I16x8>();
+        const I16x8 midRB3 = dat3.And(MaskLo).As<I16x8>();
+        const auto shufG = _mm_setr_epi8(1, -1, 5, -1, 9, -1, 13, -1, 3, -1, 7, -1, 11, -1, 15, -1);
+        const auto datG01 = dat0.As<U16x8>().SelectWith<0b10101010>(dat1.ShiftLeftLogic<16>().As<U16x8>());
+        const auto datG23 = dat2.As<U16x8>().SelectWith<0b10101010>(dat3.ShiftLeftLogic<16>().As<U16x8>());
+        const I16x8 midG0 = _mm_slli_epi16(_mm_shuffle_epi8(datG01, shufG), 7);
+        const I16x8 midG1 = _mm_slli_epi16(_mm_shuffle_epi8(datG23, shufG), 7);
+        
+        ConvertRB_G(dst, needAddY, ELEx4(midRB), midG0, midG1);
+    }
+};
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_I16)
 {
     if (count >= RGB8ToYUV8_I16_SSE41::K)
@@ -3125,12 +3391,170 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_I16_2)
     if (count)
         Func<LOOP_I16>(dest, src, count, mval);
 }
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, SSE41_I16)
+{
+    uint8_t* __restrict dests[3] = { dest[0], dest[1], dest[2] };
+    if (count >= RGB8ToYUV8_I16_SSE41::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGB8ToYUV8_I16_SSE41 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+        do
+        {
+            proc.Convert(dests, src, needAddY);
+            src += proc.M; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_I16>(dests, src, count, mval);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, SSE41_I16_2)
+{
+    uint8_t* __restrict dests[3] = { dest[0], dest[1], dest[2] };
+    if (count >= RGB8ToYUV8_I16_2_SSE41::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGB8ToYUV8_I16_2_SSE41 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+        do
+        {
+            proc.Convert(dests, src, needAddY);
+            src += proc.M; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_I16>(dests, src, count, mval);
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, SSE41_I16)
+{
+    if (count >= RGBA8ToYUV8_I16_SSE41::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGBA8ToYUV8_I16_SSE41 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+        do
+        {
+            proc.Convert(dest, src, needAddY);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_I16>(dest, src, count, mval);
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, SSE41_I16_2)
+{
+    if (count >= RGBA8ToYUV8_I16_2_SSE41::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGBA8ToYUV8_I16_2_SSE41 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+        do
+        {
+            proc.Convert(dest, src, needAddY);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_I16>(dest, src, count, mval);
+}
+struct RGBx8ToYUV8_I8_SSE41
+{
+    __m128i ShufRGGB, ShufRGRB, ShufRBGB;
+    __m128i LutY, LutCb, LutCr;
+    RGBx8ToYUV8_I8_SSE41(const int8_t* lut, const uint8_t* shuf) noexcept :
+        ShufRGGB(_mm_loadu_si128(reinterpret_cast<const __m128i*>(shuf +  0))),
+        ShufRGRB(_mm_loadu_si128(reinterpret_cast<const __m128i*>(shuf + 16))),
+        ShufRBGB(_mm_loadu_si128(reinterpret_cast<const __m128i*>(shuf + 32))),
+        LutY (_mm_set1_epi32(reinterpret_cast<const int32_t*>(lut)[0])),
+        LutCb(_mm_set1_epi32(reinterpret_cast<const int32_t*>(lut)[1])),
+        LutCr(_mm_set1_epi32(reinterpret_cast<const int32_t*>(lut)[2]))
+    { }
+    template<bool IsY>
+    static forceinline auto DP4(const U8x16& rgb0, const U8x16& rgb1, const __m128i& lut) noexcept
+    {
+        const auto mid0 = _mm_maddubs_epi16(rgb0, lut), mid1 = _mm_maddubs_epi16(rgb1, lut);
+        const I16x8 sum = _mm_hadd_epi16(mid0, mid1);
+        if constexpr (IsY)
+            return sum.As<U16x8>().Add(128).ShiftRightLogic<8>();
+        else
+            return sum.SatAdd(128).ShiftRightArith<8>();
+    }
+    forceinline void Convert4x3(uint8_t* __restrict dst, bool needAddY, ELEx4(const U8x16& part)) const noexcept
+    {
+#define DP4x4(out, isy, sm, lut) const auto out##0 = DP4<isy>(part0.Shuffle(Shuf##sm), part1.Shuffle(Shuf##sm), lut), out##1 = DP4<isy>(part2.Shuffle(Shuf##sm), part3.Shuffle(Shuf##sm), lut)
+        DP4x4(lumi, true, RGGB, LutY);
+        DP4x4(cb,  false, RBGB, LutCb);
+        DP4x4(cr,  false, RGRB, LutCr);
+#undef DP4x4
+        U8x16 outY = _mm_packus_epi16(lumi0, lumi1);
+        if (needAddY)
+            outY = outY.Add(16);
+        const U8x16 outCb = cb0.Cast<I8x16, CastMode::RangeSaturate>(cb1).As<U8x16>().Add(128);
+        const U8x16 outCr = cr0.Cast<I8x16, CastMode::RangeSaturate>(cr1).As<U8x16>().Add(128);
+
+        Combine8x3_SSE41::DoStore(dst, outY, outCb, outCr);
+    }
+};
+struct RGB8ToYUV8_I8_SSE41 : public RGBx8ToYUV8_I8_SSE41
+{
+    static constexpr size_t M = 48, N = 48, K = 16;
+    template<uint8_t R, uint8_t G, uint8_t B>
+    struct Shuffler
+    {
+#define PUT4(a,b,c,d,i) a + i, b + i, c + i, d + i 
+#define SHUF16(a,b,c,d) PUT4(a,b,c,d,0), PUT4(a,b,c,d,3), PUT4(a,b,c,d,6), PUT4(a,b,c,d,9)
+        alignas(32) static inline const uint8_t Shuf[] = { SHUF16(R, G, G, B), SHUF16(R, G, R, B), SHUF16(R, B, G, B) };
+#undef SHUF16
+#undef PUT4
+    };
+    template<uint8_t R, uint8_t G, uint8_t B>
+    RGB8ToYUV8_I8_SSE41(const int8_t* lut, RGBOrder<R, G, B>) noexcept : RGBx8ToYUV8_I8_SSE41(lut, Shuffler<R, G, B>::Shuf) {}
+    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    {
+        const U8x16 dat0(src), dat1(src + 16), dat2(src + 32);
+        const U8x16 part0 = dat0, part1 = dat0.MoveToLoWith<12>(dat1), part2 = dat1.MoveToLoWith< 8>(dat2), part3 = dat2.MoveToLo<4>();
+        
+        Convert4x3(dst, needAddY, part0, part1, part2, part3);
+    }
+};
+struct RGBA8ToYUV8_I8_SSE41 : public RGBx8ToYUV8_I8_SSE41
+{
+    static constexpr size_t M = 16, N = 48, K = 16;
+    template<uint8_t R, uint8_t G, uint8_t B>
+    struct Shuffler
+    {
+#define PUT4(a,b,c,d,i) a + i, b + i, c + i, d + i 
+#define SHUF16(a,b,c,d) PUT4(a,b,c,d,0), PUT4(a,b,c,d,4), PUT4(a,b,c,d,8), PUT4(a,b,c,d,12)
+        alignas(32) static inline const uint8_t Shuf[] = { SHUF16(R, G, G, B), SHUF16(R, G, R, B), SHUF16(R, B, G, B) };
+#undef SHUF16
+#undef PUT4
+    };
+    template<uint8_t R, uint8_t G, uint8_t B>
+    RGBA8ToYUV8_I8_SSE41(const int8_t* lut, RGBOrder<R, G, B>) noexcept : RGBx8ToYUV8_I8_SSE41(lut, Shuffler<R, G, B>::Shuf) {}
+    forceinline void Convert(uint8_t* __restrict dst, const uint32_t* __restrict src, bool needAddY) const noexcept
+    {
+        const U32x4 dat0(src), dat1(src + 4), dat2(src + 8), dat3(src + 12);
+        
+        Convert4x3(dst, needAddY, dat0.As<U8x16>(), dat1.As<U8x16>(), dat2.As<U8x16>(), dat3.As<U8x16>());
+    }
+};
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, SSE41_I8)
 {
     if (count >= RGB8ToYUV8_I8_SSE41::K)
     {
         [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
         const RGB8ToYUV8_I8_SSE41 proc(RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+        do
+        {
+            proc.Convert(dest, src, needAddY);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        Func<LOOP_I16>(dest, src, count, mval);
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, SSE41_I8)
+{
+    if (count >= RGBA8ToYUV8_I8_SSE41::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const RGBA8ToYUV8_I8_SSE41 proc(RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
         do
         {
             proc.Convert(dest, src, needAddY);

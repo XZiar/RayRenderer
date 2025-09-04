@@ -17,6 +17,14 @@ common::span<const std::byte> GetRandVals() noexcept
     return { reinterpret_cast<const std::byte*>(RandVals.data()), RandVals.size() };
 }
 
+static bool SlimTest = false;
+
+bool IsSlimTest() noexcept
+{
+    return SlimTest;
+}
+
+
 void TestResizeImage(std::string filepath, std::string_view reader, std::string_view writer);
 
 int main(int argc, char **argv)                  
@@ -37,6 +45,8 @@ int main(int argc, char **argv)
             writer = arg.substr(15);
         else if (arg.starts_with("-testimgreader="))
             reader = arg.substr(15);
+        else if (arg == "-slim")
+            SlimTest = true;
     }
     if (testimg)
     {
