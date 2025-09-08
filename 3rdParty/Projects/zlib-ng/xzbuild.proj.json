@@ -25,7 +25,7 @@
                 {"ifin": {"intrin": "avx2"},        "+": ["X86_AVX2"]},
                 {"ifin": {"intrin": "sse42"},       "+": ["X86_SSE42", "X86_SSE42_CRC_INTRIN"]},
                 {"ifin": {"intrin": "ssse3"},       "+": ["X86_SSSE3"]},
-                {"ifin": [["intrin", "vpclmulqdq"], ["intrin", "avx2"]], "+": ["X86_VPCLMULQDQ_CRC"]},
+                {"ifin": [["intrin", "vpclmulqdq"], ["intrin", "avx31"]], "+": ["X86_VPCLMULQDQ_CRC"]},
                 {"ifin": [["intrin", "pclmul"], ["intrin", "ssse3"]], "+": ["X86_PCLMULQDQ_CRC"]},
                 {"ifin": {"intrin": "neon"},        "+": ["ARM_NEON", "ARM_NEON_HASLD4"]},
                 {"ifin": {"intrin": "acle_crc"}, "ifge": {"armArch": 8}, "+": ["ARM_ACLE", "HAVE_ARM_ACLE_H"]},
@@ -49,6 +49,11 @@
                     "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "avx32"}, 
                     "dir": "arch/x86",
                     "-": ["adler32_avx512.c", "adler32_avx512_vnni.c", "chunkset_avx512.c"]
+                },
+                {
+                    "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "avx31"}, 
+                    "dir": "arch/x86",
+                    "-": ["crc32_vpclmulqdq.c"]
                 },
                 {
                     "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "avx2"}, 

@@ -1823,9 +1823,8 @@ void TestRGBAToYCC(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, cons
         return suc;
     }, testSizes);
 
-    // consider in-place, hald the mismatch count
     TestCout() << common::str::Formatter<char>{}.FormatStatic(FmtString("[{}] SAD: Y[{:.3f}%] Cb[{:.3f}%] Cr[{:.3f}%]\n"),
-        situation, mismatches[0] * 50.0 / RGB24Cnt, mismatches[1] * 50.0 / RGB24Cnt, mismatches[2] * 50.0 / RGB24Cnt);
+        situation, mismatches[0] * 100.0 / RGB24Cnt, mismatches[1] * 100.0 / RGB24Cnt, mismatches[2] * 100.0 / RGB24Cnt);
 }
 void TestYCCToRGB(const std::unique_ptr<xziar::img::YCCConvertor>& intrin, const YCCMatrix matrix, const bool isRGBFull, const bool isYCCFull)
 {

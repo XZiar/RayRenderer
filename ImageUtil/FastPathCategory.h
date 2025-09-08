@@ -208,7 +208,7 @@ struct AVX512VBMI_2 : public AVX512VBMI {};
 struct AVX512VBMI_I16 : public AVX512VBMI {};
 struct AVX512VBMI_I16_2 : public AVX512VBMI {};
 struct AVX512VBMI_I8 : public AVX512VBMI {};
-struct AVX512VNNI_I8
+struct AVX512VNNI
 {
     static bool RuntimeCheck() noexcept
     {
@@ -220,6 +220,8 @@ struct AVX512VNNI_I8
 #endif
     }
 };
+struct AVX512VNNI_I16 : public AVX512VNNI {};
+struct AVX512VNNI_I8 : public AVX512VNNI {};
 struct AVX512VBMI2
 {
     static bool RuntimeCheck() noexcept

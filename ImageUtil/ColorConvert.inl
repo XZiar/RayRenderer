@@ -126,6 +126,8 @@
 #define YCbCr8ToRGB8Info            (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
 #define RGB8ToYCbCr8PlanarFastInfo  (void)(uint8_t* const*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
 #define RGB8ToYCbCr8PlanarInfo      (void)(uint8_t* const*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
+#define RGBA8ToYCbCr8PlanarFastInfo (void)(uint8_t* const*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval)
+#define RGBA8ToYCbCr8PlanarInfo     (void)(uint8_t* const*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval)
 #define YCbCr8ToRGB8PlanarInfo      (void)(uint8_t* const*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
 
 
@@ -179,7 +181,7 @@ DEFINE_FASTPATHS(ColorConvertor,
     RGB565ToRGB8, BGR565ToRGB8, RGB565ToRGBA8, BGR565ToRGBA8,
     RGB10ToRGBf, BGR10ToRGBf, RGB10ToRGBAf, BGR10ToRGBAf, RGB10A2ToRGBAf, BGR10A2ToRGBAf)
 
-DEFINE_FASTPATHS(YCCConvertor, RGB8ToYCbCr8Fast, RGB8ToYCbCr8, RGBA8ToYCbCr8Fast, RGBA8ToYCbCr8, YCbCr8ToRGB8, RGB8ToYCbCr8PlanarFast, RGB8ToYCbCr8Planar, YCbCr8ToRGB8Planar)
+DEFINE_FASTPATHS(YCCConvertor, RGB8ToYCbCr8Fast, RGB8ToYCbCr8, RGBA8ToYCbCr8Fast, RGBA8ToYCbCr8, YCbCr8ToRGB8, RGB8ToYCbCr8PlanarFast, RGB8ToYCbCr8Planar, RGBA8ToYCbCr8PlanarFast, RGBA8ToYCbCr8Planar, YCbCr8ToRGB8Planar)
 
 
 #ifdef IMGU_FASTPATH_STB
@@ -1138,9 +1140,9 @@ DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, LOOP_I16)
     [[maybe_unused]] const int32_t yAdd = needAddY ? 16 : 0;
 
 #define LOOP_RGB_YUV do { const auto rgb = *src++;                      \
-const auto r = static_cast<int32_t>((rgb >>  0) & 0xffu);               \
-const auto g = static_cast<int32_t>((rgb >>  8) & 0xffu);               \
-const auto b = static_cast<int32_t>((rgb >> 16) & 0xffu);               \
+const auto r = static_cast<int16_t>((rgb >>  0) & 0xffu);               \
+const auto g = static_cast<int16_t>((rgb >>  8) & 0xffu);               \
+const auto b = static_cast<int16_t>((rgb >> 16) & 0xffu);               \
 const auto y  = r * lut[0] + g * lut[1] + b * lut[2];                   \
 const auto cb = r * lut[3] + g * lut[4] + b * lut[5];                   \
 const auto cr = r * lut[5] + g * lut[6] + b * lut[7];                   \
@@ -1260,6 +1262,101 @@ src += 3; } while (0)
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, LOOP_I16)
 {
     RGB8ToYCbCr8PlanarFastPath::Func<LOOP_I16>(dest, src, count, mval);
+}
+
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, LOOP_F32)
+{
+    const auto& lut = RGB8ToYCC8LUTF32[mval];
+    [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+    [[maybe_unused]] const int32_t yAdd = needAddY ? 16 : 0;
+    uint8_t* __restrict destY  = dest[0];
+    uint8_t* __restrict destCb = dest[1];
+    uint8_t* __restrict destCr = dest[2];
+    const bool procY = destY, procC = destCb;
+    common::RegionRounding rd(common::RoundMode::ToNearest);
+
+#define LOOP_RGB_YUV do { const auto rgb = *src++;                                  \
+const auto r = static_cast<float>((rgb >>  0) & 0xffu);                             \
+const auto g = static_cast<float>((rgb >>  8) & 0xffu);                             \
+const auto b = static_cast<float>((rgb >> 16) & 0xffu);                             \
+if (procY) { const auto y  = r * lut[0] + g * lut[1] + b * lut[2];                  \
+*destY++  = static_cast<uint8_t>(static_cast<int32_t>(std::nearbyint(y)) + yAdd); } \
+if (procC) {                                                                        \
+const auto cb = r * lut[3] + g * lut[4] + b * lut[5];                               \
+const auto cr = r * lut[5] + g * lut[6] + b * lut[7];                               \
+auto cb_ = static_cast<int32_t>(std::nearbyint(cb)) + 128;                          \
+auto cr_ = static_cast<int32_t>(std::nearbyint(cr)) + 128;                          \
+if (isYCCFull) { cb_ = Clamp(cb_, 0, 255); cr_ = Clamp(cr_, 0, 255); }              \
+*destCb++ = static_cast<uint8_t>(cb_); *destCr++ = static_cast<uint8_t>(cr_); } } while (0)
+    LOOP4(LOOP_RGB_YUV)
+#undef LOOP_RGB_YUV
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, LOOP_I16)
+{
+    const auto& lut = RGB8ToYCC8LUTI16[mval];
+    [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+    [[maybe_unused]] const int32_t yAdd = needAddY ? 16 : 0;
+    uint8_t* __restrict destY  = dest[0];
+    uint8_t* __restrict destCb = dest[1];
+    uint8_t* __restrict destCr = dest[2];
+    const bool procY = destY, procC = destCb;
+
+#define LOOP_RGB_YUV do { const auto rgb = *src++;                              \
+const auto r = static_cast<int16_t>((rgb >>  0) & 0xffu);                       \
+const auto g = static_cast<int16_t>((rgb >>  8) & 0xffu);                       \
+const auto b = static_cast<int16_t>((rgb >> 16) & 0xffu);                       \
+if (procY) { const auto y  = r * lut[0] + g * lut[1] + b * lut[2];              \
+*destY++  = static_cast<uint8_t>((( y + 8192) >> 14) + yAdd); }                 \
+if (procC) {                                                                    \
+const auto cb = r * lut[3] + g * lut[4] + b * lut[5];                           \
+const auto cr = r * lut[5] + g * lut[6] + b * lut[7];                           \
+auto cb_ = ((cb + 8192) >> 14) + 128;                                           \
+auto cr_ = ((cr + 8192) >> 14) + 128;                                           \
+if (isYCCFull) { cb_ = Clamp(cb_, 0, 255); cr_ = Clamp(cr_, 0, 255); }          \
+*destCb++ = static_cast<uint8_t>(cb_); *destCr++ = static_cast<uint8_t>(cr_); } \
+src += 3; } while (0)
+    LOOP4(LOOP_RGB_YUV)
+#undef LOOP_RGB_YUV
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, LOOP_I16)
+{
+    RGBA8ToYCbCr8PlanarFastPath::Func<LOOP_I16>(dest, src, count, mval);
+}
+
+template<typename Proc, auto F, typename Src, typename Dst, typename... Args>
+static forceinline void RGBxToYCbCrLOOP1(Dst* __restrict dest, const Src* __restrict src, size_t count, uint8_t  mval, Args&&... args) noexcept
+{
+    common::RegionRounding rd(common::RoundMode::ToNearest);
+    if (count >= Proc::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const Proc proc(std::forward<Args>(args)...);
+        do
+        {
+            proc.Convert(dest, src, needAddY, isYCCFull);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        F(dest, src, count, mval);
+}
+template<typename Proc, auto F, typename Src, typename Dst, typename... Args>
+static forceinline void RGBxToYCbCrPlanarLOOP1(Dst* __restrict dest, const Src* __restrict src, size_t count, uint8_t  mval, Args&&... args) noexcept
+{
+    uint8_t* __restrict dests[3] = { dest[0], dest[1], dest[2] };
+    common::RegionRounding rd(common::RoundMode::ToNearest);
+    if (count >= Proc::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const Proc proc(std::forward<Args>(args)...);
+        do
+        {
+            proc.Convert(dests, src, needAddY, isYCCFull);
+            src += proc.M; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        F(dests, src, count, mval);
 }
 
 
@@ -3092,7 +3189,7 @@ struct RGBA8ToYUV8_F32_SSE41 : public RGBx8ToYUV8_F32_SSE41_Base
             {
                 DP4x4(U8x16, lumi4i, LutY);
                 ConvertY(needAddY, ELEx4(lumi4i)).Save(dstY);
-                dstY += N / 3;
+                dstY += 16;
             }
             if (dstCb && dstCr)
             {
@@ -3100,7 +3197,7 @@ struct RGBA8ToYUV8_F32_SSE41 : public RGBx8ToYUV8_F32_SSE41_Base
                 DP4x4(U16x8, cr4i, LutCr);
                 const auto [outCb, outCr] = ConvertC(clampC, ELEx4(cb4i), ELEx4(cr4i));
                 outCb.Save(dstCb), outCr.Save(dstCr);
-                dstCb += N / 3, dstCr += N / 3;
+                dstCb += 16, dstCr += 16;
             }
         }
         else
@@ -3115,52 +3212,19 @@ struct RGBA8ToYUV8_F32_SSE41 : public RGBx8ToYUV8_F32_SSE41_Base
 };
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_F32)
 {
-    if (count >= RGB8ToYUV8_F32_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_F32_SSE41 proc(RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
-        common::RegionRounding rd(common::RoundMode::ToNearest);
-        do
-        {
-            proc.Convert(dest, src, needAddY, isYCCFull);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_F32>(dest, src, count, mval);
-}
-DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, SSE41_F32)
-{
-    uint8_t* __restrict dests[3] = { dest[0], dest[1], dest[2] };
-    if (count >= RGB8ToYUV8_F32_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_F32_SSE41 proc(RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
-        common::RegionRounding rd(common::RoundMode::ToNearest);
-        do
-        {
-            proc.Convert(dests, src, needAddY, isYCCFull);
-            src += proc.M; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_F32>(dests, src, count, mval);
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_F32_SSE41, &Func<LOOP_F32>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, SSE41_F32)
 {
-    if (count >= RGBA8ToYUV8_F32_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGBA8ToYUV8_F32_SSE41 proc(RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
-        common::RegionRounding rd(common::RoundMode::ToNearest);
-        do
-        {
-            proc.Convert(dest, src, needAddY, isYCCFull);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_F32>(dest, src, count, mval);
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_F32_SSE41, &Func<LOOP_F32>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, SSE41_F32)
+{
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_F32_SSE41, &Func<LOOP_F32>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, SSE41_F32)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_F32_SSE41, &Func<LOOP_F32>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
 }
 template<typename T>
 struct RGBx8ToYUV8_I16_SSE41_Base
@@ -3181,7 +3245,7 @@ struct RGBx8ToYUV8_I16_SSE41_Base
                 if (needAddY)
                     outY = outY.Add(16);
                 outY.Save(dstY);
-                dstY += T::N / 3;
+                dstY += 16;
             }
             if (dstCb && dstCr)
             {
@@ -3190,7 +3254,7 @@ struct RGBx8ToYUV8_I16_SSE41_Base
                 const U8x16 outCb = cb_0.Cast<I8x16, CastMode::RangeSaturate>(cb_1).As<U8x16>().Add(128);
                 const U8x16 outCr = cr_0.Cast<I8x16, CastMode::RangeSaturate>(cr_1).As<U8x16>().Add(128);
                 outCb.Save(dstCb), outCr.Save(dstCr);
-                dstCb += T::N / 3, dstCr += T::N / 3;
+                dstCb += 16, dstCr += 16;
             }
         }
         else
@@ -3265,7 +3329,7 @@ struct RGB8ToYUV8_I16_SSE41 : public RGB8ToYUV8_I16_SSE41_Base, public RGBx8ToYU
 {
     using RGB8ToYUV8_I16_SSE41_Base::RGB8ToYUV8_I16_SSE41_Base;
     template<typename T>
-    forceinline void Convert(T* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    forceinline void Convert(T* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool) const noexcept
     {
         const U8x16 dat0(src), dat1(src + 16), dat2(src + 32);
         const I16x8 midRB0 = _mm_slli_epi16(_mm_shuffle_epi8(dat0, U8ToRBShuf), 7);
@@ -3283,7 +3347,7 @@ struct RGB8ToYUV8_I16_2_SSE41 : public RGB8ToYUV8_I16_SSE41_Base, public RGBx8To
 {
     using RGB8ToYUV8_I16_SSE41_Base::RGB8ToYUV8_I16_SSE41_Base;
     template<typename T>
-    forceinline void Convert(T* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    forceinline void Convert(T* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool) const noexcept
     {
         const U8x16 dat0(src), dat1(src + 16), dat2(src + 32);
         const I16x8 midRB0 = _mm_shuffle_epi8(dat0, U8ToRBShuf);
@@ -3324,7 +3388,8 @@ struct RGBA8ToYUV8_I16_SSE41_Base
 struct RGBA8ToYUV8_I16_SSE41 : public RGBA8ToYUV8_I16_SSE41_Base, public RGBx8ToYUV8_I16_SSE41_MulHrs<RGBA8ToYUV8_I16_SSE41>
 {
     using RGBA8ToYUV8_I16_SSE41_Base::RGBA8ToYUV8_I16_SSE41_Base;
-    forceinline void Convert(uint8_t* __restrict dst, const uint32_t* __restrict src, bool needAddY) const noexcept
+    template<typename T>
+    forceinline void Convert(T* __restrict dst, const uint32_t* __restrict src, bool needAddY, bool) const noexcept
     {
         const U32x4 MaskLo(0x00ff00ffu);
         const U32x4 dat0(src), dat1(src + 4), dat2(src + 8), dat3(src + 12);
@@ -3344,7 +3409,8 @@ struct RGBA8ToYUV8_I16_SSE41 : public RGBA8ToYUV8_I16_SSE41_Base, public RGBx8To
 struct RGBA8ToYUV8_I16_2_SSE41 : public RGBA8ToYUV8_I16_SSE41_Base, public RGBx8ToYUV8_I16_SSE41_MAddHrs<RGBA8ToYUV8_I16_2_SSE41>
 {
     using RGBA8ToYUV8_I16_SSE41_Base::RGBA8ToYUV8_I16_SSE41_Base;
-    forceinline void Convert(uint8_t* __restrict dst, const uint32_t* __restrict src, bool needAddY) const noexcept
+    template<typename T>
+    forceinline void Convert(T* __restrict dst, const uint32_t* __restrict src, bool needAddY, bool) const noexcept
     {
         const U32x4 MaskLo(0x00ff00ffu);
         const U32x4 dat0(src), dat1(src + 4), dat2(src + 8), dat3(src + 12);
@@ -3363,98 +3429,39 @@ struct RGBA8ToYUV8_I16_2_SSE41 : public RGBA8ToYUV8_I16_SSE41_Base, public RGBx8
 };
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_I16)
 {
-    if (count >= RGB8ToYUV8_I16_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_I16_SSE41 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_I16>(dest, src, count, mval);
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_I16_2)
 {
-    if (count >= RGB8ToYUV8_I16_2_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_I16_2_SSE41 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_I16>(dest, src, count, mval);
-}
-DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, SSE41_I16)
-{
-    uint8_t* __restrict dests[3] = { dest[0], dest[1], dest[2] };
-    if (count >= RGB8ToYUV8_I16_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_I16_SSE41 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dests, src, needAddY);
-            src += proc.M; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_I16>(dests, src, count, mval);
-}
-DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, SSE41_I16_2)
-{
-    uint8_t* __restrict dests[3] = { dest[0], dest[1], dest[2] };
-    if (count >= RGB8ToYUV8_I16_2_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_I16_2_SSE41 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dests, src, needAddY);
-            src += proc.M; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_I16>(dests, src, count, mval);
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_2_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, SSE41_I16)
 {
-    if (count >= RGBA8ToYUV8_I16_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGBA8ToYUV8_I16_SSE41 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_I16>(dest, src, count, mval);
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, SSE41_I16_2)
 {
-    if (count >= RGBA8ToYUV8_I16_2_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGBA8ToYUV8_I16_2_SSE41 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_I16>(dest, src, count, mval);
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_2_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, SSE41_I16)
+{
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, SSE41_I16_2)
+{
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_2_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, SSE41_I16)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, SSE41_I16_2)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_2_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
 }
 struct RGBx8ToYUV8_I8_SSE41
 {
+    static constexpr size_t N = 48, K = 16;
     __m128i ShufRGGB, ShufRGRB, ShufRBGB;
     __m128i LutY, LutCb, LutCr;
     RGBx8ToYUV8_I8_SSE41(const int8_t* lut, const uint8_t* shuf) noexcept :
@@ -3475,25 +3482,51 @@ struct RGBx8ToYUV8_I8_SSE41
         else
             return sum.SatAdd(128).ShiftRightArith<8>();
     }
-    forceinline void Convert4x3(uint8_t* __restrict dst, bool needAddY, ELEx4(const U8x16& part)) const noexcept
+    template<typename D>
+    forceinline void Convert4x3(D* __restrict dst, bool needAddY, ELEx4(const U8x16& part)) const noexcept
     {
 #define DP4x4(out, isy, sm, lut) const auto out##0 = DP4<isy>(part0.Shuffle(Shuf##sm), part1.Shuffle(Shuf##sm), lut), out##1 = DP4<isy>(part2.Shuffle(Shuf##sm), part3.Shuffle(Shuf##sm), lut)
-        DP4x4(lumi, true, RGGB, LutY);
-        DP4x4(cb,  false, RBGB, LutCb);
-        DP4x4(cr,  false, RGRB, LutCr);
-#undef DP4x4
-        U8x16 outY = _mm_packus_epi16(lumi0, lumi1);
-        if (needAddY)
-            outY = outY.Add(16);
-        const U8x16 outCb = cb0.Cast<I8x16, CastMode::RangeSaturate>(cb1).As<U8x16>().Add(128);
-        const U8x16 outCr = cr0.Cast<I8x16, CastMode::RangeSaturate>(cr1).As<U8x16>().Add(128);
+        if constexpr (std::is_pointer_v<D>)
+        {
+            D& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP4x4(lumi, true, RGGB, LutY);
+                U8x16 outY = _mm_packus_epi16(lumi0, lumi1);
+                if (needAddY)
+                    outY = outY.Add(16);
+                outY.Save(dstY);
+                dstY += 16;
+            }
+            if (dstCb && dstCr)
+            {
+                DP4x4(cb, false, RBGB, LutCb);
+                DP4x4(cr, false, RGRB, LutCr);
+                const U8x16 outCb = cb0.Cast<I8x16, CastMode::RangeSaturate>(cb1).As<U8x16>().Add(128);
+                const U8x16 outCr = cr0.Cast<I8x16, CastMode::RangeSaturate>(cr1).As<U8x16>().Add(128);
+                outCb.Save(dstCb), outCr.Save(dstCr);
+                dstCb += 16, dstCr += 16;
+            }
+        }
+        else
+        {
+            DP4x4(lumi, true, RGGB, LutY);
+            DP4x4(cb,  false, RBGB, LutCb);
+            DP4x4(cr,  false, RGRB, LutCr);
+            U8x16 outY = _mm_packus_epi16(lumi0, lumi1);
+            if (needAddY)
+                outY = outY.Add(16);
+            const U8x16 outCb = cb0.Cast<I8x16, CastMode::RangeSaturate>(cb1).As<U8x16>().Add(128);
+            const U8x16 outCr = cr0.Cast<I8x16, CastMode::RangeSaturate>(cr1).As<U8x16>().Add(128);
 
-        Combine8x3_SSE41::DoStore(dst, outY, outCb, outCr);
+            Combine8x3_SSE41::DoStore(dst, outY, outCb, outCr);
+        }
+#undef DP4x4
     }
 };
 struct RGB8ToYUV8_I8_SSE41 : public RGBx8ToYUV8_I8_SSE41
 {
-    static constexpr size_t M = 48, N = 48, K = 16;
+    static constexpr size_t M = 48;
     template<uint8_t R, uint8_t G, uint8_t B>
     struct Shuffler
     {
@@ -3505,7 +3538,8 @@ struct RGB8ToYUV8_I8_SSE41 : public RGBx8ToYUV8_I8_SSE41
     };
     template<uint8_t R, uint8_t G, uint8_t B>
     RGB8ToYUV8_I8_SSE41(const int8_t* lut, RGBOrder<R, G, B>) noexcept : RGBx8ToYUV8_I8_SSE41(lut, Shuffler<R, G, B>::Shuf) {}
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool) const noexcept
     {
         const U8x16 dat0(src), dat1(src + 16), dat2(src + 32);
         const U8x16 part0 = dat0, part1 = dat0.MoveToLoWith<12>(dat1), part2 = dat1.MoveToLoWith< 8>(dat2), part3 = dat2.MoveToLo<4>();
@@ -3515,7 +3549,7 @@ struct RGB8ToYUV8_I8_SSE41 : public RGBx8ToYUV8_I8_SSE41
 };
 struct RGBA8ToYUV8_I8_SSE41 : public RGBx8ToYUV8_I8_SSE41
 {
-    static constexpr size_t M = 16, N = 48, K = 16;
+    static constexpr size_t M = 16;
     template<uint8_t R, uint8_t G, uint8_t B>
     struct Shuffler
     {
@@ -3527,7 +3561,8 @@ struct RGBA8ToYUV8_I8_SSE41 : public RGBx8ToYUV8_I8_SSE41
     };
     template<uint8_t R, uint8_t G, uint8_t B>
     RGBA8ToYUV8_I8_SSE41(const int8_t* lut, RGBOrder<R, G, B>) noexcept : RGBx8ToYUV8_I8_SSE41(lut, Shuffler<R, G, B>::Shuf) {}
-    forceinline void Convert(uint8_t* __restrict dst, const uint32_t* __restrict src, bool needAddY) const noexcept
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint32_t* __restrict src, bool needAddY, bool) const noexcept
     {
         const U32x4 dat0(src), dat1(src + 4), dat2(src + 8), dat3(src + 12);
         
@@ -3536,33 +3571,19 @@ struct RGBA8ToYUV8_I8_SSE41 : public RGBx8ToYUV8_I8_SSE41
 };
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, SSE41_I8)
 {
-    if (count >= RGB8ToYUV8_I8_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_I8_SSE41 proc(RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_I16>(dest, src, count, mval);
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, SSE41_I8)
 {
-    if (count >= RGBA8ToYUV8_I8_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGBA8ToYUV8_I8_SSE41 proc(RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_I16>(dest, src, count, mval);
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, SSE41_I8)
+{
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, SSE41_I8)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
 }
 
 struct YUV8ToRGB8_F32_SSE41
@@ -7932,7 +7953,88 @@ struct RGB8ToYUV8_I16_AVX2_Base
         LutCrG  = _mm256_broadcastw_epi16(lut.MoveToLo<7>());
     }
 };
-struct RGB8ToYUV8_I16_AVX2 : public RGB8ToYUV8_I16_AVX2_Base
+struct RGBA8ToYUV8_I16_AVX2_Base
+{
+    static constexpr size_t M = 32, N = 96, K = 32;
+    __m256i LutYRB, LutYG, LutCbRB, LutCbG, LutCrRB, LutCrG;
+    template<uint8_t R, uint8_t G, uint8_t B>
+    RGBA8ToYUV8_I16_AVX2_Base(I16x8 lut, RGBOrder<R, G, B>) noexcept
+    {
+        if constexpr (R > B)
+        {
+            lut = lut.Shuffle<2, 0, 7, 5, 3, 1, 4, 6>();
+            LutCbRB = _mm256_broadcastd_epi32(lut.MoveToLo<3>());
+            LutCrRB = _mm256_broadcastd_epi32(lut.MoveToLo<2>());
+        }
+        else
+        {
+            lut = lut.Shuffle<0, 2, 3, 5, 7, 1, 4, 6>();
+            LutCbRB = _mm256_broadcastd_epi32(lut.MoveToLo<2>());
+            LutCrRB = _mm256_broadcastd_epi32(lut.MoveToLo<3>());
+        }
+        LutYRB  = _mm256_broadcastd_epi32(lut);
+        LutYG   = _mm256_broadcastw_epi16(lut.MoveToLo<5>());
+        LutCbG  = _mm256_broadcastw_epi16(lut.MoveToLo<6>());
+        LutCrG  = _mm256_broadcastw_epi16(lut.MoveToLo<7>());
+    }
+};
+template<typename T>
+struct RGBx8ToYUV8_I16_AVX2_Base
+{
+    static forceinline auto DP3(const I16x16& rbLo, const I16x16& rbHi, const I16x16& g, const __m256i& lutRB, const __m256i& lutG) noexcept
+    {
+        const auto ShufMid16 = _mm256_setr_epi8(1, 2, 5, 6, 9, 10, 13, 14, 1, 2, 5, 6, 9, 10, 13, 14, 1, 2, 5, 6, 9, 10, 13, 14, 1, 2, 5, 6, 9, 10, 13, 14);
+        const auto midRB0 = _mm256_madd_epi16(rbLo, lutRB);
+        const auto midRB1 = _mm256_madd_epi16(rbHi, lutRB);
+        const I16x16 midRB = _mm256_blend_epi32(_mm256_shuffle_epi8(midRB0, ShufMid16), _mm256_shuffle_epi8(midRB1, ShufMid16), 0b11001100); // << (14 - 8)=6
+        const I16x16 midG  = _mm256_mulhrs_epi16(g, lutG); // << (7 + 14 - 15)=6
+        const auto sum = midRB.Add(midG.Add(32)).ShiftRightArith<6>(); // sra to keep negative
+        return sum;
+    }
+    template<typename D>
+    forceinline void ConvertRB_G(D* __restrict dst, bool needAddY, const I16x16& midRB04, const I16x16& midRB15, const I16x16& midRB26, const I16x16& midRB37, const I16x16& midG02, const I16x16& midG13) const noexcept
+    {
+        const auto& self = *static_cast<const T*>(this);
+#define DP3x4(out, lut) const auto out##02 = DP3(midRB04, midRB15, midG02, self.lut##RB, self.lut##G), out##13 = DP3(midRB26, midRB37, midG13, self.lut##RB, self.lut##G)
+        if constexpr (std::is_pointer_v<D>)
+        {
+            D& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP3x4(lumi, LutY);
+                U8x32 outY = _mm256_packus_epi16(lumi02, lumi13);
+                if (needAddY)
+                    outY = outY.Add(16);
+                outY.Save(dstY);
+                dstY += 32;
+            }
+            if (dstCb && dstCr)
+            {
+                DP3x4(cb_, LutCb);
+                DP3x4(cr_, LutCr);
+                const U8x32 cb = _mm256_packs_epi16(cb_02, cb_13), cr = _mm256_packs_epi16(cr_02, cr_13);
+                const auto outCb = cb.Add(128), outCr = cr.Add(128);
+                outCb.Save(dstCb), outCr.Save(dstCr);
+                dstCb += 32, dstCr += 32;
+            }
+        }
+        else
+        {
+            DP3x4(lumi, LutY);
+            DP3x4(cb_, LutCb);
+            DP3x4(cr_, LutCr);
+            U8x32 outY = _mm256_packus_epi16(lumi02, lumi13);
+            if (needAddY)
+                outY = outY.Add(16);
+            const U8x32 cb = _mm256_packs_epi16(cb_02, cb_13), cr = _mm256_packs_epi16(cr_02, cr_13);
+            const auto outCb = cb.Add(128), outCr = cr.Add(128);
+
+            Combine8x3_256::DoStore(dst, outY, outCb, outCr);
+        }
+#undef DP3x4
+    }
+};
+struct RGB8ToYUV8_I16_AVX2 : public RGB8ToYUV8_I16_AVX2_Base, public RGBx8ToYUV8_I16_AVX2_Base<RGB8ToYUV8_I16_AVX2>
 {
     template<uint8_t R, uint8_t G, uint8_t B>
     struct Shuffler2
@@ -7948,17 +8050,8 @@ struct RGB8ToYUV8_I16_AVX2 : public RGB8ToYUV8_I16_AVX2_Base
         ShufG0(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler2<R, G, B>::ShufG0))),
         ShufG1(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler2<R, G, B>::ShufG1))) 
     { }
-    static forceinline auto DP3(const I16x16& rbLo, const I16x16& rbHi, const I16x16& g, const __m256i& lutRB, const __m256i& lutG) noexcept
-    {
-        const auto ShufMid16 = _mm256_setr_epi8(1, 2, 5, 6, 9, 10, 13, 14, 1, 2, 5, 6, 9, 10, 13, 14, 1, 2, 5, 6, 9, 10, 13, 14, 1, 2, 5, 6, 9, 10, 13, 14);
-        const auto midRB0 = _mm256_madd_epi16(rbLo, lutRB);
-        const auto midRB1 = _mm256_madd_epi16(rbHi, lutRB);
-        const I16x16 midRB = _mm256_blend_epi32(_mm256_shuffle_epi8(midRB0, ShufMid16), _mm256_shuffle_epi8(midRB1, ShufMid16), 0b11001100); // << (14 - 8)=6
-        const I16x16 midG  = _mm256_mulhrs_epi16(g, lutG); // << (7 + 14 - 15)=6
-        const auto sum = midRB.Add(midG.Add(32)).ShiftRightArith<6>(); // sra to keep negative
-        return sum;
-    }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool) const noexcept
     {
         const U8x32 dat0(src), dat1(src + 32), dat2(src + 64);
         const auto dat03 = dat0.PermuteLane<0, 3>(dat1); // RGBRGBRGBRGBRGBR
@@ -7973,21 +8066,85 @@ struct RGB8ToYUV8_I16_AVX2 : public RGB8ToYUV8_I16_AVX2_Base
         const I16x16 midG02 = _mm256_slli_epi16(_mm256_shuffle_epi8(datG, ShufG0), 7);
         const I16x16 midG13 = _mm256_slli_epi16(_mm256_shuffle_epi8(datG, ShufG1), 7);
 
-#define DP3x4(out, lut) const auto out##02 = DP3(midRB04, midRB15, midG02, lut##RB, lut##G), out##13 = DP3(midRB26, midRB37, midG13, lut##RB, lut##G)
-        DP3x4(lumi, LutY);
-        DP3x4(cb_, LutCb);
-        DP3x4(cr_, LutCr);
-#undef DP3x4
-        U8x32 outY = _mm256_packus_epi16(lumi02, lumi13);
-        if (needAddY)
-            outY = outY.Add(16);
-        const U8x32 cb = _mm256_packs_epi16(cb_02, cb_13), cr = _mm256_packs_epi16(cr_02, cr_13);
-        const auto outCb = cb.Add(128), outCr = cr.Add(128);
-
-        Combine8x3_256::DoStore(dst, outY, outCb, outCr);
+        ConvertRB_G(dst, needAddY, midRB04, midRB15, midRB26, midRB37, midG02, midG13);
     }
 };
-struct RGB8ToYUV8_I16DP2A_AVX2 : public RGB8ToYUV8_I16_AVX2_Base
+struct RGBA8ToYUV8_I16_AVX2 : public RGBA8ToYUV8_I16_AVX2_Base, public RGBx8ToYUV8_I16_AVX2_Base<RGBA8ToYUV8_I16_AVX2>
+{
+    using RGBA8ToYUV8_I16_AVX2_Base::RGBA8ToYUV8_I16_AVX2_Base;
+    template<typename T>
+    forceinline void Convert(T* __restrict dst, const uint32_t* __restrict src, bool needAddY, bool) const noexcept
+    {
+        const U32x8 dat0(src), dat1(src + 8), dat2(src + 16), dat3(src + 24);
+        const auto dat04 = dat0.PermuteLane<0, 2>(dat2);
+        const auto dat15 = dat0.PermuteLane<1, 3>(dat2);
+        const auto dat26 = dat1.PermuteLane<0, 2>(dat3);
+        const auto dat37 = dat1.PermuteLane<1, 3>(dat3);
+        const U32x8 maskLo(0x00ff00ffu);
+        const auto midRB04 = dat04.And(maskLo).As<I16x16>();
+        const auto midRB15 = dat15.And(maskLo).As<I16x16>();
+        const auto midRB26 = dat26.And(maskLo).As<I16x16>();
+        const auto midRB37 = dat37.And(maskLo).As<I16x16>();
+        const auto shufG = _mm256_setr_epi8(1, -1, 5, -1, 9, -1, 13, -1, 3, -1, 7, -1, 11, -1, 15, -1, 1, -1, 5, -1, 9, -1, 13, -1, 3, -1, 7, -1, 11, -1, 15, -1);
+        const auto datG02 = dat04.As<U16x16>().SelectWith<0b1010101010101010>(dat15.ShiftLeftLogic<16>().As<U16x16>());
+        const auto datG13 = dat26.As<U16x16>().SelectWith<0b1010101010101010>(dat37.ShiftLeftLogic<16>().As<U16x16>());
+        const I16x16 midG02 = _mm256_slli_epi16(_mm256_shuffle_epi8(datG02, shufG), 7);
+        const I16x16 midG13 = _mm256_slli_epi16(_mm256_shuffle_epi8(datG13, shufG), 7);
+
+        ConvertRB_G(dst, needAddY, midRB04, midRB15, midRB26, midRB37, midG02, midG13);
+    }
+};
+template<typename T>
+struct RGBx8ToYUV8_I16DP2A_AVX2_Base
+{
+    static forceinline auto DP3(const I16x16& rbLo, const I16x16& rbHi, const I16x16& gLo, const I16x16& gHi, const __m256i& lutRB, const __m256i& lutG, const uint8_t base) noexcept
+    {
+        const auto base_ = (base << 14) + (1 << 13); // pre-add rounding
+        const auto baseVal = _mm256_set1_epi32(base_);
+        const auto midG0 = _mm256_dpwssd_avx_epi32(baseVal, gLo, lutG);
+        const auto midG1 = _mm256_dpwssd_avx_epi32(baseVal, gHi, lutG);
+        const auto mid0  = _mm256_dpwssd_avx_epi32(midG0,  rbLo, lutRB);
+        const auto mid1  = _mm256_dpwssd_avx_epi32(midG1,  rbHi, lutRB);
+        return _mm256_packus_epi32(_mm256_srai_epi32(mid0, 14), _mm256_srai_epi32(mid1, 14));
+    }
+    template<typename D>
+    forceinline void ConvertRB_G(D* __restrict dst, bool needAddY, const I16x16& midRB04, const I16x16& midRB15, const I16x16& midRB26, const I16x16& midRB37, 
+        const I16x16& midG04, const I16x16& midG15, const I16x16& midG26, const I16x16& midG37) const noexcept
+    {
+        const auto& self = *static_cast<const T*>(this);
+#define DP3x4(out, lut, base) const auto out##02 = DP3(midRB04, midRB15, midG04, midG15, self.lut##RB, self.lut##G, base), out##13 = DP3(midRB26, midRB37, midG26, midG37, self.lut##RB, self.lut##G, base)
+        if constexpr (std::is_pointer_v<D>)
+        {
+            D& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP3x4(lumi, LutY, needAddY ? 16 : 0);
+                const U8x32 outY = _mm256_packus_epi16(lumi02, lumi13);
+                outY.Save(dstY);
+                dstY += 32;
+            }
+            if (dstCb && dstCr)
+            {
+                DP3x4(cb, LutCb, 128);
+                DP3x4(cr, LutCr, 128);
+                const U8x32 outCb = _mm256_packus_epi16(cb02, cb13), outCr = _mm256_packus_epi16(cr02, cr13);
+                outCb.Save(dstCb), outCr.Save(dstCr);
+                dstCb += 32, dstCr += 32;
+            }
+        }
+        else
+        {
+            DP3x4(lumi, LutY, needAddY ? 16 : 0);
+            DP3x4(cb, LutCb, 128);
+            DP3x4(cr, LutCr, 128);
+            const U8x32 outY = _mm256_packus_epi16(lumi02, lumi13);
+            const U8x32 outCb = _mm256_packus_epi16(cb02, cb13), outCr = _mm256_packus_epi16(cr02, cr13);
+            Combine8x3_256::DoStore(dst, outY, outCb, outCr);
+        }
+#undef DP3x4
+    }
+};
+struct RGB8ToYUV8_I16DP2A_AVX2 : public RGB8ToYUV8_I16_AVX2_Base, public RGBx8ToYUV8_I16DP2A_AVX2_Base<RGB8ToYUV8_I16DP2A_AVX2>
 {
     template<uint8_t R, uint8_t G, uint8_t B>
     struct Shuffler2
@@ -7999,22 +8156,13 @@ struct RGB8ToYUV8_I16DP2A_AVX2 : public RGB8ToYUV8_I16_AVX2_Base
     const __m256i ShufG0, ShufG1, ShufG2, ShufG3;
     template<uint8_t R, uint8_t G, uint8_t B>
     RGB8ToYUV8_I16DP2A_AVX2(const I16x8& lut, RGBOrder<R, G, B> order) noexcept : RGB8ToYUV8_I16_AVX2_Base(lut, order),
-        ShufG0(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler2<R, G, B>::ShufG + 0))),
+        ShufG0(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler2<R, G, B>::ShufG +  0))),
         ShufG1(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler2<R, G, B>::ShufG + 32))),
         ShufG2(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler2<R, G, B>::ShufG + 64))),
         ShufG3(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler2<R, G, B>::ShufG + 96)))
     { }
-    static forceinline auto DP3(const I16x16& rbLo, const I16x16& rbHi, const I16x16& gLo, const I16x16& gHi, const __m256i& lutRB, const __m256i& lutG, const uint8_t base) noexcept
-    {
-        const auto base_ = (base << 14) + (1 << 13); // pre-add rounding
-        const auto baseVal = _mm256_set1_epi32(base_);
-        const auto midG0 = _mm256_dpwssd_avx_epi32(baseVal, gLo, lutG);
-        const auto midG1 = _mm256_dpwssd_avx_epi32(baseVal, gHi, lutG);
-        const auto mid0  = _mm256_dpwssd_avx_epi32(midG0,  rbLo, lutRB);
-        const auto mid1  = _mm256_dpwssd_avx_epi32(midG1,  rbHi, lutRB);
-        return _mm256_packus_epi32(_mm256_srai_epi32(mid0, 14), _mm256_srai_epi32(mid1, 14));
-    }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool) const noexcept
     {
         const U8x32 dat0(src), dat1(src + 32), dat2(src + 64);
         const auto dat03 = dat0.PermuteLane<0, 3>(dat1); // RGBRGBRGBRGBRGBR
@@ -8031,45 +8179,84 @@ struct RGB8ToYUV8_I16DP2A_AVX2 : public RGB8ToYUV8_I16_AVX2_Base
         const I16x16 midG26 = _mm256_shuffle_epi8(datG, ShufG2);
         const I16x16 midG37 = _mm256_shuffle_epi8(datG, ShufG3);
 
-#define DP3x4(out, lut, base) const auto out##02 = DP3(midRB04, midRB15, midG04, midG15, lut##RB, lut##G, base), out##13 = DP3(midRB26, midRB37, midG26, midG37, lut##RB, lut##G, base)
-        DP3x4(lumi, LutY, needAddY ? 16 : 0);
-        DP3x4(cb, LutCb, 128);
-        DP3x4(cr, LutCr, 128);
-#undef DP3x4
-        const U8x32 outY = _mm256_packus_epi16(lumi02, lumi13);
-        const U8x32 outCb = _mm256_packus_epi16(cb02, cb13), outCr = _mm256_packus_epi16(cr02, cr13);
-        Combine8x3_256::DoStore(dst, outY, outCb, outCr);
+        ConvertRB_G(dst, needAddY, midRB04, midRB15, midRB26, midRB37, midG04, midG15, midG26, midG37);
     }
 };
-struct RGB8ToYUV8_I8_AVX2_Base
+struct RGBA8ToYUV8_I16DP2A_AVX2 : public RGBA8ToYUV8_I16_AVX2_Base, public RGBx8ToYUV8_I16DP2A_AVX2_Base<RGBA8ToYUV8_I16DP2A_AVX2>
 {
-    static constexpr size_t M = 96, N = 96, K = 32;
-    template<uint8_t R, uint8_t G, uint8_t B>
-    struct Shuffler
+    using RGBA8ToYUV8_I16_AVX2_Base::RGBA8ToYUV8_I16_AVX2_Base;
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint32_t* __restrict src, bool needAddY, bool) const noexcept
     {
-#define PUT4(a,b,c,d,i) a + i, b + i, c + i, d + i 
-#define SHUF32(a,b,c,d)alignas(32) static inline const uint8_t Shuf##a##b##c##d[] = { PUT4(a,b,c,d,0), PUT4(a,b,c,d,3), PUT4(a,b,c,d,6), PUT4(a,b,c,d,9), PUT4(a,b,c,d,0), PUT4(a,b,c,d,3), PUT4(a,b,c,d,6), PUT4(a,b,c,d,9) }
-        SHUF32(R, G, G, B);
-        SHUF32(R, G, R, B);
-        SHUF32(R, B, G, B);
-#undef SHUF32
-#undef PUT4
-    };
+        const U32x8 dat0(src), dat1(src + 8), dat2(src + 16), dat3(src + 24);
+        const auto dat04 = dat0.PermuteLane<0, 2>(dat2);
+        const auto dat15 = dat0.PermuteLane<1, 3>(dat2);
+        const auto dat26 = dat1.PermuteLane<0, 2>(dat3);
+        const auto dat37 = dat1.PermuteLane<1, 3>(dat3);
+        const U32x8 maskLo(0x00ff00ffu);
+        const auto midRB04 = dat04.And(maskLo).As<I16x16>();
+        const auto midRB15 = dat15.And(maskLo).As<I16x16>();
+        const auto midRB26 = dat26.And(maskLo).As<I16x16>();
+        const auto midRB37 = dat37.And(maskLo).As<I16x16>();
+        const auto shufG = _mm256_setr_epi8(1, -1, -1, -1, 5, -1, -1, -1, 9, -1, -1, -1, 13, -1, -1, -1, 1, -1, -1, -1, 5, -1, -1, -1, 9, -1, -1, -1, 13, -1, -1, -1);
+        const I16x16 midG04 = _mm256_shuffle_epi8(dat04, shufG);
+        const I16x16 midG15 = _mm256_shuffle_epi8(dat15, shufG);
+        const I16x16 midG26 = _mm256_shuffle_epi8(dat26, shufG);
+        const I16x16 midG37 = _mm256_shuffle_epi8(dat37, shufG);
+
+        ConvertRB_G(dst, needAddY, midRB04, midRB15, midRB26, midRB37, midG04, midG15, midG26, midG37);
+    }
+};
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX2_I16)
+{
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX2VNNI_I16)
+{
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16DP2A_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, AVX2_I16)
+{
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, AVX2VNNI_I16)
+{
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16DP2A_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, AVX2_I16)
+{
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, AVX2VNNI_I16)
+{
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16DP2A_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, AVX2_I16)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, AVX2VNNI_I16)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16DP2A_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+struct RGBx8ToYUV8_I8_AVX2_Init
+{
+    static constexpr size_t N = 96, K = 32;
     __m256i ShufRGGB, ShufRGRB, ShufRBGB;
     __m256i LutY, LutCb, LutCr;
-    template<uint8_t R, uint8_t G, uint8_t B>
-    RGB8ToYUV8_I8_AVX2_Base(const int8_t* lut, RGBOrder<R, G, B>) noexcept :
-        ShufRGGB(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler<R, G, B>::ShufRGGB))),
-        ShufRGRB(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler<R, G, B>::ShufRGRB))),
-        ShufRBGB(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler<R, G, B>::ShufRBGB))),
+    template<typename Shuffler>
+    RGBx8ToYUV8_I8_AVX2_Init(const int8_t* lut, const Shuffler&) noexcept :
+        ShufRGGB(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler::ShufRGGB))),
+        ShufRGRB(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler::ShufRGRB))),
+        ShufRBGB(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(Shuffler::ShufRBGB))),
         LutY (_mm256_set1_epi32(reinterpret_cast<const int32_t*>(lut)[0])),
         LutCb(_mm256_set1_epi32(reinterpret_cast<const int32_t*>(lut)[1])),
         LutCr(_mm256_set1_epi32(reinterpret_cast<const int32_t*>(lut)[2]))
     { }
 };
-struct RGB8ToYUV8_I8_AVX2 : public RGB8ToYUV8_I8_AVX2_Base
+struct RGBx8ToYUV8_I8_AVX2_Base : public RGBx8ToYUV8_I8_AVX2_Init
 {
-    using RGB8ToYUV8_I8_AVX2_Base::RGB8ToYUV8_I8_AVX2_Base;
+    using RGBx8ToYUV8_I8_AVX2_Init::RGBx8ToYUV8_I8_AVX2_Init;
     template<bool IsY>
     static forceinline auto DP4(const U8x32& rgb04, const U8x32& rgb15, const __m256i& lut) noexcept
     {
@@ -8081,7 +8268,85 @@ struct RGB8ToYUV8_I8_AVX2 : public RGB8ToYUV8_I8_AVX2_Base
         else
             return sum0145.SatAdd(add128).ShiftRightArith<8>();
     }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    template<typename D>
+    forceinline void ConvertPart4(D* __restrict dst, bool needAddY, const U8x32& part04, const U8x32& part15, const U8x32& part26, const U8x32& part37) const noexcept
+    {
+#define DP4x4(out, isy, sm, lut) const auto out##02 = DP4<isy>(_mm256_shuffle_epi8(part04, Shuf##sm), _mm256_shuffle_epi8(part15, Shuf##sm), lut), out##13 = DP4<isy>(_mm256_shuffle_epi8(part26, Shuf##sm), _mm256_shuffle_epi8(part37, Shuf##sm), lut)
+        if constexpr (std::is_pointer_v<D>)
+        {
+            D& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP4x4(lumi, true, RGGB, LutY);
+                U8x32 outY = _mm256_packus_epi16(lumi02, lumi13);
+                if (needAddY)
+                    outY = outY.Add(16);
+                outY.Save(dstY);
+                dstY += 32;
+            }
+            if (dstCb && dstCr)
+            {
+                DP4x4(cb_, false, RBGB, LutCb);
+                DP4x4(cr_, false, RGRB, LutCr);
+                const U8x32 cb = _mm256_packs_epi16(cb_02, cb_13), cr = _mm256_packs_epi16(cr_02, cr_13);
+                const auto outCb = cb.Add(128), outCr = cr.Add(128);
+                outCb.Save(dstCb), outCr.Save(dstCr);
+                dstCb += 32, dstCr += 32;
+            }
+        }
+        else
+        {
+            DP4x4(lumi, true, RGGB, LutY);
+            DP4x4(cb_, false, RBGB, LutCb);
+            DP4x4(cr_, false, RGRB, LutCr);
+            U8x32 outY = _mm256_packus_epi16(lumi02, lumi13);
+            if (needAddY)
+                outY = outY.Add(16);
+            const U8x32 cb = _mm256_packs_epi16(cb_02, cb_13), cr = _mm256_packs_epi16(cr_02, cr_13);
+            const auto outCb = cb.Add(128), outCr = cr.Add(128);
+
+            Combine8x3_256::DoStore(dst, outY, outCb, outCr);
+        }
+#undef DP4x4
+    }
+};
+struct RGB8ToYUV8_I8_AVX2_Shuf
+{
+    static constexpr size_t M = 96;
+    template<uint8_t R, uint8_t G, uint8_t B>
+    struct Shuffler
+    {
+#define PUT4(a,b,c,d,i) a + i, b + i, c + i, d + i 
+#define SHUF32(a,b,c,d)alignas(32) static inline const uint8_t Shuf##a##b##c##d[] = { PUT4(a,b,c,d,0), PUT4(a,b,c,d,3), PUT4(a,b,c,d,6), PUT4(a,b,c,d,9), PUT4(a,b,c,d,0), PUT4(a,b,c,d,3), PUT4(a,b,c,d,6), PUT4(a,b,c,d,9) }
+        SHUF32(R, G, G, B);
+        SHUF32(R, G, R, B);
+        SHUF32(R, B, G, B);
+#undef SHUF32
+#undef PUT4
+    };
+};
+struct RGBA8ToYUV8_I8_AVX2_Shuf
+{
+    static constexpr size_t M = 32;
+    template<uint8_t R, uint8_t G, uint8_t B>
+    struct Shuffler
+    {
+#define PUT4(a,b,c,d,i) a + i, b + i, c + i, d + i 
+#define SHUF32(a,b,c,d)alignas(32) static inline const uint8_t Shuf##a##b##c##d[] = { PUT4(a,b,c,d,0), PUT4(a,b,c,d,4), PUT4(a,b,c,d,8), PUT4(a,b,c,d,12), PUT4(a,b,c,d,0), PUT4(a,b,c,d,4), PUT4(a,b,c,d,8), PUT4(a,b,c,d,12) }
+        SHUF32(R, G, G, B);
+        SHUF32(R, G, R, B);
+        SHUF32(R, B, G, B);
+#undef SHUF32
+#undef PUT4
+    };
+};
+struct RGB8ToYUV8_I8_AVX2 : public RGB8ToYUV8_I8_AVX2_Shuf, public RGBx8ToYUV8_I8_AVX2_Base
+{
+    template<uint8_t R, uint8_t G, uint8_t B>
+    RGB8ToYUV8_I8_AVX2(const int8_t* lut, RGBOrder<R, G, B>) noexcept : RGBx8ToYUV8_I8_AVX2_Base(lut, Shuffler<R, G, B>{})
+    { }
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool) const noexcept
     {
         const U8x32 dat0(src), dat1(src + 32), dat2(src + 64);
         const auto dat03 = dat0.PermuteLane<0, 3>(dat1); // RGBRGBRGBRGBRGBR
@@ -8089,30 +8354,79 @@ struct RGB8ToYUV8_I8_AVX2 : public RGB8ToYUV8_I8_AVX2_Base
         const auto dat25 = dat1.PermuteLane<0, 3>(dat2); // BRGBRGBRGBRGBRGB, R=2, G=0, B=1
         const U8x32 part04 = dat03, part15 = dat03.MoveLaneToLoWith<12>(dat14), part26 = dat14.MoveLaneToLoWith< 8>(dat25), part37 = dat25.MoveLaneToLo<4>();
 
-#define DP4x4(out, isy, sm, lut) const auto out##02 = DP4<isy>(_mm256_shuffle_epi8(part04, Shuf##sm), _mm256_shuffle_epi8(part15, Shuf##sm), lut), out##13 = DP4<isy>(_mm256_shuffle_epi8(part26, Shuf##sm), _mm256_shuffle_epi8(part37, Shuf##sm), lut)
-        DP4x4(lumi, true, RGGB, LutY);
-        DP4x4(cb_, false, RBGB, LutCb);
-        DP4x4(cr_, false, RGRB, LutCr);
-#undef DP4x4
-        U8x32 outY = _mm256_packus_epi16(lumi02, lumi13);
-        if (needAddY)
-            outY = outY.Add(16);
-        const U8x32 cb = _mm256_packs_epi16(cb_02, cb_13), cr = _mm256_packs_epi16(cr_02, cr_13);
-        const auto outCb = cb.Add(128), outCr = cr.Add(128);
-
-        Combine8x3_256::DoStore(dst, outY, outCb, outCr);
+        ConvertPart4(dst, needAddY, part04, part15, part26, part37);
     }
 };
-struct RGB8ToYUV8_I8DP4A_AVX2 : public RGB8ToYUV8_I8_AVX2_Base
+struct RGBA8ToYUV8_I8_AVX2 : public RGBA8ToYUV8_I8_AVX2_Shuf, public RGBx8ToYUV8_I8_AVX2_Base
 {
-    using RGB8ToYUV8_I8_AVX2_Base::RGB8ToYUV8_I8_AVX2_Base;
+    template<uint8_t R, uint8_t G, uint8_t B>
+    RGBA8ToYUV8_I8_AVX2(const int8_t* lut, RGBOrder<R, G, B>) noexcept : RGBx8ToYUV8_I8_AVX2_Base(lut, Shuffler<R, G, B>{})
+    { }
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint32_t* __restrict src, bool needAddY, bool) const noexcept
+    {
+        const U32x8 dat0(src), dat1(src + 8), dat2(src + 16), dat3(src + 24);
+        const auto dat04 = dat0.PermuteLane<0, 2>(dat2).As<U8x32>();
+        const auto dat15 = dat0.PermuteLane<1, 3>(dat2).As<U8x32>();
+        const auto dat26 = dat1.PermuteLane<0, 2>(dat3).As<U8x32>();
+        const auto dat37 = dat1.PermuteLane<1, 3>(dat3).As<U8x32>();
+        ConvertPart4(dst, needAddY, dat04, dat15, dat26, dat37);
+    }
+};
+struct RGBx8ToYUV8_I8DP4A_AVX2_Base : public RGBx8ToYUV8_I8_AVX2_Init
+{
+    using RGBx8ToYUV8_I8_AVX2_Init::RGBx8ToYUV8_I8_AVX2_Init;
     static forceinline auto DP4(const U8x32& rgb04, const U8x32& rgb15, const __m256i& lut, const int32_t base) noexcept
     {
         const auto adder = _mm256_set1_epi32((base << 8) + 128); // pre-add round
         const auto mid04 = _mm256_dpbusd_avx_epi32(adder, rgb04, lut), mid15 = _mm256_dpbusd_avx_epi32(adder, rgb15, lut);
         return _mm256_srli_epi16(_mm256_packus_epi32(mid04, mid15), 8);
     }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    template<typename D>
+    forceinline void ConvertPart4(D* __restrict dst, bool needAddY, const U8x32& part04, const U8x32& part15, const U8x32& part26, const U8x32& part37) const noexcept
+    {
+#define DP4x4(out, sm, lut, base) const auto out##02 = DP4(_mm256_shuffle_epi8(part04, Shuf##sm), _mm256_shuffle_epi8(part15, Shuf##sm), lut, base), out##13 = DP4(_mm256_shuffle_epi8(part26, Shuf##sm), _mm256_shuffle_epi8(part37, Shuf##sm), lut, base)
+        if constexpr (std::is_pointer_v<D>)
+        {
+            D& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP4x4(lumi, RGGB, LutY, needAddY ? 16 : 0);
+                const U8x32 outY = _mm256_packus_epi16(lumi02, lumi13);
+                outY.Save(dstY);
+                dstY += 32;
+            }
+            if (dstCb && dstCr)
+            {
+                DP4x4(cb, RBGB, LutCb, 128);
+                DP4x4(cr, RGRB, LutCr, 128);
+                const U8x32 outCb = _mm256_packus_epi16(cb02, cb13);
+                const U8x32 outCr = _mm256_packus_epi16(cr02, cr13);
+                outCb.Save(dstCb), outCr.Save(dstCr);
+                dstCb += 32, dstCr += 32;
+            }
+        }
+        else
+        {
+            DP4x4(lumi, RGGB, LutY, needAddY ? 16 : 0);
+            DP4x4(cb, RBGB, LutCb, 128);
+            DP4x4(cr, RGRB, LutCr, 128);
+            const U8x32 outY = _mm256_packus_epi16(lumi02, lumi13);
+            const U8x32 outCb = _mm256_packus_epi16(cb02, cb13);
+            const U8x32 outCr = _mm256_packus_epi16(cr02, cr13);
+
+            Combine8x3_256::DoStore(dst, outY, outCb, outCr);
+        }
+#undef DP4x4
+    }
+};
+struct RGB8ToYUV8_I8DP4A_AVX2 : public RGB8ToYUV8_I8_AVX2_Shuf, public RGBx8ToYUV8_I8_AVX2_Base
+{
+    template<uint8_t R, uint8_t G, uint8_t B>
+    RGB8ToYUV8_I8DP4A_AVX2(const int8_t* lut, RGBOrder<R, G, B>) noexcept : RGBx8ToYUV8_I8_AVX2_Base(lut, Shuffler<R, G, B>{})
+    { }
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool) const noexcept
     {
         const U8x32 dat0(src), dat1(src + 32), dat2(src + 64);
         const auto dat03 = dat0.PermuteLane<0, 3>(dat1); // RGBRGBRGBRGBRGBR
@@ -8120,79 +8434,57 @@ struct RGB8ToYUV8_I8DP4A_AVX2 : public RGB8ToYUV8_I8_AVX2_Base
         const auto dat25 = dat1.PermuteLane<0, 3>(dat2); // BRGBRGBRGBRGBRGB, R=2, G=0, B=1
         const U8x32 part04 = dat03, part15 = dat03.MoveLaneToLoWith<12>(dat14), part26 = dat14.MoveLaneToLoWith< 8>(dat25), part37 = dat25.MoveLaneToLo<4>();
 
-#define DP4x4(out, sm, lut, base) const auto out##02 = DP4(_mm256_shuffle_epi8(part04, Shuf##sm), _mm256_shuffle_epi8(part15, Shuf##sm), lut, base), out##13 = DP4(_mm256_shuffle_epi8(part26, Shuf##sm), _mm256_shuffle_epi8(part37, Shuf##sm), lut, base)
-        DP4x4(lumi, RGGB, LutY, needAddY ? 16 : 0);
-        DP4x4(cb,   RBGB, LutCb, 128);
-        DP4x4(cr,   RGRB, LutCr, 128);
-#undef DP4x4
-        const U8x32 outY  = _mm256_packus_epi16(lumi02, lumi13);
-        const U8x32 outCb = _mm256_packus_epi16(  cb02,   cb13);
-        const U8x32 outCr = _mm256_packus_epi16(  cr02,   cr13);
-
-        Combine8x3_256::DoStore(dst, outY, outCb, outCr);
+        ConvertPart4(dst, needAddY, part04, part15, part26, part37);
     }
 };
-DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX2_I16)
+struct RGBA8ToYUV8_I8DP4A_AVX2 : public RGBA8ToYUV8_I8_AVX2_Shuf, public RGBx8ToYUV8_I8_AVX2_Base
 {
-    if (count >= RGB8ToYUV8_I16_AVX2::K)
+    template<uint8_t R, uint8_t G, uint8_t B>
+    RGBA8ToYUV8_I8DP4A_AVX2(const int8_t* lut, RGBOrder<R, G, B>) noexcept : RGBx8ToYUV8_I8_AVX2_Base(lut, Shuffler<R, G, B>{})
+    { }
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint32_t* __restrict src, bool needAddY, bool) const noexcept
     {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_I16_AVX2 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
+        const U32x8 dat0(src), dat1(src + 8), dat2(src + 16), dat3(src + 24);
+        const auto dat04 = dat0.PermuteLane<0, 2>(dat2).As<U8x32>();
+        const auto dat15 = dat0.PermuteLane<1, 3>(dat2).As<U8x32>();
+        const auto dat26 = dat1.PermuteLane<0, 2>(dat3).As<U8x32>();
+        const auto dat37 = dat1.PermuteLane<1, 3>(dat3).As<U8x32>();
+        ConvertPart4(dst, needAddY, dat04, dat15, dat26, dat37);
     }
-    if (count)
-        Func<SSE41_I16_2>(dest, src, count, mval);
-}
-DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX2VNNI_I16)
-{
-    if (count >= RGB8ToYUV8_I16DP2A_AVX2::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_I16DP2A_AVX2 proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<SSE41_I16_2>(dest, src, count, mval);
-}
+};
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, AVX2_I8)
 {
-    if (count >= RGB8ToYUV8_I8_AVX2::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_I8_AVX2 proc(RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<SSE41_I8>(dest, src, count, mval);
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, AVX2VNNI_I8)
 {
-    if (count >= RGB8ToYUV8_I8DP4A_AVX2::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_I8DP4A_AVX2 proc(RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<SSE41_I8>(dest, src, count, mval);
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8DP4A_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
 }
-
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, AVX2_I8)
+{
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, AVX2VNNI_I8)
+{
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8DP4A_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, AVX2_I8)
+{
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, AVX2VNNI_I8)
+{
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8DP4A_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, AVX2_I8)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, AVX2VNNI_I8)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8DP4A_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+}
 template<typename T>
 struct YUV8ToRGB8_I16_AVX2_Base
 {
@@ -9943,15 +10235,150 @@ struct RGB10ToRGBAf_512
         _mm512_storeu_ps(dst + 48, out3);
     }
 };
-struct RGB8ToYUV8_I8_AVX512_Base
+struct RGBA8ToYUV8_I16_512_Base
+{
+    static constexpr size_t M = 64, N = 192, K = 64;
+    __m512i LutYRB, LutYG, LutCbRB, LutCbG, LutCrRB, LutCrG;
+    template<uint8_t R, uint8_t G, uint8_t B>
+    RGBA8ToYUV8_I16_512_Base(I16x8 lut, RGBOrder<R, G, B>) noexcept
+    {
+        if constexpr (R > B)
+        {
+            lut = lut.Shuffle<2, 0, 7, 5, 3, 1, 4, 6>();
+            LutCbRB = _mm512_broadcastd_epi32(lut.MoveToLo<3>());
+            LutCrRB = _mm512_broadcastd_epi32(lut.MoveToLo<2>());
+        }
+        else
+        {
+            lut = lut.Shuffle<0, 2, 3, 5, 7, 1, 4, 6>();
+            LutCbRB = _mm512_broadcastd_epi32(lut.MoveToLo<2>());
+            LutCrRB = _mm512_broadcastd_epi32(lut.MoveToLo<3>());
+        }
+        LutYRB  = _mm512_broadcastd_epi32(lut);
+        LutYG   = _mm512_broadcastw_epi16(lut.MoveToLo<5>());
+        LutCbG  = _mm512_broadcastw_epi16(lut.MoveToLo<6>());
+        LutCrG  = _mm512_broadcastw_epi16(lut.MoveToLo<7>());
+    }
+};
+struct RGBA8ToYUV8_I16_512 : public RGBA8ToYUV8_I16_512_Base
+{
+    using RGBA8ToYUV8_I16_512_Base::RGBA8ToYUV8_I16_512_Base;
+    static forceinline auto DP3(const __m512i& rb0123, const __m512i& rb4567, const __m512i& g04152637, const __m512i& lutRB, const __m512i& lutG) noexcept
+    {
+#define M16 14, 13, 10, 9, 6, 5, 2, 1
+        const auto ShufMid16 = _mm512_set_epi8(M16, M16, M16, M16, M16, M16, M16, M16);
+#undef M16
+        const auto midRB0123 = _mm512_madd_epi16(rb0123, lutRB);
+        const auto midRB4567 = _mm512_madd_epi16(rb4567, lutRB);
+        // << (14 - 8)=6
+        const auto mid16RB0 = _mm512_shuffle_epi8(midRB0123, ShufMid16);
+        const auto mid16RB1 = _mm512_shuffle_epi8(midRB4567, ShufMid16);
+        const auto midRB = _mm512_mask_blend_epi64(0b10101010, mid16RB0, mid16RB1); // 04 15 26 37
+        const auto midG = _mm512_mulhrs_epi16(g04152637, lutG); // << (7 + 14 - 15)=6
+        const auto sum = _mm512_srai_epi16(_mm512_add_epi16(_mm512_add_epi16(_mm512_set1_epi16(32), midG), midRB), 6);
+        return sum;
+    }
+    template<typename D>
+    forceinline void ConvertRB_G(D* __restrict dst, bool needAddY, const __m512i& midRB0, const __m512i& midRB1, const __m512i& midRB2, const __m512i& midRB3, const __m512i& midG0, const __m512i& midG1) const noexcept
+    {
+        const auto shuf048c = _mm512_set_epi32(15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1, 12, 8, 4, 0);
+#define DP3x4(out, lut) const auto out##04 = DP3(midRB0, midRB1, midG0, lut##RB, lut##G), out##8c = DP3(midRB2, midRB3, midG1, lut##RB, lut##G)
+        if constexpr (std::is_pointer_v<D>)
+        {
+            D& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP3x4(lumi, LutY);
+                auto outY048c = _mm512_packus_epi16(lumi04, lumi8c);
+                if (needAddY)
+                    outY048c = _mm512_add_epi8(outY048c, _mm512_set1_epi8(16));
+                const auto outY = _mm512_permutexvar_epi32(shuf048c, outY048c);
+                _mm512_storeu_epi8(dstY, outY);
+                dstY += 64;
+            }
+            if (dstCb && dstCr)
+            {
+                DP3x4(cb, LutCb);
+                DP3x4(cr, LutCr);
+                auto outCb048c = _mm512_packs_epi16(cb04, cb8c);
+                auto outCr048c = _mm512_packs_epi16(cr04, cr8c);
+                const auto add128 = _mm512_set1_epi8(static_cast<char>(128));
+                outCb048c = _mm512_add_epi8(outCb048c, add128);
+                outCr048c = _mm512_add_epi8(outCr048c, add128);
+                const auto outCb = _mm512_permutexvar_epi32(shuf048c, outCb048c);
+                const auto outCr = _mm512_permutexvar_epi32(shuf048c, outCr048c);
+                _mm512_storeu_epi8(dstCb, outCb);
+                _mm512_storeu_epi8(dstCr, outCr);
+                dstCb += 64, dstCr += 64;
+            }
+        }
+        else
+        {
+            DP3x4(lumi, LutY);
+            DP3x4(cb,   LutCb);
+            DP3x4(cr,   LutCr);
+            auto outY048c  = _mm512_packus_epi16(lumi04, lumi8c);
+            auto outCb048c = _mm512_packs_epi16(cb04, cb8c);
+            auto outCr048c = _mm512_packs_epi16(cr04, cr8c);
+            if (needAddY)
+                outY048c = _mm512_add_epi8(outY048c, _mm512_set1_epi8(16));
+            const auto add128 = _mm512_set1_epi8(static_cast<char>(128));
+            outCb048c = _mm512_add_epi8(outCb048c, add128);
+            outCr048c = _mm512_add_epi8(outCr048c, add128);
+            const auto outY  = _mm512_permutexvar_epi32(shuf048c, outY048c);
+            const auto outCb = _mm512_permutexvar_epi32(shuf048c, outCb048c);
+            const auto outCr = _mm512_permutexvar_epi32(shuf048c, outCr048c);
+
+            Combine8x3_512::DoStore(dst, outY, outCb, outCr);
+        }
+#undef DP3x4
+    }
+    template<typename T>
+    forceinline void Convert(T* __restrict dst, const uint32_t* __restrict src, bool needAddY, bool) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi32(src);
+        const auto dat1 = _mm512_loadu_epi32(src + 16);
+        const auto dat2 = _mm512_loadu_epi32(src + 32);
+        const auto dat3 = _mm512_loadu_epi32(src + 48);
+
+        const auto maskLo = _mm512_set1_epi32(0x00ff00ff);
+        const auto datRB0 = _mm512_and_si512(dat0, maskLo);
+        const auto datRB1 = _mm512_and_si512(dat1, maskLo);
+        const auto datRB2 = _mm512_and_si512(dat2, maskLo);
+        const auto datRB3 = _mm512_and_si512(dat3, maskLo);
+
+        const auto shufG = mm512_set_lane(epi8, -1, 13, -1, 9, -1, 5, -1, 1, -1, 13, -1, 9, -1, 5, -1, 1);
+        const auto datG0 = _mm512_shuffle_epi8(dat0, shufG);
+        const auto datG1 = _mm512_shuffle_epi8(dat1, shufG);
+        const auto datG2 = _mm512_shuffle_epi8(dat2, shufG);
+        const auto datG3 = _mm512_shuffle_epi8(dat3, shufG);
+        const auto datG04152637 = _mm512_slli_epi16(_mm512_mask_blend_epi64(0b10101010, datG0, datG1), 7);
+        const auto datG8c9daebf = _mm512_slli_epi16(_mm512_mask_blend_epi64(0b10101010, datG2, datG3), 7);
+
+        ConvertRB_G(dst, needAddY, datRB0, datRB1, datRB2, datRB3, datG04152637, datG8c9daebf);
+    }
+};
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, AVX512_I16)
+{
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_512, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, AVX512_I16)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_512, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+
+struct RGB8ToYUV8_I8x_AVX512_Base
 {
     static constexpr size_t M = 192, N = 192, K = 64;
 };
-template<uint8_t R, uint8_t G, uint8_t B>
-struct RGB8ToYUV8_I8_AVX512 : public RGB8ToYUV8_I8_AVX512_Base
+struct RGBA8ToYUV8_I8x_AVX512_Base
+{
+    static constexpr size_t M = 64, N = 192, K = 64;
+};
+struct RGBx8ToYUV8_I8_AVX512_Base
 {
     const __m512i LutYRG, LutYGB, LutCbRB, LutCbGB, LutCrRG, LutCrRB;
-    RGB8ToYUV8_I8_AVX512(const int16_t* lut) noexcept :
+    RGBx8ToYUV8_I8_AVX512_Base(const int16_t* lut) noexcept :
 #define LLUT(x,i) Lut##x(_mm512_set1_epi16(lut[i]))
         LLUT(YRG, 0), LLUT(YGB, 1), LLUT(CbRB, 2), LLUT(CbGB, 3), LLUT(CrRG, 4), LLUT(CrRB, 5)
 #undef LLUT
@@ -9967,7 +10394,61 @@ struct RGB8ToYUV8_I8_AVX512 : public RGB8ToYUV8_I8_AVX512_Base
         else
             return _mm512_srli_epi16(_mm512_adds_epi16(sum, add128), 8);
     }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    template<typename D>
+    forceinline void ConvertLH(D* __restrict dst, bool needAddY, const __m512i& midRG0, const __m512i& midRG1, const __m512i& midGB0, const __m512i& midGB1, const __m512i& midRB0, const __m512i& midRB1) const noexcept
+    {
+#define DP4x4(out, isy, a, b, lut) const auto out##0 = DP4<isy>(mid##a##0, mid##b##0, lut##a, lut##b), out##1 = DP4<isy>(mid##a##1, mid##b##1, lut##a, lut##b)
+        if constexpr (std::is_pointer_v<D>)
+        {
+            D& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP4x4(lumi, true, RG, GB, LutY);
+                auto outY = _mm512_packus_epi16(lumi0, lumi1);
+                if (needAddY)
+                    outY = _mm512_add_epi8(outY, _mm512_set1_epi8(16));
+                _mm512_storeu_epi8(dstY, outY);
+                dstY += 64;
+            }
+            if (dstCb && dstCr)
+            {
+                DP4x4(cb, false, RB, GB, LutCb);
+                DP4x4(cr, false, RG, RB, LutCr);
+                auto outCb = _mm512_packus_epi16(cb0, cb1);
+                auto outCr = _mm512_packus_epi16(cr0, cr1);
+                const auto addToU8 = _mm512_set1_epi8(static_cast<int8_t>(128));
+                outCb = _mm512_add_epi8(outCb, addToU8);
+                outCr = _mm512_add_epi8(outCr, addToU8);
+                _mm512_storeu_epi8(dstCb, outCb);
+                _mm512_storeu_epi8(dstCr, outCr);
+                dstCb += 64, dstCr += 64;
+            }
+        }
+        else
+        {
+            DP4x4(lumi, true, RG, GB, LutY);
+            DP4x4(cb,  false, RB, GB, LutCb);
+            DP4x4(cr,  false, RG, RB, LutCr);
+            auto outY = _mm512_packus_epi16(lumi0, lumi1);
+            if (needAddY)
+                outY = _mm512_add_epi8(outY, _mm512_set1_epi8(16));
+            auto outCb = _mm512_packus_epi16(cb0, cb1);
+            auto outCr = _mm512_packus_epi16(cr0, cr1);
+            const auto addToU8 = _mm512_set1_epi8(static_cast<int8_t>(128));
+            outCb = _mm512_add_epi8(outCb, addToU8);
+            outCr = _mm512_add_epi8(outCr, addToU8);
+
+            Combine8x3_512::DoStore(dst, outY, outCb, outCr);
+        }
+#undef DP4x4
+    }
+};
+template<uint8_t R, uint8_t G, uint8_t B>
+struct RGB8ToYUV8_I8_AVX512 : public RGB8ToYUV8_I8x_AVX512_Base, public RGBx8ToYUV8_I8_AVX512_Base
+{
+    using RGBx8ToYUV8_I8_AVX512_Base::RGBx8ToYUV8_I8_AVX512_Base;
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool) const noexcept
     {
         const auto datRGB = Extract8x3_512::DoLoad(src);
 
@@ -9978,38 +10459,76 @@ struct RGB8ToYUV8_I8_AVX512 : public RGB8ToYUV8_I8_AVX512_Base
         const auto midRB0 = _mm512_unpacklo_epi8(std::get<R>(datRGB), std::get<B>(datRGB));
         const auto midRB1 = _mm512_unpackhi_epi8(std::get<R>(datRGB), std::get<B>(datRGB));
 
-#define DP4x4(out, isy, a, b, lut) const auto out##0 = DP4<isy>(mid##a##0, mid##b##0, lut##a, lut##b), out##1 = DP4<isy>(mid##a##1, mid##b##1, lut##a, lut##b)
-        DP4x4(lumi, true, RG, GB, LutY);
-        DP4x4(cb,  false, RB, GB, LutCb);
-        DP4x4(cr,  false, RG, RB, LutCr);
-#undef DP4x4
-
-        auto outY = _mm512_packus_epi16(lumi0, lumi1);
-        if (needAddY)
-            outY = _mm512_add_epi8(outY, _mm512_set1_epi8(16));
-        auto outCb = _mm512_packus_epi16(cb0, cb1);
-        auto outCr = _mm512_packus_epi16(cr0, cr1);
-        const auto addToU8 = _mm512_set1_epi8(static_cast<int8_t>(128));
-        outCb = _mm512_add_epi8(outCb, addToU8);
-        outCr = _mm512_add_epi8(outCr, addToU8);
-
-        Combine8x3_512::DoStore(dst, outY, outCb, outCr);
+        ConvertLH(dst, needAddY, midRG0, midRG1, midGB0, midGB1, midRB0, midRB1);
     }
 };
-DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX512_I8)
+struct RGBA8ToYUV8_I8_AVX512 : public RGBA8ToYUV8_I8x_AVX512_Base, public RGBx8ToYUV8_I8_AVX512_Base
 {
-    if (count >= RGB8ToYUV8_I8_AVX512_Base::K)
+    template<uint8_t R, uint8_t G, uint8_t B>
+    struct Shuffler
     {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_I8_AVX512<0, 1, 2> proc(reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
+#define PUT2x4(a,b) a, b, a+4, b+4, a+8, b+8, a+12, b+12
+#define SHUF32(a,b,c,d)alignas(32) static inline const uint8_t Shuf##a##b##c##d[] = { PUT2x4(a,b), PUT2x4(c,d), PUT2x4(a,b), PUT2x4(c,d), PUT2x4(a,b), PUT2x4(c,d), PUT2x4(a,b), PUT2x4(c,d) }
+        SHUF32(R, G, G, B);
+        SHUF32(R, B, R, B);
+#undef  SHUF32
+#undef  PUT2x4
+    };
+    const __m512i Shuf64RGGB, Shuf64RBRB;
+    template<uint8_t R, uint8_t G, uint8_t B>
+    RGBA8ToYUV8_I8_AVX512(const int16_t* lut, RGBOrder<R, G, B>) noexcept : RGBx8ToYUV8_I8_AVX512_Base(lut),
+#define LSHUF(x) Shuf64##x(_mm512_loadu_epi8(Shuffler<R, G, B>::Shuf##x))
+        LSHUF(RGGB), LSHUF(RBRB)
+#undef  LSHUF
+    { }
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint32_t* __restrict src, bool needAddY, bool) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi32(src);
+        const auto dat1 = _mm512_loadu_epi32(src + 16);
+        const auto dat2 = _mm512_loadu_epi32(src + 32);
+        const auto dat3 = _mm512_loadu_epi32(src + 48);
+
+        const auto dat0RGGB = _mm512_shuffle_epi8(dat0, Shuf64RGGB);
+        const auto dat1RGGB = _mm512_shuffle_epi8(dat1, Shuf64RGGB);
+        const auto dat2RGGB = _mm512_shuffle_epi8(dat2, Shuf64RGGB);
+        const auto dat3RGGB = _mm512_shuffle_epi8(dat3, Shuf64RGGB);
+        const auto dat0RBRB = _mm512_shuffle_epi8(dat0, Shuf64RBRB);
+        const auto dat1RBRB = _mm512_shuffle_epi8(dat1, Shuf64RBRB);
+        const auto dat2RBRB = _mm512_shuffle_epi8(dat2, Shuf64RBRB);
+        const auto dat3RBRB = _mm512_shuffle_epi8(dat3, Shuf64RBRB);
+        
+        const auto midRG04152637 = _mm512_unpacklo_epi64(dat0RGGB, dat1RGGB);
+        const auto midRG8c9daebf = _mm512_unpacklo_epi64(dat2RGGB, dat3RGGB);
+        const auto midRG0246 = _mm512_permutex2var_epi64(midRG04152637, _mm512_set_epi64(11,  9, 10,  8, 3, 1, 2, 0), midRG8c9daebf);
+        const auto midRG1357 = _mm512_permutex2var_epi64(midRG04152637, _mm512_set_epi64(15, 13, 14, 12, 7, 5, 6, 4), midRG8c9daebf);
+        const auto midGB04152637 = _mm512_unpackhi_epi64(dat0RGGB, dat1RGGB);
+        const auto midGB8c9daebf = _mm512_unpackhi_epi64(dat2RGGB, dat3RGGB);
+        const auto midGB0246 = _mm512_permutex2var_epi64(midGB04152637, _mm512_set_epi64(11,  9, 10,  8, 3, 1, 2, 0), midGB8c9daebf);
+        const auto midGB1357 = _mm512_permutex2var_epi64(midGB04152637, _mm512_set_epi64(15, 13, 14, 12, 7, 5, 6, 4), midGB8c9daebf);
+        const auto midRB04152637 = _mm512_mask_blend_epi64(0b10101010, dat0RBRB, dat1RBRB);
+        const auto midRB8c9daebf = _mm512_mask_blend_epi64(0b10101010, dat2RBRB, dat3RBRB);
+        const auto midRB0246 = _mm512_permutex2var_epi64(midRB04152637, _mm512_set_epi64(11,  9, 10,  8, 3, 1, 2, 0), midRB8c9daebf);
+        const auto midRB1357 = _mm512_permutex2var_epi64(midRB04152637, _mm512_set_epi64(15, 13, 14, 12, 7, 5, 6, 4), midRB8c9daebf);
+
+        ConvertLH(dst, needAddY, midRG0246, midRG1357, midGB0246, midGB1357, midRB0246, midRB1357);
     }
-    if (count)
-        Func<AVX2_I8>(dest, src, count, mval);
+};
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, AVX512_I8)
+{
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8_AVX512<0, 1, 2>, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, AVX512_I8)
+{
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8_AVX512, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, AVX512_I8)
+{
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8_AVX512<0, 1, 2>, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, AVX512_I8)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8_AVX512, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
 }
 
 template<typename T>
@@ -11127,22 +11646,41 @@ struct RGB8ToYUV8_I16_AVX512VBMI_Base
         LutCrG  = _mm512_broadcastw_epi16(lut.MoveToLo<7>());
     }
 };
-struct RGB8ToYUV8_I16_AVX512VBMI : public RGB8ToYUV8_I16_AVX512VBMI_Base
+struct RGBx8ToYUV8_I16_AVX512VBMI_Base
 {
-    using RGB8ToYUV8_I16_AVX512VBMI_Base::RGB8ToYUV8_I16_AVX512VBMI_Base;
-    static forceinline auto DP3(const __m512i& rbLo, const __m512i& rbHi, const __m512i& g, const __m512i& lutRB, const __m512i& lutG) noexcept
+    static forceinline auto DP3(const __m512i& rbLo, const __m512i& rbHi, const __m512i& g, const __m512i& lutRB, const __m512i& lutG, const __m512i& shufMid16, const bool isY, const bool needAddY) noexcept
     {
-#define M4(i) i+14, i+13, i+10, i+9, i+6, i+5, i+2, i+1
-        const auto ShufMid16 = _mm512_set_epi8(M4(112), M4(96), M4(80), M4(64), M4(48), M4(32), M4(16), M4(0));
-#undef M4
+        const auto base = isY ? (needAddY ? 16 : 0) : 128;
+        const auto base_ = static_cast<int16_t>((base << 6) + 32);
         const auto midRB0 = _mm512_madd_epi16(rbLo, lutRB);
         const auto midRB1 = _mm512_madd_epi16(rbHi, lutRB);
-        const auto midRB = _mm512_permutex2var_epi8(midRB0, ShufMid16, midRB1); // << (14 - 8)=6
+        const auto midRB = _mm512_permutex2var_epi8(midRB0, shufMid16, midRB1); // << (14 - 8)=6
         const auto midG = _mm512_mulhrs_epi16(g, lutG); // << (7 + 14 - 15)=6
-        const auto sum = _mm512_srai_epi16(_mm512_add_epi16(_mm512_add_epi16(_mm512_set1_epi16(32), midG), midRB), 6);
+        const auto sum = _mm512_srai_epi16(_mm512_add_epi16(_mm512_add_epi16(_mm512_set1_epi16(base_), midG), midRB), 6);
         return sum;
     }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+};
+struct RGBx8ToYUV8_I16_AVX512VNNI_Base
+{
+    static forceinline auto DP3(const __m512i& rbLo, const __m512i& rbHi, const __m512i& g, const __m512i& lutRB, const __m512i& lutG, const __m512i& shufMid16, const bool isY, const bool needAddY) noexcept
+    {
+        const auto base = isY ? (needAddY ? 16 : 0) : 128;
+        const auto base_ = ((base << 6) + 32) << 8;
+        const auto baseAdd = _mm512_set1_epi32(base_);
+        const auto midRB0 = _mm512_dpwssds_epi32(baseAdd, rbLo, lutRB);
+        const auto midRB1 = _mm512_dpwssds_epi32(baseAdd, rbHi, lutRB);
+        const auto midRB = _mm512_permutex2var_epi8(midRB0, shufMid16, midRB1); // << (14 - 8)=6
+        const auto midG = _mm512_mulhrs_epi16(g, lutG); // << (7 + 14 - 15)=6
+        const auto sum = _mm512_srai_epi16(_mm512_add_epi16(midG, midRB), 6);
+        return sum;
+    }
+};
+template<typename T>
+struct RGB8ToYUV8_I16_AVX512Vx : public RGB8ToYUV8_I16_AVX512VBMI_Base
+{
+    using RGB8ToYUV8_I16_AVX512VBMI_Base::RGB8ToYUV8_I16_AVX512VBMI_Base;
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool) const noexcept
     {
         const auto dat0 = _mm512_loadu_epi8(src), dat1 = _mm512_loadu_epi8(src + 64), dat2 = _mm512_loadu_epi8(src + 128);
         const auto u16mask = _cvtu64_mask64(0x5555555555555555u);
@@ -11153,65 +11691,250 @@ struct RGB8ToYUV8_I16_AVX512VBMI : public RGB8ToYUV8_I16_AVX512VBMI_Base
         const auto midG0  = _mm512_slli_epi16(_mm512_maskz_permutex2var_epi8(u16mask, dat0, ShufG0, dat1), 7);
         const auto midG1  = _mm512_slli_epi16(_mm512_maskz_permutex2var_epi8(u16mask, dat1, ShufG1, dat2), 7);
 
-#define DP3x4(out, lut) const auto out##0 = DP3(midRB0, midRB1, midG0, lut##RB, lut##G), out##1 = DP3(midRB2, midRB3, midG1, lut##RB, lut##G)
-        DP3x4(lumi, LutY);
-        DP3x4(cb,  LutCb);
-        DP3x4(cr,  LutCr);
-#undef DP3x4
+#define M8(i) i+14, i+13, i+10, i+9, i+6, i+5, i+2, i+1
+        const auto ShufMid16 = _mm512_set_epi8(M8(112), M8(96), M8(80), M8(64), M8(48), M8(32), M8(16), M8(0));
+#undef M8
 #define ODD16(x) x+30, x+28, x+26, x+24, x+22, x+20, x+18, x+16, x+14, x+12, x+10, x+8, x+6, x+4, x+2, x+0
         const auto ShufLo = _mm512_set_epi8(ODD16(96), ODD16(64), ODD16(32), ODD16(0));
 #undef ODD16
-        auto outY = _mm512_permutex2var_epi8(lumi0, ShufLo, lumi1);
-        if (needAddY)
-            outY = _mm512_add_epi8(outY, _mm512_set1_epi8(16));
-        const auto cb_ = _mm512_packs_epi16(cb0, cb1), cr_ = _mm512_packs_epi16(cr0, cr1); // 04 15 26 37
-        const auto addToU8 = _mm512_set1_epi8(static_cast<int8_t>(128));
-        const auto outCb_ = _mm512_add_epi8(cb_, addToU8), outCr_ = _mm512_add_epi8(cr_, addToU8);
+#define DP3x4(out, lut, isy) const auto out##0 = T::DP3(midRB0, midRB1, midG0, lut##RB, lut##G, ShufMid16, isy, needAddY), out##1 = T::DP3(midRB2, midRB3, midG1, lut##RB, lut##G, ShufMid16, isy, needAddY)
+        if constexpr (std::is_pointer_v<D>)
+        {
+            D& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP3x4(lumi, LutY, true);
+                const auto outY = _mm512_permutex2var_epi8(lumi0, ShufLo, lumi1);
+                _mm512_storeu_epi8(dstY, outY);
+                dstY += 64;
+            }
+            if (dstCb && dstCr)
+            {
+                DP3x4(cb, LutCb, false);
+                DP3x4(cr, LutCr, false);
+                const auto outCb_ = _mm512_packus_epi16(cb0, cb1), outCr_ = _mm512_packus_epi16(cr0, cr1); // 04 15 26 37
+#define PUT8(x) x+7, x+6, x+5, x+4, x+3, x+2, x+1, x
+                const auto ShufMix8 = _mm512_set_epi8(PUT8(56), PUT8(40), PUT8(24), PUT8(8), PUT8(48), PUT8(32), PUT8(16), PUT8(0));
+#undef PUT8
+                const auto outCb = _mm512_permutexvar_epi8(ShufMix8, outCb_);
+                const auto outCr = _mm512_permutexvar_epi8(ShufMix8, outCr_);
+                _mm512_storeu_epi8(dstCb, outCb);
+                _mm512_storeu_epi8(dstCr, outCr);
+                dstCb += 64, dstCr += 64;
+            }
+        }
+        else
+        {
+            DP3x4(lumi, LutY, true);
+            DP3x4(cb,  LutCb, false);
+            DP3x4(cr,  LutCr, false);
+            const auto outY = _mm512_permutex2var_epi8(lumi0, ShufLo, lumi1);
+            const auto outCb_ = _mm512_packus_epi16(cb0, cb1), outCr_ = _mm512_packus_epi16(cr0, cr1); // 04 15 26 37
 
-        const auto shuffleRGR0 = _mm512_set_epi8(
-             21,  20, 100,  20,  19,  99,  19,  18,  98,  18,  17,  97,  17,  16,  96,  16,
-             15,  87,  15,  14,  86,  14,  13,  85,  13,  12,  84,  12,  11,  83,  11,  10,
-             82,  10,   9,  81,   9,   8,  80,   8,   7,  71,   7,   6,  70,   6,   5,  69,
-              5,   4,  68,   4,   3,  67,   3,   2,  66,   2,   1,  65,   1,   0,  64,   0);
-        const auto valRGR0 = _mm512_permutex2var_epi8(outY, shuffleRGR0, outCb_);
-        const auto shuffleRGR1 = _mm512_set_epi8(
-             90,  42,  41,  89,  41,  40,  88,  40,  39,  79,  39,  38,  78,  38,  37,  77,
-             37,  36,  76,  36,  35,  75,  35,  34,  74,  34,  33,  73,  33,  32,  72,  32,
-             31, 119,  31,  30, 118,  30,  29, 117,  29,  28, 116,  28,  27, 115,  27,  26,
-            114,  26,  25, 113,  25,  24, 112,  24,  23, 103,  23,  22, 102,  22,  21, 101);
-        const auto valRGR1 = _mm512_permutex2var_epi8(outY, shuffleRGR1, outCb_);
-        const auto shuffleRGR2 = _mm512_set_epi8(
-             63, 127,  63,  62, 126,  62,  61, 125,  61,  60, 124,  60,  59, 123,  59,  58,
-            122,  58,  57, 121,  57,  56, 120,  56,  55, 111,  55,  54, 110,  54,  53, 109,
-             53,  52, 108,  52,  51, 107,  51,  50, 106,  50,  49, 105,  49,  48, 104,  48,
-             47,  95,  47,  46,  94,  46,  45,  93,  45,  44,  92,  44,  43,  91,  43,  42);
-        const auto valRGR2 = _mm512_permutex2var_epi8(outY, shuffleRGR2, outCb_);
+            const auto shuffleRGR0 = _mm512_set_epi8(
+                 21,  20, 100,  20,  19,  99,  19,  18,  98,  18,  17,  97,  17,  16,  96,  16,
+                 15,  87,  15,  14,  86,  14,  13,  85,  13,  12,  84,  12,  11,  83,  11,  10,
+                 82,  10,   9,  81,   9,   8,  80,   8,   7,  71,   7,   6,  70,   6,   5,  69,
+                  5,   4,  68,   4,   3,  67,   3,   2,  66,   2,   1,  65,   1,   0,  64,   0);
+            const auto valRGR0 = _mm512_permutex2var_epi8(outY, shuffleRGR0, outCb_);
+            const auto shuffleRGR1 = _mm512_set_epi8(
+                 90,  42,  41,  89,  41,  40,  88,  40,  39,  79,  39,  38,  78,  38,  37,  77,
+                 37,  36,  76,  36,  35,  75,  35,  34,  74,  34,  33,  73,  33,  32,  72,  32,
+                 31, 119,  31,  30, 118,  30,  29, 117,  29,  28, 116,  28,  27, 115,  27,  26,
+                114,  26,  25, 113,  25,  24, 112,  24,  23, 103,  23,  22, 102,  22,  21, 101);
+            const auto valRGR1 = _mm512_permutex2var_epi8(outY, shuffleRGR1, outCb_);
+            const auto shuffleRGR2 = _mm512_set_epi8(
+                 63, 127,  63,  62, 126,  62,  61, 125,  61,  60, 124,  60,  59, 123,  59,  58,
+                122,  58,  57, 121,  57,  56, 120,  56,  55, 111,  55,  54, 110,  54,  53, 109,
+                 53,  52, 108,  52,  51, 107,  51,  50, 106,  50,  49, 105,  49,  48, 104,  48,
+                 47,  95,  47,  46,  94,  46,  45,  93,  45,  44,  92,  44,  43,  91,  43,  42);
+            const auto valRGR2 = _mm512_permutex2var_epi8(outY, shuffleRGR2, outCb_);
 
-        const auto insertB0 = _mm512_set_epi8(
-            63, 100, 61, 60, 99, 58, 57, 98, 55, 54, 97, 52, 51, 96, 49, 48,
-            87,  46, 45, 86, 43, 42, 85, 40, 39, 84, 37, 36, 83, 34, 33, 82,
-            31,  30, 81, 28, 27, 80, 25, 24, 71, 22, 21, 70, 19, 18, 69, 16,
-            15,  68, 13, 12, 67, 10,  9, 66,  7,  6, 65,  4,  3, 64,  1,  0);
-        const auto out0 = _mm512_permutex2var_epi8(valRGR0, insertB0, outCr_);
-        const auto insertB1 = _mm512_set_epi8(
-             63,  62,  89,  60,  59,  88,  57,  56,  79,  54,  53,  78,  51,  50,  77,  48,
-             47,  76,  45,  44,  75,  42,  41,  74,  39,  38,  73,  36,  35,  72,  33,  32,
-            119,  30,  29, 118,  27,  26, 117,  24,  23, 116,  21,  20, 115,  18,  17, 114,
-             15,  14, 113,  12,  11, 112,   9,   8, 103,   6,   5, 102,   3,   2, 101,   0);
-        const auto out1 = _mm512_permutex2var_epi8(valRGR1, insertB1, outCr_);
-        const auto insertB2 = _mm512_set_epi8(
-            127,  62,  61, 126,  59,  58, 125,  56,  55, 124,  53,  52, 123,  50,  49, 122,
-             47,  46, 121,  44,  43, 120,  41,  40, 111,  38,  37, 110,  35,  34, 109,  32,
-             31, 108,  29,  28, 107,  26,  25, 106,  23,  22, 105,  20,  19, 104,  17,  16,
-             95,  14,  13,  94,  11,  10,  93,   8,   7,  92,   5,   4,  91,   2,   1,  90);
-        const auto out2 = _mm512_permutex2var_epi8(valRGR2, insertB2, outCr_);
+            const auto insertB0 = _mm512_set_epi8(
+                63, 100, 61, 60, 99, 58, 57, 98, 55, 54, 97, 52, 51, 96, 49, 48,
+                87,  46, 45, 86, 43, 42, 85, 40, 39, 84, 37, 36, 83, 34, 33, 82,
+                31,  30, 81, 28, 27, 80, 25, 24, 71, 22, 21, 70, 19, 18, 69, 16,
+                15,  68, 13, 12, 67, 10,  9, 66,  7,  6, 65,  4,  3, 64,  1,  0);
+            const auto out0 = _mm512_permutex2var_epi8(valRGR0, insertB0, outCr_);
+            const auto insertB1 = _mm512_set_epi8(
+                 63,  62,  89,  60,  59,  88,  57,  56,  79,  54,  53,  78,  51,  50,  77,  48,
+                 47,  76,  45,  44,  75,  42,  41,  74,  39,  38,  73,  36,  35,  72,  33,  32,
+                119,  30,  29, 118,  27,  26, 117,  24,  23, 116,  21,  20, 115,  18,  17, 114,
+                 15,  14, 113,  12,  11, 112,   9,   8, 103,   6,   5, 102,   3,   2, 101,   0);
+            const auto out1 = _mm512_permutex2var_epi8(valRGR1, insertB1, outCr_);
+            const auto insertB2 = _mm512_set_epi8(
+                127,  62,  61, 126,  59,  58, 125,  56,  55, 124,  53,  52, 123,  50,  49, 122,
+                 47,  46, 121,  44,  43, 120,  41,  40, 111,  38,  37, 110,  35,  34, 109,  32,
+                 31, 108,  29,  28, 107,  26,  25, 106,  23,  22, 105,  20,  19, 104,  17,  16,
+                 95,  14,  13,  94,  11,  10,  93,   8,   7,  92,   5,   4,  91,   2,   1,  90);
+            const auto out2 = _mm512_permutex2var_epi8(valRGR2, insertB2, outCr_);
         
-        _mm512_storeu_epi8(dst +   0, out0);
-        _mm512_storeu_epi8(dst +  64, out1);
-        _mm512_storeu_epi8(dst + 128, out2);
+            _mm512_storeu_epi8(dst +   0, out0);
+            _mm512_storeu_epi8(dst +  64, out1);
+            _mm512_storeu_epi8(dst + 128, out2);
+        }
+#undef DP3x4
     }
 };
-struct RGB8ToYUV8_I8_AVX512VBMI_Base
+struct RGB8ToYUV8_I16_AVX512VBMI : public RGB8ToYUV8_I16_AVX512Vx<RGBx8ToYUV8_I16_AVX512VBMI_Base>
+{
+    using RGB8ToYUV8_I16_AVX512Vx::RGB8ToYUV8_I16_AVX512Vx;
+};
+struct RGB8ToYUV8_I16_AVX512VNNI : public RGB8ToYUV8_I16_AVX512Vx<RGBx8ToYUV8_I16_AVX512VNNI_Base>
+{
+    using RGB8ToYUV8_I16_AVX512Vx::RGB8ToYUV8_I16_AVX512Vx;
+};
+template<typename T>
+struct RGBA8ToYUV8_I16_AVX512Vx : public RGBA8ToYUV8_I16_512_Base
+{
+    using RGBA8ToYUV8_I16_512_Base::RGBA8ToYUV8_I16_512_Base;
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint32_t* __restrict src, bool needAddY, bool) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi32(src);
+        const auto dat1 = _mm512_loadu_epi32(src + 16);
+        const auto dat2 = _mm512_loadu_epi32(src + 32);
+        const auto dat3 = _mm512_loadu_epi32(src + 48);
+
+        const auto maskLo = _mm512_set1_epi32(0x00ff00ff);
+        const auto midRB0 = _mm512_and_si512(dat0, maskLo);
+        const auto midRB1 = _mm512_and_si512(dat1, maskLo);
+        const auto midRB2 = _mm512_and_si512(dat2, maskLo);
+        const auto midRB3 = _mm512_and_si512(dat3, maskLo);
+        
+#define PUT4(x) -1, x+13, -1, x+9, -1, x+5, -1, x+1
+        const auto shufG = _mm512_set_epi8(PUT4(112), PUT4(48), PUT4(96), PUT4(32), PUT4(80), PUT4(16), PUT4(64), PUT4(0));
+#undef  PUT4
+        const auto maskG = _cvtu64_mask64(0x5555555555555555u);
+        const auto midG0 = _mm512_slli_epi16(_mm512_maskz_permutex2var_epi8(maskG, dat0, shufG, dat1), 7); // datG04152637
+        const auto midG1 = _mm512_slli_epi16(_mm512_maskz_permutex2var_epi8(maskG, dat2, shufG, dat3), 7); // datG8c9daebf
+
+#define M8(x) x+14, x+13, x+10, x+9, x+6, x+5, x+2, x+1
+        const auto ShufMid16 = _mm512_set_epi8(M8(112), M8(48), M8(96), M8(32), M8(80), M8(16), M8(64), M8(0));
+#undef  M8
+#define ODD4(x) x+6, x+4, x+2, x+0
+        const auto ShufLo = _mm512_set_epi8(ODD4(120), ODD4(104), ODD4(88), ODD4(72), ODD4(112), ODD4(96), ODD4(80), ODD4(64),
+            ODD4(56), ODD4(40), ODD4(24), ODD4(8), ODD4(48), ODD4(32), ODD4(16), ODD4(0));
+#undef ODD4
+#define DP3x4(out, lut, isy) const auto out##04 = T::DP3(midRB0, midRB1, midG0, lut##RB, lut##G, ShufMid16, isy, needAddY), out##8c = T::DP3(midRB2, midRB3, midG1, lut##RB, lut##G, ShufMid16, isy, needAddY)
+        if constexpr (std::is_pointer_v<D>)
+        {
+            D& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP3x4(lumi, LutY, true);
+                const auto outY = _mm512_permutex2var_epi8(lumi04, ShufLo, lumi8c);
+                _mm512_storeu_epi8(dstY, outY);
+                dstY += 64;
+            }
+            if (dstCb && dstCr)
+            {
+                DP3x4(cb, LutCb, false);
+                DP3x4(cr, LutCr, false);
+                const auto outCb048c = _mm512_packus_epi16(cb04, cb8c), outCr048c = _mm512_packus_epi16(cr04, cr8c);
+                const auto shuf048c = _mm512_set_epi32(15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1, 12, 8, 4, 0);
+                const auto outCb = _mm512_permutexvar_epi32(shuf048c, outCb048c);
+                const auto outCr = _mm512_permutexvar_epi32(shuf048c, outCr048c);
+                _mm512_storeu_epi8(dstCb, outCb);
+                _mm512_storeu_epi8(dstCr, outCr);
+                dstCb += 64, dstCr += 64;
+            }
+        }
+        else
+        {
+            DP3x4(lumi, LutY, true);
+            DP3x4(cb,   LutCb, false);
+            DP3x4(cr,   LutCr, false);
+            const auto outY = _mm512_permutex2var_epi8(lumi04, ShufLo, lumi8c);
+            const auto outCb048c = _mm512_packus_epi16(cb04, cb8c), outCr048c = _mm512_packus_epi16(cr04, cr8c);
+            
+            const auto shuffleRGR0 = _mm512_set_epi8(
+                 21,  20,  84,  20,  19,  71,  19,  18,  70,  18,  17,  69,  17,  16,  68,  16,
+                 15, 115,  15,  14, 114,  14,  13, 113,  13,  12, 112,  12,  11,  99,  11,  10,
+                 98,  10,   9,  97,   9,   8,  96,   8,   7,  83,   7,   6,  82,   6,   5,  81,
+                  5,   4,  80,   4,   3,  67,   3,   2,  66,   2,   1,  65,   1,   0,  64,   0);
+            const auto valRGR0 = _mm512_permutex2var_epi8(outY, shuffleRGR0, outCb048c);
+            const auto shuffleRGR1 = _mm512_set_epi8(
+                106,  42,  41, 105,  41,  40, 104,  40,  39,  91,  39,  38,  90,  38,  37,  89,
+                 37,  36,  88,  36,  35,  75,  35,  34,  74,  34,  33,  73,  33,  32,  72,  32,
+                 31, 119,  31,  30, 118,  30,  29, 117,  29,  28, 116,  28,  27, 103,  27,  26,
+                102,  26,  25, 101,  25,  24, 100,  24,  23,  87,  23,  22,  86,  22,  21,  85);
+            const auto valRGR1 = _mm512_permutex2var_epi8(outY, shuffleRGR1, outCb048c);
+            const auto shuffleRGR2 = _mm512_set_epi8(
+                 63, 127,  63,  62, 126,  62,  61, 125,  61,  60, 124,  60,  59, 111,  59,  58,
+                110,  58,  57, 109,  57,  56, 108,  56,  55,  95,  55,  54,  94,  54,  53,  93,
+                 53,  52,  92,  52,  51,  79,  51,  50,  78,  50,  49,  77,  49,  48,  76,  48,
+                 47, 123,  47,  46, 122,  46,  45, 121,  45,  44, 120,  44,  43, 107,  43,  42);
+            const auto valRGR2 = _mm512_permutex2var_epi8(outY, shuffleRGR2, outCb048c);
+
+            const auto insertB0 = _mm512_set_epi8(
+                 63,  84,  61,  60,  71,  58,  57,  70,  55,  54,  69,  52,  51,  68,  49,  48,
+                115,  46,  45, 114,  43,  42, 113,  40,  39, 112,  37,  36,  99,  34,  33,  98,
+                 31,  30,  97,  28,  27,  96,  25,  24,  83,  22,  21,  82,  19,  18,  81,  16,
+                 15,  80,  13,  12,  67,  10,   9,  66,   7,   6,  65,   4,   3,  64,   1,   0);
+            const auto out0 = _mm512_permutex2var_epi8(valRGR0, insertB0, outCr048c);
+            const auto insertB1 = _mm512_set_epi8(
+                 63,  62, 105,  60,  59, 104,  57,  56,  91,  54,  53,  90,  51,  50,  89,  48,
+                 47,  88,  45,  44,  75,  42,  41,  74,  39,  38,  73,  36,  35,  72,  33,  32,
+                119,  30,  29, 118,  27,  26, 117,  24,  23, 116,  21,  20, 103,  18,  17, 102,
+                 15,  14, 101,  12,  11, 100,   9,   8,  87,   6,   5,  86,   3,   2,  85,   0);
+            const auto out1 = _mm512_permutex2var_epi8(valRGR1, insertB1, outCr048c);
+            const auto insertB2 = _mm512_set_epi8(
+                127,  62,  61, 126,  59,  58, 125,  56,  55, 124,  53,  52, 111,  50,  49, 110,
+                 47,  46, 109,  44,  43, 108,  41,  40,  95,  38,  37,  94,  35,  34,  93,  32,
+                 31,  92,  29,  28,  79,  26,  25,  78,  23,  22,  77,  20,  19,  76,  17,  16,
+                123,  14,  13, 122,  11,  10, 121,   8,   7, 120,   5,   4, 107,   2,   1, 106);
+            const auto out2 = _mm512_permutex2var_epi8(valRGR2, insertB2, outCr048c);
+        
+            _mm512_storeu_epi8(dst +   0, out0);
+            _mm512_storeu_epi8(dst +  64, out1);
+            _mm512_storeu_epi8(dst + 128, out2);
+        }
+#undef DP3x4
+    }
+};
+struct RGBA8ToYUV8_I16_AVX512VBMI : public RGBA8ToYUV8_I16_AVX512Vx<RGBx8ToYUV8_I16_AVX512VBMI_Base>
+{
+    using RGBA8ToYUV8_I16_AVX512Vx::RGBA8ToYUV8_I16_AVX512Vx;
+};
+struct RGBA8ToYUV8_I16_AVX512VNNI : public RGBA8ToYUV8_I16_AVX512Vx<RGBx8ToYUV8_I16_AVX512VNNI_Base>
+{
+    using RGBA8ToYUV8_I16_AVX512Vx::RGBA8ToYUV8_I16_AVX512Vx;
+};
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX512VBMI_I16)
+{
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_AVX512VBMI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX512VNNI_I16)
+{
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_AVX512VNNI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, AVX512VBMI_I16)
+{
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_AVX512VBMI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, AVX512VNNI_I16)
+{
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_AVX512VNNI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, AVX512VBMI_I16)
+{
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_AVX512VBMI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, AVX512VNNI_I16)
+{
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_AVX512VNNI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, AVX512VBMI_I16)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_AVX512VBMI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, AVX512VNNI_I16)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_AVX512VNNI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+}
+template<typename T>
+struct RGB8ToYUV8_I8_AVX512VBMI_Base : public T
 {
     static constexpr size_t M = 192, N = 192, K = 64;
     template<uint8_t R, uint8_t G, uint8_t B>
@@ -11227,18 +11950,66 @@ struct RGB8ToYUV8_I8_AVX512VBMI_Base
 #undef PUT2x4
     };
     const __m512i ShufRG0, ShufRG1, ShufRB0, ShufRB1, ShufGB0, ShufGB1;
-    template<uint8_t R, uint8_t G, uint8_t B>
-    RGB8ToYUV8_I8_AVX512VBMI_Base(RGBOrder<R, G, B>) noexcept :
+    template<typename L, uint8_t R, uint8_t G, uint8_t B>
+    RGB8ToYUV8_I8_AVX512VBMI_Base(const L* lut, RGBOrder<R, G, B>) noexcept : T(lut),
 #define LSHUF(a,b) Shuf##a##b##0(_mm512_loadu_si512(Shuffler<R, G, B>::Shuf##a##b)), Shuf##a##b##1(_mm512_loadu_si512(Shuffler<R, G, B>::Shuf##a##b + 64))
         LSHUF(R, G), LSHUF(R, B), LSHUF(G, B)
 #undef LSHUF
     { }
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi8(src), dat1 = _mm512_loadu_epi8(src + 64), dat2 = _mm512_loadu_epi8(src + 128);
+        const auto midRG0 = _mm512_permutex2var_epi8(dat0, ShufRG0, dat1);
+        const auto midRG1 = _mm512_permutex2var_epi8(dat1, ShufRG1, dat2);
+        const auto midGB0 = _mm512_permutex2var_epi8(dat0, ShufGB0, dat1);
+        const auto midGB1 = _mm512_permutex2var_epi8(dat1, ShufGB1, dat2);
+        const auto midRB0 = _mm512_permutex2var_epi8(dat0, ShufRB0, dat1);
+        const auto midRB1 = _mm512_permutex2var_epi8(dat1, ShufRB1, dat2);
+
+        this->ConvertPart3(dst, needAddY, midRG0, midRG1, midGB0, midGB1, midRB0, midRB1);
+    }
 };
-struct RGB8ToYUV8_I8_AVX512VBMI : public RGB8ToYUV8_I8_AVX512VBMI_Base
+template<typename T>
+struct RGBA8ToYUV8_I8_AVX512VBMI_Base : public T
+{
+    static constexpr size_t M = 64, N = 192, K = 64;
+    template<uint8_t R, uint8_t G, uint8_t B>
+    struct Shuffler
+    {
+#define PUT2x4(a,b,i) a+i, b+i, a+i+4, b+i+4, a+i+8, b+i+8, a+i+12, b+i+12
+#define SHUF64(a,b)alignas(64) static inline const uint8_t Shuf##a##b[] = { PUT2x4(a,b,0), PUT2x4(a,b,16), PUT2x4(a,b,32), PUT2x4(a,b,48), PUT2x4(a,b,64), PUT2x4(a,b,80), PUT2x4(a,b,96), PUT2x4(a,b,112) }
+        SHUF64(R, G);
+        SHUF64(R, B);
+        SHUF64(G, B);
+#undef SHUF64
+#undef PUT2x4
+    };
+    const __m512i ShufRG, ShufRB, ShufGB;
+    template<typename L, uint8_t R, uint8_t G, uint8_t B>
+    RGBA8ToYUV8_I8_AVX512VBMI_Base(const L* lut, RGBOrder<R, G, B>) noexcept : T(lut),
+#define LSHUF(a,b) Shuf##a##b(_mm512_loadu_si512(Shuffler<R, G, B>::Shuf##a##b))
+        LSHUF(R, G), LSHUF(R, B), LSHUF(G, B)
+#undef LSHUF
+    { }
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint32_t* __restrict src, bool needAddY, bool) const noexcept
+    {
+        const auto dat0 = _mm512_loadu_epi32(src), dat1 = _mm512_loadu_epi32(src + 16), dat2 = _mm512_loadu_epi32(src + 32), dat3 = _mm512_loadu_epi32(src + 48);
+        const auto midRG0 = _mm512_permutex2var_epi8(dat0, ShufRG, dat1);
+        const auto midRG1 = _mm512_permutex2var_epi8(dat2, ShufRG, dat3);
+        const auto midGB0 = _mm512_permutex2var_epi8(dat0, ShufGB, dat1);
+        const auto midGB1 = _mm512_permutex2var_epi8(dat2, ShufGB, dat3);
+        const auto midRB0 = _mm512_permutex2var_epi8(dat0, ShufRB, dat1);
+        const auto midRB1 = _mm512_permutex2var_epi8(dat2, ShufRB, dat3);
+
+        this->ConvertPart3(dst, needAddY, midRG0, midRG1, midGB0, midGB1, midRB0, midRB1);
+    }
+};
+struct RGBx8ToYUV8_I8_AVX512VBMI_Base
 {
     const __m512i LutYRG, LutYGB, LutCbRB, LutCbGB, LutCrRG, LutCrRB;
-    template<uint8_t R, uint8_t G, uint8_t B>
-    RGB8ToYUV8_I8_AVX512VBMI(const int16_t* lut, RGBOrder<R, G, B> order) noexcept : RGB8ToYUV8_I8_AVX512VBMI_Base(order),
+    RGBx8ToYUV8_I8_AVX512VBMI_Base(const int16_t* lut) noexcept :
 #define LLUT(x,i) Lut##x(_mm512_set1_epi16(lut[i]))
         LLUT(YRG, 0), LLUT(YGB, 1), LLUT(CbRB, 2), LLUT(CbGB, 3), LLUT(CrRG, 4), LLUT(CrRB, 5)
 #undef LLUT
@@ -11254,40 +12025,58 @@ struct RGB8ToYUV8_I8_AVX512VBMI : public RGB8ToYUV8_I8_AVX512VBMI_Base
         else
             return _mm512_adds_epi16(sum, add128);
     }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    template<typename D>
+    forceinline void ConvertPart3(D* __restrict dst, bool needAddY, const __m512i& midRG0, const __m512i& midRG1, const __m512i& midGB0, const __m512i& midGB1, const __m512i& midRB0, const __m512i& midRB1) const noexcept
     {
-        const auto dat0 = _mm512_loadu_epi8(src), dat1 = _mm512_loadu_epi8(src + 64), dat2 = _mm512_loadu_epi8(src + 128);
-        const auto midRG0 = _mm512_permutex2var_epi8(dat0, ShufRG0, dat1);
-        const auto midRG1 = _mm512_permutex2var_epi8(dat1, ShufRG1, dat2);
-        const auto midGB0 = _mm512_permutex2var_epi8(dat0, ShufGB0, dat1);
-        const auto midGB1 = _mm512_permutex2var_epi8(dat1, ShufGB1, dat2);
-        const auto midRB0 = _mm512_permutex2var_epi8(dat0, ShufRB0, dat1);
-        const auto midRB1 = _mm512_permutex2var_epi8(dat1, ShufRB1, dat2);
-
-#define DP4x4(out, isy, a, b, lut) const auto out##0 = DP4<isy>(mid##a##0, mid##b##0, lut##a, lut##b), out##1 = DP4<isy>(mid##a##1, mid##b##1, lut##a, lut##b)
-        DP4x4(lumi, true, RG, GB, LutY);
-        DP4x4(cb,  false, RB, GB, LutCb);
-        DP4x4(cr,  false, RG, RB, LutCr);
-#undef DP4x4
 #define EVEN16(x) x+31, x+29, x+27, x+25, x+23, x+21, x+19, x+17, x+15, x+13, x+11, x+9, x+7, x+5, x+3, x+1
         const auto ShufHi = _mm512_set_epi8(EVEN16(96), EVEN16(64), EVEN16(32), EVEN16(0));
 #undef EVEN16
-        auto outY = _mm512_permutex2var_epi8(lumi0, ShufHi, lumi1);
-        if (needAddY)
-            outY = _mm512_add_epi8(outY, _mm512_set1_epi8(16));
-        const auto cb = _mm512_permutex2var_epi8(cb0, ShufHi, cb1), cr = _mm512_permutex2var_epi8(cr0, ShufHi, cr1);
-        const auto addToU8 = _mm512_set1_epi8(static_cast<int8_t>(128));
-        const auto outCb = _mm512_add_epi8(cb, addToU8), outCr = _mm512_add_epi8(cr, addToU8);
+#define DP4x4(out, isy, a, b, lut) const auto out##0 = DP4<isy>(mid##a##0, mid##b##0, lut##a, lut##b), out##1 = DP4<isy>(mid##a##1, mid##b##1, lut##a, lut##b)
+        if constexpr (std::is_pointer_v<D>)
+        {
+            D& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP4x4(lumi, true, RG, GB, LutY);
+                auto outY = _mm512_permutex2var_epi8(lumi0, ShufHi, lumi1);
+                if (needAddY)
+                    outY = _mm512_add_epi8(outY, _mm512_set1_epi8(16));
+                _mm512_storeu_epi8(dstY, outY);
+                dstY += 64;
+            }
+            if (dstCb && dstCr)
+            {
+                DP4x4(cb, false, RB, GB, LutCb);
+                DP4x4(cr, false, RG, RB, LutCr);
+                const auto cb = _mm512_permutex2var_epi8(cb0, ShufHi, cb1), cr = _mm512_permutex2var_epi8(cr0, ShufHi, cr1);
+                const auto addToU8 = _mm512_set1_epi8(static_cast<int8_t>(128));
+                const auto outCb = _mm512_add_epi8(cb, addToU8), outCr = _mm512_add_epi8(cr, addToU8);
+                _mm512_storeu_epi8(dstCb, outCb);
+                _mm512_storeu_epi8(dstCr, outCr);
+                dstCb += 64, dstCr += 64;
+            }
+        }
+        else
+        {
+            DP4x4(lumi, true, RG, GB, LutY);
+            DP4x4(cb, false, RB, GB, LutCb);
+            DP4x4(cr, false, RG, RB, LutCr);
+            auto outY = _mm512_permutex2var_epi8(lumi0, ShufHi, lumi1);
+            if (needAddY)
+                outY = _mm512_add_epi8(outY, _mm512_set1_epi8(16));
+            const auto cb = _mm512_permutex2var_epi8(cb0, ShufHi, cb1), cr = _mm512_permutex2var_epi8(cr0, ShufHi, cr1);
+            const auto addToU8 = _mm512_set1_epi8(static_cast<int8_t>(128));
+            const auto outCb = _mm512_add_epi8(cb, addToU8), outCr = _mm512_add_epi8(cr, addToU8);
 
-        Combine8x3_512VBMI::DoStore(dst, outY, outCb, outCr);
+            Combine8x3_512VBMI::DoStore(dst, outY, outCb, outCr);
+        }
+#undef DP4x4
     }
 };
-struct RGB8ToYUV8_I8DP4A_AVX512VBMI : public RGB8ToYUV8_I8_AVX512VBMI_Base
+struct RGBx8ToYUV8_I8DP4A_AVX512VBMI_Base
 {
     const __m512i LutY, LutCb, LutCr;
-    template<uint8_t R, uint8_t G, uint8_t B>
-    RGB8ToYUV8_I8DP4A_AVX512VBMI(const int32_t* lut, RGBOrder<R, G, B> order) noexcept : RGB8ToYUV8_I8_AVX512VBMI_Base(order),
-        LutY(_mm512_set1_epi32(lut[0])), LutCb(_mm512_set1_epi32(lut[1])), LutCr(_mm512_set1_epi32(lut[2]))
+    RGBx8ToYUV8_I8DP4A_AVX512VBMI_Base(const int32_t* lut) noexcept : LutY(_mm512_set1_epi32(lut[0])), LutCb(_mm512_set1_epi32(lut[1])), LutCr(_mm512_set1_epi32(lut[2]))
     { }
     static forceinline auto DP4(const __m512i& part0, const __m512i& part1, const __m512i& lut, const int32_t base) noexcept
     {
@@ -11296,74 +12085,82 @@ struct RGB8ToYUV8_I8DP4A_AVX512VBMI : public RGB8ToYUV8_I8_AVX512VBMI_Base
         const auto mid0246 = _mm512_dpbusd_epi32(adder, rgb0246, lut), mid1357 = _mm512_dpbusd_epi32(adder, rgb1357, lut);
         return _mm512_packus_epi32(mid0246, mid1357);
     }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY) const noexcept
+    template<typename D>
+    forceinline void ConvertPart3(D* __restrict dst, bool needAddY, const __m512i& midRG0, const __m512i& midRG1, const __m512i& midGB0, const __m512i& midGB1, const __m512i& midRB0, const __m512i& midRB1) const noexcept
     {
-        const auto dat0 = _mm512_loadu_epi8(src), dat1 = _mm512_loadu_epi8(src + 64), dat2 = _mm512_loadu_epi8(src + 128);
-        const auto midRG0 = _mm512_permutex2var_epi8(dat0, ShufRG0, dat1);
-        const auto midRG1 = _mm512_permutex2var_epi8(dat1, ShufRG1, dat2);
-        const auto midGB0 = _mm512_permutex2var_epi8(dat0, ShufGB0, dat1);
-        const auto midGB1 = _mm512_permutex2var_epi8(dat1, ShufGB1, dat2);
-        const auto midRB0 = _mm512_permutex2var_epi8(dat0, ShufRB0, dat1);
-        const auto midRB1 = _mm512_permutex2var_epi8(dat1, ShufRB1, dat2);
-
-#define DP4x4(out, a, b, lut, base) const auto out##0 = DP4(mid##a##0, mid##b##0, lut, base), out##1 = DP4(mid##a##1, mid##b##1, lut, base)
-        DP4x4(lumi, RG, GB, LutY, needAddY ? 16 : 0);
-        DP4x4(cb,   RB, GB, LutCb, 128);
-        DP4x4(cr,   RG, RB, LutCr, 128);
-#undef DP4x4
 #define EVEN16(x) x+31, x+29, x+27, x+25, x+23, x+21, x+19, x+17, x+15, x+13, x+11, x+9, x+7, x+5, x+3, x+1
         const auto ShufHi = _mm512_set_epi8(EVEN16(96), EVEN16(64), EVEN16(32), EVEN16(0));
 #undef EVEN16
-        const auto outY = _mm512_permutex2var_epi8(lumi0, ShufHi, lumi1);
-        const auto outCb = _mm512_permutex2var_epi8(cb0, ShufHi, cb1);
-        const auto outCr = _mm512_permutex2var_epi8(cr0, ShufHi, cr1);
-        Combine8x3_512VBMI::DoStore(dst, outY, outCb, outCr);
+#define DP4x4(out, a, b, lut, base) const auto out##0 = DP4(mid##a##0, mid##b##0, lut, base), out##1 = DP4(mid##a##1, mid##b##1, lut, base)
+        if constexpr (std::is_pointer_v<D>)
+        {
+            D& dstY = dst[0], dstCb = dst[1], dstCr = dst[2];
+            if (dstY)
+            {
+                DP4x4(lumi, RG, GB, LutY, needAddY ? 16 : 0);
+                const auto outY = _mm512_permutex2var_epi8(lumi0, ShufHi, lumi1);
+                _mm512_storeu_epi8(dstY, outY);
+                dstY += 64;
+            }
+            if (dstCb && dstCr)
+            {
+                DP4x4(cb, RB, GB, LutCb, 128);
+                DP4x4(cr, RG, RB, LutCr, 128);
+                const auto outCb = _mm512_permutex2var_epi8(cb0, ShufHi, cb1);
+                const auto outCr = _mm512_permutex2var_epi8(cr0, ShufHi, cr1);
+                _mm512_storeu_epi8(dstCb, outCb);
+                _mm512_storeu_epi8(dstCr, outCr);
+                dstCb += 64, dstCr += 64;
+            }
+        }
+        else
+        {
+            DP4x4(lumi, RG, GB, LutY, needAddY ? 16 : 0);
+            DP4x4(cb, RB, GB, LutCb, 128);
+            DP4x4(cr, RG, RB, LutCr, 128);
+            const auto outY = _mm512_permutex2var_epi8(lumi0, ShufHi, lumi1);
+            const auto outCb = _mm512_permutex2var_epi8(cb0, ShufHi, cb1);
+            const auto outCr = _mm512_permutex2var_epi8(cr0, ShufHi, cr1);
+            Combine8x3_512VBMI::DoStore(dst, outY, outCb, outCr);
+        }
+#undef DP4x4
     }
 };
-DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX512VBMI_I16)
-{
-    if (count >= RGB8ToYUV8_I16_AVX512VBMI::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_I16_AVX512VBMI proc(I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<AVX2_I16>(dest, src, count, mval);
-}
+using RGB8ToYUV8_I8_AVX512VBMI      = RGB8ToYUV8_I8_AVX512VBMI_Base <RGBx8ToYUV8_I8_AVX512VBMI_Base>;
+using RGBA8ToYUV8_I8_AVX512VBMI     = RGBA8ToYUV8_I8_AVX512VBMI_Base<RGBx8ToYUV8_I8_AVX512VBMI_Base>;
+using RGB8ToYUV8_I8DP4A_AVX512VBMI  = RGB8ToYUV8_I8_AVX512VBMI_Base <RGBx8ToYUV8_I8DP4A_AVX512VBMI_Base>;
+using RGBA8ToYUV8_I8DP4A_AVX512VBMI = RGBA8ToYUV8_I8_AVX512VBMI_Base<RGBx8ToYUV8_I8DP4A_AVX512VBMI_Base>;
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, AVX512VBMI_I8)
 {
-    if (count >= RGB8ToYUV8_I8_AVX512VBMI::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_I8_AVX512VBMI proc(reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<AVX2_I8>(dest, src, count, mval);
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, AVX512VNNI_I8)
 {
-    if (count >= RGB8ToYUV8_I8DP4A_AVX512VBMI::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const RGB8ToYUV8_I8DP4A_AVX512VBMI proc(reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
-        do
-        {
-            proc.Convert(dest, src, needAddY);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<AVX2_I8>(dest, src, count, mval);
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8DP4A_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, AVX512VBMI_I8)
+{
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, AVX512VNNI_I8)
+{
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8DP4A_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, AVX512VBMI_I8)
+{
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, AVX512VNNI_I8)
+{
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8DP4A_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, AVX512VBMI_I8)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+}
+DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, AVX512VNNI_I8)
+{
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8DP4A_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
 }
 
 template<typename T>

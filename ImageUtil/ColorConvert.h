@@ -495,14 +495,16 @@ class YCCConvertor final : public common::RuntimeFastPath<YCCConvertor>
 {
     friend ::common::fastpath::PathHack;
 private:
-    void(*RGB8ToYCbCr8Fast      )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
-    void(*RGB8ToYCbCr8          )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
-    void(*RGBA8ToYCbCr8Fast     )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
-    void(*RGBA8ToYCbCr8         )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
-    void(*YCbCr8ToRGB8          )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
-    void(*RGB8ToYCbCr8PlanarFast)(uint8_t* const* __restrict dest, const uint8_t* __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
-    void(*RGB8ToYCbCr8Planar    )(uint8_t* const* __restrict dest, const uint8_t* __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
-    void(*YCbCr8ToRGB8Planar    )(uint8_t* const* __restrict dest, const uint8_t* __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
+    void(*RGB8ToYCbCr8Fast       )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
+    void(*RGB8ToYCbCr8           )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
+    void(*RGBA8ToYCbCr8Fast      )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
+    void(*RGBA8ToYCbCr8          )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
+    void(*YCbCr8ToRGB8           )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
+    void(*RGB8ToYCbCr8PlanarFast )(uint8_t* const* __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
+    void(*RGB8ToYCbCr8Planar     )(uint8_t* const* __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
+    void(*RGBA8ToYCbCr8PlanarFast)(uint8_t* const* __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
+    void(*RGBA8ToYCbCr8Planar    )(uint8_t* const* __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
+    void(*YCbCr8ToRGB8Planar     )(uint8_t* const* __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval) noexcept = nullptr;
 public:
     IMGUTILAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
     IMGUTILAPI YCCConvertor(common::span<const VarItem> requests = {}) noexcept;
@@ -537,6 +539,14 @@ public:
         if (rgbFull) matrix |= YCCMatrix::RGBFull;
         if (yccFull) matrix |= YCCMatrix::YCCFull;
         (fast ? RGB8ToYCbCr8PlanarFast : RGB8ToYCbCr8Planar)(dest.data(), src, count, common::enum_cast(matrix));
+    }
+    forceinline void RGBAToYCCPlanar(common::span<uint8_t* const, 3> dest, const uint32_t* src, const size_t count, YCCMatrix matrix, const bool rgbFull = true, const bool yccFull = false, const bool fast = false) const noexcept
+    {
+        Expects(common::enum_cast(matrix) < common::enum_cast(YCCMatrix::Invalid));
+        Expects(bool(dest[1]) == bool(dest[2])); // cb&cr mube same state
+        if (rgbFull) matrix |= YCCMatrix::RGBFull;
+        if (yccFull) matrix |= YCCMatrix::YCCFull;
+        (fast ? RGBA8ToYCbCr8PlanarFast : RGBA8ToYCbCr8Planar)(dest.data(), src, count, common::enum_cast(matrix));
     }
     IMGUTILAPI static const YCCConvertor& Get() noexcept;
 };
