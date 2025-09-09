@@ -119,16 +119,16 @@
 #define BGR10A2ToRGBAfInfo  (void)(float*    __restrict dest, const uint32_t* __restrict src, size_t count, float mulVal)
 
 
-#define RGB8ToYCbCr8FastInfo        (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
-#define RGB8ToYCbCr8Info            (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
-#define RGBA8ToYCbCr8FastInfo       (void)(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval)
-#define RGBA8ToYCbCr8Info           (void)(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval)
-#define YCbCr8ToRGB8Info            (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
-#define RGB8ToYCbCr8PlanarFastInfo  (void)(uint8_t* const*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
-#define RGB8ToYCbCr8PlanarInfo      (void)(uint8_t* const*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
-#define RGBA8ToYCbCr8PlanarFastInfo (void)(uint8_t* const*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval)
-#define RGBA8ToYCbCr8PlanarInfo     (void)(uint8_t* const*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval)
-#define YCbCr8ToRGB8PlanarInfo      (void)(uint8_t* const*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval)
+#define RGB8ToYCbCr8FastInfo        (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, bool isRGB)
+#define RGB8ToYCbCr8Info            (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, bool isRGB)
+#define RGBA8ToYCbCr8FastInfo       (void)(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval, bool isRGB)
+#define RGBA8ToYCbCr8Info           (void)(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval, bool isRGB)
+#define YCbCr8ToRGB8Info            (void)(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, bool isRGB)
+#define RGB8ToYCbCr8PlanarFastInfo  (void)(uint8_t* const*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, bool isRGB)
+#define RGB8ToYCbCr8PlanarInfo      (void)(uint8_t* const*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, bool isRGB)
+#define RGBA8ToYCbCr8PlanarFastInfo (void)(uint8_t* const*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval, bool isRGB)
+#define RGBA8ToYCbCr8PlanarInfo     (void)(uint8_t* const*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval, bool isRGB)
+#define YCbCr8ToRGB8PlanarInfo      (void)(uint8_t* const*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, bool isRGB)
 
 
 namespace xziar::img
@@ -1073,8 +1073,9 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, LOOP_F32)
     [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
     [[maybe_unused]] const int32_t yAdd = needAddY ? 16 : 0;
     common::RegionRounding rd(common::RoundMode::ToNearest);
+    const auto ir = isRGB ? 0 : 2, ib = isRGB ? 2 : 0;
 
-#define LOOP_RGB_YUV do { const float r = src[0], g = src[1], b = src[2];           \
+#define LOOP_RGB_YUV do { const float r = src[ir], g = src[1], b = src[ib];         \
 const auto y  = r * lut[0] + g * lut[1] + b * lut[2];                               \
 const auto cb = r * lut[3] + g * lut[4] + b * lut[5];                               \
 const auto cr = r * lut[5] + g * lut[6] + b * lut[7];                               \
@@ -1092,23 +1093,24 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, LOOP_I16)
     const auto& lut = RGB8ToYCC8LUTI16[mval];
     [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
     [[maybe_unused]] const int32_t yAdd = needAddY ? 16 : 0;
+    const auto ir = isRGB ? 0 : 2, ib = isRGB ? 2 : 0;
 
-#define LOOP_RGB_YUV do { const int16_t r = src[0], g = src[1], b = src[2]; \
-const auto y  = r * lut[0] + g * lut[1] + b * lut[2];                       \
-const auto cb = r * lut[3] + g * lut[4] + b * lut[5];                       \
-const auto cr = r * lut[5] + g * lut[6] + b * lut[7];                       \
-*dest++ = static_cast<uint8_t>((( y + 8192) >> 14) + yAdd);                 \
-auto cb_ = ((cb + 8192) >> 14) + 128;                                       \
-auto cr_ = ((cr + 8192) >> 14) + 128;                                       \
-if (isYCCFull) { cb_ = Clamp(cb_, 0, 255); cr_ = Clamp(cr_, 0, 255); }      \
-*dest++ = static_cast<uint8_t>(cb_); *dest++ = static_cast<uint8_t>(cr_);   \
+#define LOOP_RGB_YUV do { const int16_t r = src[ir], g = src[1], b = src[ib];   \
+const auto y  = r * lut[0] + g * lut[1] + b * lut[2];                           \
+const auto cb = r * lut[3] + g * lut[4] + b * lut[5];                           \
+const auto cr = r * lut[5] + g * lut[6] + b * lut[7];                           \
+*dest++ = static_cast<uint8_t>((( y + 8192) >> 14) + yAdd);                     \
+auto cb_ = ((cb + 8192) >> 14) + 128;                                           \
+auto cr_ = ((cr + 8192) >> 14) + 128;                                           \
+if (isYCCFull) { cb_ = Clamp(cb_, 0, 255); cr_ = Clamp(cr_, 0, 255); }          \
+*dest++ = static_cast<uint8_t>(cb_); *dest++ = static_cast<uint8_t>(cr_);       \
 src += 3; } while (0)
     LOOP4(LOOP_RGB_YUV)
 #undef LOOP_RGB_YUV
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, LOOP_I16)
 {
-    RGB8ToYCbCr8FastPath::Func<LOOP_I16>(dest, src, count, mval);
+    RGB8ToYCbCr8FastPath::Func<LOOP_I16>(dest, src, count, mval, isRGB);
 }
 
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, LOOP_F32)
@@ -1117,11 +1119,12 @@ DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, LOOP_F32)
     [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
     [[maybe_unused]] const int32_t yAdd = needAddY ? 16 : 0;
     common::RegionRounding rd(common::RoundMode::ToNearest);
+    const auto sr = isRGB ? 0 : 16, sb = isRGB ? 16 : 0;
 
 #define LOOP_RGB_YUV do { const auto rgb = *src++;                              \
-const auto r = static_cast<float>((rgb >>  0) & 0xffu);                         \
+const auto r = static_cast<float>((rgb >> sr) & 0xffu);                         \
 const auto g = static_cast<float>((rgb >>  8) & 0xffu);                         \
-const auto b = static_cast<float>((rgb >> 16) & 0xffu);                         \
+const auto b = static_cast<float>((rgb >> sb) & 0xffu);                         \
 const auto y  = r * lut[0] + g * lut[1] + b * lut[2];                           \
 const auto cb = r * lut[3] + g * lut[4] + b * lut[5];                           \
 const auto cr = r * lut[5] + g * lut[6] + b * lut[7];                           \
@@ -1138,11 +1141,12 @@ DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, LOOP_I16)
     const auto& lut = RGB8ToYCC8LUTI16[mval];
     [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
     [[maybe_unused]] const int32_t yAdd = needAddY ? 16 : 0;
+    const auto sr = isRGB ? 0 : 16, sb = isRGB ? 16 : 0;
 
 #define LOOP_RGB_YUV do { const auto rgb = *src++;                      \
-const auto r = static_cast<int16_t>((rgb >>  0) & 0xffu);               \
+const auto r = static_cast<int16_t>((rgb >> sr) & 0xffu);               \
 const auto g = static_cast<int16_t>((rgb >>  8) & 0xffu);               \
-const auto b = static_cast<int16_t>((rgb >> 16) & 0xffu);               \
+const auto b = static_cast<int16_t>((rgb >> sb) & 0xffu);               \
 const auto y  = r * lut[0] + g * lut[1] + b * lut[2];                   \
 const auto cb = r * lut[3] + g * lut[4] + b * lut[5];                   \
 const auto cr = r * lut[5] + g * lut[6] + b * lut[7];                   \
@@ -1156,7 +1160,7 @@ if (isYCCFull) { cb_ = Clamp(cb_, 0, 255); cr_ = Clamp(cr_, 0, 255); }  \
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, LOOP_I16)
 {
-    RGBA8ToYCbCr8FastPath::Func<LOOP_I16>(dest, src, count, mval);
+    RGBA8ToYCbCr8FastPath::Func<LOOP_I16>(dest, src, count, mval, isRGB);
 }
 
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, LOOP_F32)
@@ -1167,6 +1171,7 @@ DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, LOOP_F32)
     const int32_t rgbMin = isRGBFull ? 0 : 16;
     const int32_t rgbMax = isRGBFull ? 255 : 235;
     common::RegionRounding rd(common::RoundMode::ToNearest);
+    const auto ir = isRGB ? 0 : 2, ib = isRGB ? 2 : 0;
 
 #define LOOP_YUV_RGB do { const float y = static_cast<float>(src[0] - yAdd),    \
 cb = static_cast<float>(src[1] - 128), cr = static_cast<float>(src[2] - 128);   \
@@ -1177,10 +1182,10 @@ const auto g = yl - cb * lut[4] - cr * lut[5];                                  
 const auto r_ = Clamp(static_cast<int32_t>(std::nearbyint(r)), rgbMin, rgbMax); \
 const auto g_ = Clamp(static_cast<int32_t>(std::nearbyint(g)), rgbMin, rgbMax); \
 const auto b_ = Clamp(static_cast<int32_t>(std::nearbyint(b)), rgbMin, rgbMax); \
-*dest++ = static_cast<uint8_t>(r_);                                             \
-*dest++ = static_cast<uint8_t>(g_);                                             \
-*dest++ = static_cast<uint8_t>(b_);                                             \
-src += 3; } while (0)
+dest[ir] = static_cast<uint8_t>(r_);                                            \
+dest[ 1] = static_cast<uint8_t>(g_);                                            \
+dest[ib] = static_cast<uint8_t>(b_);                                            \
+src += 3; dest += 3; } while (0)
     LOOP4(LOOP_YUV_RGB)
 #undef LOOP_YUV_RGB
 }
@@ -1192,6 +1197,7 @@ DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, LOOP_I16)
     const int32_t rgbMin = isRGBFull ? 0 : 16;
     const int32_t rgbMax = isRGBFull ? 255 : 235;
     common::RegionRounding rd(common::RoundMode::ToNearest);
+    const auto ir = isRGB ? 0 : 2, ib = isRGB ? 2 : 0;
 
 #define LOOP_YUV_RGB do { const auto y = static_cast<int16_t>(src[0] - yAdd),       \
 cb = static_cast<int16_t>(src[1] - 128), cr = static_cast<int16_t>(src[2] - 128);   \
@@ -1202,10 +1208,10 @@ const auto g = yl - cb * lut[4] - cr * lut[5];                                  
 const auto r_ = Clamp(r >> 13, rgbMin, rgbMax);                                     \
 const auto g_ = Clamp(g >> 13, rgbMin, rgbMax);                                     \
 const auto b_ = Clamp(b >> 13, rgbMin, rgbMax);                                     \
-*dest++ = static_cast<uint8_t>(r_);                                                 \
-*dest++ = static_cast<uint8_t>(g_);                                                 \
-*dest++ = static_cast<uint8_t>(b_);                                                 \
-src += 3; } while (0)
+dest[ir] = static_cast<uint8_t>(r_);                                            \
+dest[ 1] = static_cast<uint8_t>(g_);                                            \
+dest[ib] = static_cast<uint8_t>(b_);                                            \
+src += 3; dest += 3; } while (0)
     LOOP4(LOOP_YUV_RGB)
 #undef LOOP_YUV_RGB
 }
@@ -1220,8 +1226,9 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, LOOP_F32)
     uint8_t* __restrict destCr = dest[2];
     const bool procY = destY, procC = destCb;
     common::RegionRounding rd(common::RoundMode::ToNearest);
+    const auto ir = isRGB ? 0 : 2, ib = isRGB ? 2 : 0;
 
-#define LOOP_RGB_YUV do { const float r = src[0], g = src[1], b = src[2];           \
+#define LOOP_RGB_YUV do { const float r = src[ir], g = src[1], b = src[ib];         \
 if (procY) { const auto y  = r * lut[0] + g * lut[1] + b * lut[2];                  \
 *destY++  = static_cast<uint8_t>(static_cast<int32_t>(std::nearbyint(y)) + yAdd); } \
 if (procC) {                                                                        \
@@ -1244,8 +1251,9 @@ DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, LOOP_I16)
     uint8_t* __restrict destCb = dest[1];
     uint8_t* __restrict destCr = dest[2];
     const bool procY = destY, procC = destCb;
+    const auto ir = isRGB ? 0 : 2, ib = isRGB ? 2 : 0;
 
-#define LOOP_RGB_YUV do { const int16_t r = src[0], g = src[1], b = src[2];     \
+#define LOOP_RGB_YUV do { const int16_t r = src[ir], g = src[1], b = src[ib];   \
 if (procY) { const auto y  = r * lut[0] + g * lut[1] + b * lut[2];              \
 *destY++  = static_cast<uint8_t>((( y + 8192) >> 14) + yAdd); }                 \
 if (procC) {                                                                    \
@@ -1261,7 +1269,7 @@ src += 3; } while (0)
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, LOOP_I16)
 {
-    RGB8ToYCbCr8PlanarFastPath::Func<LOOP_I16>(dest, src, count, mval);
+    RGB8ToYCbCr8PlanarFastPath::Func<LOOP_I16>(dest, src, count, mval, isRGB);
 }
 
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, LOOP_F32)
@@ -1274,11 +1282,12 @@ DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, LOOP_F32)
     uint8_t* __restrict destCr = dest[2];
     const bool procY = destY, procC = destCb;
     common::RegionRounding rd(common::RoundMode::ToNearest);
+    const auto sr = isRGB ? 0 : 16, sb = isRGB ? 16 : 0;
 
 #define LOOP_RGB_YUV do { const auto rgb = *src++;                                  \
-const auto r = static_cast<float>((rgb >>  0) & 0xffu);                             \
+const auto r = static_cast<float>((rgb >> sr) & 0xffu);                             \
 const auto g = static_cast<float>((rgb >>  8) & 0xffu);                             \
-const auto b = static_cast<float>((rgb >> 16) & 0xffu);                             \
+const auto b = static_cast<float>((rgb >> sb) & 0xffu);                             \
 if (procY) { const auto y  = r * lut[0] + g * lut[1] + b * lut[2];                  \
 *destY++  = static_cast<uint8_t>(static_cast<int32_t>(std::nearbyint(y)) + yAdd); } \
 if (procC) {                                                                        \
@@ -1300,11 +1309,12 @@ DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, LOOP_I16)
     uint8_t* __restrict destCb = dest[1];
     uint8_t* __restrict destCr = dest[2];
     const bool procY = destY, procC = destCb;
+    const auto sr = isRGB ? 0 : 16, sb = isRGB ? 16 : 0;
 
 #define LOOP_RGB_YUV do { const auto rgb = *src++;                              \
-const auto r = static_cast<int16_t>((rgb >>  0) & 0xffu);                       \
+const auto r = static_cast<int16_t>((rgb >> sr) & 0xffu);                       \
 const auto g = static_cast<int16_t>((rgb >>  8) & 0xffu);                       \
-const auto b = static_cast<int16_t>((rgb >> 16) & 0xffu);                       \
+const auto b = static_cast<int16_t>((rgb >> sb) & 0xffu);                       \
 if (procY) { const auto y  = r * lut[0] + g * lut[1] + b * lut[2];              \
 *destY++  = static_cast<uint8_t>((( y + 8192) >> 14) + yAdd); }                 \
 if (procC) {                                                                    \
@@ -1320,49 +1330,93 @@ src += 3; } while (0)
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, LOOP_I16)
 {
-    RGBA8ToYCbCr8PlanarFastPath::Func<LOOP_I16>(dest, src, count, mval);
+    RGBA8ToYCbCr8PlanarFastPath::Func<LOOP_I16>(dest, src, count, mval, isRGB);
 }
 
-template<typename Proc, auto F, typename Src, typename Dst, typename... Args>
-static forceinline void RGBxToYCbCrLOOP1(Dst* __restrict dest, const Src* __restrict src, size_t count, uint8_t  mval, Args&&... args) noexcept
+template<typename Proc1, typename Proc2, auto F, typename Src, typename Dst, typename Arg1, typename Arg2, typename... Args>
+static forceinline void RGBxToYCbCrLOOP1(Dst* __restrict dest, const Src* __restrict src, size_t count, uint8_t mval, bool isRGB, Arg1&& arg1, Arg2&& arg2, Args&&... args) noexcept
 {
+    static_assert(Proc1::K == Proc2::K);
     common::RegionRounding rd(common::RoundMode::ToNearest);
-    if (count >= Proc::K)
+    if (count >= Proc1::K)
     {
         [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const Proc proc(std::forward<Args>(args)...);
-        do
+        if (isRGB)
         {
-            proc.Convert(dest, src, needAddY, isYCCFull);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
+            const Proc1 proc(std::forward<Args>(args)..., arg1);
+            do
+            {
+                proc.Convert(dest, src, needAddY, isYCCFull);
+                src += proc.M; dest += proc.N; count -= proc.K;
+            } while (count >= proc.K);
+        }
+        else
+        {
+            const Proc2 proc(std::forward<Args>(args)..., arg2);
+            do
+            {
+                proc.Convert(dest, src, needAddY, isYCCFull);
+                src += proc.M; dest += proc.N; count -= proc.K;
+            } while (count >= proc.K);
+        }
     }
     if (count)
-        F(dest, src, count, mval);
+        F(dest, src, count, mval, isRGB);
 }
-template<typename Proc, auto F, typename Src, typename Dst, typename... Args>
-static forceinline void RGBxToYCbCrPlanarLOOP1(Dst* const * __restrict dest, const Src* __restrict src, size_t count, uint8_t  mval, Args&&... args) noexcept
+template<typename Proc1, typename Proc2, auto F, typename Src, typename Dst, typename Arg1, typename Arg2, typename... Args>
+static forceinline void RGBxToYCbCrPlanarLOOP1(Dst* const * __restrict dest, const Src* __restrict src, size_t count, uint8_t mval, bool isRGB, Arg1&& arg1, Arg2&& arg2, Args&&... args) noexcept
 {
-    static_assert(Proc::N % 3 == 0);
-    constexpr size_t N = Proc::N / 3;
+    static_assert(Proc1::N == Proc2::N && Proc1::K == Proc2::K);
+    static_assert(Proc1::N % 3 == 0);
+    constexpr size_t N = Proc1::N / 3;
     Dst* __restrict dests[3] = { dest[0], dest[1], dest[2] };
     common::RegionRounding rd(common::RoundMode::ToNearest);
-    if (count >= Proc::K)
+    if (count >= Proc1::K)
     {
         [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const Proc proc(std::forward<Args>(args)...);
-        do
+        if (isRGB)
         {
-            proc.Convert(dests, src, needAddY, isYCCFull);
-            src += proc.M; count -= proc.K;
-            dests[0] += N, dests[1] += N, dests[2] += N;
-        } while (count >= proc.K);
+            const Proc1 proc(std::forward<Args>(args)..., arg1);
+            do
+            {
+                proc.Convert(dests, src, needAddY, isYCCFull);
+                src += proc.M; count -= proc.K;
+                dests[0] += N, dests[1] += N, dests[2] += N;
+            } while (count >= proc.K);
+        }
+        else
+        {
+            const Proc2 proc(std::forward<Args>(args)..., arg2);
+            do
+            {
+                proc.Convert(dests, src, needAddY, isYCCFull);
+                src += proc.M; count -= proc.K;
+                dests[0] += N, dests[1] += N, dests[2] += N;
+            } while (count >= proc.K);
+        }
     }
     if (count)
     {
         Dst* const dests_[3] = { dests[0], dests[1], dests[2] };
-        F(dests_, src, count, mval);
+        F(dests_, src, count, mval, isRGB);
     }
+}
+template<typename Proc, auto F, typename Src, typename Dst, typename... Args>
+static forceinline void YCbCrToRGBxLOOP1C(Dst* __restrict dest, const Src* __restrict src, size_t count, uint8_t mval, bool isRGB, Args&&... args) noexcept
+{
+    common::RegionRounding rd(common::RoundMode::ToNearest);
+    if (count >= Proc::K)
+    {
+        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
+        const Proc proc(std::forward<Args>(args)...);
+        do
+        {
+            proc.Convert(dest, src, needAddY, isRGBFull, isRGB);
+            src += proc.M; dest += proc.N; count -= proc.K;
+        } while (count >= proc.K);
+    }
+    if (count)
+        F(dest, src, count, mval, isRGB);
 }
 
 
@@ -3216,19 +3270,23 @@ struct RGBA8ToYUV8_F32_SSE41 : public RGBx8ToYUV8_F32_SSE41_Base
 };
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_F32)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_F32_SSE41, &Func<LOOP_F32>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_F32_SSE41, RGB8ToYUV8_F32_SSE41, &Func<LOOP_F32>>(dest, src, count, mval, isRGB, 
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTF32[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, SSE41_F32)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_F32_SSE41, &Func<LOOP_F32>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_F32_SSE41, RGBA8ToYUV8_F32_SSE41, &Func<LOOP_F32>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTF32[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, SSE41_F32)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_F32_SSE41, &Func<LOOP_F32>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_F32_SSE41, RGB8ToYUV8_F32_SSE41, &Func<LOOP_F32>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTF32[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, SSE41_F32)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_F32_SSE41, &Func<LOOP_F32>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_F32_SSE41, RGBA8ToYUV8_F32_SSE41, &Func<LOOP_F32>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTF32[mval]);
 }
 template<typename T>
 struct RGBx8ToYUV8_I16_SSE41_Base
@@ -3431,35 +3489,43 @@ struct RGBA8ToYUV8_I16_2_SSE41 : public RGBA8ToYUV8_I16_SSE41_Base, public RGBx8
 };
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_I16)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_SSE41, RGB8ToYUV8_I16_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, SSE41_I16_2)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_2_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_2_SSE41, RGB8ToYUV8_I16_2_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, SSE41_I16)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_SSE41, RGBA8ToYUV8_I16_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, SSE41_I16_2)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_2_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_2_SSE41, RGBA8ToYUV8_I16_2_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, SSE41_I16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_SSE41, RGB8ToYUV8_I16_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, SSE41_I16_2)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_2_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_2_SSE41, RGB8ToYUV8_I16_2_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, SSE41_I16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_SSE41, RGBA8ToYUV8_I16_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, SSE41_I16_2)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_2_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_2_SSE41, RGBA8ToYUV8_I16_2_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 struct RGBx8ToYUV8_I8_SSE41
 {
@@ -3571,19 +3637,23 @@ struct RGBA8ToYUV8_I8_SSE41 : public RGBx8ToYUV8_I8_SSE41
 };
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, SSE41_I8)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8_SSE41, RGB8ToYUV8_I8_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTI8x4[mval].data());
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, SSE41_I8)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8_SSE41, RGBA8ToYUV8_I8_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTI8x4[mval].data());
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, SSE41_I8)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8_SSE41, RGB8ToYUV8_I8_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTI8x4[mval].data());
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, SSE41_I8)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8_SSE41, RGBA8ToYUV8_I8_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTI8x4[mval].data());
 }
 
 struct YUV8ToRGB8_F32_SSE41
@@ -3768,49 +3838,15 @@ struct YUV8ToRGB8_I16_2_SSE41 : public YUV8ToRGB8_I16_SSE41_Base<YUV8ToRGB8_I16_
 };
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, SSE41_F32)
 {
-    if (count >= YUV8ToRGB8_F32_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const YUV8ToRGB8_F32_SSE41 proc(YCC8ToRGB8LUTF32[mval]);
-        common::RegionRounding rd(common::RoundMode::ToNearest);
-        do
-        {
-            proc.Convert(dest, src, needAddY, isRGBFull, true);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_F32>(dest, src, count, mval);
+    YCbCrToRGBxLOOP1C<YUV8ToRGB8_F32_SSE41, &Func<LOOP_F32>>(dest, src, count, mval, isRGB, YCC8ToRGB8LUTF32[mval]);
 }
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, SSE41_I16)
 {
-    if (count >= YUV8ToRGB8_I16_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const YUV8ToRGB8_I16_SSE41 proc(reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
-        do
-        {
-            proc.Convert(dest, src, needAddY, isRGBFull, true);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_F32>(dest, src, count, mval);
+    YCbCrToRGBxLOOP1C<YUV8ToRGB8_I16_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, SSE41_I16_2)
 {
-    if (count >= YUV8ToRGB8_I16_2_SSE41::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const YUV8ToRGB8_I16_2_SSE41 proc(reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
-        do
-        {
-            proc.Convert(dest, src, needAddY, isRGBFull, true);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_F32>(dest, src, count, mval);
+    YCbCrToRGBxLOOP1C<YUV8ToRGB8_I16_2_SSE41, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
 }
 
 DEFINE_FASTPATH_METHOD(G8ToRGBA8, SSSE3)
@@ -5194,24 +5230,32 @@ struct RGBA8ToYUV8_F32_NEON : public RGBx8ToYUV8_F32_NEON_Base
 };
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, NEON_F32)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_F32_NEON, &Func<LOOP_F32>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_F32_NEON, RGB8ToYUV8_F32_NEON, &Func<LOOP_F32>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTF32[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, NEON_F32)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_F32_NEON, &Func<LOOP_F32>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_F32_NEON, RGBA8ToYUV8_F32_NEON, &Func<LOOP_F32>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTF32[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, NEON_F32)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_F32_NEON, &Func<LOOP_F32>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_F32_NEON, RGB8ToYUV8_F32_NEON, &Func<LOOP_F32>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTF32[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, NEON_F32)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_F32_NEON, &Func<LOOP_F32>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval], RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_F32_NEON, RGBA8ToYUV8_F32_NEON, &Func<LOOP_F32>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTF32[mval]);
+}
+DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, NEON_F32)
+{
+    RGB8ToYCbCr8FastPath::Func<NEON_F32>(dest, src, count, mval, isRGB);
 }
 
 struct YUV8ToRGB8_F32_NEON
 {
-    static constexpr size_t M = 48, N = 48, K = 16;
+    static inline constexpr size_t M = 48, N = 48, K = 16;
     U8x16 U8_16;
     F32x4 MulY;
 # if COMMON_SIMD_LV >= 200
@@ -5310,23 +5354,7 @@ struct YUV8ToRGB8_F32_NEON
 };
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, NEON_F32)
 {
-    if (count >= YUV8ToRGB8_F32_NEON::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const YUV8ToRGB8_F32_NEON proc(YCC8ToRGB8LUTF32[mval]);
-        common::RegionRounding rd(common::RoundMode::ToNearest);
-        do
-        {
-            proc.Convert(dest, src, needAddY, isRGBFull, true);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_F32>(dest, src, count, mval);
-}
-DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, NEON_F32)
-{
-    RGB8ToYCbCr8FastPath::Func<NEON_F32>(dest, src, count, mval);
+    YCbCrToRGBxLOOP1C<YUV8ToRGB8_F32_NEON, &Func<LOOP_F32>>(dest, src, count, mval, isRGB, YCC8ToRGB8LUTF32[mval]);
 }
 
 DEFINE_FASTPATH_METHOD(G8ToGA8, NEON)
@@ -5929,19 +5957,19 @@ struct RGBA8ToYUV8_F16_NEON : public RGBx8ToYUV8_F16_NEON_Base<R, G, B>
 };
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, NEON_F16)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_F16_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval]);
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_F16_NEON<0, 1, 2>, RGB8ToYUV8_F16_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTF32[mval], RGB8ToYCC8LUTF32[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, NEON_F16)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_F16_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval]);
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_F16_NEON<0, 1, 2>, RGBA8ToYUV8_F16_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTF32[mval], RGB8ToYCC8LUTF32[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, NEON_F16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_F16_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval]);
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_F16_NEON<0, 1, 2>, RGB8ToYUV8_F16_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTF32[mval], RGB8ToYCC8LUTF32[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, NEON_F16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_F16_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTF32[mval]);
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_F16_NEON<0, 1, 2>, RGBA8ToYUV8_F16_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTF32[mval], RGB8ToYCC8LUTF32[mval]);
 }
 template<uint8_t R, uint8_t G, uint8_t B>
 struct RGBx8ToYUV8_I16_NEON_BAse
@@ -6069,35 +6097,35 @@ struct RGBA8ToYUV8_I16_NEON : public RGBx8ToYUV8_I16_NEON_BAse<R, G, B>
 };
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, NEON_I16)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI16[mval]);
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_NEON<0, 1, 2>, RGB8ToYUV8_I16_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTI16[mval], RGB8ToYCC8LUTI16[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, NEON_I16)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI16[mval]);
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_NEON<0, 1, 2>, RGBA8ToYUV8_I16_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTI16[mval], RGB8ToYCC8LUTI16[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, NEON_I16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI16[mval]);
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_NEON<0, 1, 2>, RGB8ToYUV8_I16_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTI16[mval], RGB8ToYCC8LUTI16[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, NEON_I16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI16[mval]);
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_NEON<0, 1, 2>, RGBA8ToYUV8_I16_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTI16[mval], RGB8ToYCC8LUTI16[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, NEON_I16)
 {
-    RGB8ToYCbCr8FastPath::Func<NEON_I16>(dest, src, count, mval);
+    RGB8ToYCbCr8FastPath::Func<NEON_I16>(dest, src, count, mval, isRGB);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, NEON_I16)
 {
-    RGBA8ToYCbCr8FastPath::Func<NEON_I16>(dest, src, count, mval);
+    RGBA8ToYCbCr8FastPath::Func<NEON_I16>(dest, src, count, mval, isRGB);
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, NEON_I16)
 {
-    RGB8ToYCbCr8PlanarFastPath::Func<NEON_I16>(dest, src, count, mval);
+    RGB8ToYCbCr8PlanarFastPath::Func<NEON_I16>(dest, src, count, mval, isRGB);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, NEON_I16)
 {
-    RGBA8ToYCbCr8PlanarFastPath::Func<NEON_I16>(dest, src, count, mval);
+    RGBA8ToYCbCr8PlanarFastPath::Func<NEON_I16>(dest, src, count, mval, isRGB);
 }
 template<uint8_t R, uint8_t G, uint8_t B, typename T>
 struct RGB8ToYUV8_I8_NEON : public T
@@ -6263,35 +6291,35 @@ template<uint8_t R, uint8_t G, uint8_t B>
 using RGBA8ToYUV8_I8DP4A_NEON = RGBA8ToYUV8_I8_NEON<R, G, B, RGB8ToYUV8_I8DP4A_NEON_Base>;
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, NEON_U8DP4A)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_U8DP4A_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTU8x4[mval]);
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_U8DP4A_NEON<0, 1, 2>, RGB8ToYUV8_U8DP4A_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTU8x4[mval], RGB8ToYCC8LUTU8x4[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, NEON_I8DP4A)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8DP4A_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval]);
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8DP4A_NEON<0, 1, 2>, RGB8ToYUV8_I8DP4A_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTI8x4[mval], RGB8ToYCC8LUTI8x4[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, NEON_U8DP4A)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_U8DP4A_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTU8x4[mval]);
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_U8DP4A_NEON<0, 1, 2>, RGBA8ToYUV8_U8DP4A_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTU8x4[mval], RGB8ToYCC8LUTU8x4[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, NEON_I8DP4A)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8DP4A_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval]);
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8DP4A_NEON<0, 1, 2>, RGBA8ToYUV8_I8DP4A_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTI8x4[mval], RGB8ToYCC8LUTI8x4[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, NEON_U8DP4A)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_U8DP4A_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTU8x4[mval]);
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_U8DP4A_NEON<0, 1, 2>, RGB8ToYUV8_U8DP4A_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTU8x4[mval], RGB8ToYCC8LUTU8x4[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, NEON_I8DP4A)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8DP4A_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval]);
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8DP4A_NEON<0, 1, 2>, RGB8ToYUV8_I8DP4A_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTI8x4[mval], RGB8ToYCC8LUTI8x4[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, NEON_U8DP4A)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_U8DP4A_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTU8x4[mval]);
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_U8DP4A_NEON<0, 1, 2>, RGBA8ToYUV8_U8DP4A_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTU8x4[mval], RGB8ToYCC8LUTU8x4[mval]);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, NEON_I8DP4A)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8DP4A_NEON<0, 1, 2>, &Func<LOOP_I16>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval]);
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8DP4A_NEON<0, 1, 2>, RGBA8ToYUV8_I8DP4A_NEON<2, 1, 0>, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, RGB8ToYCC8LUTI8x4[mval], RGB8ToYCC8LUTI8x4[mval]);
 }
 
 struct YUV8ToRGB8_F16_NEON
@@ -6427,34 +6455,11 @@ struct YUV8ToRGB8_I16_NEON
 };
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, NEON_F16)
 {
-    if (count >= YUV8ToRGB8_F16_NEON::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const YUV8ToRGB8_F16_NEON proc(YCC8ToRGB8LUTF32[mval]);
-        common::RegionRounding rd(common::RoundMode::ToNearest);
-        do
-        {
-            proc.Convert(dest, src, needAddY, isRGBFull, true);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_F32>(dest, src, count, mval);
+    YCbCrToRGBxLOOP1C<YUV8ToRGB8_F16_NEON, &Func<LOOP_F32>>(dest, src, count, mval, isRGB, YCC8ToRGB8LUTF32[mval]);
 }
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, NEON_I16)
 {
-    if (count >= YUV8ToRGB8_I16_NEON::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const YUV8ToRGB8_I16_NEON proc(YCC8ToRGB8LUTI16[mval]);
-        do
-        {
-            proc.Convert(dest, src, needAddY, isRGBFull, true);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_I16>(dest, src, count, mval);
+    YCbCrToRGBxLOOP1C<YUV8ToRGB8_I16_NEON, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, YCC8ToRGB8LUTI16[mval]);
 }
 
 DEFINE_FASTPATH_METHOD(GfToRGBAf, NEONA64)
@@ -8487,35 +8492,43 @@ struct RGBA8ToYUV8_I16DP2A_AVX2 : public RGBA8ToYUV8_I16_AVX2_Base, public RGBx8
 };
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX2_I16)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_AVX2, RGB8ToYUV8_I16_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX2VNNI_I16)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16DP2A_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16DP2A_AVX2, RGB8ToYUV8_I16DP2A_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, AVX2_I16)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_AVX2, RGBA8ToYUV8_I16_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, AVX2VNNI_I16)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16DP2A_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16DP2A_AVX2, RGBA8ToYUV8_I16DP2A_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, AVX2_I16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_AVX2, RGB8ToYUV8_I16_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, AVX2VNNI_I16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16DP2A_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16DP2A_AVX2, RGB8ToYUV8_I16DP2A_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, AVX2_I16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_AVX2, RGBA8ToYUV8_I16_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, AVX2VNNI_I16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16DP2A_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16DP2A_AVX2, RGBA8ToYUV8_I16DP2A_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 struct RGBx8ToYUV8_I8_AVX2_Init
 {
@@ -8729,35 +8742,43 @@ struct RGBA8ToYUV8_I8DP4A_AVX2 : public RGBA8ToYUV8_I8_AVX2_Shuf, public RGBx8To
 };
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, AVX2_I8)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8_AVX2, RGB8ToYUV8_I8_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTI8x4[mval].data());
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, AVX2VNNI_I8)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8DP4A_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8DP4A_AVX2, RGB8ToYUV8_I8DP4A_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTI8x4[mval].data());
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, AVX2_I8)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8_AVX2, RGBA8ToYUV8_I8_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTI8x4[mval].data());
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, AVX2VNNI_I8)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8DP4A_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8DP4A_AVX2, RGBA8ToYUV8_I8DP4A_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTI8x4[mval].data());
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, AVX2_I8)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8_AVX2, RGB8ToYUV8_I8_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTI8x4[mval].data());
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, AVX2VNNI_I8)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8DP4A_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8DP4A_AVX2, RGB8ToYUV8_I8DP4A_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTI8x4[mval].data());
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, AVX2_I8)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8_AVX2, RGBA8ToYUV8_I8_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTI8x4[mval].data());
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, AVX2VNNI_I8)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8DP4A_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, RGB8ToYCC8LUTI8x4[mval].data(), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8DP4A_AVX2, RGBA8ToYUV8_I8DP4A_AVX2, &Func<SSE41_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, RGB8ToYCC8LUTI8x4[mval].data());
 }
 template<typename T>
 struct YUV8ToRGB8_I16_AVX2_Base
@@ -8868,33 +8889,11 @@ struct YUV8ToRGB8_I16_2_AVX2 : public YUV8ToRGB8_I16_AVX2_Base<YUV8ToRGB8_I16_2_
 };
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, AVX2_I16)
 {
-    if (count >= YUV8ToRGB8_I16_AVX2::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const YUV8ToRGB8_I16_AVX2 proc(reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
-        do
-        {
-            proc.Convert(dest, src, needAddY, isRGBFull, true);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_F32>(dest, src, count, mval);
+    YCbCrToRGBxLOOP1C<YUV8ToRGB8_I16_AVX2, &Func<SSE41_I16>>(dest, src, count, mval, isRGB, reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
 } 
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, AVX2_I16_2)
 {
-    if (count >= YUV8ToRGB8_I16_2_AVX2::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const YUV8ToRGB8_I16_2_AVX2 proc(reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
-        do
-        {
-            proc.Convert(dest, src, needAddY, isRGBFull, true);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<LOOP_F32>(dest, src, count, mval);
+    YCbCrToRGBxLOOP1C<YUV8ToRGB8_I16_2_AVX2, &Func<SSE41_I16_2>>(dest, src, count, mval, isRGB, reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
 }
 
 DEFINE_FASTPATH_METHOD(G8ToGA8, AVX2)
@@ -10632,11 +10631,13 @@ struct RGBA8ToYUV8_I16_512 : public RGBA8ToYUV8_I16_512_Base
 };
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, AVX512_I16)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_512, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_512, RGBA8ToYUV8_I16_512, &Func<AVX2_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, AVX512_I16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_512, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_512, RGBA8ToYUV8_I16_512, &Func<AVX2_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 
 struct RGB8ToYUV8_I8x_AVX512_Base
@@ -10786,19 +10787,23 @@ struct RGBA8ToYUV8_I8_AVX512 : public RGBA8ToYUV8_I8x_AVX512_Base, public RGBx8T
 };
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, AVX512_I8)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8_AVX512<0, 1, 2>, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
+    const auto lut = reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data());
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8_AVX512<0, 1, 2>, RGB8ToYUV8_I8_AVX512<2, 1, 0>, &Func<AVX2_I8>>(dest, src, count, mval, isRGB, lut, lut);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, AVX512_I8)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8_AVX512, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8_AVX512, RGBA8ToYUV8_I8_AVX512, &Func<AVX2_I8>>(dest, src, count, mval, isRGB, 
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, AVX512_I8)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8_AVX512<0, 1, 2>, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
+    const auto lut = reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data());
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8_AVX512<0, 1, 2>, RGB8ToYUV8_I8_AVX512<2, 1, 0>, &Func<AVX2_I8>>(dest, src, count, mval, isRGB, lut, lut);
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, AVX512_I8)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8_AVX512, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8_AVX512, RGBA8ToYUV8_I8_AVX512, &Func<AVX2_I8>>(dest, src, count, mval, isRGB, 
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
 }
 
 template<typename T>
@@ -10910,33 +10915,11 @@ struct YUV8ToRGB8_I16_2_512 : public YUV8ToRGB8_I16_512_Base<YUV8ToRGB8_I16_2_51
 };
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, AVX512_I16)
 {
-    if (count >= YUV8ToRGB8_I16_512::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const YUV8ToRGB8_I16_512 proc(reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
-        do
-        {
-            proc.Convert(dest, src, needAddY, isRGBFull, true);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<AVX2_I16>(dest, src, count, mval);
+    YCbCrToRGBxLOOP1C<YUV8ToRGB8_I16_512, &Func<AVX2_I16>>(dest, src, count, mval, isRGB, reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, AVX512_I16_2)
 {
-    if (count >= YUV8ToRGB8_I16_2_512::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const YUV8ToRGB8_I16_2_512 proc(reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
-        do
-        {
-            proc.Convert(dest, src, needAddY, isRGBFull, true);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<AVX2_I16_2>(dest, src, count, mval);
+    YCbCrToRGBxLOOP1C<YUV8ToRGB8_I16_2_512, &Func<AVX2_I16_2>>(dest, src, count, mval, isRGB, reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
 }
 
 DEFINE_FASTPATH_METHOD(G8ToGA8, AVX512BW)
@@ -12169,35 +12152,43 @@ struct RGBA8ToYUV8_I16_AVX512VNNI : public RGBA8ToYUV8_I16_AVX512Vx<RGBx8ToYUV8_
 };
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX512VBMI_I16)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_AVX512VBMI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_AVX512VBMI, RGB8ToYUV8_I16_AVX512VBMI, &Func<AVX2_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8, AVX512VNNI_I16)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_AVX512VNNI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I16_AVX512VNNI, RGB8ToYUV8_I16_AVX512VNNI, &Func<AVX2_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, AVX512VBMI_I16)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_AVX512VBMI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_AVX512VBMI, RGBA8ToYUV8_I16_AVX512VBMI, &Func<AVX2_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8, AVX512VNNI_I16)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_AVX512VNNI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I16_AVX512VNNI, RGBA8ToYUV8_I16_AVX512VNNI, &Func<AVX2_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, AVX512VBMI_I16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_AVX512VBMI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_AVX512VBMI, RGB8ToYUV8_I16_AVX512VBMI, &Func<AVX2_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Planar, AVX512VNNI_I16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_AVX512VNNI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I16_AVX512VNNI, RGB8ToYUV8_I16_AVX512VNNI, &Func<AVX2_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, AVX512VBMI_I16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_AVX512VBMI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_AVX512VBMI, RGBA8ToYUV8_I16_AVX512VBMI, &Func<AVX2_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Planar, AVX512VNNI_I16)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_AVX512VNNI, &Func<AVX2_I16>>(dest, src, count, mval, I16x8(RGB8ToYCC8LUTI16[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I16_AVX512VNNI, RGBA8ToYUV8_I16_AVX512VNNI, &Func<AVX2_I16>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, I16x8(RGB8ToYCC8LUTI16[mval].data()));
 }
 template<typename T>
 struct RGB8ToYUV8_I8_AVX512VBMI_Base : public T
@@ -12394,35 +12385,43 @@ using RGB8ToYUV8_I8DP4A_AVX512VBMI  = RGB8ToYUV8_I8_AVX512VBMI_Base <RGBx8ToYUV8
 using RGBA8ToYUV8_I8DP4A_AVX512VBMI = RGBA8ToYUV8_I8_AVX512VBMI_Base<RGBx8ToYUV8_I8DP4A_AVX512VBMI_Base>;
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, AVX512VBMI_I8)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8_AVX512VBMI, RGB8ToYUV8_I8_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8Fast, AVX512VNNI_I8)
 {
-    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8DP4A_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGB8ToYUV8_I8DP4A_AVX512VBMI, RGB8ToYUV8_I8DP4A_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, AVX512VBMI_I8)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8_AVX512VBMI, RGBA8ToYUV8_I8_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8Fast, AVX512VNNI_I8)
 {
-    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8DP4A_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrLOOP1<RGBA8ToYUV8_I8DP4A_AVX512VBMI, RGBA8ToYUV8_I8DP4A_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, AVX512VBMI_I8)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8_AVX512VBMI, RGB8ToYUV8_I8_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGB8ToYCbCr8PlanarFast, AVX512VNNI_I8)
 {
-    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8DP4A_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGB8ToYUV8_I8DP4A_AVX512VBMI, RGB8ToYUV8_I8DP4A_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, AVX512VBMI_I8)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8_AVX512VBMI, RGBA8ToYUV8_I8_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, reinterpret_cast<const int16_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, AVX512VNNI_I8)
 {
-    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8DP4A_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()), RGBOrder<0, 1, 2>{});
+    RGBxToYCbCrPlanarLOOP1<RGBA8ToYUV8_I8DP4A_AVX512VBMI, RGBA8ToYUV8_I8DP4A_AVX512VBMI, &Func<AVX2_I8>>(dest, src, count, mval, isRGB,
+        RGBOrder<0, 1, 2>{}, RGBOrder<2, 1, 0>{}, reinterpret_cast<const int32_t*>(RGB8ToYCC8LUTI8x4[mval].data()));
 }
 
 template<typename T>
@@ -12584,33 +12583,11 @@ struct YUV8ToRGB8_I16_2_AVX512VBMI : public YUV8ToRGB8_I16_AVX512VBMI_Base<YUV8T
 };
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, AVX512VBMI_I16)
 {
-    if (count >= YUV8ToRGB8_I16_AVX512VBMI::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const YUV8ToRGB8_I16_AVX512VBMI proc(reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
-        do
-        {
-            proc.Convert(dest, src, needAddY, isRGBFull, true);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<AVX2_I16>(dest, src, count, mval);
+    YCbCrToRGBxLOOP1C<YUV8ToRGB8_I16_AVX512VBMI, &Func<AVX2_I16>>(dest, src, count, mval, isRGB, reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
 }
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, AVX512VBMI_I16_2)
 {
-    if (count >= YUV8ToRGB8_I16_2_AVX512VBMI::K)
-    {
-        [[maybe_unused]] const auto [isRGBFull, isYCCFull, needAddY] = CheckYCCMatrix(mval);
-        const YUV8ToRGB8_I16_2_AVX512VBMI proc(reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
-        do
-        {
-            proc.Convert(dest, src, needAddY, isRGBFull, true);
-            src += proc.M; dest += proc.N; count -= proc.K;
-        } while (count >= proc.K);
-    }
-    if (count)
-        Func<AVX2_I16_2>(dest, src, count, mval);
+    YCbCrToRGBxLOOP1C<YUV8ToRGB8_I16_2_AVX512VBMI, &Func<AVX2_I16_2>>(dest, src, count, mval, isRGB, reinterpret_cast<const uint32_t*>(YCC8ToRGB8LUTI16[mval].data()));
 }
 
 DEFINE_FASTPATH_METHOD(G8ToRGB8, AVX512VBMI)

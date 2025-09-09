@@ -17,7 +17,7 @@ common::span<const std::byte> GetRandVals() noexcept
     return { reinterpret_cast<const std::byte*>(RandVals.data()), RandVals.size() };
 }
 
-static bool SlimTest = false;
+static bool SlimTest = true;
 
 bool IsSlimTest() noexcept
 {
@@ -45,8 +45,8 @@ int main(int argc, char **argv)
             writer = arg.substr(15);
         else if (arg.starts_with("-testimgreader="))
             reader = arg.substr(15);
-        else if (arg == "-slim")
-            SlimTest = true;
+        else if (arg == "-fulltest")
+            SlimTest = false;
     }
     if (testimg)
     {
