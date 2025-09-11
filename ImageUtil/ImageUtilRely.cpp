@@ -250,7 +250,7 @@ const ColorConvertor& ColorConvertor::Get() noexcept
 }
 
 
-DEFINE_FASTPATH_BASIC(YCCConvertor, RGB8ToYCbCr8Fast, RGB8ToYCbCr8, RGBA8ToYCbCr8Fast, RGBA8ToYCbCr8, YCbCr8ToRGB8, RGB8ToYCbCr8PlanarFast, RGB8ToYCbCr8Planar, RGBA8ToYCbCr8PlanarFast, RGBA8ToYCbCr8Planar, YCbCr8ToRGB8Planar)
+DEFINE_FASTPATH_BASIC(YCCConvertor, RGB8ToYCbCr8Fast, RGB8ToYCbCr8, RGBA8ToYCbCr8Fast, RGBA8ToYCbCr8, YCbCr8ToRGB8, YCbCr8ToRGBA8, RGB8ToYCbCr8PlanarFast, RGB8ToYCbCr8Planar, RGBA8ToYCbCr8PlanarFast, RGBA8ToYCbCr8Planar)
 
 const YCCConvertor& YCCConvertor::Get() noexcept
 {

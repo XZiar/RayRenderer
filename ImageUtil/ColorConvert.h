@@ -500,11 +500,11 @@ private:
     void(*RGBA8ToYCbCr8Fast      )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval, bool isRGB) noexcept = nullptr;
     void(*RGBA8ToYCbCr8          )(uint8_t*  __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval, bool isRGB) noexcept = nullptr;
     void(*YCbCr8ToRGB8           )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, bool isRGB) noexcept = nullptr;
+    void(*YCbCr8ToRGBA8          )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, std::byte alpha, bool isRGB) noexcept = nullptr;
     void(*RGB8ToYCbCr8PlanarFast )(uint8_t* const* __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, bool isRGB) noexcept = nullptr;
     void(*RGB8ToYCbCr8Planar     )(uint8_t* const* __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, bool isRGB) noexcept = nullptr;
     void(*RGBA8ToYCbCr8PlanarFast)(uint8_t* const* __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval, bool isRGB) noexcept = nullptr;
     void(*RGBA8ToYCbCr8Planar    )(uint8_t* const* __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval, bool isRGB) noexcept = nullptr;
-    void(*YCbCr8ToRGB8Planar     )(uint8_t* const* __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, bool isRGB) noexcept = nullptr;
 public:
     IMGUTILAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
     IMGUTILAPI YCCConvertor(common::span<const VarItem> requests = {}) noexcept;
@@ -546,12 +546,26 @@ public:
         if (yccFull) matrix |= YCCMatrix::YCCFull;
         YCbCr8ToRGB8(dest, src, count, common::enum_cast(matrix), true);
     }
+    forceinline void YCCToRGBA(uint32_t* const dest, const uint8_t* src, const size_t count, YCCMatrix matrix, const std::byte alpha = std::byte(0xff), const bool rgbFull = true, const bool yccFull = false) const noexcept
+    {
+        Expects(common::enum_cast(matrix) < common::enum_cast(YCCMatrix::Invalid));
+        if (rgbFull) matrix |= YCCMatrix::RGBFull;
+        if (yccFull) matrix |= YCCMatrix::YCCFull;
+        YCbCr8ToRGBA8(dest, src, count, common::enum_cast(matrix), alpha, true);
+    }
     forceinline void YCCToBGR(uint8_t* const dest, const uint8_t* src, const size_t count, YCCMatrix matrix, const bool rgbFull = true, const bool yccFull = false) const noexcept
     {
         Expects(common::enum_cast(matrix) < common::enum_cast(YCCMatrix::Invalid));
         if (rgbFull) matrix |= YCCMatrix::RGBFull;
         if (yccFull) matrix |= YCCMatrix::YCCFull;
         YCbCr8ToRGB8(dest, src, count, common::enum_cast(matrix), false);
+    }
+    forceinline void YCCToBGRA(uint32_t* const dest, const uint8_t* src, const size_t count, YCCMatrix matrix, const std::byte alpha = std::byte(0xff), const bool rgbFull = true, const bool yccFull = false) const noexcept
+    {
+        Expects(common::enum_cast(matrix) < common::enum_cast(YCCMatrix::Invalid));
+        if (rgbFull) matrix |= YCCMatrix::RGBFull;
+        if (yccFull) matrix |= YCCMatrix::YCCFull;
+        YCbCr8ToRGBA8(dest, src, count, common::enum_cast(matrix), alpha, false);
     }
     forceinline void RGBToYCCPlanar(common::span<uint8_t* const, 3> dest, const uint8_t* src, const size_t count, YCCMatrix matrix, const bool rgbFull = true, const bool yccFull = false, const bool fast = false) const noexcept
     {
