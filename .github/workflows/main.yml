@@ -118,19 +118,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cxx: [gcc10, gcc11, gcc12, gcc13, gcc14, clang11, clang12, clang13, clang14, clang15, clang16, clang17, clang18]
+        cxx: [gcc11, gcc12, gcc13, gcc14, clang12, clang13, clang14, clang15, clang16, clang17, clang18, clang19]
         include:
-          - cxx: gcc10
-            os: ubuntu-22.04
-            env_cc: "gcc-10"
-            env_asm: "g++-10"
-            env_cpp: "g++-10"
-            env_stalink: "gcc-ar-10"
-            env_dynlink: "g++-10"
-            env_applink: "g++-10"
-            env_module: "all"
-            env_clang: false
-            pkg: "g++-10"
           - cxx: gcc11
             os: ubuntu-22.04
             env_cc: "gcc-11"
@@ -175,18 +164,6 @@ jobs:
             env_module: "all"
             env_clang: false
             pkg: "g++-14"
-          - cxx: clang11
-            os: ubuntu-22.04
-            env_cc: "clang-11"
-            env_asm: "clang++-11"
-            env_cpp: "clang++-11"
-            env_stalink: "llvm-ar-11"
-            env_dynlink: "clang++-11"
-            env_applink: "clang++-11"
-            env_module: "all"
-            env_clang: true
-            env_clang_ver: 11
-            pkg: "clang-11 lld-11 llvm-11"
           - cxx: clang12
             os: ubuntu-22.04
             env_cc: "clang-12"
@@ -212,7 +189,7 @@ jobs:
             env_clang_ver: 13
             pkg: "clang-13 lld-13 llvm-13"
           - cxx: clang14
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             env_cc: "clang-14"
             env_asm: "clang++-14"
             env_cpp: "clang++-14"
@@ -224,7 +201,7 @@ jobs:
             env_clang_ver: 14
             pkg: "clang-14 lld-14 llvm-14"
           - cxx: clang15
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             env_cc: "clang-15"
             env_asm: "clang++-15"
             env_cpp: "clang++-15"
@@ -271,6 +248,18 @@ jobs:
             env_clang: true
             env_clang_ver: 18
             pkg: "clang-18 lld-18 llvm-18"
+          - cxx: clang19
+            os: ubuntu-24.04
+            env_cc: "clang-19"
+            env_asm: "clang++-19"
+            env_cpp: "clang++-19"
+            env_stalink: "llvm-ar-19"
+            env_dynlink: "clang++-19"
+            env_applink: "clang++-19"
+            env_module: "all"
+            env_clang: true
+            env_clang_ver: 19
+            pkg: "clang-19 lld-19 llvm-19"
     
     steps:
       - name: Get basic information

@@ -5740,8 +5740,8 @@ DEFINE_FASTPATH_METHOD(RGBA8ToAYUV8Fast, NEON_F32)
 struct YUV8ToRGB8_F32_NEON
 {
     static inline constexpr size_t M = 48, N = 48, K = 16;
-    U8x16 U8_16;
-    F32x4 MulY;
+    const U8x16 U8_16, Alpha;
+    const F32x4 MulY;
 # if COMMON_SIMD_LV >= 200
     F32x4 MulCbr;
 # else
@@ -5749,7 +5749,7 @@ struct YUV8ToRGB8_F32_NEON
 # endif
     F32x4 SubR, AddG, SubB;
     const bool IsRGB;
-    YUV8ToRGB8_F32_NEON(const bool isRGB, const std::array<float, 9>& lut) noexcept : U8_16(16), MulY(lut[0]),
+    YUV8ToRGB8_F32_NEON(const bool isRGB, const std::array<float, 9>& lut, uint8_t alpha = 0) noexcept : U8_16(16), Alpha(alpha), MulY(lut[0]),
 # if COMMON_SIMD_LV >= 200
         MulCbr(lut[7], lut[2], lut[4], lut[5]),
 # else
@@ -5789,7 +5789,8 @@ struct YUV8ToRGB8_F32_NEON
         return vcombine_u8(vqmovun_s16(mid0), vqmovun_s16(mid1));
 # endif
     }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool isRGBFull) const noexcept
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool isRGBFull) const noexcept
     {
         auto dat = vld3q_u8(src);
         const auto z8 = vdupq_n_u8(0);
@@ -5835,12 +5836,26 @@ struct YUV8ToRGB8_F32_NEON
             out3.val[1] = vminq_u8(vmaxq_u8(U8_16, out3.val[1]), u8_235);
             out3.val[2] = vminq_u8(vmaxq_u8(U8_16, out3.val[2]), u8_235);
         }
-        vst3q_u8(dst, out3);
+        if constexpr (sizeof(D) == 1) // RGB
+            vst3q_u8(dst, out3);
+        else
+        {
+            uint8x16x4_t out4;
+            out4.val[0] = out3.val[0];
+            out4.val[1] = out3.val[1];
+            out4.val[2] = out3.val[2];
+            out4.val[3] = Alpha;
+            vst4q_u8(reinterpret_cast<uint8_t*>(dst), out4);
+        }
     }
 };
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, NEON_F32)
 {
     YCbCrToRGBLOOP1C<YUV8ToRGB8_F32_NEON, &Func<LOOP_F32>>(dest, src, count, mval, isRGB, YCC8ToRGB8LUTF32[mval]);
+}
+DEFINE_FASTPATH_METHOD(YCbCr8ToRGBA8, NEON_F32)
+{
+    YCbCrToRGBALOOP1C<YUV8ToRGB8_F32_NEON, &Func<LOOP_F32>>(dest, src, count, mval, alpha, isRGB, YCC8ToRGB8LUTF32[mval]);
 }
 
 DEFINE_FASTPATH_METHOD(G8ToGA8, NEON)
@@ -6909,11 +6924,11 @@ DEFINE_FASTPATH_METHOD(RGBA8ToYCbCr8PlanarFast, NEON_I8DP4A)
 struct YUV8ToRGB8_F16_NEON
 {
     static constexpr size_t M = 48, N = 48, K = 16;
+    const U8x16 U8_16, Alpha;
     float16x8_t MulCbrY;
     float16x8_t SubR, AddG, SubB;
-    const U8x16 U8_16;
     const bool IsRGB;
-    YUV8ToRGB8_F16_NEON(const bool isRGB, const std::array<float, 9>& lut) noexcept : U8_16(16), IsRGB(isRGB)
+    YUV8ToRGB8_F16_NEON(const bool isRGB, const std::array<float, 9>& lut, uint8_t alpha = 0) noexcept : U8_16(16), Alpha(alpha), IsRGB(isRGB)
     {
         const auto mulcbr = F32x4(lut[7], lut[2], lut[4], lut[5]);
         const auto muly = F32x4(lut[0], 128.f, 128.f, 128.f);
@@ -6931,7 +6946,8 @@ struct YUV8ToRGB8_F16_NEON
         const auto g = vaddq_f16(vfmsq_laneq_f16(vfmsq_laneq_f16(y, cr, MulCbrY, 3), cb, MulCbrY, 2), AddG);
         return { vcvtnq_s16_f16(r), vcvtnq_s16_f16(g), vcvtnq_s16_f16(b) };
     }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool isRGBFull) const noexcept
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool isRGBFull) const noexcept
     {
         auto dat = vld3q_u8(src);
         const auto z8 = vdupq_n_u8(0);
@@ -6971,16 +6987,34 @@ struct YUV8ToRGB8_F16_NEON
             out3.val[1] = vminq_u8(vmaxq_u8(U8_16, out3.val[1]), u8_235);
             out3.val[2] = vminq_u8(vmaxq_u8(U8_16, out3.val[2]), u8_235);
         }
-        vst3q_u8(dst, out3);
+        if constexpr (sizeof(D) == 1) // RGB
+            vst3q_u8(dst, out3);
+        else
+        {
+            uint8x16x4_t out4;
+            out4.val[0] = out3.val[0];
+            out4.val[1] = out3.val[1];
+            out4.val[2] = out3.val[2];
+            out4.val[3] = Alpha;
+            vst4q_u8(reinterpret_cast<uint8_t*>(dst), out4);
+        }
     }
 };
+DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, NEON_F16)
+{
+    YCbCrToRGBLOOP1C<YUV8ToRGB8_F16_NEON, &Func<LOOP_F32>>(dest, src, count, mval, isRGB, YCC8ToRGB8LUTF32[mval]);
+}
+DEFINE_FASTPATH_METHOD(YCbCr8ToRGBA8, NEON_F16)
+{
+    YCbCrToRGBALOOP1C<YUV8ToRGB8_F16_NEON, &Func<LOOP_F32>>(dest, src, count, mval, alpha, isRGB, YCC8ToRGB8LUTF32[mval]);
+}
 struct YUV8ToRGB8_I16_NEON
 {
     static constexpr size_t M = 48, N = 48, K = 16;
     const I16x8 MulYCbr; // Y,0,Bcb,Rcr,Gcb,Gcr
-    const U8x16 U8_16;
+    const U8x16 U8_16, Alpha;
     const bool IsRGB;
-    YUV8ToRGB8_I16_NEON(const bool isRGB, const std::array<int16_t, 8>& lut) noexcept : MulYCbr(lut.data()), U8_16(16), IsRGB(isRGB)
+    YUV8ToRGB8_I16_NEON(const bool isRGB, const std::array<int16_t, 8>& lut, uint8_t alpha = 0) noexcept : MulYCbr(lut.data()), U8_16(16), Alpha(alpha), IsRGB(isRGB)
     { }
     forceinline std::tuple<I16x8, I16x8, I16x8> Calc(const int16x8_t& y, const int16x8_t& cb, const int16x8_t& cr) const noexcept
     {
@@ -6989,7 +7023,8 @@ struct YUV8ToRGB8_I16_NEON
         const auto g = vqrdmlshq_laneq_s16(vqrdmlshq_laneq_s16(y, cr, MulYCbr, 5), cb, MulYCbr, 4);
         return { r, g, b };
     }
-    forceinline void Convert(uint8_t* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool isRGBFull) const noexcept
+    template<typename D>
+    forceinline void Convert(D* __restrict dst, const uint8_t* __restrict src, bool needAddY, bool isRGBFull) const noexcept
     {
         auto dat = vld3q_u8(src);
         const auto z8 = vdupq_n_u8(0);
@@ -7036,16 +7071,26 @@ struct YUV8ToRGB8_I16_NEON
             out3.val[1] = vminq_u8(vmaxq_u8(U8_16, out3.val[1]), u8_235);
             out3.val[2] = vminq_u8(vmaxq_u8(U8_16, out3.val[2]), u8_235);
         }
-        vst3q_u8(dst, out3);
+        if constexpr (sizeof(D) == 1) // RGB
+            vst3q_u8(dst, out3);
+        else
+        {
+            uint8x16x4_t out4;
+            out4.val[0] = out3.val[0];
+            out4.val[1] = out3.val[1];
+            out4.val[2] = out3.val[2];
+            out4.val[3] = Alpha;
+            vst4q_u8(reinterpret_cast<uint8_t*>(dst), out4);
+        }
     }
 };
-DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, NEON_F16)
-{
-    YCbCrToRGBLOOP1C<YUV8ToRGB8_F16_NEON, &Func<LOOP_F32>>(dest, src, count, mval, isRGB, YCC8ToRGB8LUTF32[mval]);
-}
 DEFINE_FASTPATH_METHOD(YCbCr8ToRGB8, NEON_I16)
 {
     YCbCrToRGBLOOP1C<YUV8ToRGB8_I16_NEON, &Func<LOOP_I16>>(dest, src, count, mval, isRGB, YCC8ToRGB8LUTI16[mval]);
+}
+DEFINE_FASTPATH_METHOD(YCbCr8ToRGBA8, NEON_I16)
+{
+    YCbCrToRGBALOOP1C<YUV8ToRGB8_I16_NEON, &Func<LOOP_I16>>(dest, src, count, mval, alpha, isRGB, YCC8ToRGB8LUTI16[mval]);
 }
 
 DEFINE_FASTPATH_METHOD(GfToRGBAf, NEONA64)

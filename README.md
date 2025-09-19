@@ -27,12 +27,12 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [Nailang](./Nailang) | A customizable language | C++ | Win & Linux & Android & iOS |
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility | C++ | Win & Linux & Android & iOS |
 | [XComputeBase](./XComputeBase) | Base Library for Cross-Compute | C++ | Win & Linux & Android & iOS |
-| [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | C++ | Win & Linux |
+| [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | C++ | Win & Linux & Android |
 | [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | C++ | Win & Linux & Android |
 | [OpenCLInterop](./OpenCLInterop) | OpenCL Interoperation utility | C++ | Win & Linux |
 | [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | C++ | Win & Linux |
 | [TextureUtil](./TextureUtil) | Texture Utility | C++ | Win & Linux |
-| [WindowHost](./WindowHost) | Multi-threaded GUI host | C++ | Win & Linux |
+| [WindowHost](./WindowHost) | Multi-threaded GUI host | C++ | Win & Linux & Android |
 | [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | C++ | Win & Linux |
 | [RenderCore](./RenderCore) | Core of DizzRenderer | C++ | Win & Linux |
 | [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RenderCore | C++/CLI | Win |
@@ -53,7 +53,7 @@ To use `xzbuild`, python3.7+ is required.
 
 ## Build
 
-To build C++ parts, a C++20 compiler is needed. CI Tests are on gcc(10\~14) and clang(11\~18).
+To build C++ parts, a C++20 compiler is needed. CI Tests are on gcc(11\~14) and clang(12\~19).
 
 For Windows, project uses `VisualStudio2022`, VS2022(>`17.6`) is needed for the vcproj version.
 
@@ -61,6 +61,7 @@ For Linux, project uses [`xzbuild`](./xzbuild) (need python3.7+) with make. Util
 
 ### Incompatibles
 * **gcc9** does not support `constexpr std::array::operator==`
+* **gcc10**/**clang11** does not support `avx-vnni`
 * **clang13**/**clang14** has compatibility issue[1](https://github.com/llvm/llvm-project/issues/55560)/[2](https://reviews.llvm.org/D128119) with libstdc++
 
 
