@@ -130,6 +130,7 @@ jobs:
             env_applink: "g++-11"
             env_module: "all"
             env_clang: false
+            env_extraparm: ""
             pkg: "g++-11"
           - cxx: gcc12
             os: ubuntu-22.04
@@ -141,6 +142,7 @@ jobs:
             env_applink: "g++-12"
             env_module: "all"
             env_clang: false
+            env_extraparm: ""
             pkg: "g++-12"
           - cxx: gcc13
             os: ubuntu-22.04
@@ -152,6 +154,7 @@ jobs:
             env_applink: "g++-13"
             env_module: "all"
             env_clang: false
+            env_extraparm: ""
             pkg: "g++-13"
           - cxx: gcc14
             os: ubuntu-24.04
@@ -163,6 +166,7 @@ jobs:
             env_applink: "g++-14"
             env_module: "all"
             env_clang: false
+            env_extraparm: ""
             pkg: "g++-14"
           - cxx: clang12
             os: ubuntu-22.04
@@ -175,7 +179,8 @@ jobs:
             env_module: "all"
             env_clang: true
             env_clang_ver: 12
-            pkg: "clang-12 lld-12 llvm-12"
+            env_extraparm: "/stdlib=libc++"
+            pkg: "clang-12 lld-12 llvm-12 libc++-12-dev libc++abi-12-dev"
           - cxx: clang13
             os: ubuntu-22.04
             env_cc: "clang-13"
@@ -187,7 +192,8 @@ jobs:
             env_module: "all"
             env_clang: true
             env_clang_ver: 13
-            pkg: "clang-13 lld-13 llvm-13"
+            env_extraparm: "/stdlib=libc++"
+            pkg: "clang-13 lld-13 llvm-13 libc++-13-dev libc++abi-13-dev"
           - cxx: clang14
             os: ubuntu-24.04
             env_cc: "clang-14"
@@ -199,7 +205,8 @@ jobs:
             env_module: "all"
             env_clang: true
             env_clang_ver: 14
-            pkg: "clang-14 lld-14 llvm-14"
+            env_extraparm: "/stdlib=libc++"
+            pkg: "clang-14 lld-14 llvm-14 libc++-14-dev libc++abi-14-dev"
           - cxx: clang15
             os: ubuntu-24.04
             env_cc: "clang-15"
@@ -211,7 +218,8 @@ jobs:
             env_module: "all"
             env_clang: true
             env_clang_ver: 15
-            pkg: "clang-15 lld-15 llvm-15"
+            env_extraparm: "/stdlib=libc++"
+            pkg: "clang-15 lld-15 llvm-15 libc++-15-dev libc++abi-15-dev"
           - cxx: clang16
             os: ubuntu-24.04
             env_cc: "clang-16"
@@ -223,6 +231,7 @@ jobs:
             env_module: "all"
             env_clang: true
             env_clang_ver: 16
+            env_extraparm: ""
             pkg: "clang-16 lld-16 llvm-16"
           - cxx: clang17
             os: ubuntu-24.04
@@ -235,6 +244,7 @@ jobs:
             env_module: "all"
             env_clang: true
             env_clang_ver: 17
+            env_extraparm: ""
             pkg: "clang-17 lld-17 llvm-17"
           - cxx: clang18
             os: ubuntu-24.04
@@ -247,6 +257,7 @@ jobs:
             env_module: "all"
             env_clang: true
             env_clang_ver: 18
+            env_extraparm: ""
             pkg: "clang-18 lld-18 llvm-18"
           - cxx: clang19
             os: ubuntu-24.04
@@ -259,6 +270,7 @@ jobs:
             env_module: "all"
             env_clang: true
             env_clang_ver: 19
+            env_extraparm: ""
             pkg: "clang-19 lld-19 llvm-19"
     
     steps:
@@ -354,7 +366,7 @@ jobs:
 
       - name: Build Debug modules
         run: |
-          python3 xzbuild rebuild "${{matrix.env_module}},-curl,-libressl,-BasicsTest,-SystemCommonTest,-NailangTest,-NullTest,-Blur" /threads=x2 /dsymlv=0
+          python3 xzbuild rebuild "${{matrix.env_module}},-BasicsTest,-SystemCommonTest,-NailangTest,-NullTest,-Blur" /threads=x2 /dsymlv=0 ${{matrix.env_extraparm}}
 
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
@@ -365,7 +377,7 @@ jobs:
           
       - name: Build Release modules
         run: |     
-          python3 xzbuild rebuildall "BasicsTest,SystemCommonTest,ImageUtilTest,NailangTest" Release /threads=x1.5 /dsymlv=0
+          python3 xzbuild rebuildall "BasicsTest,SystemCommonTest,ImageUtilTest,NailangTest" Release /threads=x1.5 /dsymlv=0 ${{matrix.env_extraparm}}
           
       - name: Run Tests
         run: |            

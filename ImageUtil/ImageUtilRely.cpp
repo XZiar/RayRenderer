@@ -53,25 +53,27 @@ MiniLogger<false>& ImgLog()
 template<bool ToYCC, typename T>
 static inline auto ComputeYCCMatrix8(YCCMatrix mat, [[maybe_unused]] double scale) noexcept
 {
-    using U = std::conditional_t<std::is_floating_point_v<T>, T, double>;
-    auto tmp = ToYCC ? ComputeRGB2YCCMatrix8F<U>(mat) : ComputeYCC2RGBMatrix8F<U>(mat);
+    auto tmp = ToYCC ? ComputeRGB2YCCMatrix8F<double>(mat) : ComputeYCC2RGBMatrix8F<double>(mat);
     // compress
     if constexpr (ToYCC)
     {
         tmp[6] = tmp[7];
         tmp[7] = tmp[8];
     }
+    std::array<T, 9> ret{};
     if constexpr (std::is_floating_point_v<T>)
-        return tmp;
+    {
+        for (uint32_t i = 0; i < 9; ++i)
+            ret[i] = static_cast<T>(tmp[i] * scale);
+    }
     else
     {
         static_assert(std::is_integral_v<T>, "need INT");
         common::RegionRounding rd(common::RoundMode::ToNearest);
-        std::array<T, 9> ret{};
         for (uint32_t i = 0; i < 9; ++i)
             ret[i] = static_cast<T>(std::nearbyint(tmp[i] * scale));
-        return ret;
     }
+    return ret;
 }
 template<bool ToYCC, typename T>
 static constexpr auto GenYCC8LUT(double scale = 1) noexcept
@@ -224,6 +226,8 @@ static inline auto ComputeYCC2RGBMatrixI16M(YCCMatrix mat) noexcept
 
 std::array<std::array<  float,  9>, 16> RGB8ToYCC8LUTF32 = GenYCC8LUT<true,   float>();
 std::array<std::array<int16_t,  9>, 16> RGB8ToYCC8LUTI16 = GenYCC8LUT<true, int16_t>(16384);
+std::array<std::array<  float,  9>, 16> RGB8ToYCC10LUTF32 = GenYCC8LUT<true,   float>(4);
+//std::array<std::array<int16_t,  9>, 16> RGB8ToYCC10LUTI16 = GenYCC8LUT<true, int16_t>(16384);
 //std::array<std::array<int16_t,  9>, 16> RGB8ToYCC8LUTI16_15 = GenYCC8LUT<int16_t>(32768);
 std::array<std::array< int8_t, 16>, 16> RGB8ToYCC8LUTI8x4 = GenYCC8LUT2(&ComputeRGB2YCCMatrixI8x4);
 std::array<std::array<uint8_t, 16>, 16> RGB8ToYCC8LUTU8x4 = GenYCC8LUT2(&ComputeRGB2YCCMatrixU8x4);
@@ -253,6 +257,7 @@ const ColorConvertor& ColorConvertor::Get() noexcept
 DEFINE_FASTPATH_BASIC(YCCConvertor, 
     RGB8ToYCbCr8Fast, RGB8ToYCbCr8, RGBA8ToYCbCr8Fast, RGBA8ToYCbCr8, 
     RGB8ToAYUV8Fast, RGB8ToAYUV8, RGBA8ToAYUV8Fast, RGBA8ToAYUV8,
+    RGB8ToY410, RGBA8ToY410,
     YCbCr8ToRGB8, YCbCr8ToRGBA8,
     RGB8ToYCbCr8PlanarFast, RGB8ToYCbCr8Planar, RGBA8ToYCbCr8PlanarFast, RGBA8ToYCbCr8Planar)
 

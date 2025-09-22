@@ -503,6 +503,8 @@ private:
     void(*RGB8ToAYUV8            )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, std::byte alpha, bool isRGB) noexcept = nullptr;
     void(*RGBA8ToAYUV8Fast       )(uint32_t* __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval, bool isRGB) noexcept = nullptr;
     void(*RGBA8ToAYUV8           )(uint32_t* __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval, bool isRGB) noexcept = nullptr;
+    void(*RGB8ToY410             )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, std::byte alpha, bool isRGB) noexcept = nullptr;
+    void(*RGBA8ToY410            )(uint32_t* __restrict dest, const uint32_t* __restrict src, size_t count, uint8_t mval, bool isRGB) noexcept = nullptr;
     void(*YCbCr8ToRGB8           )(uint8_t*  __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, bool isRGB) noexcept = nullptr;
     void(*YCbCr8ToRGBA8          )(uint32_t* __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, std::byte alpha, bool isRGB) noexcept = nullptr;
     void(*RGB8ToYCbCr8PlanarFast )(uint8_t* const* __restrict dest, const uint8_t*  __restrict src, size_t count, uint8_t mval, bool isRGB) noexcept = nullptr;
@@ -562,6 +564,27 @@ public:
     {
         const auto mval = CheckEncodeYCCM(matrix, rgbFull, yccFull);
         (fast ? RGBA8ToAYUV8Fast : RGBA8ToAYUV8)(dest, src, count, mval, false);
+    }
+
+    forceinline void RGBToY410(uint32_t* const dest, const uint8_t* src, const size_t count, YCCMatrix matrix, const std::byte alpha = std::byte(0xff), const bool rgbFull = true) const noexcept
+    {
+        const auto mval = CheckEncodeYCCM(matrix, rgbFull, false);
+        RGB8ToY410(dest, src, count, mval, alpha, true);
+    }
+    forceinline void RGBAToY410(uint32_t* const dest, const uint32_t* src, const size_t count, YCCMatrix matrix, const bool rgbFull = true) const noexcept
+    {
+        const auto mval = CheckEncodeYCCM(matrix, rgbFull, false);
+        RGBA8ToY410(dest, src, count, mval, true);
+    }
+    forceinline void BGRToY410(uint32_t* const dest, const uint8_t* src, const size_t count, YCCMatrix matrix, const std::byte alpha = std::byte(0xff), const bool rgbFull = true) const noexcept
+    {
+        const auto mval = CheckEncodeYCCM(matrix, rgbFull, false);
+        RGB8ToY410(dest, src, count, mval, alpha, false);
+    }
+    forceinline void BGRAToY410(uint32_t* const dest, const uint32_t* src, const size_t count, YCCMatrix matrix, const bool rgbFull = true) const noexcept
+    {
+        const auto mval = CheckEncodeYCCM(matrix, rgbFull, false);
+        RGBA8ToY410(dest, src, count, mval, false);
     }
 
     forceinline void YCCToRGB(uint8_t* const dest, const uint8_t* src, const size_t count, YCCMatrix matrix, const bool rgbFull = true, const bool yccFull = false) const noexcept
