@@ -2855,6 +2855,20 @@ TEST(IntrinPerf, RGB8ToAYUV8)
         dst4.data(), src4.data(), Size, YCCMatrix::BT601, true, true, true);
 }
 
+TEST(IntrinPerf, RGB8ToY410)
+{
+    using xziar::img::YCCConvertor;
+    constexpr uint32_t Size = 1024 * 1024;
+    std::vector<uint8_t> src3(Size * 3);
+    std::vector<uint32_t> src4(Size);
+    std::vector<uint32_t> dst4(Size);
+
+    PerfTester::DoFastPath(&YCCConvertor::RGBToY410, "RGB8ToY410", Size, 100,
+        dst4.data(), src3.data(), Size, YCCMatrix::BT601, std::byte(0xff), true);
+    PerfTester::DoFastPath(&YCCConvertor::RGBAToY410, "RGBA8ToY410", Size, 100,
+        dst4.data(), src4.data(), Size, YCCMatrix::BT601, true);
+}
+
 TEST(IntrinPerf, YCbCr8ToRGB8)
 {
     using xziar::img::YCCConvertor;

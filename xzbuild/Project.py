@@ -193,28 +193,30 @@ class Project:
         linkLibs = []
         if len(libStatic) > 0:
             linkLibs += [procStatic(x, self.libFlags) for x in libStatic]
-        if "android" in env:
-            if env["ndkVer"] >= 2300:
-                """
-                On NDK >= 23, all architecture now uses libunwind
-                See https://github.com/android/ndk/issues/1230
-                See https://github.com/android/ndk/wiki/Changelog-r23#changes
-                """
-                linkLibs.append("-lunwind")
-            elif env["arch"] == "arm" and env["bits"] == 32:
-                """
-                On Android armv7, use of _Unwind_Backtrace may cause segment fault because of in compatible layout of
-                base-class AbstractUnwindCursor and actual type _Unwind_Context.
-                See https://lists.llvm.org/pipermail/cfe-dev/2018-February/057014.html
-                Use of stacktrace crashes at `unw_set_reg`, see https://android.googlesource.com/platform/external/libunwind_llvm/+/refs/heads/ndk-release-r21/src/libunwind.cpp
-                See blog https://zhuanlan.zhihu.com/p/33937283
-                See google's suggestion on NDK: https://android.googlesource.com/platform/ndk/+/master/docs/BuildSystemMaintainers.md#Unwinding
-                """
+        if env["compiler"] == "clang":
+            if "android" in env:
+                if env["ndkVer"] >= 2300:
+                    """
+                    On NDK >= 23, all architecture now uses libunwind
+                    See https://github.com/android/ndk/issues/1230
+                    See https://github.com/android/ndk/wiki/Changelog-r23#changes
+                    """
+                    linkLibs.append("-lunwind")
+                elif env["arch"] == "arm" and env["bits"] == 32:
+                    """
+                    On Android armv7, use of _Unwind_Backtrace may cause segment fault because of in compatible layout of
+                    base-class AbstractUnwindCursor and actual type _Unwind_Context.
+                    See https://lists.llvm.org/pipermail/cfe-dev/2018-February/057014.html
+                    Use of stacktrace crashes at `unw_set_reg`, see https://android.googlesource.com/platform/external/libunwind_llvm/+/refs/heads/ndk-release-r21/src/libunwind.cpp
+                    See blog https://zhuanlan.zhihu.com/p/33937283
+                    See google's suggestion on NDK: https://android.googlesource.com/platform/ndk/+/master/docs/BuildSystemMaintainers.md#Unwinding
+                    """
+                    linkLibs.append("-lunwind")
+            else:
                 linkLibs.append("-lunwind")
         linkLibs += [f"-l{x}" for x in libDynamic]
         if osname == 'Darwin':
             linkLibs += [f"-framework {x}" for x in self.tbdLibs]
-            {"ifhas": "android", "ifeq":{"arch": "arm", "bits": 32}, "+": "unwind", "see": ""},
         
         objdir = os.path.join(env["rootDir"], self.buildPath, env["objpath"])
         os.makedirs(objdir, exist_ok=True)

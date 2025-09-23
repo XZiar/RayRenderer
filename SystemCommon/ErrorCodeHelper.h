@@ -1,6 +1,7 @@
 #pragma once
 #include "SystemCommonRely.h"
 #include "FormatInclude.h"
+#include <compare>
 
 namespace common
 {
