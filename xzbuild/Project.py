@@ -193,7 +193,7 @@ class Project:
         linkLibs = []
         if len(libStatic) > 0:
             linkLibs += [procStatic(x, self.libFlags) for x in libStatic]
-        if env["compiler"] == "clang":
+        if env["stdlib"] == "libc++":
             if "android" in env:
                 if env["ndkVer"] >= 2300:
                     """
@@ -213,7 +213,7 @@ class Project:
                     """
                     linkLibs.append("-lunwind")
             else:
-                linkLibs.append("-lunwind")
+                linkLibs.remove("-lunwind")
         linkLibs += [f"-l{x}" for x in libDynamic]
         if osname == 'Darwin':
             linkLibs += [f"-framework {x}" for x in self.tbdLibs]
