@@ -177,6 +177,7 @@ struct AVX2VNNI
     }
 };
 struct AVX2VNNI_I16 : public AVX2VNNI {};
+struct AVX2VNNI_I16_2 : public AVX2VNNI {};
 struct AVX2VNNI_I8 : public AVX2VNNI {};
 struct AVX512BW
 {
@@ -221,6 +222,7 @@ struct AVX512VNNI
     }
 };
 struct AVX512VNNI_I16 : public AVX512VNNI {};
+struct AVX512VNNI_I16_2 : public AVX512VNNI {};
 struct AVX512VNNI_I8 : public AVX512VNNI {};
 struct AVX512VBMI2
 {

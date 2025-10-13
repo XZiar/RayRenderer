@@ -337,6 +337,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "simd", "simd", "{4A40A101-9
 		common\simd\SIMD128SSE.hpp = common\simd\SIMD128SSE.hpp
 		common\simd\SIMD256.hpp = common\simd\SIMD256.hpp
 		common\simd\SIMD256AVX.hpp = common\simd\SIMD256AVX.hpp
+		common\simd\SIMD512AVXHelper.hpp = common\simd\SIMD512AVXHelper.hpp
 		common\simd\SIMDVec.hpp = common\simd\SIMDVec.hpp
 	EndProjectSection
 EndProject
